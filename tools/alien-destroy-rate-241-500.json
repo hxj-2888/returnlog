@@ -3,6 +3,8 @@
  "errs": 0,
  "seedFrom": 241,
  "seedTo": 500,
+ "seatMode": "classic",
+ "seatNote": "外星人席位有 50% 概率掷出死囚（convict）；那类局里没有经典外星人，故 branch 决策分母与全经典局不同口径，读数必须与 seatMode 一起引用。",
  "branchDecisions": 2866,
  "tally": {
   "destroy": 63,
