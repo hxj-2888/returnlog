@@ -14,8 +14,8 @@
 
   global.SKConfig = Object.freeze({
     name: '新返航录',
-    version: '返航录V3',
-    build: '2026-10-30',
+    version: '返航录V3.1',
+    build: '2026-11-01',
     license: 'MIT',
     repos: Object.freeze({
       github: 'https://github.com/hxj-2888/space-kill-web',

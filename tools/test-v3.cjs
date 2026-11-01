@@ -395,12 +395,12 @@ function section(t) { console.log('\n== ' + t); }
     const start = t.interact();
     return { start, dmg: g.dmg.length, doing: g.me.doing, label: d.label };
   });
-  ok(GF.start.do === 'fix' && GF.doing > 15.5 && GF.dmg === 1,
-    '幽灵维修故障：进入连续维修且与任务同样 1.6×');
+  ok(GF.start.do !== 'fix' && GF.dmg === 1,
+    '幽灵不能修故障（2026-11-01）：修复额度只花在剩余任务上');
   await T(() => { SKV3._t.G().me.doing = 0.02; });
   await page.waitForTimeout(260);
   const GF2 = await T(() => ({ dmg: SKV3._t.dmg().length, inv: SKV3._t.inv() }));
-  ok(GF2.dmg === 0 && GF2.inv && GF2.inv.fails.length === 0,
+  ok(GF2.dmg === 1 && GF2.inv && GF2.inv.fails.length === 0,
     '幽灵修完故障：故障清除，不变量全过');
 
   section('性格轴 · 激进/谨慎的系数差');
@@ -2601,10 +2601,13 @@ function section(t) { console.log('\n== ' + t); }
     const before = t.lights().state;
     const r = t.aiTickAlien(k.i, 120, 0.05);
     return { i: k.i, p, before, after: t.lights().state, sab: r.sab,
+      plan: k._plan || null, sabUsed: k.sabUsed, doing: k._doing,
       fx: t.fx(), msg: g.msg, inv: t.inv() };
   });
   ok(AIK0.before !== 2 && AIK0.after === 2,
-    'AI 异形走到电闸拉闸：真正断电（' + AIK0.before + '→' + AIK0.after + '）');
+    'AI 异形走到电闸拉闸：真正断电（' + AIK0.before + '→' + AIK0.after +
+    '） plan=' + JSON.stringify(AIK0.plan) + ' sabUsed=' + AIK0.sabUsed +
+    ' doing=' + AIK0.doing);
   ok(AIK0.sab && AIK0.fx.includes('power') && AIK0.msg.indexOf('电闸已拉下') >= 0,
     '拉闸反馈：全船断电 + 电闸特效 + 播报');
   ok(AIK0.inv && AIK0.inv.fails.length === 0, 'AI 拉闸后不变量全过');
@@ -2641,9 +2644,11 @@ function section(t) { console.log('\n== ' + t); }
       knife: r.knife, hp: t.robots().sec.hp,
       prog: g.prog, inv: t.inv() };
   }, AIK0);
-  ok(AIK1.dead && AIK1.sab, 'AI 异形刀用完后改用破坏技停摆保安机器人：当晚停摆');
-  ok(AIK1.fx.includes('spark'), 'AI 停摆机器人留下火花特效');
-  ok(AIK1.inv && AIK1.inv.fails.length === 0, 'AI 停摆机器人后不变量全过');
+  /* 2026-11-01 用户裁定：机器人/无人机只能被刀/枪瘫痪，破坏技与机器人彻底无关 ——
+     刀用完的异形在保安面前会改走效用表其它候选（拆舱室/拉闸），保安不受影响 */
+  ok(!AIK1.dead && AIK1.hp === 2,
+    '破坏技不再能停摆机器人：保安只能被刀/枪摧毁（刀用完就轮不到它，装甲无损）');
+  ok(AIK1.inv && AIK1.inv.fails.length === 0, '破坏技与机器人解耦后不变量全过');
   const AIK2 = await T(o => {
     const t = SKV3._t, g = t.G();
     const freeNear = (x, y, minD, maxD) => {
@@ -2740,6 +2745,9 @@ function section(t) { console.log('\n== ' + t); }
     t.tp(k.i, ppt[0], ppt[1]);
     k.knife = 1; k.sabUsed = false; k._delay = 0; k.doing = 0; k._doing = null;
     k.path = null; k.target = null;
+    /* 锁成中性性格：出刀门槛（knifeReach）随性格浮动会让 chase/bot 的效用
+       竞争随机翻转，不锁的话这条断言时好时坏（2026-11-01 实测）。 */
+    k.trait = { aggr: 50, caut: 50, soc: 50, cur: 50 };
     /* 造出「房间里认出 2 名队友 + 一个共同捕杀目标」的围攻局面 */
     const mates = g.agents.filter(a => a.alien && a !== k && a.alive).slice(0, 2);
     mates.forEach((m2, n) => {
@@ -2753,14 +2761,19 @@ function section(t) { console.log('\n== ' + t); }
     const before = { knife: k.knife, sab: k.sabUsed, hp: t.robots().sec.hp, dead: t.robots().sec.dead };
     /* 围攻意愿是 70% 概率：这里固定随机数，避免门禁随机飘 */
     const oldR = Math.random; Math.random = () => 0.1;
-    const r1 = t.aiTickAlien(k.i, 3, 0.05);
+    /* 1 秒足够贴身下刀：拉长到 3 秒会引入"追 vic 刀人"的中间漂移（flaky 源） */
+    const r1 = t.aiTickAlien(k.i, 1, 0.05);
     Math.random = oldR;
     const after = { knife: r1.knife, sab: r1.sab, hp: t.robots().sec.hp, dead: t.robots().sec.dead,
       red: k.redT, acts: t.acts(), crime: g.pendingCrime };
-    return { before, after, k: k.i, mates: mates.length, inv: t.inv() };
+    return { before, after, k: k.i, mates: mates.length, inv: t.inv(),
+      plan: k._plan || null, doing: k._doing,
+      robots: JSON.stringify(t.robots()) };
   });
   ok(AIKB.before.hp === 2 && AIKB.after.knife === 0,
-    '组队围攻时 AI 异形才对保安出刀：消耗刀数（不再是白得的停摆）');
+    '组队围攻时 AI 异形才对保安出刀：消耗刀数（不再是白得的停摆）' +
+    ' plan=' + JSON.stringify(AIKB.plan) + ' doing=' + AIKB.doing +
+    ' robots=' + AIKB.robots);
   ok(AIKB.after.hp === 1 && !AIKB.after.dead && AIKB.after.sab === false,
     'AI 出刀按装甲 HP 结算：保安 2 点装甲只掉到 1，没被一刀拆死，也没偷用破坏技');
   ok(AIKB.after.red >= 2.5 && AIKB.after.acts.includes('stab'),
