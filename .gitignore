@@ -17,3 +17,5 @@ android/assets/www/
 
 # SDXL 候选原图（正式图 assets/scene/v4/facility/*.png 会入库）
 assets/scene/v4/facility/_raw/
+# Blender 渲染的原始帧（正式图由 tools/fx-post.py 合成）
+assets/scene/v4/facility/_raw_fx/

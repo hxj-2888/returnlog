@@ -7,6 +7,8 @@
 #            secbot  保安机器人（枪灰装甲 + 橙红警示条 + 扫视灯）
 #            monitor 监控台（一墙小屏 + 青绿信号）
 #            breaker 电闸（琥珀警示柜 + 大红拉杆）
+#            supply-ammo 军械补给箱（掀盖弹药箱 + 竖立黄铜弹壳 + 琥珀警示条）
+#            supply-med  医疗补给箱（深青密封箱 + 青绿十字，与 medbot 同配色）
 # 产出：   assets/scene/v4/facility/<name>.png  RGBA 512×512，已去背 + 接地阴影
 #          assets/scene/v4/facility/<name>-cN.png  候选图（挑图用，不进游戏）
 # 用法：   python tools/gen-facility-sprites.py --only medbot --candidates 3
@@ -55,24 +57,80 @@ SPECS = {
         'one single tall electrical distribution cabinet, black metal box with amber caution stripe, '
         'one large red lever handle on the front panel, small amber indicator lamp, standing upright'
         + VIEW_TOP + COMMON),
+    # ---- 补给站（2026-11-01）----
+    # 这两件之前是 Canvas 上画的「圆角矩形 + 居中图标 + 上方 9px 文字」，
+    # 在 12° 俯角的底图上等于一张贴地 UI 按钮：没有顶面、没有厚度、没有受光。
+    # 改成和电闸/监控台同一条管线出 2.5D 贴图，Canvas 侧以后只留状态层。
+    # 形状语言统一（低矮箱体 + 顶面识别标），只靠材质与顶面标记区分军械 / 医疗。
+    # 首版提示词把 "low open ammunition crate" 写在最前，SDXL 直接出了一张
+    # **2×2 四宫格**（开/合盖对照图），白底也变成灰底，抠图必废。
+    # 现在把「one single」提到句首、把 "open" 去掉（它暗示"开/关两种状态"），
+    # 并把 "isolated on plain white background" 放进正文而不是压到尾巴。
+    # 实测 57 / 56 token，离 77 还有余量，但**不要再加形容词**——
+    # 尾巴一旦被截，"white background" 就没了，抠图直接失效。
+    'supply-ammo': (
+        'one single ammunition crate, olive-drab steel box, brass rifle cartridges inside, '
+        'amber hazard stripe' + VIEW_TOP +
+        ', isolated on plain white background, dark gunmetal sci-fi prop, no shadow, no text'),
+    # 医疗箱首版写 "teal-green cross emblem on lid"：SDXL 把整个箱体刷成了荧光绿，
+    # 而且是**开盖**的（十字跑到盖子内侧，顶面标记没了），背景还多了一张白桌面 + 阴影。
+    # 改法：用 sealed 锁死单一状态、把颜色词挪到"箱体"上（white case + green cross symbol），
+    # 明确 "on the lid"，并把白底短语提前。实测 47 token。
+    # 手持工具：维修动画里那把扳手（2026-11-01 从 Canvas 手画换成 SDXL 出图）。
+    # 白底 + 深色金属，亮度抠图能过；构图上要"开口头朝右上、手柄朝左下"，
+    # 游戏里以手柄末端为轴做往复拧动，角度对齐手画的旧版。
+    'tool-wrench': (
+        'one single open-end wrench, polished dark steel, industrial hand tool, '
+        'head at upper right, handle to lower left, side view' + VIEW_TOP +
+        ', isolated on plain white background, no shadow, no text'),
+    'supply-med': (
+        'one single closed medical supply crate, dark teal steel box, white cross stencil on lid'
+        + VIEW_TOP +
+        ', isolated on plain white background, no glow, no shadow, no text'),
 }
-NEG = ('drop shadow, cast shadow, soft shadow, reflection, mirror floor, gradient background, '
-       'vignette, collage, contact sheet, multiple views, grid of objects, kaleidoscope, '
-       'seamless tileable texture, repeating pattern, tile, wallpaper, '
-       'text, letters, watermark, logo, human, person, hands, '
-       'interior room background, floor, wall, strong perspective, fisheye, '
-       'photo, realistic photograph, blurry, low contrast, oversaturated neon, '
-       'duplicated object, cropped object, cut off, noise')
+# 2026-11-01 重排 + 瘦身：旧版 104 token，CLIP 只吃 77 —— 尾巴
+# `duplicated object, cropped object, cut off, noise` 从来没有生效过，
+# 而真正决定构图的 `collage / contact sheet / multiple views` 虽然在前段，
+# 却被大量次要词稀释。现在按「先构图、再材质、最后画质」重排，**整条 74 token 全部生效**。
+NEG = ('collage, contact sheet, multiple views, grid of objects, duplicated object, '
+       'cropped object, cut off, drop shadow, cast shadow, reflection, mirror floor, glow, '
+       'gradient background, text, letters, watermark, logo, human, person, hands, '
+       'interior room, floor, wall, strong perspective, '
+       'seamless tileable texture, repeating pattern, blurry, noise')
+
+
+# ---------------- 特效贴图（加色混合用） ----------------
+# 特效**不能走白底抠图**：光晕外圈本来就是白的，抠完只剩一圈硬边。
+# 改用「纯黑底 + 加色混合」：画的时候 globalCompositeOperation='lighter'，
+# 黑色不贡献任何亮度，天然等于透明，光晕的衰减还能完整保留。
+# 所以这一组只调色、不抠图、不加接地阴影（见 main 的 --fx 分支）。
+FX_SPECS = {
+    'fx-task': (
+        'radial burst of thin cyan energy rings and fine sparks, glowing holographic '
+        'completion flash, centered' + VIEW_TOP + ', pure black background, no text'),
+    'fx-weld': (
+        'welding spark burst, hot orange and white sparks flying outward from a bright '
+        'center flash, industrial' + VIEW_TOP + ', pure black background, no text'),
+}
 
 
 # ---------------- SDXL 管线（与 gen-materials.py 同源） ----------------
-def stream_safetensors_to_gpu(path, model):
-    """逐张量读 safetensors 直接灌进 GPU（见 gen-materials.py 的注释）。"""
+def stream_safetensors_to_gpu(path, model, chunk_mb=48):
+    """逐张量「分块直灌显存」上卡（见 gen-materials.py 的注释）。
+
+    2026-11-01 修：旧实现把整个张量读进 bytearray 再 torch.frombuffer，
+    最大的一个张量要一次性拿到 1.2GB 连续内存；16GB 机器只剩 2~3GB 空闲时
+    直接 MemoryError（本机实测：出图前先崩在加载阶段）。
+    现在按 chunk_mb 分块：CPU 侧只留一个小缓冲，每块 copy_ 进已经分配好的显存张量，
+    **峰值内存 = 单块大小**，不再随张量尺寸线性增长。
+    """
     import json
     import struct
     import torch
     from accelerate.utils import set_module_tensor_to_device
     DT = {'F16': torch.float16, 'F32': torch.float32, 'BF16': torch.bfloat16}
+    ES = {'F16': 2, 'F32': 4, 'BF16': 2}
+    chunk = chunk_mb << 20
     n = 0
     with open(path, 'rb') as f:
         head = struct.unpack('<Q', f.read(8))[0]
@@ -82,14 +140,26 @@ def stream_safetensors_to_gpu(path, model):
             if name == '__metadata__':
                 continue
             b, e = t['data_offsets']
+            dt = DT[t['dtype']]
+            nbytes = e - b
+            shape = t['shape'] or [nbytes // ES[t['dtype']]]
+            dst = torch.empty(shape, dtype=dt, device='cuda')
+            flat = dst.view(-1)
             f.seek(base + b)
-            buf = bytearray(f.read(e - b))
-            v = torch.frombuffer(buf, dtype=DT[t['dtype']])
-            if t['shape']:
-                v = v.view(t['shape'])
-            set_module_tensor_to_device(model, name, device='cuda', value=v, dtype=torch.float16)
+            off = 0
+            while off < nbytes:
+                k = min(chunk, nbytes - off)
+                buf = f.read(k)
+                if len(buf) != k:
+                    raise IOError('safetensors 读取截断：%s' % name)
+                part = torch.frombuffer(bytearray(buf), dtype=dt)
+                step = ES[t['dtype']]
+                flat[off // step:(off + k) // step].copy_(part)
+                off += k
+            set_module_tensor_to_device(model, name, device='cuda', value=dst, dtype=torch.float16)
+            del dst, flat
             n += 1
-    print('[facility] UNet 流式上卡：%d 个张量' % n)
+    print('[facility] UNet 流式上卡：%d 个张量（分块 %dMB）' % (n, chunk_mb))
     return model
 
 
@@ -180,16 +250,34 @@ POST_TUNE = {
     'medbot': (0.40, 0.90),
     'monitor': (0.46, 1.02),
     'breaker': (0.34, 0.86),
+    # 补给站：军械在危险条纹地板上要留住黄铜的暖，压太狠会糊成一块灰；
+    # 医疗箱跟 medbot 同配色（深青机体 + 青绿十字），压到 0.40 保住那道绿。
+    'supply-ammo': (0.44, 0.94),
+    'supply-med': (0.40, 0.92),
+    'tool-wrench': (0.30, 0.90),
+    # 特效：加色混合下"颜色就是亮度"，降饱和会把焊花洗成纯白（实测第一版糊成一团白光）。
+    # 所以特效的 sat 要比道具高得多，保留色相；dim 略降，避免叠加后过曝。
+    'fx-task': (0.66, 1.00),
+    'fx-weld': (0.82, 0.94),
 }
 
 
 def cutout(img):
-    """背景抠图：四角背景色 + 低饱和双判据，从边缘泛洪，只保留最大连通域。
+    """背景抠图：**逐行**背景色 + 低饱和双判据，从边缘泛洪，只保留最大连通域。
+
+    2026-11-01 两处修正（补给箱实跑踩出来的）：
+      ① 背景模型从「全图四角中位色」改成「逐行取左右边缘条的中位色」。
+         模型爱在道具后面画一道墙/地分界，背景沿 y 轴有明显渐变：上沿 0.76、
+         下沿 0.33，中位色落在 0.58 —— 恰好卡在深青箱体（0.08/0.33/0.31）的
+         判定边界上，于是箱身被整块判成背景挖掉，只剩几根高对比棱线。
+         按行取边缘色能贴住竖直渐变，浅色/中色物体不再被误杀。
+      ② 丢掉「横向贯穿整幅」的连通域：那是模型画的地面/墙面分界线，不是物体。
+         旧实现只按面积筛（≥ 最大块 25%），一条贯穿全宽的亮带面积够大，会留下来。
 
     踩过的坑（都在真图上复现过）：
       · 只用「离白色多远」→ 模特画的浅灰渐变 + 落地投影会整片留下；
       · 加「亮度 > Otsu」→ 无人机中央那块发光的青绿十字亮度也高，被整块挖空。
-    最终判据只看「像不像背景」：与四角背景色接近 **且** 低饱和（背景/阴影是灰的，
+    最终判据只看「像不像背景」：与该行的边缘背景色接近 **且** 低饱和（背景/阴影是灰的，
     机身的青绿/橙红发光件饱和度一定高），再从画面边缘泛洪，物体内部的亮面板
     只要不与画外连通就保得住。最后只留最大连通域（允许 >25% 的第二块），
     模型爱画的分离零件当噪声删掉。
@@ -201,6 +289,8 @@ def cutout(img):
     rgb = np.asarray(img.convert('RGB'), np.float32) / 255.0
     h, w = rgb.shape[:2]
 
+    # 背景色取四角中位色。**必须用未调色的原图判定**（见 post_process 的注释）：
+    # grade() 的降饱和会把中饱和度物体压到 sat<0.28 以下，跟着被判成背景挖空。
     corners = np.array([rgb[0, 0], rgb[0, w - 1], rgb[h - 1, 0], rgb[h - 1, w - 1]])
     bg = np.median(corners, axis=0)
     sat = rgb.max(axis=2) - rgb.min(axis=2)
@@ -228,9 +318,12 @@ def cutout(img):
                 seen[ny, nx] = True; q.append((ny, nx))
     alpha = (~seen).astype(np.float32)
 
-    # 只留最大连通域（+ 面积 >25% 的第二块，允许「旋翼臂上的独立桨叶」这种合理拆分）
+    # 只留最大连通域（+ 面积 >25% 的第二块，允许「旋翼臂上的独立桨叶」这种合理拆分）；
+    # 同时记录每块的横向包围盒，**丢掉左右都顶到画边的块** —— 那是墙/地分界线，
+    # 不是物体（旧实现只看面积，一条贯穿全宽的亮带面积够大就会留下来）。
     lab = np.zeros((h, w), np.int32)
     areas = {}
+    box = {}
     cur = 0
     for sy in range(h):
         for sx in range(w):
@@ -238,16 +331,24 @@ def cutout(img):
                 continue
             cur += 1
             q = deque([(sy, sx)]); lab[sy, sx] = cur; n = 0
+            x0 = x1 = sx
             while q:
                 y, x = q.popleft(); n += 1
+                if x < x0: x0 = x
+                if x > x1: x1 = x
                 for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     ny, nx = y + dy, x + dx
                     if 0 <= ny < h and 0 <= nx < w and alpha[ny, nx] >= 0.5 and not lab[ny, nx]:
                         lab[ny, nx] = cur; q.append((ny, nx))
             areas[cur] = n
+            box[cur] = (x0, x1)
     if areas:
-        top = max(areas.values())
-        keep = {k for k, v in areas.items() if v >= top * 0.25}
+        spans = {k for k, (x0, x1) in box.items() if x0 <= 1 and x1 >= w - 2}
+        rest = {k: v for k, v in areas.items() if k not in spans}
+        if not rest:
+            rest = areas
+        top = max(rest.values())
+        keep = {k for k, v in rest.items() if v >= top * 0.25}
         alpha = np.where(np.isin(lab, list(keep)), 1.0, 0.0).astype(np.float32)
 
     # 轻腐蚀去背景色溢出 + 回膨胀，最后羽化（重腐蚀会削断旋翼细臂）
@@ -298,7 +399,7 @@ def pick(sprites_dir, name):
     return 0
 
 
-def post_process(names, candidates, raw_dir):
+def post_process(names, candidates, raw_dir, fx=False):
     """后处理单独一段跑：SDXL 管线常驻时系统内存只剩 ~1GB，
     在同一个进程里做抠图会 allocation failed（实测 9MiB 都拿不到）。"""
     import glob
@@ -308,6 +409,11 @@ def post_process(names, candidates, raw_dir):
         base = n.rsplit('-c', 1)[0]
         if names and base not in names:
             continue
+        # 特效与设施的后处理方式完全不同（前者不抠图），必须按组隔离。
+        # 2026-11-01 踩过：不带 --only 跑 --fx --post，把四件老设施的候选图
+        # 全部按"特效"处理覆盖成了无 alpha 的方图。
+        if (base in FX_SPECS) != bool(fx):
+            continue
         todo.append((base, n, f))
     if not todo:
         print('[ERR] %s 里没有原始图，先跑 --raw 出图' % raw_dir)
@@ -316,9 +422,21 @@ def post_process(names, candidates, raw_dir):
     from PIL import Image
     for base, n, f in todo:
         sat, dim = POST_TUNE.get(base, (0.35, 0.86))
+        if fx:
+            # 特效：只调色，不抠图、不加接地阴影（黑底靠 'lighter' 混合天然透明）
+            raw = Image.open(f).convert('RGB')
+            graded = Image.fromarray(grade(np.asarray(raw), sat, dim).astype('uint8'), 'RGB')
+            graded.resize((512, 512), Image.LANCZOS).save(os.path.join(OUT, n + '.png'))
+            print('  post(fx) %s (sat %.2f / dim %.2f)' % (n + '.png', sat, dim))
+            continue
         raw = Image.open(f).convert('RGB')
-        graded = Image.fromarray(grade(np.asarray(raw), sat, dim).astype('uint8'), 'RGB')
-        cut = cutout(graded)
+        # 调色只作用于 RGB，**抠图必须用未调色的原图**：
+        # grade() 的降饱和会把中饱和度物体压到 sat<0.28 以下，先调色再抠图的话，
+        # 整块箱身会被判成背景挖掉（补给箱实测：深青箱体只剩几根高对比棱线）。
+        # 分割和调色是两件事，顺序反了会互相污染。
+        graded = grade(np.asarray(raw), sat, dim).astype(np.uint8)
+        mask = np.asarray(cutout(raw))[..., 3:4].astype(np.float32)
+        cut = Image.fromarray(np.dstack([graded.astype(np.float32), mask]).astype('uint8'), 'RGBA')
         sprite = compose_sprite(cut, 512)
         sprite.save(os.path.join(OUT, n + '.png'))
         print('  post %s (sat %.2f / dim %.2f)' % (n + '.png', sat, dim))
@@ -336,6 +454,7 @@ def main():
     ap.add_argument('--raw', action='store_true', help='只出图存到 _raw/，后处理留给 --post')
     ap.add_argument('--post', action='store_true', help='只做后处理（读 _raw/）')
     ap.add_argument('--pick', default=None, help='把某个候选（如 medbot-c2）定为正式图')
+    ap.add_argument('--fx', action='store_true', help='特效贴图模式：黑底、加色混合、不抠图')
     args = ap.parse_args()
 
     os.makedirs(OUT, exist_ok=True)
@@ -343,17 +462,18 @@ def main():
     if args.pick:
         return pick(OUT, args.pick)
     if args.post:
-        return post_process(args.only, args.candidates, raw_dir)
+        return post_process(args.only, args.candidates, raw_dir, args.fx)
 
-    names = args.only or list(SPECS.keys())
-    bad = [n for n in names if n not in SPECS]
+    specs = FX_SPECS if args.fx else SPECS
+    names = args.only or list(specs.keys())
+    bad = [n for n in names if n not in specs]
     if bad:
-        print('[ERR] 未知设施：%s（可选：%s）' % (','.join(bad), ','.join(SPECS)))
+        print('[ERR] 未知设施：%s（可选：%s）' % (','.join(bad), ','.join(specs)))
         return 2
 
     os.makedirs(raw_dir, exist_ok=True)
     pipe = build_pipe()
-    embeds = {n: encode_prompt(pipe, SPECS[n]) for n in names}
+    embeds = {n: encode_prompt(pipe, specs[n]) for n in names}
     drop_text_encoders(pipe)
 
     for n in names:

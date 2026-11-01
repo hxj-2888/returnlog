@@ -23,6 +23,10 @@
   const AXES = ['aggr', 'caut', 'soc', 'cur'];
   const NEUTRAL = 50;
   const BANDS = [[28, 0.30], [50, 0.40], [72, 0.30]];
+  /* 性格压缩：由理智层统一给（SKSanity.TRAIT_GAIN）。默认 0.45 —— 性格仍然分档，
+     但激进与保守的行为差异被压到原来的 45%，避免"激进=当众杀人"那种断崖。
+     本文件不自己写这个数：方差是全局策略，归 SKSanity 管。 */
+  const GAIN = (global.SKSanity && global.SKSanity.TRAIT_GAIN) || 1;
 
   function pick(rnd) {
     const r = (rnd || Math.random)();
@@ -35,11 +39,11 @@
     for (const k of AXES) o[k] = pick(rnd);
     return o;
   }
-  /* 档位 → [-1, 1]：0 = 中性，+1 = 该轴拉满 */
+  /* 档位 → [-1, 1]：0 = 中性，+1 = 该轴拉满（已乘性格压缩系数 GAIN） */
   function b(a, axis) {
     const t = a && a.trait;
     const v = t && t[axis] != null ? t[axis] : NEUTRAL;
-    return (v - NEUTRAL) / 50;
+    return ((v - NEUTRAL) / 50) * GAIN;
   }
 
   /* 具名系数：**唯一真源**。注释里的数值是「中性档（50）」的基线，
@@ -52,11 +56,18 @@
     knifeBusyBonus: a => -12 * (1 + 0.35 * b(a, 'aggr')),
     /* 异形：贴脸出刀的距离门槛（基线 1.3 格，见 aiTickAlien 的 td<1.3 判定） */
     knifeReach: a => 1.3 * (1 + 0.22 * b(a, 'aggr')),
-    /* 异形：旁边有目击者时仍然出手的胆量（基线 0.55，>= 2 人时基线必定放弃） */
-    knifeBold: a => Math.max(0.12, Math.min(0.95,
-      0.55 + 0.35 * b(a, 'aggr') - 0.25 * b(a, 'caut'))),
-    /* 异形：目击者人数的硬上限（基线 2；够激进就敢在 2 个人面前动手） */
-    knifeWatcherCap: a => (b(a, 'aggr') > 0.30 ? 3 : 2),
+    /* 异形：旁边有目击者时仍然出手的胆量。**只在理智层给的窄区间里浮动**：
+       基线 0.50 ± 0.16（0.34~0.66）。旧版 0.12~0.95 的跨度把"谨慎"变成
+       "永远不出刀"、把"激进"变成"当众杀人"，已被理智线否掉（见 SKSanity.KNIFE）。 */
+    knifeBold: a => {
+      const K = (global.SKSanity && global.SKSanity.KNIFE) || { boldBase: 0.5, boldSpan: 0.16 };
+      return Math.max(0.30, Math.min(0.72,
+        K.boldBase + K.boldSpan * b(a, 'aggr') - K.boldSpan * b(a, 'caut')));
+    },
+    /* 目击者人数的硬上限：**统一取理智层的值**，性格不再改它。
+       三个人能看到就一定放弃——这是理智线，不是性格差异。 */
+    knifeWatcherCap: () => ((global.SKSanity && global.SKSanity.KNIFE)
+      ? global.SKSanity.KNIFE.witnessCap : 3),
     /* 人类开枪：需要的嫌疑分（基线 0.50）。激进 0.36 就敢打，谨慎要 0.60 */
     shootSus: a => 0.50 - 0.14 * b(a, 'aggr') + 0.10 * b(a, 'caut'),
     /* 投票弃权率。基线 0.52（比旧版 0.42 略高：性格化之后人类整体更敢投人，

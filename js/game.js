@@ -125,7 +125,17 @@
         const p=randIn(br); a.x=p[0]; a.y=p[1];
       }
       const me=agents[0];
-      G={agents,me,night:1,t:NIGHT,prog:0,over:null,overWhy:'',meet:null,
+      /* ---- 领袖型玩家（2026-11-01）----
+         约 1/4~1/5 的对局里会出现一个"爱指挥"的人：给全队下指令、做总体安排。
+         **不预先判定阵营** —— 他可能是人类，也可能是异形在带节奏，这才是好玩的地方。
+         只有 soc 轴够高的人才可能被选中，避免"最孤僻的人突然指挥全场"。 */
+      let leader=null;
+      if(Math.random()<SKSanity.LEADER.chance){
+        const pool=agents.filter(a=>a.i!==0||ROLE_WANT!=='alien')
+          .filter(a=>(a.trait.soc||50)>=SKSanity.LEADER.minSoc);
+        if(pool.length)leader=pool[Math.floor(Math.random()*pool.length)].i;
+      }
+      G={agents,me,leader,night:1,t:NIGHT,prog:0,over:null,overWhy:'',meet:null,
          lit:{},blackout:false,vis:null,fogOn:true,camMode:'follow',fx:[],waves:[],clickFx:null,lightState:0,
          corrLit:true,paused:false,pauseAt:0,taskKey:'',camView:false,pipePick:null,powerFixed:false,
          secbotUsed:false,secbotUses:0,secbotDead:false,medbotUsed:false,medbotDead:false,medbotT:0,secbotT:0,
@@ -309,9 +319,7 @@
       if(!G||G.camView||G.over)return;
       /* 门声对附近 AI 始终可听；玩家音量才按距离裁剪 */
       aiHear('door',d.x,d.y,7);
-      const dm=Math.hypot(G.me.x-d.x,G.me.y-d.y);
-      if(dm>12)return;
-      SND.doorAuto(Math.max(0.12,0.5*(1-dm/12)));
+      SND.doorAuto(SND.volAt(d.x,d.y,0.85));
     }
     function doorBlockedSegment(x1,y1,x2,y2){
       if(!G||!G.doors)return false;
@@ -533,6 +541,9 @@
         if(G.lightState===2&&G.powerFixed)
           G.fx.push({type:'alarm',x:br.x,y:br.y,t:1.4,dur:1.4});
         hear(br.x,br.y,'power',1.1);
+        /* 正向信任：把闸合上 = 当着人的面做好事。
+           异形的"合闸伪装"就靠这一条兑现成 cred（见 alienSupport 的 breakerOn）。 */
+        if(G.lightState!==2)credBroadcast(actor,'breakerOn',br.x,br.y);
         noticeAction(actor,br.x,br.y,6,'breaker');
         aiHear('power',br.x,br.y,30,{actor:actor});
         envNotice('lights',br.x,br.y,G.lightState===2?0.85:0.45);
@@ -650,7 +661,7 @@
         a._stepAcc=0;
         if(a.alive){
           const dme=Math.hypot(a.x-G.me.x,a.y-G.me.y);
-          if(dme<6&&(a===G.me||visibleAt(a.x,a.y))) SND.step(a===G.me?0.5:Math.max(0.05,0.28*(1-dme/6)));
+          if(dme<8&&(a===G.me||visibleAt(a.x,a.y))) SND.step(a===G.me?0.42:SND.volAt(a.x,a.y,0.6));
           /* 声纹：别人的脚步即使被墙挡住也能听见方向（近处才画） */
           if(a!==G.me&&dme<14) hear(a.x,a.y,'step',Math.max(0.18,0.7*(1-dme/14)));
         }
@@ -814,16 +825,29 @@
     function sabRoomOk(rid){
       return !!rid&&rid!=='bridge'&&M.rooms.some(r=>r.id===rid)&&!dmgOfRoom(rid);
     }
-    /* 破坏落点取该舱室的高难任务点（没有就退普通点，再没有就房间中心），
-       这样被损毁的“物品”有名字，维修也落在人本来就会去的地方 */
+    /* 破坏落点：在该舱室的**任务点**里随机抽一个设备（硬点权重更高），
+       不再固定取第一个硬点、更不落舱室中心（2026-11-01 用户要求）。
+       这样"被损毁的东西"有名字、有具体位置，维修的人本来就会往那儿去；
+       异形也必须真的走到那台设备前下手，而不是踏进舱门就引爆整间房。 */
+    /* 落点缓存：同一夜同一舱室必须返回同一个设备。
+       否则 pickSabRoom 抽一次、damageRoom 又抽一次，会出现"报的是手术台、
+       坏的是药柜"，AI 侧的 _sabSpot 也会来回改目标。每夜在 startNight 清空。 */
+    const SAB_SPOT_CACHE={};
     function sabSpot(rid){
+      if(SAB_SPOT_CACHE[rid])return SAB_SPOT_CACHE[rid];
       const ps=M.points.filter(p=>p.room===rid);
-      const p=ps.find(q=>q.kind==='hard')||ps[0];
-      if(p){const f=nearestFree(p.x,p.y);return{room:rid,x:f[0],y:f[1],label:p.label};}
+      if(ps.length){
+        /* **均匀随机**取该舱室的任意任务点（2026-11-01 用户裁定）。
+           之前给硬点 0.6 权重，结果老是抽到那几个靠近房间中心的硬点，
+           看起来就像"破坏点还在中心"。均匀抽才是"任意维修点"。 */
+        const p=ps[Math.floor(Math.random()*ps.length)];
+        const f=nearestFree(p.x,p.y);
+        return (SAB_SPOT_CACHE[rid]={room:rid,x:f[0],y:f[1],label:p.label});
+      }
       const r=M.rooms.find(q=>q.id===rid);
       if(!r)return null;
       const f=nearestFree(r.rect[0]+r.rect[2]/2,r.rect[1]+r.rect[3]/2);
-      return{room:rid,x:f[0],y:f[1],label:r.name+'设备'};
+      return (SAB_SPOT_CACHE[rid]={room:rid,x:f[0],y:f[1],label:r.name+'设备'});
     }
     function nearDmg(a,maxD){
       let best=null,bd=maxD==null?FIX_RANGE:maxD;
@@ -871,10 +895,12 @@
       SND.interact();
       return true;
     }
-    function damageRoom(a,rid){
+    function damageRoom(a,rid,spot){
       if(!a||!a.alive||a.downed||!a.alien||a.sabUsed)return false;
       if(!sabRoomOk(rid))return false;
-      const sp=sabSpot(rid); if(!sp)return false;
+      /* 落点由调用方决定（AI 抽一次就固定，玩家用手里的 sabTarget），
+         没给才现抽 —— 否则同一帧里抽两次会出现"报的房间和设备对不上" */
+      const sp=spot||sabSpot(rid); if(!sp)return false;
       G.dmg.push({room:rid,x:sp.x,y:sp.y,label:sp.label,left:SAB_TIME,dur:SAB_TIME,by:a.i,
         born:evNow()});
       if(G.simMode&&G.simStats)G.simStats.sabotages++;
@@ -933,12 +959,14 @@
       }
       logEvent('fix',{actor:a.i,room:d.room,label:d.label,ghost:!!a.ghost,
         x:+d.x.toFixed(1),y:+d.y.toFixed(1)});
+      /* 正向信任：看见别人把破坏修好 → +cred（异形伪装成维修也走这条路，这正是洗白） */
+      if(!a.ghost)credBroadcast(a,'fixDone',d.x,d.y);
       if(!G.spectMode&&a===G.me)toast('故障已修复：'+roomNameById(d.room)+'「'+d.label+'」');
       SND.done();
       runInvariants('finishFix');
     }
     /* 连续维修：所有站桩动作一旦移动就打断；计时到 0 才结算 */
-    const STAND_ACT={task:'维修任务',fix:'故障维修',breaker:'拉闸',med:'取医疗包',ammo:'取子弹',revive:'施救',search:'搜查',qual:'领取物资申请单'};
+    const STAND_ACT={task:'维修任务',fix:'故障维修',breaker:'拉闸',sab:'破坏设备',med:'取医疗包',ammo:'取子弹',revive:'施救',search:'搜查',qual:'领取物资申请单'};
     function tickDoing(a,dt){
       if(!(a.doing>0)){a._standDoing=null;a._moveHit=false;return;}
       if(a._standDoing!==a._doing){a._standDoing=a._doing;a._moveHit=false;}
@@ -976,7 +1004,9 @@
         }
       }
     }
-    /* 玩家异形的目标引爆：进入目标舱室即可，不要求踩准某个点 */
+    /* 玩家异形的目标引爆：进入目标舱室即触发（2026-11-01 恢复）。
+       破坏的是**任务点上的那台设备**（G.dmg 的坐标），但不需要走到它跟前 ——
+       和 AI 侧同口径。 */
     function sabTick(){
       const me=G.me;
       if(G.t<=0||!me.alien||!me.alive||me.downed||me.detained||me.sabUsed)return;
@@ -984,7 +1014,7 @@
       if(!t)return;
       if(!sabRoomOk(t.room)){G.sabTarget=null;return;}
       if(roomIdAt(me.x,me.y)===t.room||Math.hypot(me.x-t.x,me.y-t.y)<SAB_RANGE)
-        damageRoom(me,t.room);
+        damageRoom(me,t.room,t);
     }
     
     /* 夜间见闻：只记录真的进过的房间和视距内看见的人。
@@ -1088,9 +1118,23 @@
          被谁咬过、被谁护过，会一直记得（衰减到 0.05 以下才忘）。 */
       const oldM=a.mind||{};
       const keepEmo=(o)=>{const out={};for(const k in (o||{})){if(o[k]>0.05)out[k]=o[k]*0.8;}return out;};
+      /* cred（正向信任）跨夜保留，按 SKSanity.CRED.decay 慢衰减 ——
+         洗白是长期投资，一夜做好事第二天就清零的话，伪装就没有意义了。 */
+      const keepCred=(o)=>{
+        const out={},d=SKSanity.CRED.decay,cap=SKSanity.CRED.cap;
+        for(const k in (o||{})){const v=o[k]*d;if(v>0.04)out[k]=Math.min(cap,v);}
+        return out;
+      };
       a.mind={mem:[],sus:{},why:{},alert:0,noise:null,seenBy:{},seenT:{},
         lastBody:null,tone:(a.i||0)%3,
         trust:keepEmo(oldM.trust),grudge:keepEmo(oldM.grudge),
+        /* cred：**正向信任**——"他干的是正经事"，和 trust（他帮过我）分开。
+           来源全是可被目击的正经行为（做任务/修故障/合闸/拖人进医疗间/施救），
+           异形伪装刷的就是这一条；作用是指控门槛、投票回避、证言加权。 */
+        cred:keepCred(oldM.cred),
+        /* warm：讨论里攒下的"聊得来"。和 trust（他帮过我）/ cred（他能干）都不同，
+           这一条只影响**空闲时想跟谁待在一起**，不影响投票。 */
+        warm:keepEmo(oldM.warm),
         /* known：亲眼确认「这个人就是异形」（钻管道 / 出刀 / 破坏 / 停摆机器人 /
            身上带着刚出刀的红光）。不是嫌疑分，是不再动摇的身份结论。 */
         known:keepKnown,redSeen:{},alibi:{}};
@@ -1114,6 +1158,97 @@
     /* 恩人不过票：被某人当众保过（trust≥0.8）就很难再把票投给他 */
     function isPatron(a,i){
       return !!(a&&a.mind&&a.mind.trust&&(a.mind.trust[i]||0)>=0.8);
+    }
+    /* ---- 正向信任 cred（2026-11-01）----
+       和 trust / grudge 完全分开的第三条通道：
+         trust = "他帮过我"     —— 情绪，来自当众辩护
+         grudge= "他咬过我"     —— 情绪，来自被指控
+         cred  = "他干的是正经事" —— 观察，来自可被目击的正经行为
+       这一条是异形伪装的**兑现口**：演得像，cred 就涨，之后没人愿意指控它。
+       数值全部来自 SKSanity.CRED.gains，这里只负责写。 */
+    function credAdd(a,i,w,reason){
+      if(!a||i==null||i===a.i||!G||!w)return;
+      if(!a.mind)mindReset(a);
+      if(!a.mind.cred)a.mind.cred={};
+      const cap=SKSanity.CRED.cap;
+      /* 追责机制会给**负**权重（投错票 → 信誉下降），所以这里要双向夹紧 */
+      a.mind.cred[i]=Math.max(0,Math.min(cap,(a.mind.cred[i]||0)+w));
+    }
+    function credOf(a,i){
+      return (a&&a.mind&&a.mind.cred&&a.mind.cred[i])||0;
+    }
+    /* ---- 讨论 → 关系（2026-11-01）----
+       warm 是"聊得来"：一起咬过同一个人、或者他替我辩护过。
+       只用于空闲时的同行偏好，**不参与投票**（避免变成第二套信任分）。 */
+    function warmAdd(a,i,w){
+      if(!a||i==null||i===a.i||!w)return;
+      if(!a.mind)mindReset(a);
+      if(!a.mind.warm)a.mind.warm={};
+      a.mind.warm[i]=Math.min(1,(a.mind.warm[i]||0)+w);
+    }
+    /* 空闲时想找的人：14 格内、warm 最高的活人（没有就返回 null） */
+    function warmMate(a){
+      if(!a||!a.mind||!a.mind.warm)return null;
+      const W=SKSanity.WARM;
+      let best=null,bw=W.minWarm;
+      for(const k in a.mind.warm){
+        const v=a.mind.warm[k];
+        if(v<bw)continue;
+        const t=G.agents[+k];
+        if(!t||t===a||!t.alive||t.downed||t.detained)continue;
+        if(Math.hypot(t.x-a.x,t.y-a.y)>W.range)continue;
+        bw=v;best=t;
+      }
+      return best;
+    }
+    /* ---- 追责机制（2026-11-01）----
+       投票结果公布后清算"带节奏"的人：
+         · 被驱逐的**真是异形** → 投对的人信誉上升（别人更信他的判断）
+         · 被驱逐的是**人类**   → 投错的人信誉下降，带头的人还被记一笔嫌疑
+       第一个公开指控的人（meet.lead）权重最高，跟票的按 voterMul 计。
+       这条给诬陷加了一个真实代价：诬陷成功收益极大，但一旦被证伪，
+       带头的人自己就变成下一个目标 —— 诬陷是要还的。 */
+    function settleAccountability(cand){
+      if(!cand||!G.meet)return;
+      const A=SKSanity.ACCOUNT, m=G.meet, votes=m.votes||{};
+      const wasAlien=!!cand.alien;
+      const voters=[];
+      for(const k in votes)if(votes[k]===cand.i)voters.push(+k);
+      if(!voters.length)return;
+      const lead=(m.lead&&m.lead[cand.i]!=null)?m.lead[cand.i]:voters[0];
+      for(const vi of voters){
+        const src=G.agents[vi];
+        if(!src)continue;
+        const mul=(vi===lead)?A.leadMul:A.voterMul;
+        for(const w of G.agents){
+          if(w===src||w===cand||!w.alive||w.downed||!w.mind)continue;
+          if(wasAlien){
+            credAdd(w,vi,A.correct.cred*mul,'right_vote');
+          }else{
+            credAdd(w,vi,A.wrong.cred*mul,'wrong_vote');
+            /* 只有带头的人会被"记仇"式追责，跟票的只掉信誉 —— 否则一票之差错杀全队 */
+            if(mul>=A.leadMul)
+              susAdd(w,vi,A.wrong.sus*mul,'wrong_accuse',
+                {kind:'wrong_accuse',x:0,y:0,room:null,conf:0.5,src:'vote',subj:vi});
+          }
+        }
+      }
+      logEvent('account',{victim:cand.i,alien:wasAlien,lead:lead,voters:voters.length});
+    }
+    /* 把一次"正经行为"广播给所有**真的看得见**的活人（异形也会看见，但它不用）。
+       radius 用行为发生点的真实目击半径，亮房远处的人也算数。 */
+    function credBroadcast(actor,kind,x,y){
+      const w0=SKSanity.CRED.gains[kind];
+      if(!w0||!actor)return;
+      const R=Math.max(6,Math.min(14,sightRangeAt(x,y)));
+      for(const w of G.agents){
+        if(w===actor||!w.alive||w.downed||w.detained||!w.mind)continue;
+        if(Math.hypot(w.x-x,w.y-y)>R)continue;
+        if(!aiCanSee(w,x,y,R))continue;
+        /* 异形看人类干活不加分（它不需要），人类看谁都加 —— 包括看异形演 */
+        if(w.alien)continue;
+        credAdd(w,actor.i,w0,kind);
+      }
     }
     function evPush(a,ev){
       if(!a||!G)return;
@@ -1523,6 +1658,12 @@
           if(q)tg=[q.x,q.y];
         }
         if(!tg){
+          /* 讨论真的影响行动（2026-11-01）：任务全做完之后，有一半概率往"聊得来"
+             的人那边走。幅度压小 —— 只在空闲阶段、只 45%，不影响任务与逃生。 */
+          const mate=warmMate(a);
+          if(mate&&Math.random()<SKSanity.WARM.followChance)tg=[mate.x,mate.y];
+        }
+        if(!tg){
           const r=M.rooms[Math.floor(Math.random()*M.rooms.length)];
           const p=randIn(r); tg=[p[0],p[1]];
         }
@@ -1581,6 +1722,12 @@
           const ox=v.alive?v.downX:v.deathX, oy=v.alive?v.downY:v.deathY;
           if(ox!=null&&Math.hypot(f[0]-ox,f[1]-oy)>1.2)v.bodyMoved=true;
         }
+      }
+      /* 正向信任：把**还活着的伤员**拖进医疗间，是明确的好事（和拖尸体去藏尸相反）。
+         同一夜只记一次，避免来回进出刷分。 */
+      if(v.alive&&!a._credMed&&inMedRoom(a.x,a.y)){
+        a._credMed=true;
+        credBroadcast(a,'dragToMed',a.x,a.y);
       }
       /* 尸体被拖离医疗间 2.2 格以上：附近的活人目击一次“反常拖尸”，只加嫌疑 */
       if(!v.alive&&MED_CENTER&&!a._dragAway){
@@ -1650,7 +1797,7 @@
       a._dragSnd=0;
       const dme=Math.hypot(a.x-G.me.x,a.y-G.me.y);
       if(dme<14)hear(a.x,a.y,'drag',Math.max(0.2,0.7*(1-dme/14)));
-      if(dme<10)SND.drag(Math.max(0.08,0.5*(1-dme/10)));
+      if(dme<14)SND.drag(SND.volAt(a.x,a.y,0.85));
       a._dragAiT=(a._dragAiT||0)+0.72;
       if(a._dragAiT>=1.6){a._dragAiT=0;aiHear('drag',a.x,a.y,8,{actor:a});}
     }
@@ -2195,6 +2342,48 @@
     /* 某个位置（通常是受害者脚下）除了受害者以外，还有哪些活人看得见。
        不按 alien 过滤：AI 不读取队友身份，异形同伴也会被当成"旁人"。
        半径与 witnessAlienAction 的 6 格取证一致，避免"规则看不见、实际被看到"。 */
+    /* ---- 出手隐蔽性（2026-11-01）----
+       理智层要的是"这一下有多显眼"，不是"几个人在 6 格内"。这里只负责把游戏状态
+       换成暴露度需要的输入，权重与汇总的数学全在 js/ai/sanity.js（纯函数、可单测）。
+       sightRangeAt 与玩家侧 visibleAt 同一口径：亮房整间、亮走廊 12 格、暗房 2.8 格 ——
+       以前 AI 一律按 6 格数人头，亮房里 10 格外的证人它根本看不见，
+       于是会当着人出刀而自以为没人发现（会议室对角线 44.9 格）。 */
+    function sightRangeAt(x,y){
+      const r=roomAt(x,y);
+      if(r&&G.lit[r.id])return Math.max(r.rect[2],r.rect[3])*1.15;
+      if(!r&&inCorr(x,y)&&G.corrLit)return 12;
+      return HUMAN_DARK_R;
+    }
+    /* 逃逸距离：出刀后 killer.redT=3.0 三秒红身，离门/管道口越近越容易走干净 */
+    function exitDistAt(x,y){
+      let best=1e9;
+      for(const d of (G.doors||[]))best=Math.min(best,Math.hypot(d.x-x,d.y-y));
+      for(const q of M.pipes)best=Math.min(best,Math.hypot(q.x-x,q.y-y));
+      return best;
+    }
+    /* 暴露度 ∈ [0,1]：0 = 完全没人看得见，1 = 一群人围着看。
+       except = 这一刀的**受害者**：他当然看得见，但他躲不掉，不能算进"可避免的暴露"，
+       否则任何一次出手都会自带 1.0 的暴露分，理智线永远过不去。 */
+    function exposureAt(a,x,y,except){
+      const R=Math.max(HUMAN_DARK_R,sightRangeAt(x,y));
+      const ws=[];
+      for(const w of G.agents){
+        if(w===a||w===except||!w.alive||w.downed||w.detained||isMate(a,w.i))continue;
+        const d=Math.hypot(w.x-x,w.y-y);
+        if(d>R||!losNow(w.x,w.y,x,y))continue;
+        ws.push(SKSanity.witnessWeight(d,R,w.doing>0));
+      }
+      return SKSanity.exposure(ws,SKSanity.escapeCost(exitDistAt(x,y)));
+    }
+    /* 人群密度：R 格内非队友活人数（不看视线，纯"周围有没有人"） */
+    function crowdAt(a,x,y,R){
+      let n=0;
+      for(const w of G.agents){
+        if(w===a||!w.alive||w.downed||w.detained||isMate(a,w.i))continue;
+        if(Math.hypot(w.x-x,w.y-y)<=R)n++;
+      }
+      return n;
+    }
     function watchersAt(a,x,y,rad,except){
       const out=[];
       for(const w of G.agents){
@@ -2238,14 +2427,17 @@
       const f=nearestFree(p.x,p.y);
       return {x:f[0],y:f[1],pt:idx};
     }
-    /* 附近是否有能当“观众”的非队友活人（假装维修/做任务只在有人看时演） */
-    function alienAudience(a,rad){
+    /* 附近能当"观众"的非队友活人数（假装维修/做任务/合闸只在**明确看得见人**时才演）。
+       返回人数而不是布尔：伪装收益分要按观众数算（SKSanity.DISGUISE）。 */
+    function alienAudienceCount(a,rad){
+      let n=0;
       for(const w of G.agents){
         if(w===a||!w.alive||w.downed||w.detained||isMate(a,w.i))continue;
-        if(Math.hypot(w.x-a.x,w.y-a.y)<rad&&aiCanSee(a,w.x,w.y,rad))return true;
+        if(Math.hypot(w.x-a.x,w.y-a.y)<rad&&aiCanSee(a,w.x,w.y,rad))n++;
       }
-      return false;
+      return n;
     }
+    function alienAudience(a,rad){ return alienAudienceCount(a,rad)>0; }
     /* ---- 异形行为效用表（2026-11-01）----
        取消「拉闸手 / 破坏手」的专属角色：每只异形都能拉闸、都能破坏，
        具体做哪个由量化收益决定，不再由 if 顺序硬排、也不再被"5 格内有活人"卡死。
@@ -2269,6 +2461,9 @@
       if(!a.sabUsed){
         for(const r of M.rooms){
           if(r.id==='bridge'||!sabRoomOk(r.id))continue;
+          /* 刚因为"有人看着"放弃过的舱室，8 秒内不再选 —— 否则每 0.5 秒重算
+             又选回同一间，异形会在门口反复横跳 */
+          if(a._sabSkipRoom===r.id&&evNow()<a._sabSkipUntil)continue;
           const sp=sabSpot(r.id); if(!sp)continue;
           let s=SKTeam.SABOTAGE_VALUE*left-walk(Math.hypot(sp.x-a.x,sp.y-a.y))-1;
           /* 配电室里还没断电时，拆「电路维修点」意义不大 —— 先拉闸，拆设备放到断电之后 */
@@ -2292,7 +2487,11 @@
       /* 出刀机会的价值必须压过跑图类行为：贴脸 12、可追 9 ——
          否则异形会当着猎物拆设备（首版实测：在保安面前优先拆军械库而不砍装甲）。
          远距 2 = 追不上的目标，这时破坏/拉闸的跑图才有意义。 */
-      const chase=td<SKTrait.C.knifeReach(a)?12:(td<5?9:2);
+      /* 刀没了就不存在"出刀机会"：chase 必须归零（2026-11-01 修）。
+         旧版 chase 恒为 12/9/2，而拉闸上限 9.5、破坏上限 7.0 ——
+         只要 5 格内有活人，破坏永远选不上；刀用完时 chase 仍是 12，
+         整夜只会游荡，效用表被一个常数架空。 */
+      const chase=a.knife>0?(td<SKTrait.C.knifeReach(a)?12:(td<5?9:2)):0;
       const best=Math.max(scBr,scSb,scBot,chase);
       if(best<=chase)return{id:'chase',room:null,score:chase};
       if(best===scBot)return{id:'bot',kind:botKind,score:scBot};
@@ -2341,6 +2540,10 @@
             }else if(g.kind==='fakeTask'){
               a._fakeTaskN=G.night;a._fakeKind='task';
               a.doing=g.dur;a._dur=g.dur;a._doing='fake';
+            }else if(g.kind==='breakerOn'){
+              /* 合闸伪装：走的是和玩家同一条 _doing='breaker' 结算，
+                 finishDoing 里调 pullBreaker —— 断电时它就是把灯合上 */
+              a.doing=g.dur;a._dur=g.dur;a._doing='breaker';
             }else{
               a._fakeN=G.night;a._fakeKind='repair';
               a.doing=g.dur;a._dur=g.dur;a._doing='fake';
@@ -2375,18 +2578,56 @@
       }
       /* 翻尸体拿子弹/医疗包/申请单 */
       if(lootRun(a,dt))return true;
-      if(!a._supportGoal&&(a.knife<=0||close>8)){
-        const nearFault=G.dmg.some(d=>Math.hypot(d.x-a.x,d.y-a.y)<8);
-        /* 假装维修：就在故障旁时站桩，不修好、不加进度 */
-        if(nearFault&&a._fakeN!==G.night&&alienAudience(a,8)&&Math.random()<dt*0.10){
-          const sp=alienFakeSpot(a);
-          if(sp){a._supportGoal={kind:'fake',x:sp.x,y:sp.y,dur:5+Math.random()*4};return true;}
+      /* ---- 伪装：必须有明确观众，且收益分过线（2026-11-01 重写）----
+         旧写法是「附近有人 + 每秒 10% 掷骰」，问题是：
+           · 没人看的时候也在演（用户："不会莫名其妙做这些任务"）；
+           · 有观众但风险很高时照样演（等于送人头）。
+         现在先算观众数，再走 SKSanity.disguiseScore：
+           收益 = 观众数带来的信誉 × 不被看破的概率 − 站桩时间成本 − 风险成本
+         分数不到 minScore 就不演。风险取「自己最近被多少人看见」+ 动作本身的破绽。 */
+      if(!a._supportGoal&&(a.knife<=0||close>8)&&!(a._fakeCD>0)){
+        const D=SKSanity.DISGUISE;
+        const aud=alienAudienceCount(a,D.audienceR);
+        if(aud>0){
+          const seenN=a.mind&&a.mind.seenBy?Object.keys(a.mind.seenBy).length:0;
+          const baseRisk=Math.min(0.55,seenN*0.12);
+          const nearFault=G.dmg.some(d=>Math.hypot(d.x-a.x,d.y-a.y)<D.fakeRepairR);
+          /* 假装维修：就在故障旁时站桩，不修好、不加进度 */
+          if(nearFault&&a._fakeN!==G.night){
+            const dur=5+Math.random()*4;
+            if(SKSanity.disguiseScore({audience:aud,duration:dur,risk:baseRisk+0.15})>=D.minScore
+              &&Math.random()<dt*0.8){
+              const sp=alienFakeSpot(a);
+              if(sp){a._supportGoal={kind:'fake',x:sp.x,y:sp.y,dur:dur};return true;}
+            }
+          }
+          /* 假装做任务：没有近处故障可演时，去任务点站一会儿；
+             动画看起来像在维修，但不加任何进度，用来制造目击者在场的不在场证明。 */
+          if(a._fakeTaskN!==G.night){
+            const dur=4+Math.random()*4;
+            if(SKSanity.disguiseScore({audience:aud,duration:dur,risk:baseRisk})>=D.minScore
+              &&Math.random()<dt*0.8){
+              const p=alienFakeTaskSpot(a);
+              if(p){a._supportGoal={kind:'fakeTask',x:p.x,y:p.y,pt:p.pt,dur:dur};return true;}
+            }
+          }
         }
-        /* 假装做任务：没有近处故障可演时，去任务点站一会儿；
-           动画看起来像在维修，但不加任何进度，用来制造目击者在场的不在场证明。 */
-        if(a._fakeTaskN!==G.night&&alienAudience(a,8)&&Math.random()<dt*0.10){
-          const p=alienFakeTaskSpot(a);
-          if(p){a._supportGoal={kind:'fakeTask',x:p.x,y:p.y,pt:p.pt,dur:4+Math.random()*4};return true;}
+      }
+      /* ---- 合闸伪装（2026-11-01 新增）----
+         断电时当着人把闸合上，是异形能做的**最高价值清白动作**：目击者会记住
+         "是他把灯弄亮的"。代价是主动放弃断电视野优势，所以 risk 里含 0.45 的
+         战略损失项。同样要求明确观众 + 收益分过线，绝不自嗨。 */
+      if(!a._supportGoal&&!(a._fakeCD>0)&&G.lightState===2&&a._fakeBreakerN!==G.night){
+        const br=M.facility.find(f=>f.kind==='breaker');
+        if(br){
+          const aud=alienAudienceCount(a,10);
+          const D=SKSanity.DISGUISE;
+          if(aud>0&&SKSanity.disguiseScore({audience:aud,duration:breakerOnTime(),risk:0.45})>=D.minScore
+            &&Math.random()<dt*0.6){
+            a._fakeBreakerN=G.night;
+            a._supportGoal={kind:'breakerOn',x:br.x,y:br.y,dur:breakerOnTime()};
+            return true;
+          }
         }
       }
       /* 真做任务只为换申请单，是少数策略：每只异形整局最多 1 次；
@@ -2491,6 +2732,12 @@
         if(a.doing<=0){
           if(a._doing==='fake'){
             a._doing=null;a.doing=0;
+            /* 演完进入冷却：真人不会连着演，也避免一晚上刷出一堆信誉 */
+            a._fakeCD=SKSanity.DISGUISE.cooldown;
+            /* **洗白的兑现口**：目击者分不出真假，看到的就是"他在修设备/做任务"，
+               所以照样加 cred（权重略低于真做，见 SKSanity.CRED.gains.fakeWork）。
+               没有这一条，异形演一晚上等于白演，伪装机制就断了。 */
+            credBroadcast(a,'fakeWork',a.x,a.y);
             if(G.simMode&&G.simStats){
               if(a._fakeKind==='task')G.simStats.fakeTasks++;
               else G.simStats.fakeRepairs++;
@@ -2578,6 +2825,7 @@
       if(alienMateRevive(a,dt))return;
       if(a._pipeCD>0)a._pipeCD-=dt;
       if(a._botCD>0)a._botCD-=dt;
+      if(a._fakeCD>0)a._fakeCD-=dt;
       if(!a.target||!a.target.alive||a.target.downed){
         /* 挑目标：队友永不打；被围观的目标加 12 格风险；队友已在追的目标让给队友；
            被晾过的目标 12 秒内不碰，只有实在没人时才回头。 */
@@ -2586,15 +2834,17 @@
           if(h===a||!h.alive||h.downed||h.detained)continue;
           if(isMate(a,h.i))continue;
           const d=Math.hypot(h.x-a.x,h.y-a.y);
-          const watched=watchersAt(a,h.x,h.y,6,h).some(w=>!isMate(a,w.i));
+          /* 暴露度代替布尔"有没有人看着"：连续量，亮房远处的人也算得进来。
+             权重见 SKSanity.witnessWeight（贴脸 1.0 → 视野边缘 0.3）。 */
+          const exp=exposureAt(a,h.x,h.y,h);
           const mateOnIt=G.agents.some(m=>m!==a&&m.alien&&isMate(a,m.i)&&m.alive&&
             m.target&&m.target.i===h.i);
           /* 正在站桩做任务/维修/领取的人更值得下手：优先度按距离减 12 格，
              即使稍远也先挑他；被围观惩罚仍会抵消这个优先。 */
           const busy=h.doing>0;
           /* 性格进评分：激进的异形不怕被看见、更愿意扑正在做事的人；
-             谨慎的相反，被围观就换目标。系数见 SKTrait.C。 */
-          const s=d+(watched?SKTrait.C.knifeWatcherPenalty(a):0)+(mateOnIt?8:0)
+             谨慎的相反，被围观就换目标。系数见 SKTrait.C（已被 TRAIT_GAIN 压缩）。 */
+          const s=d+exp*SKTrait.C.knifeWatcherPenalty(a)+(mateOnIt?8:0)
             +(busy?SKTrait.C.knifeBusyBonus(a):0);
           const until=a._avoid&&(a._avoid[h.i]||0);
           if(until&&evNow()<until){
@@ -2667,25 +2917,46 @@
           const br=M.facility.find(f=>f.kind==='breaker');
           if(br&&G.lightState!==2){
             const d=Math.hypot(br.x-a.x,br.y-a.y);
-            if(d<1.6){
-              const bd=breakerOffTime();
-              const watchers=watchersAt(a,br.x,br.y,9,null).length;
-              const risky=bd>=6;
-              if(risky&&watchers>0){a._breakerSkip=G.night;a._plan=null;return;}
-              const okChance=bd<=3?1:(bd<=6?0.65:0.40);
-              if(Math.random()>okChance){a._breakerSkip=G.night;a._plan=null;return;}
-              a.sabUsed=true;a.doing=bd;a._dur=bd;a._doing='breaker';
+            if(d<BREAKER_USE_R){
+              /* 理智线（2026-11-01）：拉闸是"当着人不敢做"的典型动作。
+                 有人看着 / 太显眼 / 在人群里 —— 三条任一命中就今晚不再考虑，
+                 不再用「站桩秒数越长越谨慎」这种把风险折算成概率的旧写法。 */
+              const B=SKSanity.BREAKER;
+              const wc=watchersAt(a,br.x,br.y,8,null).filter(w=>!isMate(a,w.i)).length;
+              const conceal=1-exposureAt(a,br.x,br.y);
+              if(wc>=B.witnessCap||conceal<B.minConceal||
+                 crowdAt(a,br.x,br.y,B.crowdR)>=B.crowdN){
+                a._breakerSkip=G.night;a._plan=null;return;
+              }
+              a.sabUsed=true;a.doing=breakerOffTime();a._dur=a.doing;a._doing='breaker';
               return;
             }
             if(!a.path||!a.path.length)walkTo(a,br.x,br.y);
             stepMove(a,dt,moveSpeed(a));return;
           }
         }else if(a._plan.id==='sabotage'&&a._plan.room&&sabRoomOk(a._plan.room)){
-          const sp=sabSpot(a._plan.room);
+          /* 落点只在选定舱室时抽一次并缓存：每帧重抽会让它一直改目标 */
+          if(!a._sabSpot||a._sabSpot.room!==a._plan.room)a._sabSpot=sabSpot(a._plan.room);
+          const sp=a._sabSpot;
           if(sp){
-            const dd=Math.hypot(sp.x-a.x,sp.y-a.y);
-            if(dd<1.7||roomIdAt(a.x,a.y)===a._plan.room){
-              damageRoom(a,a._plan.room);a._plan=null;return;
+            /* 理智线：动手前先确认那台设备周围没人看着，有人就换一间、8 秒内不再选 */
+            const S=SKSanity.SABOTAGE;
+            const wc=watchersAt(a,sp.x,sp.y,7,null).filter(w=>!isMate(a,w.i)).length;
+            const conceal=1-exposureAt(a,sp.x,sp.y);
+            if(wc>=S.witnessCap||conceal<S.minConceal||
+               crowdAt(a,sp.x,sp.y,S.crowdR)>=S.crowdN){
+              a._sabSkipRoom=a._plan.room;a._sabSkipUntil=evNow()+8;
+              a._sabSpot=null;a._plan=null;return;
+            }
+            /* **进舱即下手，不需要走到那台设备前**（2026-11-01 用户裁定）。
+               破坏点仍然是任务点上的那台设备（G.dmg 的坐标就是它），
+               但异形本人不必"蹲在设备前拆"—— 那样既不拟真，也让破坏变得很难做成。
+               玩家侧 sabTick 同口径：进入舱室即引爆。 */
+            if(roomIdAt(a.x,a.y)===a._plan.room){
+              const rid=a._plan.room;
+              a._plan=null;a._sabSpot=null;
+              damageRoom(a,rid,sp);
+              return;
             }
             if(!a.path||!a.path.length)walkTo(a,sp.x,sp.y);
             stepMove(a,dt,moveSpeed(a));return;
@@ -2798,11 +3069,21 @@
         if(secbotWouldSee(a.x,a.y)){
           a._secAvoidT=2.5;a.target=null;a.path=null;return;
         }
-        /* 旁边有非队友目击者时的胆量由性格决定（2026-10-31）：
-           中性 55% 冒险，激进最高 90% 且敢在 2 个人面前动手，
-           谨慎最低 30% 且 1 个人看着就可能放弃。队友看着不算风险。 */
+        /* ---- 理智兜底（2026-11-01）----
+           先过三条**与性格无关**的硬线，过了才轮到性格微调。
+           用户原话："即使激进派也不会冒着三个人能够看到的风险出刀"。
+             ① 目击者数 ≥ KNIFE.witnessCap（3）→ 一律放弃
+             ② 隐蔽度 1-exposure < KNIFE.minConceal → 换时机（这条能抓住
+                "亮房里 10 格外有人"这种旧代码数不到的暴露）
+             ③ 周围 crowdR 格内 ≥ crowdN 个非队友 = 在人群里 → 不干
+           通过之后，性格只在 0.34~0.66 的冒险率区间里浮动（见 SKTrait.C.knifeBold）。 */
         const watchers=watchersAt(a,tgt.x,tgt.y,6,tgt).filter(w=>!isMate(a,w.i));
-        if(watchers.length>=SKTrait.C.knifeWatcherCap(a)||
+        const K=SKSanity.KNIFE;
+        const conceal=1-exposureAt(a,tgt.x,tgt.y,tgt);
+        const blocked=watchers.length>=K.witnessCap||
+          conceal<K.minConceal||
+          crowdAt(a,tgt.x,tgt.y,K.crowdR)>=K.crowdN;
+        if(blocked||
           (watchers.length>=1&&Math.random()>=SKTrait.C.knifeBold(a))){
           if(!a._avoid)a._avoid={};
           a._avoid[tgt.i]=evNow()+12;
@@ -2862,7 +3143,7 @@
         return;
       }
       /* 只响一次：单层刀风，不再叠 70ms 后的血肉声 */
-      SND.knife(Math.max(0.18,Math.min(1,1.25-Math.hypot(victim.x-G.me.x,victim.y-G.me.y)/16)));
+      SND.knife(SND.volAt(victim.x,victim.y,0.95));
       SND.flesh(0.34);
       hear(victim.x,victim.y,'knife',1.0);
       setAct(killer,'stab',0.5,{ang,lunge:0.55});
@@ -2891,7 +3172,7 @@
       aiHear('scream',victim.x,victim.y,16,{victim:victim});
       const d=Math.hypot(victim.x-G.me.x,victim.y-G.me.y);
       if(victim!==G.me&&d>16)return;
-      SND.scream(victim===G.me?0.72:Math.max(0.08,0.6*(1-d/16)));
+      SND.scream(victim===G.me?0.60:SND.volAt(victim.x,victim.y,0.85));
     }
 
     /* 行为推断入口见上方 noticeAction：视觉写入证据 + 嫌疑分，此处不再重复实现 */
@@ -3023,6 +3304,7 @@
           v.woundCause=null;v.downRoom=null;v.downX=null;v.downY=null;v.searched=false;
           G.fx.push({type:'heal',x:v.x,y:v.y,t:1.2,dur:1.2});
           setAct(v,'heal',0.7,{ang:0});
+          credBroadcast(a,'revive',v.x,v.y);
           logEvent('revive',{actor:a.i,victim:v.i,method:'medkit',room:roomIdAt(v.x,v.y),
             x:+v.x.toFixed(1),y:+v.y.toFixed(1)});
           if(actor){toast('救起 '+v.name);SND.revive();}
@@ -3068,6 +3350,8 @@
       a.nTask=p.label; a.nTaskRoom=roomIdAt(a.x,a.y);
       logEvent('task',{actor:a.i,label:p.label,room:p.room,pts:v,ghost:!!a.ghost,
         x:+a.x.toFixed(1),y:+a.y.toFixed(1),prog:G.prog});
+      /* 正向信任：看见别人把任务做完 → +cred（幽灵做的不算，看不见实体） */
+      if(!a.ghost)credBroadcast(a,'taskDone',a.x,a.y);
       let gotQual=false;
       if(a.progress>=3&&!a._q3){a._q3=true;a.qualPending=(a.qualPending||0)+1;gotQual=true;}
       if(a.progress>=5&&!a._q5){a._q5=true;a.qualPending=(a.qualPending||0)+1;gotQual=true;}
@@ -3484,7 +3768,9 @@
       const vi=victimInfo(victim);
       const ctx={kind,reporter,victim,victimInfo:vi,claims:[],playerSays:[],
         playerAccuse:null,playerVote:null,playerClaimRoom:null,quick:null,frames:[],
-        playerClaims:[],playerSupport:null};
+        playerClaims:[],playerSupport:null,
+        /* lead[目标席位] = 第一个公开指控他的席位（追责机制要用"谁带的节奏"） */
+        lead:{}};
       /* 尸体还热就有人来报：见过这具尸体的 AI 会想"你怎么这么快就到现场"。
          对异形是主动报告的代价，对人类是"发现得太巧"的合理怀疑。 */
       if(kind==='night'&&victim){
@@ -3554,18 +3840,39 @@
           const pick=src.length?src[Math.floor(Math.random()*src.length)]:null;
           a.accuse=pick?pick.i:null;
           if(a.accuse!=null)alienAccused.add(a.accuse);
+          /* ---- 主动诬陷（2026-11-01）----
+             异形自己就是凶手，根本没看见别人出刀 —— 但它会**编一份具体证词**：
+             "我看见他在<房间>出刀 / 钻管道"。以前它只是随机指一个人，听众一算就知道
+             它没有依据（还会被 empty_accuse 罚）。现在给伪证，在听众眼里
+             它和真目击者无法区分 —— 这是社交推理里最难拆的一手。 */
+          if(a.accuse!=null&&Math.random()<SKSanity.FRAME.chance){
+            const rs=M.rooms.filter(x=>x.id!=='bridge');
+            const rr=rs.length?rs[Math.floor(Math.random()*rs.length)]:M.rooms[0];
+            const knife=Math.random()<SKSanity.FRAME.knifeRatio;
+            a.accuseWhy={kind:knife?'saw_knife':'saw_pipe',room:rr.name,
+              reason:'亲眼看见',solid:true,fake:true};
+          }
+          if(a.accuse!=null&&a.accuseWhy&&a.accuseWhy.solid&&!ctx.lead[a.accuse])
+            ctx.lead[a.accuse]=a.i;
         }else{
           /* 人类：确证优先（见过出刀/钻管道/破坏/红身），其次目击凶手，最后嫌疑分 */
           const kn=bestKnownTarget(a);
           let si=kn?kn.i:(a.suspect!=null?a.suspect:null);
           if(si==null){const bs=bestSusTarget(a,0.5);if(bs)si=bs.i;}
+          /* 正向信任（2026-11-01）：手上没有确证时，一个长期在干正经事的人
+             不该被一点嫌疑推上审判台。cred 越高越不会被咬 —— 这就是洗白的兑现口。 */
+          if(si!=null&&!kn&&credOf(a,si)>=SKSanity.CRED.accuseShieldAt)si=null;
           const s=si!=null?G.agents[si]:null;
           if(s&&s!==a&&s.alive&&!s.downed){
             a.accuse=si;
             a.accuseWhy=kn?{kind:kn.known.kind,room:kn.known.room||null,
-              reason:'确证异形',known:true}:
+              reason:'确证异形',known:true,solid:true}:
               (evidenceReason(a,si)||(a.suspect!=null?
-                {kind:'saw_alien',room:null,reason:'亲眼目击'}:null));
+                {kind:'saw_alien',room:null,reason:'亲眼目击',solid:true}:null));
+            /* evidenceReason 是"真看见/真取证"，返回的对象默认也算硬证词 */
+            if(a.accuseWhy&&a.accuseWhy.solid==null)a.accuseWhy.solid=true;
+            /* 只有"有依据"的指控才算带节奏；纯情绪指控不进 lead（否则追责会误伤） */
+            if(a.accuseWhy&&a.accuseWhy.solid&&!ctx.lead[a.accuse])ctx.lead[a.accuse]=a.i;
           }
         }
       }
@@ -3578,17 +3885,115 @@
           if(noEvidence){
             const ev={kind:'empty_accuse',x:0,y:0,room:null,conf:0.25,src:'speech',subj:a.accuse};
             susAdd(w,a.i,0.05,'empty_accuse',ev);
+          }else if(a.accuse!==w.i&&!(w.mind.known&&w.mind.known[a.accuse])){
+            /* ---- 证言通道（2026-11-01 接线）----
+               有依据的公开指控会**真的改变听众的判断**，而不是只当台词播出去。
+               在此之前，AI 之间的指控对别人的 sus 一点影响都没有（17 个 susAdd 调用点
+               里没有一条是 heard_accuse）—— 结果是"我确定 05 是异形"只是说说，
+               目击者只有自己那一票，3 票门槛全靠运气。
+               权重 = 基础 0.14 × 听众对**说话者**的能力信誉倍率（1.0~1.6）。
+               注意：这里加权的是「说话者有多可信」，不是「被指控者信誉多高」；
+               被指控者的 cred 已经在上面拦过一道（accuseShieldAt）。
+               **只写 sus，绝不写 known** —— 证言不是亲眼所见，这条红线不能破。 */
+            /* 分级权重（2026-11-01 实测标定）：
+               一开始统一给 0.14，人类胜率从 50.3% 直接飙到 76.3% —— 因为
+               绝大多数指控都是"我觉得他可疑"，不是"我亲眼看见"，一律给满权重
+               等于把嫌疑分变成了传染。现在只有**确证级**证言给 0.12，
+               其余按传闻给 0.045（约 1/3），传得动但传不疯。 */
+            const solid=!!(a.accuseWhy&&a.accuseWhy.solid);
+            const trust=credOf(w,a.i);
+            /* ---- 说服力侧的三条（2026-11-01，幅度刻意压小）----
+               ① 被公开指控过的人，证言分量打折 —— **只影响别人信不信他，
+                  绝不影响他自己信什么**（`known` 那条红线不动）。
+               ② 共证加成：同一目标有两个以上独立指控者时，第二个起加权
+                  （MIDA 的"证据汇合"：多个独立来源指向同一人才更可信）。
+               ③ 只写 sus，绝不写 known。 */
+            const mud=SKSanity.TESTIFY;
+            const dirty=(w.mind&&w.mind.sus&&(w.mind.sus[a.i]||0)>=mud.dirtySus)
+              ? mud.dirtyMul : 1;
+            const co=(ctx.__co||(ctx.__co={}));
+            co[a.accuse]=(co[a.accuse]||0)+1;
+            const coMul=co[a.accuse]>=2?mud.corrobMul:1;
+            const wgt=(solid?0.020:0.006)*SKSanity.credTestimony(trust)*dirty*coMul;
+            const ev={kind:'heard_accuse',x:0,y:0,
+              room:a.accuseWhy?a.accuseWhy.room:null,conf:0.6,src:'speech',subj:a.accuse};
+            susAdd(w,a.accuse,wgt,'heard_accuse',ev);
           }
+        }
+      }
+      /* 共同指控同一人 → 彼此更信任（2026-11-01）。
+         这是"讨论影响关系"的最小闭环：一起咬过谁，之后就更愿意待在一起。 */
+      {
+        const accBy={};
+        for(const a of G.agents){
+          if(!a.alive||a.downed||a.accuse==null)continue;
+          (accBy[a.accuse]=accBy[a.accuse]||[]).push(a.i);
+        }
+        for(const t in accBy){
+          const list=accBy[t];
+          if(list.length<2)continue;
+          for(const i of list)for(const j of list)
+            if(i!==j)warmAdd(G.agents[i],j,SKSanity.WARM.coAccuse);
         }
       }
       return ctx;
     }
-    /* 语料选择：按席位 / 夜数 / 会议轮次轮换，避免所有 AI 说同一句 */
-    function pickLine(a,arr,salt){
-      if(!arr||!arr.length)return '';
-      const tone=a&&a.mind?a.mind.tone:0;
-      return arr[(Math.abs((a?a.i:0)*5+(G.night||1)*3+tone+(salt||0)+MEET.id))%arr.length];
+    /* ---- 领袖指令（2026-11-01）----
+       本局如果有领袖，让他当众下 1~2 条安排：给全队派活、或者点名让谁去哪。
+       **不区分阵营** —— 可能是人类在组织，也可能是异形在把大家往错的方向带。
+       效果刻意做轻：听众对领袖 +0.06 warm（之后空闲会愿意跟着他走），
+       被点名的人只 +0.02 嫌疑（远低于一次真实指控）。 */
+    function scheduleLeaderOrders(push){
+      if(!push||G.leader==null)return;
+      const L=G.agents[G.leader];
+      if(!L||!L.alive||L.downed)return;
+      const S=SKSanity.LEADER;
+      const nOrders=(S.maxOrders>1&&Math.random()<0.4)?2:1;
+      for(let k=0;k<nOrders;k++){
+        const rm=M.rooms[Math.floor(Math.random()*M.rooms.length)];
+        const pool=G.agents.filter(x=>x!==L&&x.alive&&!x.downed);
+        const tgt=pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
+        push(()=>say(L.name,flavor(L,'leader',{r:rm.name,t:tgt?tgt.name:'大家'})));
+        for(const w of G.agents){
+          if(w===L||!w.alive||w.downed||!w.mind)continue;
+          warmAdd(w,L.i,S.warmGain);
+          if(tgt&&w!==tgt&&!w.alien)
+            susAdd(w,tgt.i,S.orderSus,'leader_order',
+              {kind:'leader_order',x:0,y:0,room:null,conf:0.3,src:'speech',subj:tgt.i});
+        }
+      }
     }
+    /* 语料选择：按席位 / 夜数 / 会议轮次轮换，避免所有 AI 说同一句 */
+    /* ---- 台词选择（2026-11-01 重写）----
+       旧版是**确定性索引**：同一席位 + 同一夜 + 同一 salt → 每一局都念同一句，
+       15 个人一个声音。这是"AI 不像人"最直接的来源。
+       现在：
+         · arr 传**字符串** → 去 SKLines 语料库里按「性格 × 情绪档」取（见 js/data/lines.js）；
+         · arr 传**数组**   → 老调用点照旧可用，但改成等概率随机；
+         · 占位符 {n}{t}{r}{k} 在这里统一替换。
+       注意：随机用的是 Math.random，而蒙特卡洛会把它换成 simRng(seed)，
+       所以 1000 局同 seed 依然逐局可复现 —— 这条不能破。 */
+    function fillTpl(a,s,ctx){
+      const c=ctx||{};
+      return String(s)
+        .replace(/\{n\}/g,a&&a.name?a.name:'')
+        .replace(/\{t\}/g,c.t||'他')
+        .replace(/\{r\}/g,c.r||'走廊')
+        .replace(/\{k\}/g,c.k||'任务');
+    }
+    function pickLine(a,arr,salt,ctx){
+      let pool=arr;
+      if(typeof arr==='string'){
+        const cat=arr;
+        const tone=SKLines.toneOf(a,(ctx&&ctx.bias)||0);
+        pool=SKLines.pool(cat,tone)||SKLines.pool(cat,'cold')||[];
+      }
+      if(!pool||!pool.length)return '';
+      const raw=pool[Math.floor(Math.random()*pool.length)];
+      return fillTpl(a,raw,ctx);
+    }
+    /* 从语料库直接取一句（不需要旧数组兜底的场景用这个） */
+    function flavor(a,cat,ctx){ return pickLine(a,cat,0,ctx); }
     function evRoomName(w){
       if(!w||!w.room)return '现场';
       return roomNameById(w.room);
@@ -3598,7 +4003,7 @@
       switch(w.kind){
         case 'saw_knife':return '我亲眼看见他在'+evRoomName(w)+'出刀';
         case 'saw_shot':return '我亲眼看见他在'+evRoomName(w)+'开枪';
-        case 'saw_pipe':return '我看见他钻进了管道';
+        case 'saw_pipe':return w.room?('我看见他在'+w.room+'钻进了管道'):'我看见他钻进了管道';
         case 'saw_sabotage':return '他在'+evRoomName(w)+'破坏了设备';
         case 'saw_bot':return '他停摆了巡逻机器人';
         case 'saw_breaker':return '断电前他就在配电室附近';
@@ -3676,7 +4081,14 @@
       ],22);
       line+='。';
       const why=a.accuse!=null?(a.accuseWhy||evidenceReason(a,a.accuse)):null;
-      if(!a.alien&&why)line+=' 我怀疑'+nameOf(a.accuse)+'：'+evClause(why)+'。';
+      /* 2026-11-01：异形也会**公开指控**（诬陷），不再限制 !a.alien。
+         伪证的措辞和真目击一字不差 —— 听众无从分辨，这正是诬陷的意义。 */
+      if(why){
+        line+=' 我怀疑'+nameOf(a.accuse)+'：'+evClause(why)+'。';
+        /* 真人说完证据会顺手甩一句号召/态度（"直接票了""铁狼无疑"）。
+           35% 概率补一句，避免每条都拖长。 */
+        if(Math.random()<0.35)line+=' '+flavor(a,'call',{t:nameOf(a.accuse)});
+      }
       const sawVictim=vi?seenNames(a).find(w=>w===vi.a):null;
       if(sawVictim)line+=' '+vi.name+'从我那边经过，当时还没事。';
       else if(!a.alien&&a.accuse!=null&&a.suspect!=null&&vi){
@@ -3986,6 +4398,7 @@
         }
         const tail=cands[cands.length-1];
         push(()=>sysSay('提示：异形会拉闸 / 钻管道 / 破坏设备 / 停摆机器人；亲眼看见可以直接在会议里点破。'));
+        scheduleLeaderOrders(push);
         push(()=>say(tail.name,pickLine(tail,[
           '都精神点，今晚谁看见谁钻管道，天亮直接说。',
           '我建议每个人先报自己第一站，出了事好对时间线。',
@@ -4051,6 +4464,19 @@
           const tgt3=G.agents[a.accuse];
           if(tgt3&&tgt3.alive)grudgeAdd(tgt3,a.i,0.40);
         }
+        /* ---- 对质环节（2026-11-01）----
+           以前只有开头那一轮 challenge，指控之后就没人再交锋了。
+           这里补一次真正的对质：指控者拿被指控者**自己先前的口供**顶他，
+           对方必须当场回应 —— 这是真人局里最有戏的一段。 */
+        {
+          const cfa=accusers.find(a=>G.agents[a.accuse]&&G.agents[a.accuse].alive);
+          if(cfa){
+            const tg=G.agents[cfa.accuse], rm=alibiOf(tg).room;
+            push(()=>say(cfa.name,flavor(cfa,'confront',{t:tg.name,r:rm})));
+            push(()=>say(tg.name,flavor(tg,'defend',{t:cfa.name,r:rm,k:alibiOf(tg).task||'任务'})));
+          }
+        }
+        scheduleLeaderOrders(push);
         const accused=cands.find(a=>a.accuse!=null&&G.agents[a.accuse]&&G.agents[a.accuse].alive&&
           a.accuse!==a.i&&a!==accusers[0]);
         if(accused)push(()=>say(accused.name,defenseClause(accused)));
@@ -4442,17 +4868,11 @@
             '我同意'+G.me.name+'。'+t.name+'在'+rm+act+'，我亲眼看见的——他就是异形。'));
           return;
         }
-        meetLater(m,650+Math.random()*450,()=>say(t.name,pickLine(t,[
-          G.me.name+'，你凭什么怀疑我？我今晚在'+alibiOf(t).room+'，'+
-            (seedWitness(t)||'没人作证不代表我有罪')+'。',
-          '我不是异形。'+G.me.name+'，你说我，那你说说你当时在哪？',
-          '要投我就直说，别拿猜测当证据。'
-        ],32)));
+        /* 辩护走语料池（2026-11-01）：按性格选 hot/cold，房间名由 alibiOf 注入 */
+        meetLater(m,650+Math.random()*450,()=>say(t.name,
+          flavor(t,'defend',{t:G.me.name,r:alibiOf(t).room,k:alibiOf(t).task||'任务'})));
         const bw=cands.find(w=>w!==t&&!w.alien&&((w.mind&&w.mind.sus[t.i])||0)>=0.4);
-        if(bw)meetLater(m,1500,()=>say(bw.name,pickLine(bw,[
-          '我这边也有一条对得上'+t.name+'的线索，先记他一票。',
-          '我不止听'+G.me.name+'说，我自己也看到过'+t.name+'不对劲。'
-        ],33)));
+        if(bw)meetLater(m,1500,()=>say(bw.name,flavor(bw,'call',{t:t.name})));
         return;
       }
 
@@ -4462,18 +4882,13 @@
           !(w.mind&&w.mind.seenT&&w.mind.seenT[0]&&evNow()-w.mind.seenT[0]<8));
         if(there){
           const rn=roomNameById(sl.where);
-          meetLater(m,600+Math.random()*500,()=>say(there.name,pickLine(there,[
-            '我那会儿也在'+rn+'，怎么没看见你？',
-            '你说你在'+rn+'？我整晚都在那边，没碰上你。',
-            rn+'？我就在那儿修东西，没见到你。'
-          ],34)));
+          meetLater(m,600+Math.random()*500,()=>say(there.name,
+            flavor(there,'ask',{t:G.me.name,r:rn})));
         }else{
           const rn=roomNameById(sl.where);
           const resp=pickResponder(m,cands);
-          meetLater(m,600+Math.random()*500,()=>say(resp.name,pickLine(resp,[
-            '记下了：'+G.me.name+'在'+rn+'。',
-            '好，'+G.me.name+'的位置是'+rn+'，我先记着。'
-          ],35)));
+          meetLater(m,600+Math.random()*500,()=>say(resp.name,
+            flavor(resp,'identity',{r:alibiOf(resp).room,k:alibiOf(resp).task||'任务'})));
         }
         return;
       }
@@ -4633,7 +5048,9 @@
         kind==='pre'?'第 1 天 · 开局公开讨论':(kind==='day'?('第 '+G.night+' 天 · 全员会议'):'紧急会议');
       document.getElementById('m-sub').textContent=
         kind==='pre'?('公开讨论 '+discuss+' 秒 · 本轮不投票 · 讨论完直接进入第 1 夜')
-        :('讨论 '+discuss+' 秒 + 投票 '+voteT+' 秒'+(kind==='day'?'':'（从夜晚时间里扣）'));
+        :(kind==='day'&&G._overtime
+          ?('讨论 '+discuss+' 秒 + 投票 '+voteT+' 秒 · 上一场会议拖到了天亮')
+          :('讨论 '+discuss+' 秒 + 投票 '+voteT+' 秒'+(kind==='day'?'':'（从夜晚时间里扣）')));
       document.getElementById('m-rows').style.display=victim?'':'none';
       document.getElementById('m-room').textContent=roomName;
       document.getElementById('m-by').textContent=reporter?tagName(reporter):'—';
@@ -4742,6 +5159,13 @@
         const bs=bestSusTarget(a,0.5);
         if(bs&&(!a.alien||!isMate(a,bs.i))&&!patron(bs.i)){m.votes[a.i]=bs.i;continue;}
         if(a.alien){
+          /* 诬陷要"带节奏"：已经公开指控过谁，就把票投给他 ——
+             说了却不投，等于自己打自己的脸（真人玩家一眼就能看出破绽）。
+             没有指控目标才退回随机，避免异形的票成为唯一异类。 */
+          if(a.accuse!=null&&G.agents[a.accuse]&&G.agents[a.accuse].alive&&
+             !G.agents[a.accuse].downed&&!isMate(a,a.accuse)){
+            m.votes[a.i]=a.accuse;continue;
+          }
           const all=G.agents.filter(x=>x.alive&&x!==a&&!isMate(a,x.i));
           const clean=all.filter(x=>!x.detained);
           const pool=clean.length?clean:all;
@@ -4765,6 +5189,18 @@
         const bs2=bestSusTarget(a,SKTrait.C.shootSus(a)*0.9);
         m.votes[a.i]=(bs2&&bs2.i!==a.i)?bs2.i:-1;
       }
+      /* ---- 正向信任兜底（2026-11-01）----
+         投完统一拦一道，而不是改动上面 8 条投票分支：
+         手里**没有确证**的人，如果被投的对象 cred 很高，这一票按概率弃掉。
+         亲眼确证过的（mind.known）不受影响 —— 看见了就是看见了，信誉不能洗掉证据。 */
+      for(const a of G.agents){
+        if(!a.alive||a.downed||a.alien||(!G.spectMode&&a===G.me))continue;
+        const v=m.votes[a.i];
+        if(v==null||v<0)continue;
+        if(a.mind&&a.mind.known&&a.mind.known[v])continue;
+        const cr=credOf(a,v);
+        if(cr>0&&Math.random()<SKSanity.credVoteShield(cr))m.votes[a.i]=-1;
+      }
     }
     function closeVote(){
       const m=G.meet; m.phase='reveal'; m.t=6;
@@ -4786,8 +5222,11 @@
       }
       m.tally={tally,abstain,max,ok,ex:devSaved?null:cand,devSaved,
         exName:cand?tagName(cand):null,exRole:cand?(cand.alien?'异形':'人类'):null};
-      if(cand&&!devSaved)
+      if(cand&&!devSaved){
         logEvent('eject',{victim:cand.i,votes:max,alien:!!cand.alien});
+        /* 追责：结果公布后清算带节奏的人（必须在 die 之后、身份已定） */
+        settleAccountability(cand);
+      }
       renderTally();
       if(cand)sysSay('驱逐 '+tagName(cand)+' · 身份公布：'+(cand.alien?'异形':'人类'));
       runInvariants('vote');
@@ -4816,8 +5255,13 @@
       const kind=m&&m.kind;
       let nightLeft=null;
       if(m&&kind==='night'&&m.remainMs!=null){
-        nightLeft=Math.max(8000,m.remainMs-(G.simMode?(m.discuss+m.voteT)*1000:
-          (performance.now()-(m.startAt||performance.now()))));
+        /* 会议**真的**扣夜晚时间（2026-11-01 修）。
+           旧版这里是 Math.max(8000, remainMs - elapsed) —— 那个 8 秒保底在 x=8000
+           处有不动点：深夜开会扣成负数后被抬回 8000，下一次会议再扣再抬，
+           夜晚永远结束不了（实测 20.7% 的会议踩在这条保底上，平均 1.65 次/局）。
+           现在允许扣成负数，由下面 nightLeft<=0 分支把这一夜推进到天亮。 */
+        nightLeft=m.remainMs-(G.simMode?(m.discuss+m.voteT)*1000:
+          (performance.now()-(m.startAt||performance.now())));
       }
       G.meet=null;
       document.getElementById('meet').classList.add('hide');
@@ -4825,12 +5269,21 @@
       if(kind==='day') startNight(true);
       else if(kind==='pre') startNight(false);
       else if(nightLeft!=null){
-        if(G.simMode){G.simT=nightLeft/1000;G.t=G.simT;G.phase=null;}
+        if(nightLeft<=0){
+          /* 会议把这一夜耗光了 → 直接天亮。
+             dawn() 会 G.t=0、清故障、checkWin()，然后开"第二天"的全员会议；
+             _overtime 只是给那场会议加一句说明，不影响判定。 */
+          logEvent('meeting_overtime',{night:G.night,over:Math.round(-nightLeft)});
+          G._overtime=true;
+          dawn();
+          G._overtime=false;
+        }else if(G.simMode){G.simT=nightLeft/1000;G.t=G.simT;G.phase=null;}
         else G.phase=SKClock.newPhase('night',performance.now(),nightLeft);
       }
       runInvariants('meetingEnd');
     }
     function startNight(inc){
+      G._overtime=false;
       if(inc!==false) G.night++;
       logEvent('night_start',{night:G.night});
       if(G)releaseAllDrags(true);
@@ -4850,6 +5303,9 @@
         a._dragAway=false;a._dragMedD0=0;a._dragAwaySeen={};
         a._hideSpot=null;a._hideRoom=null;a._hideCD=0;a._hides=0;
         a._lightGo=false;a._pipePlan=null;a._pipeSeeks=0;a._secAvoidT=0;a._botCD=0;
+        /* 破坏落点缓存 / 伪装合闸的一次性名额（2026-11-01） */
+        a._sabSpot=null;a._sabRoom=null;a._fakeBreakerN=0;a._credMed=false;
+        a._fakeCD=0;a._sabSkipRoom=null;a._sabSkipUntil=0;
         a._killBody=null;a._killAt=0;a._killDecided=true;a._reportPlan=null;
         a._avoid={};a._fleeT=0;a._fleeFrom=null;a._pathCD=0;a._fakeN=0;a._alienTaskN=0;a._stallBias=0.8+Math.random()*0.4;
         a._fakeTaskN=0;a._fakeKind=null;a._supportGoal=null;a._lootMem={};
@@ -4866,6 +5322,8 @@
       for(const d of (G.doors||[])){d.open=0;d.target=0;d.scanT=0;}
       /* 新的一夜：故障与破坏目标全部清空（上夜没修完的故障不跨夜追罚） */
       G.dmg=[];G.sabTarget=null;
+      /* 破坏落点每夜重抽：同一台设备不能连续几夜都坏在同一个位置 */
+      for(const k in SAB_SPOT_CACHE)delete SAB_SPOT_CACHE[k];
       resetBots();
       /* 拉闸手已取消（2026-11-01）：每夜重新由效用表决定谁去拉闸 */
       G.breakerPulls=0;   /* 拉闸延迟每夜重新从 3 秒起算 */
@@ -4879,9 +5337,14 @@
     /* ---------------- 玩家输入 ---------------- */
     const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
     let VIEW={s:10,ox:0,oy:0},dpr=window.devicePixelRatio||1;
-    /* 视窗：跟随模式只给 26 格宽（≈ 原游戏 30×12 的近景），全图模式才铺满。
-       这是「保留相机跟随」这条要求的落点 —— 平时看不到全船，只锁自己周围一小块。 */
-    const VIEW_TILES=30;   /* 与老版 js/scene/const.js 的 VIEW_TILES.w=30 对齐 */
+    /* 视窗：跟随模式只给 23 格宽，全图模式才铺满。
+       这是「保留相机跟随」这条要求的落点 —— 平时看不到全船，只锁自己周围一小块。
+
+       **这里的数字就是"相机高度"**：引擎是纯 2D 正交投影（SX=x*s+ox，没有真正的
+       高度轴），所以"镜头高低"等价于"一屏看多少格"——数字越小 = 镜头越近 =
+       人和家具越大。2026-11-01 从 30 降到 23：用户反馈默认视角太高、地图和人
+       都显小。想再调就只改这一个数，别去动 SX/SY。 */
+    const VIEW_TILES=19;
     function resize(){
       cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
       ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -5288,8 +5751,8 @@
       G.fx.push({type:'muzzle',x:shooter.x+Math.cos(ang)*0.55,y:shooter.y+Math.sin(ang)*0.55,t:0.2,dur:0.2,ang});
       G.fx.push({type:'impact',x:target.x,y:target.y,t:0.55,dur:0.55});
       G.fx.push({type:'blood',x:target.x,y:target.y,t:0.9,dur:0.9,ang});
-      SND.shot();
-      SND.flesh(0.36);
+      SND.shot(SND.volAt(shooter.x,shooter.y,0.95));
+      SND.flesh(SND.volAt(target.x,target.y,0.5));
       hear(shooter.x,shooter.y,'shot',1.15);
       target.downed=true; target.downAt=G.t; target.path=null; target.doing=0;
       target._doing=null; target._sv=null;
@@ -5362,7 +5825,7 @@
         const ang=Math.atan2(p.y-attacker.y,p.x-attacker.x);
         attacker.redT=3.0;
         setAct(attacker,'stab',0.5,{ang,lunge:0.55});
-        SND.knife(Math.max(0.18,Math.min(1,1.25-Math.hypot(p.x-G.me.x,p.y-G.me.y)/16)));
+        SND.knife(SND.volAt(p.x,p.y,0.90));
       }
       if(kind==='secbot'&&G.bots&&G.bots.secbot){
         G.bots.secbot.ang=Math.atan2(attacker.y-p.y,attacker.x-p.x);
@@ -5406,7 +5869,7 @@
       G.fx.push({type:'tracer',x1:shooter.x,y1:shooter.y,x2:p.x,y2:p.y,t:0.45,dur:0.45,ang});
       G.fx.push({type:'muzzle',x:shooter.x+Math.cos(ang)*0.55,y:shooter.y+Math.sin(ang)*0.55,t:0.2,dur:0.2,ang});
       G.fx.push({type:'impact',x:p.x,y:p.y,t:0.55,dur:0.55});
-      SND.shot();hear(shooter.x,shooter.y,'shot',1.15);
+      SND.shot(SND.volAt(shooter.x,shooter.y,0.95));hear(shooter.x,shooter.y,'shot',1.15);
       damageBot(kind,shooter,'shot');
       if(shooter===G.me)toast('开枪击中 '+(kind==='secbot'?'保安机器人':'医疗无人机'));
       return true;
@@ -5550,6 +6013,37 @@
         report:['audio/sfx-notify.ogg']
       };
       const POOL={}; let rr=0;
+      /* ---- 声音距离量化（2026-11-01）----
+         只设两个端点：d=0 → 最高音，d ≥ range → 保底音，中间**线性**。
+         旧写法各处各算（1-d/16 / 1-d/12 / 1-d/6 / 1-d/18），同一个"16 格外的尖叫"
+         和"16 格外的枪声"衰减曲线完全不同，远处还会直接归零 —— 听不出方位。
+         现在统一走 volAt：远处留一层底音（听得到方位、听不清细节），近处有上限（不炸耳）。 */
+      const DIST={range:18,min:0.14,max:1.0};
+      function volAt(x,y,scale){
+        const me=(typeof G!=='undefined'&&G)?G.me:null;
+        const s=(scale==null?1:scale);
+        if(!me)return DIST.min*s;
+        const d=Math.hypot(x-me.x,y-me.y);
+        const t=Math.max(0,Math.min(1,d/DIST.range));
+        const v=DIST.max+(DIST.min-DIST.max)*t;
+        return Math.max(DIST.min,Math.min(DIST.max,v))*s;
+      }
+      /* ---- 音色档：区分度靠**频段与音高**，不靠音量 ----
+         max  = 单条采样音量上限（防刺耳；同一声源不再靠"调大"来抢注意力）
+         rate = 播放速率区间（越低越闷）。金属/电/人声/脚步各占一段，
+                这样即使同时响，也能分出"这是刀 / 这是门 / 这是脚步"。 */
+      const TONE={
+        knife:{max:0.60,rate:[0.90,1.00]},
+        gun:{max:0.74,rate:[0.95,1.01]},
+        scream:{max:0.52,rate:[0.94,1.02]},
+        step:{max:0.30,rate:[1.00,1.12]},
+        flesh:{max:0.42,rate:[0.90,1.00]},
+        door:{max:0.34,rate:[0.88,0.94]},
+        work:{max:0.38,rate:[0.92,1.04]},
+        metal:{max:0.50,rate:[0.70,0.90]},
+        ui:{max:0.62,rate:[1,1]},
+        report:{max:0.55,rate:[1,1]},
+      };
       /* 播放日志：Playwright 用它验证「一次出刀只响一次」 */
       const LOG=[]; let LOGN=0;
       function note(n){LOG.push(n);LOGN++;if(LOG.length>120)LOG.shift();}
@@ -5572,10 +6066,17 @@
         const pool=prep(name);
         let a=pool.find(x=>x.paused||x.ended);
         if(!a){a=pool[rr++%pool.length];try{a.pause();}catch(e){}}
+        const tn=TONE[name];
         try{
           a.currentTime=0;
-          a.volume=Math.max(0,Math.min(1,(vol==null?1:vol)*master));
-          a.playbackRate=Math.max(0.5,Math.min(1.8,rate||1));
+          /* 音量先过音色档上限：单条音效不能盖过全场（刺耳的主因是"大"不是"亮"） */
+          let v=(vol==null?1:vol)*master;
+          if(tn)v=Math.min(v,tn.max);
+          a.volume=Math.max(0,Math.min(1,v));
+          const rt=rate==null&&tn
+            ?(tn.rate[0]+Math.random()*(tn.rate[1]-tn.rate[0]))
+            :(rate||1);
+          a.playbackRate=Math.max(0.5,Math.min(1.8,rt));
           const p=a.play();
           if(p&&p.catch)p.catch(()=>{});
         }catch(e){}
@@ -5627,6 +6128,9 @@
         isOn:function(){return on;},
         setMaster:function(v){master=Math.max(0,Math.min(1,+v||0));},
         getMaster:function(){return master;},
+        /* 距离 → 音量（线性，保底 0.14 / 最高 1.0，量程 18 格）。所有带位置的音效都走它。 */
+        volAt:volAt,
+        distRange:DIST.range,
         debug:function(){
           const out={};
           for(const k in POOL) out[k]=POOL[k].map(a=>({src:a.__src,ready:a.readyState,err:a.error?a.error.code:0}));
@@ -5726,6 +6230,16 @@
        原来的 Canvas 造型，file:// 冷启动也不会出现空白设施。 */
     loadImg('fx_medbot','v4/facility/medbot.png');
     loadImg('fx_secbot','v4/facility/secbot.png');
+    /* 特效贴图（tools/gen-facility-sprites.py --fx · 纯黑底 + 加色混合）：
+       完成任务 = 全息完成光环 / 维修 = 焊花。没就绪时 drawFx 自动回退矢量画法。 */
+    loadImg('fx_task','v4/facility/fx-task.png');
+    loadImg('fx_weld','v4/facility/fx-weld.png');
+    loadImg('fx_arc','v4/facility/fx-arc.png');
+    /* 补给站：tools/blender-fx.py 用 Blender 渲染（SDXL 材质 + 与底图同一台相机/同一套灯）。
+       fx-weld / fx-arc 是 2×2 图集（4 帧），fx-task 是单帧。 */
+    loadImg('tool_wrench','v4/facility/tool-wrench.png');
+    loadImg('fx_supply_ammo','v4/facility/supply-ammo.png');
+    loadImg('fx_supply_med','v4/facility/supply-med.png');
     /* 监控台 / 电闸的贴图不再进运行时：它们的本体由 Blender 底图烘出来，
        面板与屏幕材质走 assets/scene/v4/tex/facility-*.png（见 tools/blender-ship.py）。
        assets/scene/v4/facility/monitor.png / breaker.png 保留为素材库。 */
@@ -6065,22 +6579,43 @@
           ctx.beginPath();ctx.arc(0,-0.92*s,0.075*s,0,7);ctx.fill();
           ctx.restore();
         }else if(f.kind==='supply'){
+          /* ---- 补给站（2026-11-01 改 Blender 渲染）----
+             旧实现是 Canvas 手画的圆角矩形 + 居中图标 + 上方 9px 文字：
+             在 12° 俯角的烘焙底图上，它就是一张贴在地上的 UI 按钮 ——
+             没有顶面、没有厚度、不受光，和旁边的货箱病床完全不是一套画法。
+             现在本体来自 tools/blender-fx.py：SDXL 材质 + 与底图**同一台相机、
+             同一套三点光、同一套 AgX 色彩管理**，所以它和底图是一张照片里的东西。
+             这里只留状态层（可兑换虚线环 + 深色药丸标签），不再画本体。 */
           const ammo=f.item==='ammo';
-          ctx.save();ctx.translate(x,y);
-          ctx.fillStyle='rgba(10,14,20,.95)';
-          ctx.strokeStyle=ammo?'#6B4E19':'#1F5A46';ctx.lineWidth=1.5;
-          ctx.beginPath();ctx.roundRect(-0.54*s,-0.48*s,1.08*s,0.82*s,4);ctx.fill();ctx.stroke();
-          ctx.fillStyle=ammo?'rgba(224,169,75,.18)':'rgba(63,191,140,.18)';
-          ctx.fillRect(-0.44*s,-0.38*s,0.88*s,0.24*s);
-          ctx.strokeStyle=ammo?'rgba(224,169,75,.5)':'rgba(63,191,140,.5)';ctx.lineWidth=1;
-          ctx.strokeRect(-0.44*s,-0.38*s,0.88*s,0.24*s);
-          drawIcon(ammo?'bullet':'cross',ammo?'#E0A94B':'#3FBF8C',0,0.06*s,0.62*s,0);
-          ctx.fillStyle=ammo?'#E0A94B':'#3FBF8C';
-          ctx.beginPath();ctx.arc(0.42*s,-0.31*s,0.045*s,0,7);ctx.fill();
-          ctx.font='500 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.fillStyle=ammo?'rgba(255,224,163,.9)':'rgba(185,245,218,.9)';
-          ctx.fillText(f.label,0,-0.64*s);
-          ctx.restore();
+          const im=IMG[ammo?'fx_supply_ammo':'fx_supply_med'];
+          const gw=1.62*s;
+          const me0=G.me||null;
+          const ready0=!G.spectMode&&!!me0&&(me0.qual|0)>0&&
+            (ammo?(me0.bullet|0)<1:(me0.medkit|0)<1);
+          if(ready(im)){
+            /* 贴图里已经烘了接地阴影，锚点往上抬一点让影子落在交互点上 */
+            ctx.drawImage(im,x-gw/2,y-gw/2-0.06*s,gw,gw);
+          }else{
+            /* 冷启动兜底：贴图还没加载完时给一个最小可读的占位，不要留空 */
+            ctx.fillStyle='rgba(10,14,20,.9)';
+            ctx.strokeStyle=ammo?'#6B4E19':'#1F5A46';ctx.lineWidth=1.5;
+            ctx.beginPath();ctx.roundRect(x-0.54*s,y-0.48*s,1.08*s,0.82*s,4);ctx.fill();ctx.stroke();
+          }
+          if(ready0){
+            ctx.save();
+            ctx.strokeStyle=(ammo?'rgba(250,184,51,':'rgba(127,227,180,')+
+              (0.34+0.20*Math.sin(T*3.2)).toFixed(2)+')';
+            ctx.lineWidth=Math.max(1.2,0.030*s);
+            ctx.setLineDash([0.15*s,0.12*s]);ctx.lineDashOffset=-T*0.9*s;
+            ctx.beginPath();ctx.ellipse(x,y,0.78*s,0.56*s,0,0,7);ctx.stroke();
+            ctx.restore();
+          }
+          ctx.font='500 9.5px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+          const tw0=ctx.measureText(f.label).width+10, th0=13;
+          ctx.fillStyle='rgba(8,11,16,.72)';
+          ctx.beginPath();ctx.roundRect(x-tw0/2,y+0.62*s-th0/2,tw0,th0,4);ctx.fill();
+          ctx.fillStyle=ammo?'rgba(255,224,163,.94)':'rgba(198,245,228,.94)';
+          ctx.fillText(f.label,x,y+0.62*s+0.5);
         }else if(f.kind==='medbot'){
           const dead=!!G.medbotDead;
           const left=G.medbotLeft==null?MEDBOT_CHARGES:G.medbotLeft;
@@ -6601,7 +7136,22 @@
         const swing=-0.58+Math.sin(T*7.2)*0.52;
         ctx.save();ctx.shadowColor='rgba(8,12,16,.85)';ctx.shadowBlur=6;
         ctx.translate(hx,hy);ctx.rotate(swing);
-        drawWrenchShape(0.86*VIEW.s,'#FFE8B0','#6E5522');
+        /* 2026-11-01：手画的扳手换成 Blender 渲染的贴图（材质来自 SDXL 的 panel-metal）。
+           贴图里手柄末端在左缘，所以把图片左边中点对准握持点，
+           这样 rotate 就是以"手握的位置"为轴拧，和旧版手画的枢轴一致。 */
+        const wim=IMG['tool_wrench'];
+        if(ready(wim)){
+          /* 尺寸放大到 1.3 格：512 贴图里扳手只占中间一条横带，
+             按 1.0 格画出来会比角色还细。再叠一层暖色滤镜，
+             否则浅色金属在医疗间这种亮地板上直接糊掉（旧版是暖黄 + 深描边，读得清）。 */
+          const wl=1.30*VIEW.s, wh=wl;
+          ctx.save();
+          ctx.filter='brightness(1.18) saturate(0.9) sepia(0.42)';
+          ctx.drawImage(wim,-wl*0.055,-wh*0.5,wl,wh);
+          ctx.restore();
+        }else{
+          drawWrenchShape(0.86*VIEW.s,'#FFE8B0','#6E5522');
+        }
         ctx.restore();
         /* 拧动弧线：从握持点扫出去，暗示“螺纹在转” */
         ctx.save();
@@ -6666,6 +7216,27 @@
       }
     }
 
+    /* ---- 加色混合特效层（2026-11-01）----
+       贴图由 tools/gen-facility-sprites.py --fx 用本地 SDXL 出图，**纯黑底**。
+       画的时候 globalCompositeOperation='lighter'：黑色不贡献任何亮度，天然等于透明，
+       光晕的衰减能完整保留 —— 白底抠图会把外圈削成一圈硬边，这是特效不能走抠图的原因。
+       贴图没就绪（file:// 冷启动）时返回 false，调用方回退到原来的矢量画法。 */
+    function drawFxSprite(key,x,y,w,h,alpha,rot,frame,grid){
+      const im=IMG[key];
+      if(!ready(im))return false;
+      const n=grid||1, tot=n*n;
+      const f=n>1?(((frame|0)%tot)+tot)%tot:0;
+      const sw=im.naturalWidth/n, sh=im.naturalHeight/n;
+      const sx=(f%n)*sw, sy=((f/n)|0)*sh;
+      ctx.save();
+      ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=Math.max(0,Math.min(1,alpha));
+      ctx.translate(x,y);
+      if(rot)ctx.rotate(rot);
+      ctx.drawImage(im,sx,sy,sw,sh,-w/2,-h/2,w,h);
+      ctx.restore();
+      return true;
+    }
     /* ---- 特效层：在角色之后、战争迷雾之前绘制 ---- */
     function drawFx(d,T){
       for(const f of G.fx){
@@ -6737,18 +7308,16 @@
           ctx.beginPath();ctx.arc(x,y,2.4,0,7);ctx.fill();
         }else if(f.type==='done'){
           const x=SX(f.x),y=SY(f.y);
-          ctx.strokeStyle='rgba(240,198,116,'+a.toFixed(2)+')';ctx.lineWidth=2.6;
-          ctx.beginPath();ctx.arc(x,y,(0.35+1.15*p)*VIEW.s,0,7);ctx.stroke();
-          ctx.strokeStyle='rgba(63,191,140,'+(0.6*a).toFixed(2)+')';ctx.lineWidth=1.6;
-          ctx.beginPath();ctx.arc(x,y,(0.18+0.9*p)*VIEW.s,0,7);ctx.stroke();
-          for(let i=0;i<5;i++){
-            const ang=-1.7+i*0.85, r=(0.35+0.75*p)*VIEW.s;
-            ctx.fillStyle='rgba(255,236,170,'+(0.8*a).toFixed(2)+')';
-            ctx.beginPath();ctx.arc(x+Math.cos(ang)*r,y+Math.sin(ang)*r*0.55-0.35*VIEW.s,2.2,0,7);ctx.fill();
-          }
-          ctx.font='600 15px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.fillStyle='rgba(255,246,214,'+a.toFixed(2)+')';
-          ctx.fillText('✓',x-1.25*VIEW.s,y-(2.0+0.5*p)*VIEW.s);
+          /* 维修/任务完成：**只留细小电流**（2026-11-01 用户：原来那圈全息光环光污染）。
+             换成同一条电弧贴图的小尺寸版本，透明度压到 0.42、尺寸只有 0.35 格，
+             并且随进度快速衰减 —— 读起来是"设备收尾时啪一下的小电弧"，
+             不是"原地放了个大招"。 */
+          const sz=(0.34+0.26*p)*VIEW.s;
+          drawFxSprite('fx_arc',x,y,sz,sz,a*0.42*0.55,0,Math.floor(f.t*30),2);
+          /* ✓ 是"完成"的语义标记，不是特效本体，保留但收小、收暗 */
+          ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillStyle='rgba(214,236,226,'+(a*0.85).toFixed(2)+')';
+          ctx.fillText('✓',x-0.72*VIEW.s,y-(1.32+0.28*p)*VIEW.s);
         }else if(f.type==='qual'){
           const qr=0.40*VIEW.s;
           const x=SX(f.x)+1.45*VIEW.s,y=SY(f.y)-(2.05+0.6*p)*VIEW.s;
@@ -6789,17 +7358,16 @@
           ctx.fillText(label,x,y-(1.9+0.25*p)*VIEW.s);
         }else if(f.type==='power'){
           const x=SX(f.x),y=SY(f.y);
-          ctx.strokeStyle='rgba(127,211,240,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
-          ctx.beginPath();ctx.arc(x,y,(0.5+1.4*p)*VIEW.s,0,7);ctx.stroke();
-          ctx.lineWidth=1.8;
-          for(let i=0;i<3;i++){
-            const ang=-Math.PI/2+i*2.094, r=(0.55+0.75*a)*VIEW.s;
-            ctx.beginPath();
-            ctx.moveTo(x+Math.cos(ang)*0.25*VIEW.s,y+Math.sin(ang)*0.25*VIEW.s);
-            ctx.lineTo(x+Math.cos(ang+0.25)*r*0.65,y+Math.sin(ang+0.25)*r*0.65);
-            ctx.lineTo(x+Math.cos(ang-0.18)*r,y+Math.sin(ang-0.18)*r);
-            ctx.stroke();
+          /* 主视觉：Blender 渲染的电弧图集（4 帧）。没就绪才回退矢量。 */
+          const sz=(1.1+1.5*p)*VIEW.s;
+          const fr=Math.floor(f.t*26);
+          if(!drawFxSprite('fx_arc',x,y,sz,sz,a*0.95,f.t*1.7,fr,2)){
+            ctx.strokeStyle='rgba(127,211,240,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
+            ctx.beginPath();ctx.arc(x,y,(0.5+1.4*p)*VIEW.s,0,7);ctx.stroke();
           }
+          /* 冲击环保留：电弧负责"电"，环负责"波及范围"，两者不重复 */
+          ctx.strokeStyle='rgba(127,211,240,'+(a*0.5).toFixed(2)+')';ctx.lineWidth=1.6;
+          ctx.beginPath();ctx.arc(x,y,(0.5+1.4*p)*VIEW.s,0,7);ctx.stroke();
         }else if(f.type==='heal'){
           const x=SX(f.x),y=SY(f.y);
           ctx.strokeStyle='rgba(63,191,140,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
@@ -6812,23 +7380,33 @@
           drawIcon('lens','#BFE9F7',x,y-(0.4+0.5*p)*VIEW.s,0.45*VIEW.s,0);
         }else if(f.type==='workSpark'){
           const x=SX(f.x),y=SY(f.y)-0.2*VIEW.s;
-          ctx.strokeStyle='rgba(180,230,255,'+(0.9*a).toFixed(2)+')';ctx.lineWidth=1.5;ctx.lineCap='round';
-          for(let i=0;i<3;i++){
-            const ang=f.ang+i*2.1, r0=(0.1+0.5*p)*VIEW.s;
-            ctx.beginPath();
-            ctx.moveTo(x+Math.cos(ang)*r0,y+Math.sin(ang)*r0*0.6);
-            ctx.lineTo(x+Math.cos(ang)*(r0+0.14*VIEW.s),y+Math.sin(ang)*(r0+0.14*VIEW.s)*0.6-0.06*VIEW.s);
-            ctx.stroke();
+          /* 主视觉：SDXL 焊花（加色混合）；没就绪回退到矢量短线 */
+          const sz=(0.58+0.26*p)*VIEW.s;
+          /* 4 帧循环：按剩余时间推进，同一个火花播完正好走完一轮 */
+          const fr=Math.floor((1-p)*4*2.2);
+          if(!drawFxSprite('fx_weld',x,y,sz,sz,a*0.52,f.ang||0,fr,2)){
+            ctx.strokeStyle='rgba(180,230,255,'+(0.9*a).toFixed(2)+')';ctx.lineWidth=1.5;ctx.lineCap='round';
+            for(let i=0;i<3;i++){
+              const ang=f.ang+i*2.1, r0=(0.1+0.5*p)*VIEW.s;
+              ctx.beginPath();
+              ctx.moveTo(x+Math.cos(ang)*r0,y+Math.sin(ang)*r0*0.6);
+              ctx.lineTo(x+Math.cos(ang)*(r0+0.14*VIEW.s),y+Math.sin(ang)*(r0+0.14*VIEW.s)*0.6-0.06*VIEW.s);
+              ctx.stroke();
+            }
           }
         }else if(f.type==='spark'){
           const ang0=Math.abs(Math.sin(f.t*18));
-          ctx.strokeStyle='rgba(150,220,255,'+(ang0*0.95).toFixed(2)+')';ctx.lineWidth=2;
-          for(let i=0;i<5;i++){
-            const ang=f.t*7+i*1.7, r0=0.25*VIEW.s, r1=(0.7+ang0*0.5)*VIEW.s;
-            ctx.beginPath();
-            ctx.moveTo(SX(f.x)+Math.cos(ang)*r0,SY(f.y)+Math.sin(ang)*r0);
-            ctx.lineTo(SX(f.x)+Math.cos(ang)*r1,SY(f.y)+Math.sin(ang)*r1);
-            ctx.stroke();
+          const sz=(0.9+0.5*ang0)*VIEW.s;
+          if(!drawFxSprite('fx_arc',SX(f.x),SY(f.y),sz,sz,(0.55+0.45*ang0)*a,
+              f.t*9,Math.floor(f.t*22),2)){
+            ctx.strokeStyle='rgba(150,220,255,'+(ang0*0.95).toFixed(2)+')';ctx.lineWidth=2;
+            for(let i=0;i<5;i++){
+              const ang=f.t*7+i*1.7, r0=0.25*VIEW.s, r1=(0.7+ang0*0.5)*VIEW.s;
+              ctx.beginPath();
+              ctx.moveTo(SX(f.x)+Math.cos(ang)*r0,SY(f.y)+Math.sin(ang)*r0);
+              ctx.lineTo(SX(f.x)+Math.cos(ang)*r1,SY(f.y)+Math.sin(ang)*r1);
+              ctx.stroke();
+            }
           }
         }else if(f.type==='shield'){
           ctx.strokeStyle='rgba(127,211,240,'+(0.9*a).toFixed(2)+')';ctx.lineWidth=3;

@@ -5,7 +5,7 @@
  * 不变量： · 只读常量（Object.freeze），不读 DOM、不写业务状态；
  *          · 改版本只改这里 + package.json（displayVersion 同步），
  *            并在 CHANGELOG.md 记录；
- *          · 显示版本为「返航录V3」；package.json 的 3.0.0 是语义化镜像。
+ *          · 显示版本为「返航录V3.x」；package.json 的 3.x.0 是语义化镜像。
  * 依赖：   无。
  * 对外：   window.SKConfig
  * ============================================================= */
@@ -14,7 +14,7 @@
 
   global.SKConfig = Object.freeze({
     name: '新返航录',
-    version: '返航录V3.1',
+    version: '返航录V3.5',
     build: '2026-11-01',
     license: 'MIT',
     repos: Object.freeze({

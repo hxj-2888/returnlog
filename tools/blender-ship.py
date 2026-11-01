@@ -22,6 +22,17 @@ ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 TEST = '--test' in ARGS
 FORCE_CYCLES = '--cycles' in ARGS
 
+# —— 权威渲染版本守卫（见 AGENTS.md「Blender 权威渲染版本」，2026-11-01 定稿）——
+# 只允许 Blender 5.2+；目录里的其它版本（含已删除的 4.x 便携包）一律拒绝出图。
+MIN_VERSION = (5, 2)
+if tuple(bpy.app.version[:2]) < MIN_VERSION:
+    raise SystemExit(
+        "[blender-ship] 版本不符：需要 Blender %d.%d+（权威版 5.2.2 LTS），当前 %s。\n"
+        "  权威路径：E:\\SteamLibrary\\steamapps\\common\\Blender\\blender.exe\n"
+        "  校验命令：tools\\check-blender.ps1"
+        % (MIN_VERSION[0], MIN_VERSION[1], bpy.app.version_string)
+    )
+
 
 def argval(name, default):
     if name in ARGS:

@@ -979,7 +979,11 @@ function section(t) { console.log('\n== ' + t); }
       const declared = a ? (a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null)) : null;
       if (declared && l.text.indexOf(declared) >= 0) return { n: lines.length, who: l.who, text: l.text, declared };
     }
-    const last = fresh.length ? fresh[fresh.length - 1] : lines[lines.length - 1];
+    /* 2026-11-01：改成取**第一条**新发言。
+       以前取最后一条，但会议里现在还会冒出领袖指令（说的是一间与他自己口供无关的房间），
+       一旦它排在最后，这条用例就会误判成"回应里的位置和口供不一致"。
+       玩家问"你在哪"之后，回应是最早被排期的那条（600ms），所以取第一条才对。 */
+    const last = fresh.length ? fresh[0] : lines[lines.length - 1];
     const a = g.agents.find(x => x.name === last.who);
     return { n: lines.length, who: last.who, text: last.text,
       declared: a ? (a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null)) : null };
@@ -3664,6 +3668,10 @@ function section(t) { console.log('\n== ' + t); }
     '没有该确证的目击者仍会把枪击记为凶手证据');
 
   const EMPTY = await T(() => {
+    /* 2026-11-01：异形现在会**编造伪证**（诬陷），一旦编了就不再是"零证据指控"，
+       这条用例测的是 empty_accuse 这条通道本身，所以先把诬陷关掉再测。 */
+    const oldFrame = window.SKSanity ? window.SKSanity.FRAME.chance : null;
+    if (window.SKSanity) window.SKSanity.FRAME.chance = 0;
     const t = SKV3._t; t.newGame();
     const g = t.G(); g.paused = true; g.noReport = true;
     const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
@@ -3674,6 +3682,7 @@ function section(t) { console.log('\n== ' + t); }
     t.openMeeting('day', null, null);
     const after = (t.mind(w.i).sus || {})[k.i] || 0;
     if (g.meet) t.finishMeeting();
+    if (oldFrame != null && window.SKSanity) window.SKSanity.FRAME.chance = oldFrame;
     return { before, after };
   });
   ok(EMPTY.after > EMPTY.before,
@@ -3800,6 +3809,51 @@ function section(t) { console.log('\n== ' + t); }
   ok(qr2.length === 0,
     '不是「来得太快」就不记 quick_report 嫌疑（总嫌疑可能被会议构陷抬高：' +
     QR2.s0.toFixed(2) + ' → ' + QR2.s1.toFixed(2) + '）');
+
+  section('会议 · 夜晚时间结算（会议真的扣时间）');
+  await fresh(false);
+  const MTIME = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = false; g.noReport = true;
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const vs = g.agents.filter(a => !a.alien && a.i !== 0 && a.alive).slice(0, 4);
+    const leftSec = () => (g.simMode ? g.simT : (g.phase ? SKClock.remaining(g.phase, performance.now()) / 1000 : 0));
+    /* 造一具尸体 → 开会 → 把 startAt 往前拨，模拟"会议开了 elapsedMs 毫秒" */
+    const runMeet = (victim, elapsedMs) => {
+      t.kill(victim.i);
+      t.openMeeting('night', k.i, victim.i);
+      const m = g.meet;
+      if (m) m.startAt = performance.now() - elapsedMs;
+      t.finishMeeting();
+      return m ? { remainMs: Math.round(m.remainMs) } : null;
+    };
+
+    /* ① 正常：夜晚剩 90 秒，会议 30 秒 → 散会后应剩 ≈60 秒，仍在同一夜 */
+    g.phase = SKClock.newPhase('night', performance.now(), 90000);
+    const m1 = runMeet(vs[0], 30000);
+    const normal = { remainMs: m1 && m1.remainMs, left: +leftSec().toFixed(1),
+      night: g.night, meet: !!g.meet };
+
+    /* ② 深夜：夜晚只剩 10 秒，会议 30 秒 → 这一夜被耗光，应直接天亮（开 day 会议） */
+    g.phase = SKClock.newPhase('night', performance.now(), 10000);
+    const m2 = runMeet(vs[1], 30000);
+    const overtime = { remainMs: m2 && m2.remainMs, left: +leftSec().toFixed(1),
+      night: g.night, t: +g.t.toFixed(1), meetKind: g.meet ? g.meet.kind : null };
+
+    /* ③ 天亮会议散场 → 进入下一夜（天数 +1、夜晚时间回满） */
+    const before = g.night;
+    if (g.meet) t.finishMeeting();
+    const after = { night: g.night, t: +g.t.toFixed(1) };
+    return { normal, overtime, before, after, inv: t.inv() };
+  });
+  ok(MTIME.normal.left > 55 && MTIME.normal.left < 65 && MTIME.normal.night === 1 && !MTIME.normal.meet,
+    '夜晚剩 90 秒开会 30 秒：散会后剩 ' + MTIME.normal.left + ' 秒，仍在同一夜');
+  ok(MTIME.overtime.meetKind === 'day' && MTIME.overtime.t === 0,
+    '夜晚只剩 10 秒时开会 30 秒：这一夜被耗光，直接天亮（' +
+    'meetKind=' + MTIME.overtime.meetKind + ' / 天数=' + MTIME.overtime.night + ' / 剩余=' + MTIME.overtime.left + 's）');
+  ok(MTIME.after.night === MTIME.before + 1 && MTIME.after.t === 120,
+    '天亮会议散场进入下一夜：天数 ' + MTIME.before + ' → ' + MTIME.after.night + '，夜晚时间回满 ' + MTIME.after.t + 's');
+  ok(MTIME.inv && MTIME.inv.fails.length === 0, '会议时间结算后不变量全过');
 
   section('故障维修 · 队友修好后立即松手');
   await fresh(false);

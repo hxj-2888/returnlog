@@ -266,11 +266,15 @@
 ```text
 index.html                 入口页面（唯一的 script 加载清单）
 js/
-  config/version.js        版本与元信息（返航录V3.1 单一真源）
+  config/version.js        版本与元信息（返航录V3.5 单一真源）
   data/map.js              舰船地图静态数据（房间/走廊/家具/任务点/管道/墙体）
+  data/lines.js            会议台词语料库（六类说服策略 × 情绪档，约 290 条）
   ui/templates.js          游戏界面 CSS / HTML 模板
   ui/home.js               主页：由 SKMapData 生成整船 SVG + 手电遮罩 + 身份锚亮
   ui/replay.js             对局复盘：事件时间轴 + 0.5 秒位置帧播放 + 回放导出/载入
+  ai/
+    sanity.js              理智兜底层：暴露度 / 目击者硬上限 / 伪装收益 / 正向信任（纯声明表）
+    traits.js              性格轴声明层：四轴档位 → 系数（受 sanity 的 TRAIT_GAIN 压缩）
   engine/
     clock.js               相位时钟 / 个人技能槽 / 动作请求队列
     invariants.js          对局不变量断言（只读检查）
@@ -284,6 +288,9 @@ tools/
   test-v3.cjs              浏览器断言门禁（Playwright）
   blender-ship.py          2.5D 底图烘焙脚本（需 Blender；读取 js/data/map.js）
   gen-materials.py         家具/掩体表面材质生成（本地 SDXL 出图；--mode reuse 为无显卡兜底）
+  gen-facility-sprites.py  设施/补给站 2.5D 贴图与特效贴图（本地 SDXL；--fx 走黑底加色混合）
+  blender-fx.py            补给站道具 + 特效序列帧（Blender 渲染；材质来自 SDXL 出图）
+  fx-post.py               Blender 原始帧后处理：上下翻转 / 接地阴影 / 2×2 帧图集
   sfx-audit.py             音效量化体检（峰值 / 短窗 RMS / 动态 / 起始静音；--check 校验游戏内引用）
   master-sfx.py            用 tools/_sfx 公共 CC0 素材分层混音 + 归一，产出 audio/sfx-*.ogg
   gen-hull.py              船体底板 hull-deck.png 程序化生成（与底图同尺寸同色温）
