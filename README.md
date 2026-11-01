@@ -1,9 +1,9 @@
-# 新返航录 · 返航录V3
+# 新返航录 · 返航录V3.1
 
 > **11 人类 vs 4 异形**的实时太空船对抗网页游戏（试玩版）。
 > 零依赖前端 · 无构建步骤 · 双击 `index.html` 即玩 · 单机 AI 托管对局
 
-- **版本**：返航录V3（`package.json` 语义化镜像 `3.0.0`）
+- **版本**：返航录V3.1（`package.json` 语义化镜像 `3.1.0`）
 - **仓库**：[GitHub](https://github.com/hxj-2888/space-kill-web) · [Gitee](https://gitee.com/hxj-2888/space-kill-web)
 - **许可**：代码 MIT；音效 CC0；场景素材 CC-BY 4.0（详见[素材与许可](#素材与许可)）
 
@@ -266,7 +266,7 @@
 ```text
 index.html                 入口页面（唯一的 script 加载清单）
 js/
-  config/version.js        版本与元信息（返航录V3 单一真源）
+  config/version.js        版本与元信息（返航录V3.1 单一真源）
   data/map.js              舰船地图静态数据（房间/走廊/家具/任务点/管道/墙体）
   ui/templates.js          游戏界面 CSS / HTML 模板
   ui/home.js               主页：由 SKMapData 生成整船 SVG + 手电遮罩 + 身份锚亮
@@ -341,8 +341,8 @@ tools/
 
 ## 版本与记录
 
-- 版本口径：**返航录V3**，单一真源为 [`js/config/version.js`](js/config/version.js)；
-  `package.json` 的 `version`（3.0.0）与 `gameVersion`（返航录V3）为镜像，改版本需同批更新。
+- 版本口径：**返航录V3.1**，单一真源为 [`js/config/version.js`](js/config/version.js)；
+  `package.json` 的 `version`（3.1.0）与 `gameVersion`（返航录V3.1）为镜像，改版本需同批更新。
 - 下一步：**移动端适配**（触屏摇杆 / 手势交互 / 安全区布局），详见 CHANGELOG 的 V2 条目。
 - 修改记录：[CHANGELOG.md](CHANGELOG.md)。
 - 工程约定与红线：[AGENTS.md](AGENTS.md)。

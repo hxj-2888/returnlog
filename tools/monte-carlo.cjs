@@ -74,7 +74,9 @@ function summarize(results) {
     /* 2026-10-31 新增：医疗无人机救治 / 医疗包施救 / 幽灵任务 / 幽灵修故障 /
        人类辩护 / 异形质疑快速报案者 */
     'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
-    'humanDefends', 'reportDoubts'];
+    'humanDefends', 'reportDoubts',
+    /* 2026-11-01 破坏技能探查 */
+    'sabotages', 'sabHits', 'sabFixed', 'sabFixSec', 'sabFixedByGhost'];
   const avg = {}, med = {};
   for (const k of keys) { avg[k] = +mean(results, k).toFixed(3); med[k] = +median(results, k).toFixed(3); }
   /* 分任务点完成次数：把所有局里每个 label 的计数加起来再除以局数 = 每局平均完成次数。
@@ -86,10 +88,26 @@ function summarize(results) {
   }
   const tasksPerGame = {};
   for (const k of Object.keys(byPoint)) tasksPerGame[k] = +(byPoint[k] / (n || 1)).toFixed(3);
+  /* 破坏技能探查（2026-11-01）：下手 → 命中(-5 生效) → 被修 的漏斗，
+     顺便看异形每夜的使用率（机会数 = 4 异形 × 夜数 × 1 次/夜）。 */
+  const sabOpp = results.reduce((s, r) => s + (r.nights || 0) * 4, 0) / (n || 1);
+  const sab = {
+    triesPerGame: +(mean(results, 'sabotages')).toFixed(3),
+    oppPerGame: +sabOpp.toFixed(1),
+    useRate: +(mean(results, 'sabotages') / (sabOpp || 1) * 100).toFixed(1),
+    hitsPerGame: +(mean(results, 'sabHits')).toFixed(3),
+    fixedPerGame: +(mean(results, 'sabFixed')).toFixed(3),
+    hitRate: 0,
+    avgFixSec: +(mean(results, 'sabFixSec')).toFixed(1),
+    ghostFixedPerGame: +(mean(results, 'sabFixedByGhost')).toFixed(3),
+  };
+  const tries = sab.triesPerGame;
+  sab.hitRate = tries ? +((sab.hitsPerGame / tries) * 100).toFixed(1) : 0;
   return {
     games: n,
     wins: { human, alien, timeout },
     tasksPerGame,
+    sab,
     winRate: { human: pct(human, n), alien: pct(alien, n), timeout: pct(timeout, n) },
     humanWin95CI: [+(ciLo * 100).toFixed(2), +(ciHi * 100).toFixed(2)],
     reasons: why,
@@ -159,6 +177,16 @@ function writeOut(results, finished) {
     '| ghostFixes | ' + s.avg.ghostFixes + ' | 幽灵修好的故障次数 |',
     '| humanDefends | ' + s.avg.humanDefends + ' | 人类 AI 公开替人辩护的次数（新行为） |',
     '| reportDoubts | ' + s.avg.reportDoubts + ' | 异形质疑「尸体还热就报案」的次数（新行为） |',
+    '',
+    '## 破坏技能探查（2026-11-01）',
+    '',
+    '| 指标 | 数值 | 说明 |',
+    '|---|---:|---|',
+    '| 每局机会 | ' + s.sab.oppPerGame + ' | 4 异形 × 夜数 × 每夜 1 次 |',
+    '| 每局下手 | ' + s.sab.triesPerGame + ' | 使用率 ' + s.sab.useRate + '% |',
+    '| 每局命中（-5 生效） | ' + s.sab.hitsPerGame + ' | 命中率 ' + s.sab.hitRate + '% |',
+    '| 每局被修掉 | ' + s.sab.fixedPerGame + ' | 平均存活 ' + s.sab.avgFixSec + ' 秒（上限 30） |',
+    '| 其中幽灵抢修 | ' + s.sab.ghostFixedPerGame + ' | 幽灵修复额度被故障吃掉多少 |',
     '',
     '## 分任务点完成次数（每局平均 · 由少到多）',
     '',

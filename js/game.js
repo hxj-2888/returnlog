@@ -131,7 +131,7 @@
          secbotUsed:false,secbotUses:0,secbotDead:false,medbotUsed:false,medbotDead:false,medbotT:0,secbotT:0,
          medbotTarget:null,
          medbotLeft:MEDBOT_CHARGES,botHp:{secbot:2,medbot:1},secCatch:null,
-         bots:null,jailPos:null,breakerSaboteur:null,
+         bots:null,jailPos:null,
         /* 本夜已成功拉断电闸的次数（决定下一次拉闸要站多久：3/6/9/9…），每夜重置 */
         breakerPulls:0,
          dmg:[],sabPick:null,sabTarget:null,aiReportUsed:false,evSeq:0,
@@ -153,8 +153,8 @@
       }
       resetBots();
       G.doors=buildDoors();
-      const alienIds=agents.filter(a=>a.alien&&a.i!==0).map(a=>a.i);
-      G.breakerSaboteur=alienIds.length?alienIds[Math.floor(Math.random()*alienIds.length)]:null;
+      /* 2026-11-01：不再指定拉闸手 —— 拉闸/破坏由异形行为效用表（alienPlan）决定，
+         谁顺路谁价值高谁做。专属角色全部取消。 */
       refreshLight();
       document.getElementById('end').classList.add('hide');
       document.getElementById('body').classList.add('hide');
@@ -800,6 +800,9 @@
        每个异形每晚一次破坏技：选一个非会议室舱室，抵达后损毁该舱室的设备。
        故障 30 秒内没人连续修满 10 秒就扣 5 点维修进度；天亮前没修完不追罚。
        幽灵不能破坏（但可以参与维修），破坏必须在活着的异形手里。 */
+    /* 破坏技能（2026-11-01 探查结论）：使用率 30% / 命中率 9.6% 只是表象，
+       根因是 AI 调度耦合（td>5 门槛 / 与拉闸共名额 / 随机选房跨图）与
+       envNotice 全船广播（破坏 = 免费全船警铃）。数值暂不动，等讨论定方案。 */
     const SAB_TIME=30, FIX_TIME=10, SAB_RANGE=1.7, FIX_RANGE=2.0;
     /* 专用补给点兑换物资的站桩时长（2026-10-31：子弹 10 → 7 秒、医疗包 6 → 5 秒）。
        玩家与 AI 共用这两个常量，改这里即可，别在调用处再写死数字。 */
@@ -872,7 +875,8 @@
       if(!a||!a.alive||a.downed||!a.alien||a.sabUsed)return false;
       if(!sabRoomOk(rid))return false;
       const sp=sabSpot(rid); if(!sp)return false;
-      G.dmg.push({room:rid,x:sp.x,y:sp.y,label:sp.label,left:SAB_TIME,dur:SAB_TIME,by:a.i});
+      G.dmg.push({room:rid,x:sp.x,y:sp.y,label:sp.label,left:SAB_TIME,dur:SAB_TIME,by:a.i,
+        born:evNow()});
       if(G.simMode&&G.simStats)G.simStats.sabotages++;
       logEvent('sabotage',{actor:a.i,room:rid,label:sp.label,
         x:+sp.x.toFixed(1),y:+sp.y.toFixed(1)});
@@ -892,7 +896,9 @@
     function startFix(a,d){
       if(!a||!d||G.dmg.indexOf(d)<0)return false;
       if(!a.alive&&!a.ghost)return false;
-      if(a.ghost&&a.alien){if(a===G.me&&!G.spectMode)toast('异形幽灵不能维修');return false;}
+      /* 幽灵一律不能修故障（2026-11-01 用户裁定）：幽灵的 2 分额度只能花在
+         剩余任务上，额度耗尽就游荡。故障是人类活人的活儿。 */
+      if(a.ghost){if(a===G.me&&!G.spectMode)toast('幽灵不能修故障：先把手头的任务做完');return false;}
       const dur=a.ghost?FIX_TIME*1.6:FIX_TIME;
       a.doing=dur;a._dur=dur;a._doing='fix';a._fix=d;
       a.path=null;a.moving=false;a._fixGo=null;
@@ -919,6 +925,12 @@
       /* 局内统计：幽灵修好的故障次数（与「幽灵任务」分开记） */
       if(a.ghost&&G.stats)G.stats.ghostFixes=(G.stats.ghostFixes||0)+1;
       if(G.simMode&&G.simStats&&a.ghost)G.simStats.ghostFixes++;
+      /* 破坏遥测：故障被修掉（异形没拿到 -5），记录存活时长评估破坏威慑力 */
+      if(G.simMode&&G.simStats){
+        G.simStats.sabFixed++;
+        G.simStats.sabFixSecSum+=Math.max(0,(d.dur||SAB_TIME)-(d.left||0));
+        if(a.ghost)G.simStats.sabFixedByGhost++;
+      }
       logEvent('fix',{actor:a.i,room:d.room,label:d.label,ghost:!!a.ghost,
         x:+d.x.toFixed(1),y:+d.y.toFixed(1)});
       if(!G.spectMode&&a===G.me)toast('故障已修复：'+roomNameById(d.room)+'「'+d.label+'」');
@@ -950,6 +962,8 @@
         /* 天亮后不再追罚：dawn 会清掉剩余故障，这一夜算白干但不扣分 */
         if(G.t>0.05){
           G.prog=Math.max(0,G.prog-5);
+          /* 破坏遥测：-5 真正生效的次数（异形破坏的"命中"） */
+          if(G.simMode&&G.simStats)G.simStats.sabHits++;
           G.fx.push({type:'alarm',x:d.x,y:d.y,t:1.4,dur:1.4});
           G.fx.push({type:'spark',x:d.x,y:d.y,t:1.0,dur:1.0});
           hear(d.x,d.y,'power',1.0);
@@ -1495,15 +1509,16 @@
        开局错峰（_delay）、硬控（濒死/被擒/被拖）与短暂恢复（_rest）之外，
        AI 不允许出现"非任务/非维修/非领取"的呆站。任务修完后按
        「去修亮着的故障 → 回圆桌领申请单 → 巡舱」继续移动；
-       移动不产生任何情报，站着不动才是白白浪费人类的时间窗口。 */
+       移动不产生任何情报，站着不动才是白白浪费人类的时间窗口。
+       幽灵不参与修故障（2026-11-01 改），巡舱即可。 */
     function aiIdleRoam(a,dt){
       if(!a)return;
       if(!a.path||!a.path.length){
         let tg=null;
-        if(G.dmg&&G.dmg.length){
+        if(!a.ghost&&G.dmg&&G.dmg.length){
           const d=G.dmg[Math.floor(Math.random()*G.dmg.length)];
           tg=[d.x,d.y];
-        }else if((a.qualPending||0)>0){
+        }else if(!a.ghost&&(a.qualPending||0)>0){
           const q=roundTableClaimSpot();
           if(q)tg=[q.x,q.y];
         }
@@ -1516,25 +1531,13 @@
       if(a.path&&a.path.length)stepMove(a,dt,moveSpeed(a));
       else a.moving=false;
     }
-    /* 人类 AI 幽灵：优先修故障，其次做剩余任务；
-       任务进度严格受 ghostPts 额度限制（每只幽灵最多 2 分），超过就只飘不修。 */
+    /* 人类 AI 幽灵（2026-11-01 改）：**不再修故障**，全力做剩余任务；
+       任务进度严格受 ghostPts 额度限制（每只幽灵最多 2 分），额度耗尽进入游荡。 */
     function aiGhost(a,dt){
-      /* 异形幽灵对维修/任务没有任何帮助，也不应该继续推进人类进度：直接待机。 */
+      /* 异形幽灵对任务没有任何帮助，也不应该推进人类进度：直接待机。 */
       if(a.alien){a.moving=false;return;}
       if(a._pathCD>0)a._pathCD-=dt;
       if(a.doing>0){a.doing-=dt;if(a.doing<=0)finishDoing(a);return;}
-      if(G.dmg.length){
-        let best=null,bd=1e9;
-        for(const d of G.dmg){
-          const dd=Math.hypot(d.x-a.x,d.y-a.y);
-          if(dd<bd){bd=dd;best=d;}
-        }
-        if(best){
-          if(bd<1.5){startFix(a,best);return;}
-          if(!a.path||!a.path.length)walkTo(a,best.x,best.y);
-          stepMove(a,dt,6.5);return;
-        }
-      }
       if((a.ghostPts||0)<2&&a.tIdx<a.tasks.length){
         const p=M.points[a.tasks[a.tIdx]];
         if(p){
@@ -1546,7 +1549,7 @@
           }
         }
       }
-      /* 幽灵额度用尽后也不再呆站：换个舱室继续飘（幽灵是 2.4 格/秒的慢速巡游） */
+      /* 修复额度耗尽（或任务做完）→ 游荡：换个舱室继续飘（幽灵是 2.4 格/秒的慢速巡游） */
       if(!a.path||!a.path.length){
         const r=M.rooms[Math.floor(Math.random()*M.rooms.length)];
         const p=randIn(r); a.path=[[p[0],p[1]]];
@@ -1681,7 +1684,9 @@
       for(const v of G.agents){
         if(v===a)continue;
         const bp=bodyPos(v); if(!bp)continue;
-        if(v.downed&&bodyReported(v))continue;
+        /* 同一夜每具尸体只能报告一次（2026-11-01 修 bug）：旧代码只拦濒死者，
+           真正的死者不拦 —— AI 会反复对同一具尸体拉铃。 */
+        if(bodyReported(v))continue;
         const d=Math.hypot(bp[0]-a.x,bp[1]-a.y);
         if(d<bd&&aiCanSee(a,bp[0],bp[1],5.4)){bd=d;best=v;}
       }
@@ -1995,15 +2000,18 @@
           }
         }
       }else if(a._lightGo)a._lightGo=false;
-      /* 故障抢修：一座故障最多 2 名 AI 响应，最近的两名直接赶过去连续修 10 秒。
-         30 秒后要扣 5 分，比零散任务更贵；锁定后不被脚步声/任务点打断，避免踱步。 */
+      /* 故障抢修（2026-11-01 去名额制）：不再限制"一座故障最多 2 名响应"——
+         每个人都可以参与修破坏，最近的人先到先修，后来的一起修（finishFix 会
+         让所有人同时松手）。锁定后不被脚步声/任务点打断，避免踱步。 */
       if(G.dmg.length){
         if(a._fixGo&&G.dmg.indexOf(a._fixGo)<0)a._fixGo=null;
         if(!a._fixGo){
           let best=null,bd=1e9;
           for(const d of G.dmg){
+            /* 团队量化表（SKTeam.FIX_CREW_CAP）：同一故障超过 3 人在赶/在修，
+               边际收益为负 —— 认定队友能修好，自己去做任务性价比更高（防踩踏） */
             const crew=G.agents.filter(x=>x!==a&&((x._doing==='fix'&&x._fix===d)||x._fixGo===d)).length;
-            if(crew>=2)continue;
+            if(crew>=SKTeam.FIX_CREW_CAP)continue;
             const dd=Math.hypot(d.x-a.x,d.y-a.y);
             if(dd<bd){bd=dd;best=d;}
           }
@@ -2237,6 +2245,59 @@
         if(Math.hypot(w.x-a.x,w.y-a.y)<rad&&aiCanSee(a,w.x,w.y,rad))return true;
       }
       return false;
+    }
+    /* ---- 异形行为效用表（2026-11-01）----
+       取消「拉闸手 / 破坏手」的专属角色：每只异形都能拉闸、都能破坏，
+       具体做哪个由量化收益决定，不再由 if 顺序硬排、也不再被"5 格内有活人"卡死。
+       分数口径（初步量化表，后续按数据调）：
+         breaker  = 断电价值(8) × 剩余夜比例 − 拉闸站桩秒×1.5 − 路程秒
+         sabotage = 牵制价值(8) × 剩余夜比例 − 路程秒 − 下手 1 秒
+                    （破坏的真实价值是"把 2 名人类 + 幽灵钉在修复上"，不只是 -5 期望）
+         chase    = 贴脸 12 / 近距 6 / 远距 2（出刀机会的价值）
+       夜初 left≈1 时跑图类行为普遍压过追人（先牵制），夜末 left≈0.3 时只有
+       顺路的才做（先杀人）——量化表自然给出"先破坏牵制、再收头"的节奏。
+       打分每 0.5 秒缓存一次（_planT），避免每帧全房间扫。 */
+    function alienPlan(a,td){
+      const left=Math.max(0.25,Math.min(1,(G.t||0)/NIGHT));
+      const walk=d=>d/Math.max(1,moveSpeed(a));
+      const br=M.facility.find(f=>f.kind==='breaker');
+      let scBr=-1;
+      if(br&&G.lightState!==2&&!a.sabUsed&&a._breakerSkip!==G.night){
+        scBr=SKTeam.BREAKER_VALUE*left-breakerOffTime()*1.5-walk(Math.hypot(br.x-a.x,br.y-a.y));
+      }
+      let scSb=-1,sbRoom=null;
+      if(!a.sabUsed){
+        for(const r of M.rooms){
+          if(r.id==='bridge'||!sabRoomOk(r.id))continue;
+          const sp=sabSpot(r.id); if(!sp)continue;
+          let s=SKTeam.SABOTAGE_VALUE*left-walk(Math.hypot(sp.x-a.x,sp.y-a.y))-1;
+          /* 配电室里还没断电时，拆「电路维修点」意义不大 —— 先拉闸，拆设备放到断电之后 */
+          if(r.id==='power'&&G.lightState!==2)s-=4;
+          if(s>scSb){scSb=s;sbRoom=r.id;}
+        }
+      }
+      /* 拆机器人也进效用表（2026-11-01）：机器人只能被刀/枪瘫痪（用户裁定），
+         所以刀没了就不列入候选 —— 破坏技与机器人彻底无关。 */
+      let scBot=-1,botKind=null;
+      if(a.knife>0){
+        const sec=q=>{if(G.secbotDead)return null;const p2=botPos('secbot');
+          return p2&&secbotRaidOk(a,p2)?p2:null;};
+        const med=()=>{if(G.medbotDead)return null;return botPos('medbot');};
+        const q1=sec(),q2=med();
+        if(q1){const s=SKTeam.BOT_SEC_VALUE*left-walk(Math.hypot(q1.x-a.x,q1.y-a.y));
+          if(s>scBot){scBot=s;botKind='secbot';}}
+        if(q2){const s=SKTeam.BOT_MED_VALUE*left-walk(Math.hypot(q2.x-a.x,q2.y-a.y));
+          if(s>scBot){scBot=s;botKind='medbot';}}
+      }
+      /* 出刀机会的价值必须压过跑图类行为：贴脸 12、可追 9 ——
+         否则异形会当着猎物拆设备（首版实测：在保安面前优先拆军械库而不砍装甲）。
+         远距 2 = 追不上的目标，这时破坏/拉闸的跑图才有意义。 */
+      const chase=td<SKTrait.C.knifeReach(a)?12:(td<5?9:2);
+      const best=Math.max(scBr,scSb,scBot,chase);
+      if(best<=chase)return{id:'chase',room:null,score:chase};
+      if(best===scBot)return{id:'bot',kind:botKind,score:scBot};
+      if(best===scBr)return{id:'breaker',room:null,score:scBr};
+      return{id:'sabotage',room:sbRoom,score:scSb};
     }
     function alienSupport(a,dt){
       if(!a||!a.alien||a.doing>0||a.drag!=null)return false;
@@ -2578,28 +2639,59 @@
         }
         stepMove(a,dt,moveSpeed(a));return;
       }
-      /* 每晚一次的破坏：指定的拉闸手跨图去配电室断电。
-         离人太近（<5 格）时先处理人，避免异形当着面无视玩家去拆设备。 */
-      if(!a.sabUsed){
-        const br=M.facility.find(f=>f.kind==='breaker');
-        if(a.i===G.breakerSaboteur&&br&&G.lightState!==2&&td>5&&a._breakerSkip!==G.night){
-          const d=Math.hypot(br.x-a.x,br.y-a.y);
-          if(d<1.6){
-            const bd=breakerOffTime();
-            /* 拉闸暴露窗口随本夜次数拉长（3 → 6 → 9 秒）：站在配电室的每一秒都在被目击。
-               所以 AI 先做一次「风险评估」——有人在 9 格内看得见、或保安可能扫到，就放弃
-               本夜剩下的拉闸；没人时也只是降低概率（6 秒 65% / 9 秒 40%）。 */
-            const watchers=watchersAt(a,br.x,br.y,9,null).length;
-            const risky=bd>=6;
-            if(risky&&(watchers>0||secbotWouldSee(br.x,br.y))){a._breakerSkip=G.night;return;}
-            const okChance=bd<=3?1:(bd<=6?0.65:0.40);
-            if(Math.random()>okChance){a._breakerSkip=G.night;return;}
-            a.sabUsed=true;a.doing=bd;a._dur=bd;a._doing='breaker';
-            return;
+      /* 拉闸 / 破坏进入效用表（2026-11-01）：不再有拉闸手与破坏手，
+         也不再被「5 格内有活人」卡死 —— 是否跑图由 alienPlan 的量化收益决定。
+         拉闸保留风险骰（站桩秒数越长越谨慎）；破坏与保安拘捕完全解耦
+         （在军械库拆也照拆，被保安看见就是普通危险行为，走 pendingCrime 拘留链）。 */
+      /* 效用表每 0.5 秒重算一次：用秒级 CD 而不是 evNow()——
+         批量模拟/暂停时模拟时钟不走，evNow 差值恒 0 会让计划永不重算（实测踩过）。 */
+      a._planCD=(a._planCD||0)-dt;
+      if(a._planCD<=0||!a._plan){
+        a._planCD=0.5;a._plan=alienPlan(a,td);
+      }
+      if(a._plan&&a._plan.id!=='chase'){
+        /* 拆机器人：刀攻击走 knifeBot（与玩家 Q 同一条），不消耗破坏技名额 */
+        if(a._plan.id==='bot'&&a._plan.kind){
+          const q=botPos(a._plan.kind);
+          if(q){
+            const d=Math.hypot(q.x-a.x,q.y-a.y);
+            if(d<1.8){
+              if(a.knife>0&&knifeBot(a,a._plan.kind))a._botCD=10;
+              a._plan=null;return;
+            }
+            if(!a.path||!a.path.length)walkTo(a,q.x,q.y);
+            stepMove(a,dt,moveSpeed(a));return;
           }
-          if(!a.path||!a.path.length)walkTo(a,br.x,br.y);
-          stepMove(a,dt,moveSpeed(a));return;
+          a._plan=null;
+        }else if(a._plan.id==='breaker'&&!a.sabUsed){
+          const br=M.facility.find(f=>f.kind==='breaker');
+          if(br&&G.lightState!==2){
+            const d=Math.hypot(br.x-a.x,br.y-a.y);
+            if(d<1.6){
+              const bd=breakerOffTime();
+              const watchers=watchersAt(a,br.x,br.y,9,null).length;
+              const risky=bd>=6;
+              if(risky&&watchers>0){a._breakerSkip=G.night;a._plan=null;return;}
+              const okChance=bd<=3?1:(bd<=6?0.65:0.40);
+              if(Math.random()>okChance){a._breakerSkip=G.night;a._plan=null;return;}
+              a.sabUsed=true;a.doing=bd;a._dur=bd;a._doing='breaker';
+              return;
+            }
+            if(!a.path||!a.path.length)walkTo(a,br.x,br.y);
+            stepMove(a,dt,moveSpeed(a));return;
+          }
+        }else if(a._plan.id==='sabotage'&&a._plan.room&&sabRoomOk(a._plan.room)){
+          const sp=sabSpot(a._plan.room);
+          if(sp){
+            const dd=Math.hypot(sp.x-a.x,sp.y-a.y);
+            if(dd<1.7||roomIdAt(a.x,a.y)===a._plan.room){
+              damageRoom(a,a._plan.room);a._plan=null;return;
+            }
+            if(!a.path||!a.path.length)walkTo(a,sp.x,sp.y);
+            stepMove(a,dt,moveSpeed(a));return;
+          }
         }
+        a._plan=null;   /* 计划失效（房间被拆掉/已断电等）：下一帧重算 */
       }
       /* 机器人：有刀就先出刀砍装甲（消耗刀数，按保安 2 / 医疗 1 的 HP 结算，
          与玩家 Q 完全同一条 knifeBot 入口）；刀用完了才动用每夜一次的破坏技直接停摆。
@@ -2623,49 +2715,19 @@
         }
         if(bk&&bp&&td>5&&a._botCD<=0){
           if(bd<1.8){
-            /* 有刀先用刀：消耗刀数、按装甲 HP 结算（与玩家 Q 共用 knifeBot 入口） */
+            /* 有刀先用刀：消耗刀数、按装甲 HP 结算（与玩家 Q 共用 knifeBot 入口）。
+               2026-11-01 用户裁定：机器人/无人机**只能被刀或枪瘫痪**，
+               破坏技不再能停摆机器人 —— 破坏技只对舱室设备生效。 */
             if(a.knife>0&&knifeBot(a,bk)){a._botCD=10;return;}
-            /* 刀用完了才动每夜一次的破坏技直接停摆 */
-            if(!a.sabUsed){
-              a.sabUsed=true;
-              if(bk==='secbot')G.secbotDead=true;else G.medbotDead=true;
-              G.botHp[bk]=0;
-              G.fx.push({type:'spark',x:bp.x,y:bp.y,t:1.4,dur:1.4});
-              hear(bp.x,bp.y,'power',0.9);
-              SND.sabotage();
-              witnessAlienAction(a,bp.x,bp.y,6,'bot');
-              aiHear('robot_down',bp.x,bp.y,18,{actor:a});
-              return;
-            }
-          }
-          /* 只有还留着破坏技时，才专门为机器人跑一趟，避免抢掉追人节奏 */
-          if(!a.sabUsed){
+          }else if(a.knife>0){
+            /* 手里有刀才值得为机器人跑一趟（刀没了就轮不到它了） */
             if(!a.path||!a.path.length)walkTo(a,bp.x,bp.y);
             stepMove(a,dt,moveSpeed(a));return;
           }
         }
       }
-      if(!a.sabUsed){
-        /* 破坏技：选一个非会议室的舱室，走到设备旁下手（每夜每人一次）。
-           离活人 5 格内时先处理人，避免当着面无视目标去拆设备。 */
-        if(!a.sabRoom||!sabRoomOk(a.sabRoom)){
-          const cands=M.rooms.filter(r=>r.id!=='bridge'&&sabRoomOk(r.id)&&r.id!==roomIdAt(a.x,a.y));
-          a.sabRoom=cands.length?cands[Math.floor(Math.random()*cands.length)].id:null;
-        }
-        if(a.sabRoom&&td>5){
-          const sp=sabSpot(a.sabRoom);
-          if(sp){
-            const dd=Math.hypot(sp.x-a.x,sp.y-a.y);
-            if(dd<1.7||roomIdAt(a.x,a.y)===a.sabRoom){
-              /* 保安正对这里时先换一间，别为了拆设备把自己送进拘留区 */
-              if(secbotWouldSee(a.x,a.y)){a.sabRoom=null;return;}
-              damageRoom(a,a.sabRoom);return;
-            }
-            if(!a.path||!a.path.length)walkTo(a,sp.x,sp.y);
-            stepMove(a,dt,moveSpeed(a));return;
-          }
-        }
-      }
+      /* 旧的「随机选房 + td>5」破坏调度已删除（2026-11-01）：
+         拉闸/破坏统一走上面的行为效用表（alienPlan），不再有专属角色与互斥门槛。 */
       /* 正在拖尸：先拖到藏尸点；若活人贴脸且看得见，松手应战。
          计划性的破坏技优先于机会性的藏尸，所以这一段排在破坏之后。 */
       if(a.drag!=null){
@@ -4779,6 +4841,7 @@
         a.knife=1;a.path=null;a.doing=0;a.target=null;if(a.alive)a.reported=false;
         a._doing=null;a.sabUsed=false;a.detained=false;a.detainedT=0;
         a._pipeCD=0;a._rv=null;a.sabRoom=null;a._fix=null;a._fixGo=null;a._taskPt=null;a._look=null;
+      a._plan=null;a._planCD=0;   /* 行为效用表缓存一并重算 */
         /* 每夜重置认知：没有跨夜记忆，也不让上一夜的 suspect 自动带进新夜 */
         mindReset(a);a.suspect=null;a.accuseWhy=null;a._abstain=false;
         a._reportT=0;a._reportBody=null;a._sawBody=null;a._scanT=0;a._reportMemo={};
@@ -4804,8 +4867,7 @@
       /* 新的一夜：故障与破坏目标全部清空（上夜没修完的故障不跨夜追罚） */
       G.dmg=[];G.sabTarget=null;
       resetBots();
-      const alienIds=G.agents.filter(a=>a.alien&&a.alive&&a.i!==0).map(a=>a.i);
-      G.breakerSaboteur=alienIds.length?alienIds[Math.floor(Math.random()*alienIds.length)]:null;
+      /* 拉闸手已取消（2026-11-01）：每夜重新由效用表决定谁去拉闸 */
       G.breakerPulls=0;   /* 拉闸延迟每夜重新从 3 秒起算 */
       G.lightState=0;G.waves=[];G.fx=[];
       closeCams(true);closePipePick(true);closeSabPick(true);
@@ -7686,6 +7748,10 @@
           /* 2026-10-31 新增：医疗无人机救治 / 幽灵任务 / 幽灵修故障 / 人类辩护 / 异形质疑报案 */
           medbotRevives:0,medkitRevives:0,ghostTasks:0,ghostFixes:0,
           humanDefends:0,alienDefends:0,reportDoubts:0,
+          /* 破坏技能遥测（2026-11-01 探查用）：sabotages=下手次数（已有）、
+             sabHits=30 秒内没修掉真正 -5 的次数、sabFixed=被修掉的次数、
+             sabFixSecSum=被修故障的总存活秒数（求平均用）、sabFixedByGhost=幽灵抢修的次数 */
+          sabHits:0,sabFixed:0,sabFixSecSum:0,sabFixedByGhost:0,
           /* 每个任务点被完成的次数（label → n）：用来观察「电路维修完成率异常低」
              这类分布问题。2026-10-31 起只统计、不改任何 AI 行为。 */
           tasksByPoint:{}};
@@ -7727,6 +7793,9 @@
           medbotRevives:G.simStats.medbotRevives,medkitRevives:G.simStats.medkitRevives,
           ghostTasks:G.simStats.ghostTasks,ghostFixes:G.simStats.ghostFixes,
           humanDefends:G.simStats.humanDefends,reportDoubts:G.simStats.reportDoubts,
+          sabHits:G.simStats.sabHits,sabFixed:G.simStats.sabFixed,
+          sabFixSec:G.simStats.sabFixed?+(G.simStats.sabFixSecSum/G.simStats.sabFixed).toFixed(1):0,
+          sabFixedByGhost:G.simStats.sabFixedByGhost,
           tasksByPoint:Object.assign({},G.simStats.tasksByPoint)};
       } finally {
         Math.random=oldRandom; SIM_RUN=oldSim;
@@ -7792,7 +7861,7 @@
         a._avoid={};a._fleeT=0;a._fleeFrom=null;a._pathCD=0;a._fakeN=0;a._alienTaskN=0;a._stallBias=0.8+Math.random()*0.4;
         a._fakeTaskN=0;a._fakeKind=null;a._alienTaskTotal=0;a._supportGoal=null;a._lootMem={};
         a.mates={};
-        a._look=null;a._fixGo=null;a.path=null;a.doing=0;a._doing=null;a.target=null;
+        a._look=null;a._fixGo=null;a.path=null;a.doing=0;a._doing=null;a.target=null;a._plan=null;a._planCD=0;
         return a.i;},
       clearDrags:()=>{releaseAllDrags(true);return G.drag;},
       inspect:()=>G.inspect?G.inspect.agent.name:null,
