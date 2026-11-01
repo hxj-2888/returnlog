@@ -15,7 +15,7 @@
 (function (global) {
   'use strict';
 
-  const MAX_PROG = 40;
+  const MAX_PROG = 45;   /* 与 game.js 的 WIN_PTS=45 对齐（旧值 40 会让每次达成胜利都误报 G1） */
   const CAUSES = { knife: 1, shot: 1, bled: 1, vote: 1 };
   const PHASES = { discuss: 1, vote: 1, reveal: 1 };
 

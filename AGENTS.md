@@ -9,8 +9,10 @@
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
-   禁止在别处动态注入 `<script>`。当前顺序：`version → map → templates → clock → invariants → geo → game → main → ui/home → ui/replay`。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3'`）。**
+   禁止在别处动态注入 `<script>`。当前顺序：`version → map → templates → clock → invariants → geo → ai/sanity → ai/traits → game → main → ui/home → ui/replay`。
+   **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
+   `knifeBold / knifeWatcherCap` 也要读理智层的表。
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.5'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
 4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tools/test-v3.cjs`，失败一律按回归处理；
@@ -39,6 +41,83 @@
 | 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；输出 `tools/mc-results.json` / `tools/mc-report.md`） |
 | 调试模式 | `index.html?test`（跳过开局会议）/ `?dev`（DEV 面板）/ `&strict` |
 
+### 本机环境（后续 Agent 直接照这个用，**不要再说"Blender 没装"**）
+
+| 工具 | 绝对路径 / 说明 |
+|---|---|
+| Blender | **`E:\SteamLibrary\steamapps\common\Blender\blender.exe`**（Blender 5.2.2 LTS，Steam 版，**唯一权威渲染版本**，见下节） |
+| 无头渲染 | `"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test` |
+| 本地 SDXL | `D:\ai-models\sdxl-base`（fp16）+ `D:\ai-models\vae-fp16-fix`；`SDXL_MODEL` / `SDXL_VAE` 可覆盖 |
+| Python | `C:\Python314\python.exe`（3.14.5，装了 torch 2.11+cu128 / diffusers 0.42 / transformers） |
+| Playwright | `C:\Users\ASUS\.workbuddy-ai\binaries\node\workspace\node_modules\playwright-core`（配合 `PLAYWRIGHT_CORE` 用系统 Edge） |
+| GPU | RTX 5060 Laptop **8GB**。SDXL 768² 一张 8~9 分钟、640² 约 4 分钟；出图前会 `VRAM free 0.00`，属正常 |
+
+> Blender **不在 PATH 上**，也不在 `C:\Program Files` 下 —— 它在 E 盘 Steam 库里。
+> 搜索时务必带上 `E:\SteamLibrary\steamapps\common\`，否则会误判"未安装"。
+> 桌面上的 `Blender.lnk` 指向的就是这个路径。
+
+### Blender 权威渲染版本（2026-11-01 定稿，**只准用这一个**）
+
+**权威二进制**
+
+| 项 | 值 |
+|---|---|
+| 路径 | `E:\SteamLibrary\steamapps\common\Blender\blender.exe` |
+| 版本 | **Blender 5.2.2 LTS**，build hash `d13f752e3b9c`，build date 2026-09-15 |
+| 内置 Python | 3.13.13（`5.2\python\bin\python.exe` 完整，含 4334 个文件） |
+| 权威来源 | 桌面 `C:\Users\ASUS\Desktop\Blender.lnk` 指向此路径；**判断标准以这个 lnk 为准** |
+| Steam 依赖 | **免登录**：目录内无 `steam_api64.dll`、无 `steam_appid.txt`，Steam 未运行也可直接跑 |
+
+渲染前先过版本校验，任何一步不符就停手：
+
+```powershell
+$BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
+& $BLENDER --version | Select-Object -First 1   # 期望：Blender 5.2.2 LTS
+```
+
+**禁止事项（违反即视为基线污染，须回退并记录）**
+
+1. 禁止使用 Blender 4.x（4.0–4.5，含临时目录里的便携包）——`%TEMP%\blender\blender-4.5.9-windows-x64` 已于 2026-11-01 删除，历史日志归档在 `tools/logs/legacy-4.5.9/`
+2. 禁止用 `blender-launcher.exe` 启动（它是 Steam 启动器，会去拉 Steam）；一律直接调用 `blender.exe`
+3. 禁止用 `uvx` / `pip install bpy` / 第三方打包版另拉一份 Blender 当渲染器
+4. 禁止修改 Steam 目录内的 `blender.exe` 与 DLL；升级只走 Steam 正常更新，改完需重新登记 build hash
+5. 禁止把渲染结果先写到临时目录再手工搬运；输出路径必须由脚本决定
+
+**标准调用模板**
+
+```powershell
+$BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
+& $BLENDER -b -P tools/blender-ship.py -- --test    # 预览：960×901，约 5s
+& $BLENDER -b -P tools/blender-ship.py              # 正式底图：4704×4413，约 11s
+& $BLENDER -b --factory-startup -P tools/blender-ship.py   # 需要完全可复现时（不吃用户偏好/插件）
+```
+
+**渲染规范**
+
+| 项 | 约定 |
+|---|---|
+| 引擎 | `BLENDER_EEVEE_NEXT`（5.x 名称）。脚本保留 `for eng in ('BLENDER_EEVEE_NEXT','BLENDER_EEVEE')` 兜底，但**实际只允许在 5.2 上出图** |
+| 采样 | 64（预览与正式一致，便于逐像素比对） |
+| 分辨率 | 预览 `960×901` / 正式 `4704×4413`；两者比例必须同步，改一个必须改另一个 |
+| 版本断言 | 脚本开头必须有硬守卫（已实现于 `tools/blender-ship.py`：`bpy.app.version < (5,2)` 直接 `SystemExit` 并打印权威路径）；新增渲染脚本照抄这一段 |
+| 阴影 | 默认**不需要调**（5.2 上同场景已无告警）；仅在 5.2 复现 `Shadow buffer full` 时才调 `scene.eevee.shadow_pool_size` |
+| 日志 | 每次渲染写 `tools/logs/<脚本名>-<YYYYMMDD-HHmmss>.log` + 同名 `.err`；**不再新增** `tools/_blendN.log` 这类累加命名 |
+| 场景存档 | 正式渲染成功后存一份 `assets/scene/<版本>/<名称>.blend`（`bpy.ops.wm.save_as_mainfile`），保证可重开复核 |
+| 复现性 | 交付里写明：Blender 版本 + build hash + 引擎 + 采样 + 分辨率 + 脚本名 |
+
+**已知坑（2026-11-01 复核）**
+
+- **`Shadow buffer full` 是 4.5.9 的问题，不在 5.2.2 复现**：2026-10-31 用 4.5.9 的 8 次出图每次刷 52 条（4961/2048）；2026-11-01 用 5.2.2 同场景同参数（`--test`，960×901，EEVEE，64 samples）跑通，**日志里一条都没有**。若以后在 5.2 上再出现，才需要调 `scene.eevee.shadow_pool_size`
+- 4.5.9 便携包 `4.5\python` 只有 `DLLs`+`lib`、缺 `bin\python.exe`，且没有 `scripts\addons`，会报 `Unable to find the Python binary, the multiprocessing module may not be functional!` —— 包已删除，勿再下载
+- `tools/blender-fx.py`、`tools/gen-facility-sprites.py` 目前不落日志，按上表补齐
+- 5.2.2 的 EEVEE 比 4.5.9 略慢（同场景预览 7.9 s vs 5.2 s），属正常，不要为此换成旧版
+
+**清理记录（2026-11-01）**
+
+- 删除 `%TEMP%\blender\`（4.5.9 便携包 + 399 MB 安装包，共 **784.5 MB**）
+- 8 组 4.5.9 渲染日志（`tools/_blend*.log|.err`，16 个文件）归档到 `tools/logs/legacy-4.5.9/`，附 `README.md` 说明来源与已知问题
+- 新增 `tools/check-blender.ps1` 与 `tools/blender-ship.py` 的 5.2 版本守卫，防止再次误用旧版出图
+
 ## 三、文件地图
 
 | 路径 | 层 | 说明 |
@@ -58,7 +137,9 @@
 | `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（563 条） |
 | `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现） |
 | `tools/mc-report.md` | 数据 | 2026-10-30 1000 局蒙特卡洛汇总（原始局在 `mc-results.json`） |
-| `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`） |
+| `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`；内置 5.2 版本守卫） |
+| `tools/check-blender.ps1` | 门禁 | 校验权威 Blender（路径 / 版本 / build hash / Python 载荷），不通过退出码 1 |
+| `tools/logs/` | 日志 | 渲染日志统一落点，命名 `<脚本>-<YYYYMMDD-HHmmss>.log`；`logs/legacy-4.5.9/` 为已归档的 4.5.9 旧日志 |
 | `tools/gen-materials.py` | 美术工具 | 家具/掩体表面材质生成（本地 SDXL 流式上卡；`--mode reuse` 为无显卡兜底） |
 | `tools/sfx-audit.py` | 音频工具 | 音效量化体检：峰值 / 短窗 RMS / 动态 / 起始静音；`--check` 只查游戏内引用到的音效，静音或削顶则退出码 1 |
 | `tools/master-sfx.py` | 音频工具 | 用 `tools/_sfx/` 里的公共 CC0 素材分层混音 + 软限幅归一，产出 `audio/sfx-*.ogg`（出刀 / 报告音） |
@@ -76,6 +157,52 @@
   fleeThreshold / defendChance / followChance / grudgeGain / trustGain / voteGrudgePull / voteTrustPush`。
   业务代码（aiTickAlien / aiHuman / taskThreat / startVote / startChatter）只调用系数，**禁止再散写魔法数**；
   新增性格化判定时先在 `SKTrait.C` 加系数、再接线，并在门禁加「激进 vs 谨慎系数差」方向断言。
+- **理智兜底（2026-11-01，`js/ai/sanity.js`）**：性格是软的，理智是硬的。**先过理智线，再谈性格**：
+  - `SKSanity.TRAIT_GAIN = 0.45` —— 性格方差压缩。`traits.js` 的 `b()` 统一乘它，
+    所有系数一次性收窄。要恢复性格差异就调这个值，**不要动 `SKTrait.C` 的系数表**。
+  - `SKSanity.KNIFE / SABOTAGE / BREAKER` —— 三条与性格无关的硬线：
+    `witnessCap`（目击者人数上限，刀 3 / 破坏 1 / 拉闸 1）、`minConceal`（隐蔽度下限）、
+    `crowdR+N`（人群密度）。**性格不能突破这三条**；过了之后 `knifeBold` 才在 0.34~0.66 的窄区间里浮动。
+  - 暴露度 `exposureAt()`（game.js）把游戏状态换成权重，数学在 `SKSanity.witnessWeight/exposure`：
+    目击半径按 `sightRangeAt()` 取（亮房整间 / 亮走廊 12 / 暗房 2.8），**不再是"6 格内几个人"**。
+    出刀时要把受害者传进 `except`，否则每一刀都自带 1.0 暴露分。
+  - 新增"危险动作"时，必须先在 `SKSanity` 加一条理智线，再接线；不要在业务代码里写 `if(有人看着)`。
+  - **破坏的落点与"施展"是两件事**（2026-11-01 用户裁定）：落点 = 该舱室里**均匀随机**的一个
+    任务点（`sabSpot`，按夜缓存），异形**不需要走到那台设备前** —— 进舱即触发，
+    设备自己坏掉。玩家侧 `sabTick` 同口径。
+- **伪装收益（`SKSanity.DISGUISE`）**：异形演"正经事"（假做任务 / 假装修理 / 合闸）必须先算收益分
+  `disguiseScore({audience, duration, risk})`，且 **audience>0**（真的看得见人）才允许，`minScore` 不过就不演。
+  演完进 `cooldown`（18 秒），防止连演刷分。收益分是"一次被目击的正经动作 ≈ 1 分"的量纲，
+  改数值前先看 `sanity.js` 里的量纲说明。
+- **正向信任（`mind.cred`）**：第三条通道，和 `trust`（他帮过我）/ `grudge`（他咬过我）分开 ——
+  `cred` 是"他干的是正经事"，来源全部是可被目击的正经行为（`CRED.gains`：做任务 / 修故障 /
+  合闸 / 拖伤员进医疗间 / 施救 / 伪装干活）。写入只走 `credBroadcast(actor,kind,x,y)`，
+  它按**真实目击半径**广播给看得见的人。读取三处：指控（`credOf≥0.35` 且无确证就不咬）、
+  投票（`credVoteShield` 概率弃票）、证言权重。跨夜 ×0.92 慢衰减。
+  **cred 绝不能写 `known`** —— 信誉再高也洗不掉亲眼所见。
+- **诬陷（`SKSanity.FRAME`，2026-11-01）**：异形没有目击也会编一份**具体伪证**
+  （`accuseWhy={kind:'saw_knife'|'saw_pipe', room, solid:true, fake:true}`），
+  措辞和真目击一字不差 —— 听众无从分辨，这是社交推理里最难拆的一手。
+  `solid` 是"听众眼里算不算硬证词"，真确证 / 真取证 / 伪证都置 true，纯情绪指控才是 false。
+  异形指控了谁就把票投给谁（说了不投等于自己打脸）。
+- **追责（`SKSanity.ACCOUNT`，2026-11-01）**：投票结果公布后清算带节奏的人 ——
+  被驱逐的真是异形 → 投对的人 +cred；是人类的 → 投错的人 −cred，**带头的人**还被记一笔嫌疑。
+  `meet.lead[目标]` 记第一个公开指控他的席位。这是诬陷的代价：诬陷成功收益极大，
+  一旦被证伪，带头的人自己就变成下一个目标。**改这条必须跑 1000 局**。
+- **台词语料（`js/data/lines.js`，2026-11-01）**：会议台词**不再散写在 `say()` 调用处**。
+  按六类说服策略（身份声明/指控/辩护/证据/询问/行动号召）+ 对质 + 领袖指令分组，
+  每类分 `hot/cold` 两档，由 `SKLines.toneOf(a)` 按性格选档。
+  `pickLine(a,'accuse',0,{t,r,k})` 传字符串即查池子；传数组仍兼容但改为**等概率随机**。
+  **写台词纪律**：8~18 字、口语、可省略主语、不用书面词（时间线/证据链）、不写脏话。
+  改之前先读文件头那段注释。
+- **讨论 → 投票（说服力侧，`SKSanity.TESTIFY`）**：反咬削弱的是**别人信不信他**（×0.85），
+  共证加成（第二个独立指控者 ×1.25）。**绝不动 `known`** —— 目击者的判断是硬约束，这条红线不能破。
+- **讨论 → 行为（`SKSanity.WARM`）**：共同指控同一人 → 彼此 `warm +0.10`；
+  任务全做完后 45% 概率往 `warm` 高的人那边走。只在空闲阶段生效。
+  `warm` 与 `trust`（他帮过我）/ `cred`（他能干）是三套独立的东西，别混。
+- **领袖型玩家（`SKSanity.LEADER`）**：22% 的对局有一个"爱指挥"的人，**不预设阵营**，
+  只在 `soc≥45` 里选；会议里下 1~2 条指令（`scheduleLeaderOrders`，开局与夜间会议都调）。
+  效果刻意做轻（听众 +0.06 warm、被点名者 +0.02 嫌疑）。
 - **情绪记忆（`mind.trust` / `mind.grudge`）**：跨会议保留、每场会议 ×0.8 衰减（`mindReset` 里做）。
   写入只有三个入口：AI 当众指控（`grudgeAdd`）、AI 当众辩护（`trustAdd`）、
   玩家发言（`playerTalk` 里指控/投票记仇、点名"不是异形/别投他"记恩）。
