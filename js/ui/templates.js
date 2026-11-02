@@ -195,7 +195,7 @@
   <div>剩余 <b id="tm">120</b> 秒 · 第 <b id="nt">1</b> 夜 · <b id="pwr">照明正常</b></div>
   <div class="surv">存活 <b id="alive">15</b> 人 · 人类 <b id="hum">11</b> · 异形 <b id="ali">4</b></div>
   <div>你是 <b id="role">人类</b><span id="dnwrap" class="hide"> · 濒死 <b id="dn">0</b> 人</span></div>
-  <div id="personal">任务 <b id="tk">0</b>/4 · 申请单 <b id="ql">0</b> · 待领 <b id="qp">0</b> · 弹 <b id="bl">0</b> · 包 <b id="md">0</b><span id="qual-hint" class="hide"> · 回圆桌领取</span></div>
+  <div id="personal">任务 <b id="tk">0</b>/4 · 申请单 <b id="ql">0</b> · 待领 <b id="qp">0</b> · 弹 <b id="bl">0</b> · 包 <b id="md">0</b> · 报告 <b id="rp">2</b>/2 · 会议 <b id="mt">0</b>/2<span id="qual-hint" class="hide"> · 回圆桌领取</span></div>
   <div id="tasks"></div>
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>

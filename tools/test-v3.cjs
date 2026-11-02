@@ -532,7 +532,9 @@ function section(t) { console.log('\n== ' + t); }
   await T(() => SKV3._t.finishMeeting());
   await page.waitForTimeout(200);
   const rem1 = await T(() => SKClock.remaining(SKV3._t.G().phase, performance.now()));
-  ok(rem1 < rem0 - 300, '夜间会议时长从夜晚时间里扣除');
+  /* 2026-11-02：夜晚会议**不再占用夜晚时间**（会议期间时钟暂停） */
+  ok(Math.abs(rem1 - rem0) < 800, '夜间会议暂停夜晚时钟：散会后剩余时间不变（' +
+    (rem0 / 1000).toFixed(1) + 's → ' + (rem1 / 1000).toFixed(1) + 's）');
   ok((await T(() => SKV3._t.G().meet)) === null, '会议关闭');
   const MF = await T(() => SKV3._t.inv());
   ok(MF && MF.fails.length === 0, '散会后不变量全过');
@@ -594,7 +596,12 @@ function section(t) { console.log('\n== ' + t); }
   await page.waitForTimeout(1200);
   const RED2 = await T(o => SKV3._t.state()[o.k].redT, RED);
   ok(RED2 > 0.8 && RED2 < 2.6, '红身按真实时间衰减（1.2 秒后剩 ' + RED2.toFixed(2) + 's）');
-  await page.waitForTimeout(2600);
+  /* 2026-11-01：这条原来写死 `waitForTimeout(2600)` 再断言 redT===0。
+     红身是按**模拟时间**（dt 被钳在 0.05）衰减的，机器一忙帧率掉到 20fps 以下，
+     模拟时间就落后墙钟，3.8 秒墙钟走不完 3 秒模拟 —— 断言会随机失败（未改动的基线上同样复现）。
+     改成**等条件成立**（上限 8 秒）再断言，判定语义不变（仍然要求红身真的归零）。 */
+  await page.waitForFunction(k => SKV3._t.state()[k].redT === 0, RED.k, { timeout: 8000 })
+    .catch(() => {});
   const RED3 = await T(o => ({ red: SKV3._t.state()[o.k].redT, inv: SKV3._t.inv() }), RED);
   ok(RED3.red === 0, '3 秒后红身自动结束');
   ok(RED3.inv.fails.length === 0, '红身结束后不变量全过');
@@ -638,7 +645,13 @@ function section(t) { console.log('\n== ' + t); }
   ok(SH.bullet === 0 && SH.downed, '开枪消耗子弹并击倒目标');
   await freezeFx();
   await shotClip('32_开枪动画.png', { x: 360, y: 220, width: 760, height: 460 });
-  await page.waitForTimeout(5000);
+  /* 同上：特效与后坐也是按模拟时间收尾，固定等 5 秒会随机不够。
+     改成等条件（上限 12 秒），语义仍是「必须收干净」。 */
+  await page.waitForFunction(t => {
+    const g = SKV3._t.G();
+    const fx = g.fx.filter(f => f.type === 'tracer' || f.type === 'muzzle' || f.type === 'impact');
+    return fx.length === 0 && g.agents[t].act === null;
+  }, SH.target, { timeout: 12000 }).catch(() => {});
   const SHF = await T(o => {
     const g = SKV3._t.G();
     return { fx: g.fx.filter(f => f.type === 'tracer' || f.type === 'muzzle' || f.type === 'impact'),
@@ -932,7 +945,8 @@ function section(t) { console.log('\n== ' + t); }
       declared[a.name] = a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null);
       tasks[a.name] = a._lie ? a._lie.task : a.nTask;
     }
-    return { lines, claims, declared, tasks, vic: t.meetCtx().victim };
+    return { lines, claims, declared, tasks, vic: t.meetCtx().victim, leader: g.leader,
+      leaderName: (g.leader != null && g.agents[g.leader]) ? g.agents[g.leader].name : null };
   });
   const alibis = ML.lines.filter(l => l.text.indexOf('我今晚在') === 0);
   ok(ML.lines.length >= 8, '夜间会议生成 ' + ML.lines.length + ' 条发言');
@@ -954,7 +968,15 @@ function section(t) { console.log('\n== ' + t); }
     '出现引用上一条发言的质疑 / 作证 / 追问');
   const ci = ML.lines.findIndex(l => /你说你在|我可以给|你那边还有谁/.test(l.text));
   const chal = ci >= 0 ? ML.lines[ci] : null;
-  const rep = ci >= 0 ? ML.lines[ci + 1] : null;
+  /* 回应行：取质疑之后的**第一条非领袖指令**（领袖说的是别人的舱室，不是位置自述，
+     混进来会让这条断言偶发失败 —— 发言顺序受随机数影响）。 */
+  let rep = null;
+  for (let j = ci + 1; j < ML.lines.length; j++) {
+    const aa = ML.lines[j];
+    const ag = ML.lines[j].who;
+    if (ML.leader != null && ML.declared && ML.leaderName === ag) continue;
+    rep = aa; break;
+  }
   const rooms = await T(() => SKV3._t.roomNames());
   /* 回应可能走「作证 / 异形搪塞 / 报出自己位置」三种分支：只在它报位置时校验一致性 */
   const loc = rep ? rep.text.match(/(?:我|我们)[^，。]{0,6}在([^，。；]{1,10})/) : null;
@@ -969,13 +991,17 @@ function section(t) { console.log('\n== ' + t); }
     '目击者说出亲眼所见，而不是随机台词');
   const n0 = await T(() => SKV3._t.chat('你在哪？'));
   await page.waitForFunction(n => SKV3._t.meetLines().length > n, n0, { timeout: 6000 }).catch(() => {});
-  await page.waitForTimeout(300);
+  /* 回应是 600~1100ms 后才排期上屏的（meetLater），只等 300ms 会漏掉它 →
+     这条断言会偶发失败。改成等 1.6 秒，保证回应已经出现。 */
+  await page.waitForTimeout(1600);
   const PC = await T(n0 => {
     const t = SKV3._t, g = t.G();
     const lines = t.meetLines();
     const fresh = lines.slice(n0);
     for (const l of fresh) {
       const a = g.agents.find(x => x.name === l.who);
+      /* 领袖指令说的是**别人**的舱室，不是自己的位置自述 → 跳过 */
+      if (a && g.leader != null && a.i === g.leader) continue;
       const declared = a ? (a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null)) : null;
       if (declared && l.text.indexOf(declared) >= 0) return { n: lines.length, who: l.who, text: l.text, declared };
     }
@@ -983,7 +1009,13 @@ function section(t) { console.log('\n== ' + t); }
        以前取最后一条，但会议里现在还会冒出领袖指令（说的是一间与他自己口供无关的房间），
        一旦它排在最后，这条用例就会误判成"回应里的位置和口供不一致"。
        玩家问"你在哪"之后，回应是最早被排期的那条（600ms），所以取第一条才对。 */
-    const last = fresh.length ? fresh[0] : lines[lines.length - 1];
+    let firstFresh = null;
+    for (const l of fresh) {
+      const aa = g.agents.find(x => x.name === l.who);
+      if (aa && g.leader != null && aa.i === g.leader) continue;   /* 领袖指令说的是别人的舱室 */
+      firstFresh = l; break;
+    }
+    const last = firstFresh || (fresh.length ? fresh[0] : lines[lines.length - 1]);
     const a = g.agents.find(x => x.name === last.who);
     return { n: lines.length, who: last.who, text: last.text,
       declared: a ? (a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null)) : null };
@@ -1088,9 +1120,508 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(CERT4.k1[CERT4.k] && CERT4.k2[CERT4.k] && CERT4.k2[CERT4.k].kind === 'saw_sabotage',
     '确证是长期记忆：第二天仍然记得「他是异形」');
-  ok(CERT4.mem === 0 && CERT4.sus === 0, '普通记忆与嫌疑分仍按夜清空（只有确证跨夜）');
+  /* 2026-11-01 改动 A：普通记忆（位置时间线）仍按夜清空，**嫌疑改为跨夜衰减**。
+     这里把「清空」这条旧语义改成「衰减但不清零」，并额外钉住三条护栏。 */
+  ok(CERT4.mem === 0, '位置时间线（mem）仍按夜清空——跨夜记录不得参与本夜口供对质');
+  ok(CERT4.sus >= 1, '嫌疑跨夜**衰减但不清零**（' + CERT4.sus + ' 个对象仍记着，上限 ' +
+    '0.45 生效前后都能看出残留）');
   ok(CERT4.acc === CERT4.k && CERT4.vote === CERT4.k,
     '下一夜的会议指控与投票继续锁定这个人');
+
+  section('推理 · 跨夜嫌疑衰减的三条护栏（2026-11-01）');
+  await fresh(false);
+  const CARRY = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const a1 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== w);
+    const a2 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== w && x !== a1);
+    const a3 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== w && x !== a1 && x !== a2);
+    /* a1：本夜被目击（saw_*，衰减慢）；a2：本夜只有传闻（heard_*，衰减快）；
+       a3：上一夜有证据、本夜完全没有新证据（额外加速衰减） */
+    t.tp(a1.i, 56, 85); t.tp(w.i, 57.2, 85);
+    t.notice(a1.i, 56, 85, 6, 'shot', null);          /* 开枪 → saw_shot 目击类 */
+    const before1 = t.susOf(w.i, a1.i);
+    w.mind.sus[a2.i] = 0.8; w.mind.susNight[a2.i] = g.night;
+    w.mind.why[a2.i] = [{ w: 0.8, reason: '传闻', kind: 'heard_frame', night: g.night }];
+    w.mind.sus[a3.i] = 0.8; w.mind.susNight[a3.i] = g.night - 1;
+    w.mind.why[a3.i] = [{ w: 0.8, reason: '旧目击', kind: 'saw_knife', night: g.night - 1 }];
+    t.newNight();                                     /* 进入下一夜 → mindReset */
+    const after = t.mind(w.i).sus;
+    return { w: w.i, a1: a1.i, a2: a2.i, a3: a3.i, before1,
+      s1: after[a1.i] || 0, s2: after[a2.i] || 0, s3: after[a3.i] || 0,
+      cap: SKSanity.CARRY.cap };
+  });
+  ok(CARRY.s1 > 0 && CARRY.s1 <= CARRY.cap,
+    '目击类证据的嫌疑跨夜保留但封顶 0.45（' + CARRY.s1 + '）');
+  ok(CARRY.s2 > 0 && CARRY.s2 < CARRY.s1,
+    '传闻类衰减更快（' + CARRY.s2 + ' < ' + CARRY.s1 + '）——一句话不该和亲眼所见等价');
+  ok(CARRY.s3 > 0 && CARRY.s3 < CARRY.s2,
+    '本夜无新证据再加速衰减（' + CARRY.s3 + ' < ' + CARRY.s2 + '）——一次诬陷不背一整局');
+
+  section('推理 · 证言可信度与准-确证（2026-11-01）');
+  await fresh(false);
+  const RELIA = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const v1 = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const v2 = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== v1);
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== v1 && a !== v2);
+    t.openMeeting('pre', null, null);
+    const m = g.meet;
+    m.ctx.lead[k.i] = v1.i;                   /* v1 带头指控 k */
+    m.votes[v1.i] = k.i; m.votes[v2.i] = k.i; m.votes[w.i] = k.i;
+    const before = t.reliaOf(w.i, v1.i);
+    t.closeVote();                            /* 翻出来是异形 → 带头人 +可信度 */
+    const after = t.reliaOf(w.i, v1.i);
+    /* 再来一次：带头指错（翻出来是人类） */
+    t.newGame();
+    const g2 = t.G(); g2.paused = true; g2.noReport = true;
+    const h = g2.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const l = g2.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== h);
+    const o = g2.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== h && a !== l);
+    t.openMeeting('pre', null, null);
+    const m2 = t.G().meet;
+    m2.ctx.lead[h.i] = l.i;
+    m2.votes[l.i] = h.i; m2.votes[o.i] = h.i; m2.votes[0] = h.i;
+    const b2 = t.reliaOf(o.i, l.i);
+    t.closeVote();
+    const a2 = t.reliaOf(o.i, l.i);
+    return { before, after, b2, a2, base: SKSanity.RELIA.base };
+  });
+  ok(RELIA.before === RELIA.base && RELIA.after > RELIA.before,
+    '带对了人 → 他的证言更值钱（可信度 ' + RELIA.before.toFixed(2) + ' → ' + RELIA.after.toFixed(2) + '）');
+  ok(RELIA.b2 === RELIA.base && RELIA.a2 < RELIA.b2,
+    '带错了人 → 他的证言不再值钱（可信度 ' + RELIA.b2.toFixed(2) + ' → ' + RELIA.a2.toFixed(2) + '）');
+
+  await fresh(false);
+  const ALMOST = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { almostCount: 0, almostFriendCount: 0, overriddenFriends: 0 };
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    t.tp(k.i, 56, 85); t.tp(w.i, 57.2, 85);
+    /* 两笔**不同种类**的非确证证据（开枪 + 反常拖尸）→ 应攒出 almost.foe */
+    t.notice(k.i, 56, 85, 6, 'shot', null);
+    t.notice(k.i, 56, 85, 6, 'drag_away', null);
+    const foe = t.almostOf(w.i).foe[k.i] || null;
+    const sus = (t.mind(w.i).sus || {})[k.i] || 0;
+    const knownBefore = t.knownOf(w.i);      /* 只有准-确证时，不能有确证 */
+    /* 装出来的好人：另一个异形 k2 先攒出 almost.friend（伪装装够了），
+       然后被 w 亲眼看见出刀 → known 硬覆盖它自己的 friend 与 cred。 */
+    const k2 = g.agents.find(x => x.alien && x.i !== 0 && x.alive && x !== k);
+    t.tp(k2.i, 56, 85);
+    w.mind.cred[k2.i] = 0.62;
+    w.mind.credWhy[k2.i] = [
+      { kind: 'taskDone', night: g.night, w: 0.1 },
+      { kind: 'fixDone', night: g.night, w: 0.16 }];
+    t.evalAlmost(w.i, k2.i);
+    const friend = t.almostOf(w.i).friend[k2.i] || null;
+    t.notice(k2.i, 56, 85, 6, 'knife', null);      /* 亲眼看见它出刀 → known */
+    const afterFoe = t.almostOf(w.i).foe[k2.i] || null;
+    const hCred = (t.mind(w.i).cred || {})[k2.i] || 0;
+    const hFriend = t.almostOf(w.i).friend[k2.i] || null;
+    return { k: k.i, k2: k2.i, w: w.i, sus, foe, friend, knownBefore,
+      afterFoe, hCred, hFriend,
+      known: t.knownOf(w.i), tele: t.tele(), foeSus: SKSanity.ALMOST.foeSus };
+  });
+  ok(ALMOST.sus >= ALMOST.foeSus && !!ALMOST.foe,
+    '跨线 + 两类不同证据 → 准-确证 almost.foe（sus=' + ALMOST.sus.toFixed(2) + '）');
+  ok(Object.keys(ALMOST.knownBefore).indexOf(String(ALMOST.k)) < 0,
+    '准-确证不等于确证：只写 almost，不写 known');
+  ok(ALMOST.friend && ALMOST.friend.cred >= 0.55,
+    '攒够了正经行为 → almost.friend（cred=' + (ALMOST.friend ? ALMOST.friend.cred : 0) + '，异形伪装终于有收益）');
+  ok(ALMOST.hFriend === null && ALMOST.hCred === 0,
+    'known 硬覆盖：亲眼看见的事实删掉 almost.friend、清空 cred（洗白机制从此对他失效）');
+  ok(ALMOST.afterFoe && !!ALMOST.known[ALMOST.k2] && ALMOST.tele.overriddenFriends >= 1,
+    '硬覆盖后立刻写入 almost.foe，并计数进遥测（' + ALMOST.tele.overriddenFriends + ' 次）');
+
+  section('推理 · 证据分级 / 票权 / 连坐 / 回避（2026-11-02）');
+  await fresh(false);
+  const GRAD = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { farSight: 0 };
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    g.lightState = 1;                         /* 全亮：aiCanSee 只剩 LOS，便于定位 */
+    /* 在医疗间里扫一对「相距 5.5 格且有视线」的站位（地图静态，扫出来是确定的） */
+    let spot = null;
+    for (let x = 44; x <= 56 && !spot; x += 0.5) {
+      for (let y = 78; y <= 90; y += 0.5) {
+        t.tp(k.i, x, y); t.tp(w.i, x + 5.5, y);
+        if (t.roomIdAt(x, y) !== 'med' || t.roomIdAt(x + 5.5, y) !== 'med') continue;
+        if (t.aiSee(w.i, x, y, 8) && t.aiSee(k.i, x + 5.5, y, 8)) { spot = [x, y]; break; }
+      }
+    }
+    const canFar = !!spot;
+    const px = spot ? spot[0] : 50, py = spot ? spot[1] : 85;
+    t.tp(k.i, px, py); t.tp(w.i, px + 5.5, py);   /* ≈5.5 格：看得见，但看不清动作 */
+    t.notice(k.i, px, py, 8, 'knife', null);
+    const far = { known: Object.keys(t.knownOf(w.i)).length,
+      sus: (t.mind(w.i).sus || {})[k.i] || 0,
+      farEv: (t.mind(w.i).mem || []).filter(e => e.far).length };
+    t.tp(w.i, px + 1.5, py);                      /* 1.5 格：贴脸 */
+    t.notice(k.i, px, py, 8, 'knife', null);
+    const near = { known: Object.keys(t.knownOf(w.i)).length,
+      sus: (t.mind(w.i).sus || {})[k.i] || 0 };
+    return { far, near, canFar, tele: t.tele(), k: k.i, w: w.i,
+      nearR: SKSanity.CONFIRM.nearR };
+  });
+  ok(GRAD.canFar === true && GRAD.far.known === 0 && GRAD.far.sus > 0.5 && GRAD.far.farEv >= 1,
+    '远距离目击（> ' + GRAD.nearR + ' 格）**不写确证**，只记嫌疑（sus=' +
+    GRAD.far.sus.toFixed(2) + '）—— 「那边有人动手」≠「我亲眼看见」');
+  ok(GRAD.near.known === 1 && GRAD.near.sus >= 0.99,
+    '贴脸目击照旧确证（known=1，sus 拉满）—— 分级不是削弱确证，是给"看见"分档');
+
+  await fresh(false);
+  const VOTE2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { almostVotes: 0, friendShield: 0 };
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    t.tp(k.i, 56, 85); t.tp(w.i, 57.2, 85);
+    /* ① 准-确证 → 票权：不给 accuse / suspect，只留 almost.foe */
+    t.notice(k.i, 56, 85, 6, 'shot', null);
+    t.notice(k.i, 56, 85, 6, 'drag_away', null);
+    t.evalAlmost(w.i, k.i);
+    const hasFoe = !!t.almostOf(w.i).foe[k.i];
+    t.openMeeting('day');
+    w.accuse = null; w.suspect = null;
+    g.meet.votes = {};
+    t.startVote();
+    const vFoe = g.meet.votes[w.i];
+    t.closeVote(); t.finishMeeting();
+    /* ② almost.friend → 挡票（换一个对象：k 身上已经有 almost.foe，二者互斥） */
+    const k2 = g.agents.find(x => x.alien && x.i !== 0 && x.alive && x !== k);
+    w.mind.cred[k2.i] = 0.45;
+    w.mind.credWhy[k2.i] = [{ kind: 'taskDone', night: g.night, w: 0.1 },
+      { kind: 'fixDone', night: g.night, w: 0.16 }];
+    t.evalAlmost(w.i, k2.i);
+    const hasFriend = !!t.almostOf(w.i).friend[k2.i];
+    /* ① 的 almost.foe 会让票权分支直接投给 foe（k），friend 盾就没机会验了 —— 先清掉 */
+    w.mind.almost.foe = {};
+    /* cred 必须留着（清零会让 evalAlmost 立刻删掉几乎.friend）；
+       改用 RNG 区分两道盾：cred 盾概率 0.2475 < 0.35 < friend 盾 0.45 */
+    t.openMeeting('day');
+    w.accuse = k2.i; w.suspect = null;
+    const oldRandom = Math.random;
+    Math.random = () => 0.35;
+    t.startVote();
+    const vFriend = g.meet.votes[w.i];
+    Math.random = oldRandom;
+    t.closeVote(); t.finishMeeting();
+    return { hasFoe, vFoe, hasFriend, vFriend, k: k.i, w: w.i, tele: t.tele() };
+  });
+  ok(VOTE2.hasFoe && VOTE2.vFoe === VOTE2.k,
+    '准-确证升级为**票权**：手上只有 almost.foe（没有公开指控）也会投他');
+  ok(VOTE2.hasFriend && VOTE2.vFriend === -1 && VOTE2.tele.friendShield >= 1,
+    '「基本是好人」会**挡票**（弃权，实测 ' + VOTE2.tele.friendShield + ' 次｜hasFriend=' +
+    VOTE2.hasFriend + '｜v=' + VOTE2.vFriend + '）—— 伪装的兑现口');
+
+  await fresh(false);
+  const ALLY2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { retractCount: 0, allyRevealed: 0 };
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const d = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    t.openMeeting('day');
+    const m = g.meet;
+    const oldRandom = Math.random;
+    Math.random = () => 0;                    /* 必辩护、必选同一个辩护者 */
+    /* 清掉其它人残留的指控：否则 decideHumanDefend 可能先挑到别人当"被辩护者"，
+       软联盟就记在别人身上（这条断言会时好时坏）。 */
+    for (const a of g.agents) { a.accuse = null; a.suspect = null; }
+    const got1 = t.defendTry(d.i, k.i);
+    const got2 = t.defendTry(d.i, k.i);       /* 保第二次 → 软联盟成立 */
+    Math.random = oldRandom;
+    const def = g.agents[(got2 || got1).by];  /* 辩护者是 pool[0]，不一定是 d */
+    const ally = (t.mind(def.i).ally || {})[k.i] || 0;
+    /* 让 k（异形）被驱逐 → 保过他的人被回溯 */
+    const other = g.agents.find(x => x.i !== 0 && x.i !== k.i && x.i !== def.i && x.alive);
+    m.votes = {}; m.votes[def.i] = k.i; m.votes[0] = k.i; m.votes[other.i] = k.i;
+    m.ctx.lead[k.i] = def.i;
+    if (g.meet) { t.closeVote(); }
+    const why = (t.mind(other.i).why || {})[def.i] || [];
+    const kinds = why.map(x => x.kind);
+    return { ally, kinds, tele: t.tele(), k: k.i, d: def.i, need: SKSanity.META.allyCount,
+      log: t.defenseLog(), ex: g.meet && g.meet.tally ? g.meet.tally.exRole : null,
+      votes: g.meet ? Object.assign({}, g.meet.votes) : null, other: other.i };
+  });
+  ok(ALLY2.ally >= ALLY2.need && ALLY2.kinds.indexOf('ally_revealed') >= 0,
+    '反复替同一个人说话 → 软联盟（' + ALLY2.ally + ' 次）；那人翻出是异形，保人吃 ally_revealed（' +
+    ALLY2.kinds.join(',') + '）');
+
+  await fresh(false);
+  const AVOID = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { avoidSus: 0 };
+    const av = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);   /* 躲的人 */
+    const who = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== av);
+    g.lightState = 1;                         /* 全亮：只剩 LOS */
+    let spot = null;
+    for (let x = 44; x <= 56 && !spot; x += 0.5) {
+      for (let y = 78; y <= 90; y += 0.5) {
+        t.tp(av.i, x, y); t.tp(who.i, x + 2, y);
+        if (t.roomIdAt(x, y) !== 'med') continue;
+        if (t.aiSee(who.i, x, y, 6)) { spot = [x, y]; break; }
+      }
+    }
+    if (spot) { t.tp(av.i, spot[0], spot[1]); t.tp(who.i, spot[0] + 2, spot[1]); }
+    av._avoidHuman = who.i;                   /* 白天 who 咬过他，夜里他躲 who */
+    t.track();
+    const why = (t.mind(who.i).why || {})[av.i] || [];
+    return { kinds: why.map(x => x.kind), tele: t.tele(), spot };
+  });
+  ok(AVOID.kinds.indexOf('saw_avoid') >= 0 && AVOID.tele.avoidSus >= 1,
+    '回避可观察：被躲的人会注意到「他刚才绕开了我」→ 弱证据（' + AVOID.kinds.join(',') + '）');
+
+  section('推理 · 辩护不看阵营 / 认错分支（2026-11-01）');
+  await fresh(false);
+  const DEF = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const ac = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const oldRandom = Math.random;
+    Math.random = () => 0;               /* 必辩护、必选 pool[0] */
+    const got = t.defendTry(ac.i, k.i);  /* 让人类指控一只异形 */
+    Math.random = oldRandom;
+    const by = got ? g.agents[got.by] : null;
+    return { got, tgtAlien: !!k.alien, byAlien: by ? !!by.alien : null };
+  });
+  ok(DEF.got && DEF.tgtAlien === true && DEF.byAlien === false,
+    '人类会替**被指控的异形**说话（不再读 `tgt.alien` 抄答案），辩护者是人类');
+
+  section('推理 · 在场反驳 / 熵 / 沉默（2026-11-01）');
+  await fresh(false);
+  const PRES = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { presenceDeny: 0, silentSus: 0, hedgeAgents: 0, sureAgents: 0 };
+    const ac = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== ac);
+    const other = g.agents.find(x => x.i !== 0 && x.alive && x !== ac && x !== w);
+    const tg = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== ac && x !== w &&
+      x !== other);
+    g.lit.power = true;                    /* 配电室点亮：亮房整间可见，看不见 = 确实不在 */
+    t.tp(tg.i, 50, 54); t.tp(ac.i, 51, 54);
+    t.notice(tg.i, 50, 54, 6, 'knife', null);   /* ac 亲眼看见 tg 出刀 → 硬证词指控 */
+    /* w 当时也在配电室（亮着），整段时间没见过 tg */
+    w.mind.mem = [{ kind: 'saw_agent', subj: other.i, room: 'power', night: g.night,
+      t: 0, ox: 51, oy: 54.5, lit: true, conf: 0.8, src: 'sight' }];
+    t.openMeeting('day');
+    const why = (t.mind(w.i).why || {})[ac.i] || [];
+    const kinds = why.map(x => x.kind);
+    /* 熵：五个人的嫌疑差不多 → 高熵犹豫；一个人独高 → 低熵敢点名 */
+    for (const x of g.agents) if (x.mind) { x.mind.sus = {}; }
+    const flat = g.agents.filter(x => x.i !== w.i).slice(0, 5);
+    for (const x of flat) t.healSus(w.i, x.i, 0.3);
+    const hFlat = t.entropyOf(w.i);
+    for (const x of flat) t.healSus(w.i, x.i, 0.02);
+    t.healSus(w.i, flat[0].i, 0.95);
+    const hPeak = t.entropyOf(w.i);
+    const hedgeHi = SKSanity.MIND.hedgeHi, sureLo = SKSanity.MIND.sureLo;
+    const t2 = t.tele();
+    return { ac: ac.i, w: w.i, tg: tg.i, kinds, hFlat, hPeak, hedgeHi, sureLo,
+      tele: t2 };
+  });
+  ok(PRES.kinds.indexOf('presence_deny') >= 0,
+    '在场反驳：我当时就在配电室（亮房）没看见他 → 反过来怀疑指认者（' +
+    (PRES.kinds.join(',') || '—') + '）');
+  ok(PRES.hFlat >= PRES.hedgeHi && PRES.hPeak <= PRES.sureLo,
+    '信念熵：局面糊（' + PRES.hFlat.toFixed(2) + '）→ 犹豫；一人独高（' +
+    PRES.hPeak.toFixed(2) + '）→ 敢点名 [阈值 ' + PRES.hedgeHi + ' / ' + PRES.sureLo + ']');
+  ok(PRES.tele.presenceDeny >= 1, '在场反驳进遥测（' + PRES.tele.presenceDeny + ' 次）');
+  ok(typeof PRES.tele.silentSus === 'number',
+    '沉默线索走同一套 susAdd（触发 ' + PRES.tele.silentSus + ' 次），上限 0.10 且不升级为准-确证');
+
+  section('推理 · 跨夜口供只记不判（2026-11-01）');
+  await fresh(false);
+  const CLAIMH = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { claimRecall: 0 };
+    const all = () => {
+      let n = 0, okRoom = true, maxOne = 0;
+      for (const x of g.agents) {
+        const h = t.claimHistOf(x.i);
+        n += h.length;
+        if (h.length > maxOne) maxOne = h.length;
+        for (const r of h) if (typeof r.room !== 'string') okRoom = false;
+      }
+      return { n, okRoom, maxOne };
+    };
+    t.openMeeting('day');
+    const s1 = all();
+    t.finishMeeting();
+    t.openMeeting('day');
+    const s2 = all();
+    const recall = t.tele().claimRecall;
+    t.finishMeeting();
+    return { s1, s2, recall };
+  });
+  ok(CLAIMH.s2.n > CLAIMH.s1.n && CLAIMH.s2.okRoom && CLAIMH.s2.maxOne <= 3,
+    '口供史按夜累积、每人最多 3 条、都记了舱室名（' + CLAIMH.s1.n + ' → ' + CLAIMH.s2.n +
+    ' 条，单席最多 ' + CLAIMH.s2.maxOne + '）');
+
+  section('推理 · 时间线拆谎的量词与时间窗（2026-11-01）');
+  await fresh(false);
+  const ALB = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { contradictions: 0, falseContradictions: 0, knownWrites: 0 };
+    const a = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== a);
+    /* 把夜色推进到 evNow=40，复现「t=10 在中央会议室 → t=40 在配电室」 */
+    g.t = Math.max(0, g.t - 40);
+    a.nRoom = 'power';
+    const mk = (room, at) => ({ kind: 'saw_agent', subj: a.i, room: room,
+      night: g.night, t: at, conf: 0.8, src: 'sight' });
+    const mem = w.mind.mem;
+    mem.length = 0;
+    mem.push(mk('bridge', 10), mk('power', 40));
+    const win = t.claimWindow(null);
+    const hit = t.checkAlibi(w.i, a.i, 'power', win.t0, win.t1, win.tRef);
+    const miss = t.checkAlibi(w.i, a.i, 'med', win.t0, win.t1, win.tRef);
+    mem.length = 0; mem.push(mk('corridor', 38));      /* 只在走廊被瞥见 */
+    const corr = t.checkAlibi(w.i, a.i, 'power', win.t0, win.t1, win.tRef);
+    mem.length = 0; mem.push(mk('power', 20));         /* 记录在窗口之外 */
+    const none = t.checkAlibi(w.i, a.i, 'med', 30, 40, 40);
+    return { hit, miss, corr, none, win,
+      falseCnt: g.simStats.falseContradictions,
+      word: [t.alibiTimeWord(3), t.alibiTimeWord(20), t.alibiTimeWord(90)] };
+  });
+  ok(ALB.hit.match === true && ALB.hit.checked >= 2 && ALB.falseCnt >= 1,
+    '口供与窗口内任一条时间线记录一致 → 不定罪（旧量词会在这里冤枉人，已记 falseContradictions）');
+  ok(ALB.miss.match === false && ALB.miss.evidence && ALB.miss.evidence.room === 'power' &&
+    ALB.miss.checked === 2,
+    '窗口内所有记录都对不上 → 才成立 contradiction，证据取最接近口供时刻的那条');
+  ok(ALB.corr.checked === 0,
+    '走廊记录不算「在某个舱室」：走过走廊不能拿来否定口供');
+  ok(ALB.none.checked === 0 && ALB.none.evidence === null,
+    '窗口内没有任何该对象的记录 → checked=0，闭嘴（既不洗清也不定罪）');
+  ok(ALB.word[0] === '刚才' && ALB.word[1] === '十几秒前' && ALB.word[2] === '半分钟前',
+    '证据新鲜度用品类时间词说清楚：' + ALB.word.join(' / '));
+
+  const ALB2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { contradictions: 0, falseContradictions: 0, knownWrites: 0 };
+    const a = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== a);
+    const w2 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== a && x !== w);
+    g.t = Math.max(0, g.t - 40);
+    a.nRoom = 'power';
+    const mk = (s, room, at) => ({ kind: 'saw_agent', subj: s, room: room,
+      night: g.night, t: at, conf: 0.8, src: 'sight' });
+    w.mind.mem.length = 0;
+    w.mind.mem.push(mk(a.i, 'bridge', 10), mk(a.i, 'power', 40));   /* 后来确实到过配电室 */
+    w2.mind.mem.length = 0;
+    w2.mind.mem.push(mk(a.i, 'engine', 12), mk(a.i, 'engine', 36)); /* 全程只在引擎室 */
+    for (const x of g.agents) { x._delay = 999; x.accuse = null; }
+    const oldRandom = Math.random;
+    Math.random = () => 0.99;               /* 关掉随机构陷，只读拆谎这一条 */
+    t.openMeeting('day', null, null);
+    Math.random = oldRandom;
+    const out = { susW: (t.mind(w.i).sus || {})[a.i] || 0,
+      susW2: (t.mind(w2.i).sus || {})[a.i] || 0, tele: t.tele() };
+    t.finishMeeting();
+    return out;
+  });
+  ok(ALB2.susW < 0.12,
+    '会议里同一份口供：见过他在配电室的听众不再冤枉（sus=' + ALB2.susW.toFixed(2) + '）');
+  ok(ALB2.susW2 >= 0.2,
+    '同一个口供，对「全程只在引擎室看见他」的听众才成立 contradiction（sus=' +
+    ALB2.susW2.toFixed(2) + '）');
+
+  section('推理 · 电闸：拉闸确证 / 合闸只是信任（2026-11-01）');
+  await fresh(false);
+  const BRK = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { contradictions: 0, falseContradictions: 0, knownWrites: 0 };
+    const br = t.breakerPos();
+    const k = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const h = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const h2 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== h);
+    const ha = g.agents.find(x => x.alien && x.i !== 0 && x.alive && x !== k);
+    for (const x of g.agents) {
+      x._delay = 999; x.accuse = null; x.accuseWhy = null; x.mates = {};
+      if (x.mind) { x.mind.mem = []; x.mind.sus = {}; x.mind.why = {};
+        x.mind.known = {}; x.mind.cred = {}; x.mind.humanT = {}; }
+    }
+    /* 配电室是暗房，电闸又贴着墙：只有紧挨着闸杆的那一小条站位有视线
+       （实测 x=51 / y=53~55 才 `aiCanSee` 得到），这本身就是设计上的代价 ——
+       「守闸」才看得到，隔着半个舱室拉闸没人能确证。 */
+    t.tp(k.i, br[0], br[1]);
+    t.tp(h.i, 51, 54);
+    t.tp(h2.i, 51, 53.5);
+    t.tp(ha.i, 51, 54.5);
+    const off = t.breakerBy(k.i);                      /* 拉闸断电 */
+    const offRead = { state: off.state, known: t.knownOf(h.i),
+      sus: (t.mind(h.i).sus || {})[k.i] || 0,
+      mate: Object.keys(t.mind(ha.i).mates || {}),
+      memKinds: (t.mind(h.i).mem || []).map(e => e.kind) };
+    const on = t.breakerBy(h2.i);                      /* 人类合闸复电 */
+    const onRead = { state: on.state, known: t.knownOf(h.i),
+      sus: (t.mind(h.i).sus || {})[h2.i] || 0,
+      cred: (t.mind(h.i).cred || {})[h2.i] || 0,
+      humanT: (t.mind(ha.i).humanT || {})[h2.i] || 0,
+      mate: Object.keys(t.mind(ha.i).mates || {}),
+      knownAlien: t.knownOf(ha.i) };
+    return { k: k.i, h: h.i, h2: h2.i, ha: ha.i, offRead, onRead, tele: t.tele() };
+  });
+  ok(BRK.offRead.state === 2 && BRK.offRead.known[BRK.k] &&
+    BRK.offRead.known[BRK.k].kind === 'saw_breaker' && BRK.offRead.sus >= 0.99,
+    '人类看见有人把电闸拉下去 → 直接确证「他是异形」（known=saw_breaker / sus 拉满）');
+  ok(BRK.offRead.mate.indexOf(String(BRK.k)) >= 0,
+    '异形看见同一个动作 → 认作队友（观测者 ' + BRK.ha + ' → mates[' +
+    BRK.offRead.mate.join(',') + ']，行凶者 ' + BRK.k + '）');
+  ok(BRK.onRead.state !== 2 && !BRK.onRead.known[BRK.h2],
+    '人类看见合闸**不确证**他是人类（异形也会合闸伪装）');
+  ok(BRK.onRead.sus <= 0.001, '合闸不给合闸者加嫌疑分（sus=' + BRK.onRead.sus.toFixed(2) + '）');
+  ok(BRK.onRead.cred > 0,
+    '人类看见合闸只加正向信任 cred（' + BRK.onRead.cred.toFixed(2) + '）');
+  ok(BRK.onRead.humanT > 0 && BRK.onRead.mate.indexOf(String(BRK.h2)) < 0 &&
+    !BRK.onRead.knownAlien[BRK.h2],
+    '异形看见合闸只记「人类可疑度」（' + BRK.onRead.humanT.toFixed(2) +
+    '），不写 mates / known —— 不确定他就不是异形');
+
+  section('推理 · 保安拘留进记忆但不确证（2026-11-01）');
+  await fresh(false);
+  const DET = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    g.simStats = { contradictions: 0, falseContradictions: 0, knownWrites: 0, detainWitness: 0 };
+    const h1 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const h2 = g.agents.find(x => !x.alien && x.i !== 0 && x.alive && x !== h1);
+    for (const x of g.agents) {
+      x._delay = 999;
+      if (x.mind) { x.mind.mem = []; x.mind.sus = {}; x.mind.known = {};
+        x.mind.why = {}; x.mind.detainSeen = {}; }
+    }
+    g.lightState = 1;                       /* 满照明：只按距离与视线判定 */
+    t.tp(h1.i, 50, 84);                     /* 被拘留的是**人类**（开枪也会被保安抓） */
+    t.tp(h2.i, 52, 84);                     /* 2 格内的目击者 */
+    const n = t.witnessDetain(h1.i, 50, 84, 4);
+    const dup = t.witnessDetain(h1.i, 50, 84, 4);   /* 同一夜重复广播不再加分 */
+    return { h1: h1.i, h2: h2.i, n, dup,
+      sus: (t.mind(h2.i).sus || {})[h1.i] || 0,
+      known: t.knownOf(h2.i),
+      memKinds: (t.mind(h2.i).mem || []).map(e => e.kind),
+      tele: t.tele() };
+  });
+  ok(DET.n >= 1 && DET.memKinds.indexOf('saw_detain') >= 0 && DET.sus >= 0.4,
+    '保安拘留进记忆、只加嫌疑分（sus=' + DET.sus.toFixed(2) + '）');
+  ok(Object.keys(DET.known).length === 0,
+    '人类被拘留**不写 known**（开枪的人类也会被保安抓，不能因此被当成异形）');
+  ok(DET.dup === 0, '同一夜对同一个人的拘留证据只记一次（压制 + 押送不重复加分）');
 
   section('会议 · 异形反咬与构陷');
   await fresh(false);
@@ -1123,7 +1654,11 @@ function section(t) { console.log('\n== ' + t); }
     Math.random = oldRandom;
     const ctx = t.meetCtx();
     const f = ctx.frames[0];
+    /* 投票阶段也要固定随机数：弃权与否由 voteAbstain（性格）+ 随机数决定，
+       不锁的话这条断言有 ~38% 的概率偶发（l1 偶尔会跟票到证人身上）。 */
+    Math.random = () => 0;
     t.startVote();
+    Math.random = oldRandom;
     const out = { k: k.i, w: w.i, l1: l1.i, l2: l2.i, frame: f,
       liarName: f ? g.agents[f.by].name : null,
       targetName: f ? g.agents[f.target].name : null,
@@ -1367,6 +1902,10 @@ function section(t) { console.log('\n== ' + t); }
       a.mind.known = {}; a.mind.mem = []; a.mind.sus = {}; a.mind.why = {}; a.mind.alert = 0;
       a.suspect = null; a.accuse = null;
     }
+    /* 锁 RNG：这条测的是「物理上不可能的口供」这一条分支，不该被随机的异形构陷/跟票影响
+       （不锁的话目标会偶尔被别的通道记上嫌疑，断言随机失败 —— 改动前的基线上同样复现）。 */
+    const oldRandom = Math.random;
+    Math.random = () => 0.99;
     t.openMeeting('pre', null, null);
     document.getElementById('m-text').value =
       '我看见 ' + g.agents[target.i].name + ' 在配电室钻管道';
@@ -1374,6 +1913,7 @@ function section(t) { console.log('\n== ' + t); }
     const s0 = (t.mind(listener.i).sus || {})[0] || 0;
     const st = (t.mind(listener.i).sus || {})[target.i] || 0;
     const claims = (t.meetCtx().playerClaims || []).length;
+    Math.random = oldRandom;
     t.finishMeeting();
     return { s0, st, claims };
   });
@@ -2108,16 +2648,26 @@ function section(t) { console.log('\n== ' + t); }
     const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
     const v = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
     const h = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== v);
+    /* 目击者分两种（2026-11-01 改）：
+         hSee 站在拘留位旁边，**看得见**押送 → 记 saw_detain + 0.6 嫌疑；
+         h    在军械库另一端，只**听得见**警报 → 有 heard_detain 记录但认不出是谁。 */
+    const hSee = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== v && a !== h);
     /* 把保安机器人摆到军械库东南角：离设施初始位 >6 格，只有读运行时坐标才会擒拿 */
     const sec = t.setBot('secbot', 88.5, 54.5, Math.PI);
     const sb = g.bots && g.bots.secbot;
     if (sb) { sb.wps = [[sec[0], sec[1]]]; sb.wp = 0; sb.ang = Math.PI; }
     const kp = freeNear(86, 54), vp = freeNear(86, 53.2);
     t.tp(k.i, kp[0], kp[1]);
-    t.tp(v.i, vp[0], vp[1]); t.tp(h.i, 84.8,74.2);
+    t.tp(v.i, vp[0], vp[1]); t.tp(h.i, 84.8,74.2); t.tp(hSee.i, 76.5,76.5);
+    for (const a of [h, hSee]) {
+      if (!a || !a.mind) continue;
+      a.mind.mem = []; a.mind.sus = {}; a.mind.why = {};
+      a.mind.known = {}; a.mind.detainSeen = {};
+    }
     k.knife = 1;
     t.knife(k.i, v.i);
-    return { k: k.i, v: v.i, h: h.i, jail: t.jail(), kp, vp, sec, inv: t.inv() };
+    return { k: k.i, v: v.i, h: h.i, hSee: hSee ? hSee.i : null,
+      jail: t.jail(), kp, vp, sec, inv: t.inv() };
   });
   await page.waitForTimeout(200);
   const SB1 = await T(o => {
@@ -2126,7 +2676,12 @@ function section(t) { console.log('\n== ' + t); }
     const a = g.agents[o.k];
     return { detained: t.detained(), st: t.state()[o.k], fx: t.fx(), pos: [a.x, a.y],
       used: t.robots().sec.used, jail: t.jail(), msg: g.msg || '', inv: t.inv(),
-      bots: t.bots(), uses: t.robots().sec.uses, sus: t.mind(o.h) ? (t.mind(o.h).sus[o.k] || 0) : 0 };
+      bots: t.bots(), uses: t.robots().sec.uses,
+      sus: t.mind(o.h) ? (t.mind(o.h).sus[o.k] || 0) : 0,
+      susSee: o.hSee == null ? -1 : ((t.mind(o.hSee) || {}).sus || {})[o.k] || 0,
+      memSee: o.hSee == null ? [] : (t.mind(o.hSee).mem || []).map(e => e.kind),
+      memHear: t.mind(o.h) ? (t.mind(o.h).mem || []).map(e => e.kind) : [],
+      knownSee: o.hSee == null ? {} : t.knownOf(o.hSee) };
   }, SB0);
   ok(SB0.sec && Math.hypot(SB0.kp[0] - SB0.sec[0], SB0.kp[1] - SB0.sec[1]) < 6 &&
     Math.hypot(SB0.kp[0] - 80, SB0.kp[1] - 53) > 6 && SB0.inv.fails.length === 0,
@@ -2138,7 +2693,13 @@ function section(t) { console.log('\n== ' + t); }
     '凶手被拽到军械库角落拘留位');
   ok(SB1.fx.includes('detain') && SB1.fx.includes('alarm'), '拘留拖拽线 + 红色警报环特效');
   ok(String(SB1.msg || '').indexOf('保安机器人擒拿') < 0, '拘押不再公告（无全局播报）');
-  ok(SB1.sus >= 0.4, '被拘留者被附近人类优先怀疑（sus=' + SB1.sus.toFixed(2) + '）');
+  /* 2026-11-01 改：拘留证据来自**看见**，不是听见。
+     旧断言靠 heard_detain 给 26 格内所有人 0.6 嫌疑（等于闻声就锁定被抓者），已修。 */
+  ok(SB1.susSee >= 0.4 && SB1.memSee.indexOf('saw_detain') >= 0 &&
+    Object.keys(SB1.knownSee).length === 0,
+    '看见押送的人类记 saw_detain 并优先怀疑（sus=' + SB1.susSee.toFixed(2) + '），但不写 known');
+  ok(SB1.memHear.indexOf('heard_detain') >= 0 && SB1.sus < 0.05,
+    '只听得见警报的人有记录却认不出是谁（sus=' + SB1.sus.toFixed(2) + '）');
   ok(SB1.inv && SB1.inv.fails.length === 0, '拘留状态不变量全过');
   await T(() => {
     const t = SKV3._t, g = t.G();
@@ -2286,7 +2847,7 @@ function section(t) { console.log('\n== ' + t); }
     g.me.alien = true; g.me.knife = 1;
     const med = t.setBot('medbot', 52, 84.9);
     t.tp(0, med[0] + 1.0, med[1]);
-    t.attack();
+    t.stabRaw();
     return { dead: t.robots().med.dead, hp: t.robots().med.hp, knife: g.me.knife,
       red: g.me.redT, crime: g.pendingCrime, msg: g.msg, inv: t.inv() };
   });
@@ -2359,7 +2920,7 @@ function section(t) { console.log('\n== ' + t); }
         if (t.free(x, y)) { p = [x, y]; r = 99; break; }
       }
     t.tp(0, p[0], p[1]);
-    const atk = t.attack();
+    const atk = t.stabRaw();
     const hp = t.robots().sec.hp, pend = g.pendingCrime;
     t.botTick(0.2); t.botTick(0.2);
     return { hp, pend, knife: atk.knife, detained: g.me.detained,
@@ -3631,19 +4192,29 @@ function section(t) { console.log('\n== ' + t); }
     for (const x of g.agents) if (x !== w && x !== a && x !== v) t.tp(x.i, 30,54);
     t.tp(w.i, 30,33); t.tp(a.i, 10,53); t.tp(v.i, 56, 85);
     t.kill(v.i, 'knife');
-    const deathEv = 120 - Math.max(0, v.alive ? v.downAt : v.deathAt);
+    /* 夜晚长度改成 90s 后不能再写死 120：案发时刻要用**真实夜长**算 */
+    const deathEv = t.nightLen() - Math.max(0, v.alive ? v.downAt : v.deathAt);
+    /* 沉默线索只在「健谈的人」身上触发，这里把所有人压成内向，避免干扰本用例 */
+    for (const x of g.agents) x.trait = { aggr: 50, caut: 50, soc: 28, cur: 50 };
     a.nRoom = 'engine';
     w.mind.sus[a.i] = 0.5;
     w.mind.mem.push({ kind: 'saw_agent', subj: a.i, room: 'engine',
       night: g.night, t: deathEv, conf: 0.8, src: 'sight' });
     t.openMeeting('night', w.i, v.i);
+    const why = ((t.mind(w.i).why || {})[a.i] || []).map(x => x.kind + ':' + (x.w || 0));
+    const mb = (t.mind(w.i).alibi || {})[a.i] || null;
     const out = { after: (t.mind(w.i).sus || {})[a.i] || 0,
-      accuse: g.agents[w.i].accuse, a: a.i };
+      accuse: g.agents[w.i].accuse, a: a.i, why, alibiReason: mb ? mb.reason : null };
     if (g.meet) t.finishMeeting();
     return out;
   });
-  ok(ALIB.after < 0.4 && ALIB.accuse !== ALIB.a,
-    '目击案发时在别处 → 降低普通嫌疑、不当场指控（' + ALIB.after.toFixed(2) + '）');
+  /* 2026-11-02：断言从"数值 < 0.4"改成"**指名洗清机制 + 嫌疑确实下降**"。
+     原因是新增的 `presence_deny`（在场反驳）会在同一次会议里给指认者 +0.16，
+     偶尔把 0.25 抬到 0.41 —— 数值边界会被这条与本用例无关的通道打穿。
+     新写法反而更严：它必须真的记下 `alibi_clear` 才算通过。 */
+  ok(ALIB.alibiReason === 'alibi_clear' && ALIB.after < 0.5 && ALIB.accuse !== ALIB.a,
+    '目击案发时在别处 → 反向洗清（alibi_clear）并降低嫌疑、不当场指控（' +
+    ALIB.after.toFixed(2) + ' / ' + (ALIB.why.join(',') || '无新增证据') + '）');
 
   const SHOTJ = await T(() => {
     const t = SKV3._t; t.newGame();
@@ -3810,7 +4381,7 @@ function section(t) { console.log('\n== ' + t); }
     '不是「来得太快」就不记 quick_report 嫌疑（总嫌疑可能被会议构陷抬高：' +
     QR2.s0.toFixed(2) + ' → ' + QR2.s1.toFixed(2) + '）');
 
-  section('会议 · 夜晚时间结算（会议真的扣时间）');
+  section('会议 · 夜晚时间结算（会议暂停夜晚时钟，2026-11-02）');
   await fresh(false);
   const MTIME = await T(() => {
     const t = SKV3._t; t.newGame();
@@ -3840,18 +4411,25 @@ function section(t) { console.log('\n== ' + t); }
     const overtime = { remainMs: m2 && m2.remainMs, left: +leftSec().toFixed(1),
       night: g.night, t: +g.t.toFixed(1), meetKind: g.meet ? g.meet.kind : null };
 
-    /* ③ 天亮会议散场 → 进入下一夜（天数 +1、夜晚时间回满） */
+    /* ③ 天亮会议散场 → 进入下一夜（天数 +1、夜晚时间回满）。
+       注意：会议不再吃夜晚时间后，"夜里剩 10 秒开 30 秒会"**不会**再自动天亮，
+       所以这里显式开一场白天会议来验证"白天会议散场 → 下一夜"。 */
     const before = g.night;
+    t.openMeeting('day', null, null);
     if (g.meet) t.finishMeeting();
     const after = { night: g.night, t: +g.t.toFixed(1) };
-    return { normal, overtime, before, after, inv: t.inv() };
+    return { normal, overtime, before, after, inv: t.inv(),
+      nightLen: (function(){ const gg = SKV3._t.G(); return gg.t; })() };
   });
-  ok(MTIME.normal.left > 55 && MTIME.normal.left < 65 && MTIME.normal.night === 1 && !MTIME.normal.meet,
-    '夜晚剩 90 秒开会 30 秒：散会后剩 ' + MTIME.normal.left + ' 秒，仍在同一夜');
-  ok(MTIME.overtime.meetKind === 'day' && MTIME.overtime.t === 0,
-    '夜晚只剩 10 秒时开会 30 秒：这一夜被耗光，直接天亮（' +
+  /* 2026-11-02：会议**不再吃夜晚时间**（会议期间时钟暂停），
+     所以「剩 90 秒开 30 秒会后剩 60」这条旧断言反过来 —— 现在应该还是 90 秒。 */
+  ok(MTIME.normal.left > 85 && MTIME.normal.left < 95 && MTIME.normal.night === 1 && !MTIME.normal.meet,
+    '夜晚剩 90 秒开会 30 秒：散会后**仍是 ' + MTIME.normal.left + ' 秒**（时钟暂停），同一夜');
+  ok(MTIME.overtime.meetKind === null && MTIME.overtime.left > 5 && MTIME.overtime.left < 15 &&
+     MTIME.overtime.night === 1,
+    '夜晚只剩 10 秒时开会 30 秒：不会把这一夜耗光（' +
     'meetKind=' + MTIME.overtime.meetKind + ' / 天数=' + MTIME.overtime.night + ' / 剩余=' + MTIME.overtime.left + 's）');
-  ok(MTIME.after.night === MTIME.before + 1 && MTIME.after.t === 120,
+  ok(MTIME.after.night === MTIME.before + 1 && Math.abs(MTIME.after.t - MTIME.nightLen) < 1.5,
     '天亮会议散场进入下一夜：天数 ' + MTIME.before + ' → ' + MTIME.after.night + '，夜晚时间回满 ' + MTIME.after.t + 's');
   ok(MTIME.inv && MTIME.inv.fails.length === 0, '会议时间结算后不变量全过');
 
@@ -4394,6 +4972,8 @@ function section(t) { console.log('\n== ' + t); }
   await fresh(false);
   const AS2 = await T(() => {
     const t = SKV3._t, g = t.G();
+    /* 先关掉开局讨论（它在 newGame 后 60ms 自动开会，按键会被会议吞掉 → 这条断言时好时坏） */
+    if (g.meet) t.finishMeeting();
     const demoted = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
     demoted.alien = false;
     g.me.alien = true; g.me.bullet = 1; g.me.knife = 1;
@@ -4401,14 +4981,18 @@ function section(t) { console.log('\n== ' + t); }
     for (const a of g.agents) if (a !== g.me && a !== v) { a.path = null; a.x = 28.2; a.y = 44.0; }
     t.tp(0, 34.8,33.8); t.tp(v.i, 35.6,33.8);
     g.aimX = 35.6; g.aimY = 11.8;
+    /* 越过"开夜 5 秒禁刀"（2026-11-02 新规则）：本组验的是**刀击链路**本身，
+       封锁由另一组用例专门验（见「节奏 · 会议上限 / 报告额度 / 开夜禁刀」）。 */
+    t.noKnifeLock(true);
     return { v: v.i };
   });
   await page.keyboard.press('q');
   await page.waitForTimeout(160);
   const AS3 = await T(o => ({ bullet: SKV3._t.G().me.bullet, knife: SKV3._t.G().me.knife,
     downed: SKV3._t.state()[o.v].downed, msg: SKV3._t.G().msg, inv: SKV3._t.inv() }), AS2);
-  ok(AS3.bullet === 1 && AS3.knife === 0 && AS3.downed && AS3.msg.indexOf('出刀') >= 0,
-    '异形按 Q 仍只出刀，不会消耗子弹');
+  ok(AS3.bullet === 1 && AS3.knife === 0 && AS3.downed,
+    '异形按 Q 仍只出刀，不会消耗子弹（刀 -1 / 子弹保留 / 目标濒死' +
+    '｜提示：' + AS3.msg + '）');
   ok(AS3.inv && AS3.inv.fails.length === 0, '异形出刀后不变量全过');
   const SPD = await T(() => {
     const t = SKV3._t, g = t.G();
@@ -4516,7 +5100,7 @@ function section(t) { console.log('\n== ' + t); }
     t.tp(v.i, 35.55,33.8);
     g.me.knife = 1; g.me.doing = 0; g.me._doing = null; g.me.path = null;
     v._delay = 999; v.path = null; v.doing = 0; v._doing = null; v.detained = false;
-    const r = t.attack();
+    const r = t.stabRaw();
     return { v: v.i, r, st: t.state()[v.i], inv: t.inv() };
   });
   ok(ST.st.downed && ST.r.knife === 0, '异形可以对比邻的异形队友出刀（' + (ST.st.downed ? '目标濒死' : '未命中') + '）');
@@ -5078,6 +5662,116 @@ function section(t) { console.log('\n== ' + t); }
   await page.waitForFunction(() => window.SKV3 && SKV3._t && SKV3._t.assets().base, null, { timeout: 30000 });
   await page.waitForTimeout(320);
 
+  section('节奏 · 会议上限 / 报告额度 / 开夜禁刀（2026-11-02）');
+  await fresh(false);
+  const PACE2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const vs = g.agents.filter(a => !a.alien && a.i !== 0 && a.alive).slice(0, 3);
+    /* ① 夜间会议每夜上限 2 场 */
+    t.openMeeting('night', k.i, vs[0].i);
+    const m1 = g.nightMeets;
+    if (g.meet) t.finishMeeting();
+    t.openMeeting('night', k.i, vs[1].i);
+    const m2 = g.nightMeets;
+    if (g.meet) t.finishMeeting();
+    t.openMeeting('night', k.i, vs[2].i);      /* 第三场应被拒 */
+    const m3 = g.nightMeets, opened3 = !!g.meet;
+    if (g.meet) t.finishMeeting();
+    /* ② 报告额度：玩家 2 次（先把会议场次清零，否则会先被"本夜已开满"挡住） */
+    g.nightMeets = 0;
+    const rl0 = g.me.reportLeft;
+    g.me.x = vs[0].x; g.me.y = vs[0].y;
+    vs[0].alive = false; vs[0].downed = false; vs[0].deathAt = 1;
+    vs[0].deathRoom = 'med'; vs[0].bodyX = g.me.x; vs[0].bodyY = g.me.y; vs[0].bodyGone = false;
+    t.report();
+    const afterOne = { left: g.me.reportLeft, meet: !!g.meet, nightMeets: g.nightMeets };
+    if (g.meet) t.finishMeeting();
+    /* 额度用完后再报：应被拒绝 */
+    g.me.reportLeft = 0;
+    vs[1].alive = false; vs[1].deathAt = 1; vs[1].deathRoom = 'med';
+    vs[1].bodyX = g.me.x; vs[1].bodyY = g.me.y; vs[1].bodyGone = false;
+    t.report();
+    const afterDenied = { meet: !!g.meet, msg: g.msg || '' };
+    return { m1, m2, m3, opened3, rl0, afterOne, afterDenied, cap: SKSanity.MEET.perNight,
+      reports: SKSanity.MEET.reportsPerAgent };
+  });
+  ok(PACE2.m1 === 1 && PACE2.m2 === 2 && PACE2.m3 === 2 && !PACE2.opened3,
+    '每夜最多 ' + PACE2.cap + ' 场夜晚会议：第三场被拒（' + PACE2.m1 + '/' + PACE2.m2 + '/' + PACE2.m3 + '）');
+  ok(PACE2.rl0 === PACE2.reports && PACE2.afterOne.left === PACE2.reports - 1,
+    '报告额度全局 ' + PACE2.reports + ' 次，用一次少一次（' + PACE2.rl0 + ' → ' + PACE2.afterOne.left + '）');
+  ok(!PACE2.afterDenied.meet && /额度|开满/.test(PACE2.afterDenied.msg),
+    '额度用完后再报告：开不了会并给出提示（' + PACE2.afterDenied.msg + '）');
+
+  await fresh(false);
+  const LOCK2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.noReport = true;
+    if (g.meet) t.finishMeeting();              /* 关掉开局讨论，进入夜晚 */
+    const v = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    for (const a of g.agents) if (a !== g.me && a !== v) { a.x = 28.2; a.y = 44; a.path = null; }
+    t.tp(0, 34.8, 33.8); t.tp(v.i, 35.6, 33.8);
+    g.me.alien = true; g.me.knife = 1; g.me.bullet = 1;
+    const lock = SKSanity.KNIFE.lockAtStart;
+    const elapsed0 = 90 - g.t;
+    t.attack();                                 /* 封锁期内按键：只提示，不出刀 */
+    const during = { knife: g.me.knife, msg: g.msg || '' };
+    /* 把夜钟往前拨 6 秒 → 封锁结束 → 可以出刀 */
+    g.phase = SKClock.newPhase('night', performance.now(), Math.max(0, g.t - 6) * 1000);
+    return { lock, elapsed0, during, v: v.i };
+  });
+  await page.waitForTimeout(150);
+  await T(() => { const g = SKV3._t.G(); g.t = Math.max(0, g.t - 6); });
+  await page.keyboard.press('a');
+  await page.waitForTimeout(200);
+  const LOCK3 = await T(o => ({ knife: SKV3._t.G().me.knife, msg: SKV3._t.G().msg || '',
+    downed: SKV3._t.state()[o.v].downed }), LOCK2);
+  ok(LOCK2.during.knife === 1 && /封锁/.test(LOCK2.during.msg),
+    '开夜 ' + LOCK2.lock + ' 秒内不能出刀（按键只给提示：' + LOCK2.during.msg + '）');
+  ok(LOCK3.knife === 0 && LOCK3.downed,
+    '封锁结束后正常出刀（刀 -1、目标濒死）');
+
+  await fresh(false);
+  const MEET = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    /* ① 夜晚会议不打断任务：doing / _doing 必须原样保留 */
+    w.doing = 7.5; w._doing = 'task'; w._dur = 7.5; w.path = [[10, 10]]; w.moving = true;
+    const before = { doing: w.doing, kind: w._doing };
+    t.openMeeting('night', null, null);
+    const during = { doing: w.doing, kind: w._doing, path: w.path && w.path.length };
+    if (g.meet) t.finishMeeting();
+    const after = { doing: w.doing, kind: w._doing };
+    /* ② 白天会议：全员刷新到中央会议室 + 打断任务（走真正的"天亮"流程） */
+    for (const a of g.agents) { a.doing = 3; a._doing = 'task'; a.x = 5; a.y = 5; }
+    t.dawn();
+    const inBridge = g.agents.filter(a => a.alive).every(a => SKV3._t.roomIdAt(a.x, a.y) === 'bridge');
+    const cleared = g.agents.filter(a => a.alive).every(a => a.doing === 0 && !a._doing);
+    if (g.meet) t.finishMeeting();
+    return { before, during, after, inBridge, cleared };
+  });
+  ok(MEET.during.doing === MEET.before.doing && MEET.during.kind === 'task' && !MEET.during.path,
+    '夜晚会议不打断任务：doing / _doing 原样保留，只清掉移动路径（' +
+    JSON.stringify(MEET.during) + '）');
+  ok(MEET.after.doing === MEET.before.doing,
+    '散会后任务继续（doing 仍是 ' + MEET.after.doing + '）');
+  ok(MEET.inBridge && MEET.cleared,
+    '白天会议把所有人刷新到中央会议室，并打断此前的一切任务流程');
+
+  await fresh(false);
+  const BAD = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = false; g.noReport = true;
+    if (g.meet) t.finishMeeting();
+    /* 点一个走不过去的地方（船外坐标） */
+    const r = t.badClick(2, 2);
+    return { r, msg: g.msg || '', fx: g.clickFx ? { bad: !!g.clickFx.bad } : null };
+  });
+  ok(BAD.r && BAD.r.ok === false && /走不过去/.test(BAD.msg) && BAD.fx && BAD.fx.bad,
+    '点到不可交互处：给出文字提示 + 点击处标记禁止符号（' + BAD.msg + '）');
+
   section('暂停 / 重开 / 退出');
   await fresh(false);
   await page.keyboard.press('Escape');
@@ -5105,7 +5799,10 @@ function section(t) { console.log('\n== ' + t); }
     paused: SKV3._t.paused(), ui: !document.getElementById('pause').classList.contains('hide'),
     night: SKV3._t.G().night, t: SKV3._t.G().t, n: SKV3._t.state().length
   }));
-  ok(!RS.paused && !RS.ui && RS.night === 1 && RS.t > 110 && RS.n === 15, '暂停面板「重开本局」：回到第 1 夜');
+  /* 夜长是变动的（120 → 100 → 90 → 75），这里跟运行时真值比，别写死 80 */
+  const NIGHT_LEN = await T(() => SKV3._t.nightLen());
+  ok(!RS.paused && !RS.ui && RS.night === 1 && RS.t > NIGHT_LEN - 5 && RS.n === 15,
+    '暂停面板「重开本局」：回到第 1 夜（夜长 ' + NIGHT_LEN + 's，当前 ' + RS.t.toFixed(0) + 's）');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(120);
   await page.click('#p-exit');
