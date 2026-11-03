@@ -95,17 +95,10 @@
     voteTrustPush: a => 5 * (1 + 0.5 * b(a, 'soc')),
   };
 
-  function label(a) {
-    const t = a && a.trait;
-    if (!t) return '中性';
-    if (t.aggr >= 65 && t.caut <= 45) return '激进';
-    if (t.caut >= 65) return '谨慎';
-    if (t.soc >= 65) return '健谈';
-    if (t.cur >= 65) return '好奇';
-    return '中性';
-  }
+  /* 性格档位 → 中文标签的包装曾在这里（label），但全仓没有调用点：
+     DEV 面板与台词都直接读四轴数值。要用时再按实际展示需求加回来。 */
 
-  global.SKTrait = { AXES, NEUTRAL, BANDS, roll, pick, b, C, label };
+  global.SKTrait = { AXES, NEUTRAL, BANDS, roll, pick, b, C };
 
   /* ---- 团队量化表（2026-11-01，初步预览版）----
      与 SKTrait.C（个人量化表）分层：个人表回答「我做这件事值不值」，

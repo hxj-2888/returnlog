@@ -1,6 +1,6 @@
 # AGENTS.md — 新返航录（试玩版 · 返航录V3）
 
-> **当前版本**：返航录V3（2026-10-29）· `package.json` 3.0.0
+> **当前版本**：返航录V3.6（2026-11-03）· `package.json` 3.6.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
 
@@ -9,10 +9,11 @@
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
-   禁止在别处动态注入 `<script>`。当前顺序：`version → map → templates → clock → invariants → geo → ai/sanity → ai/traits → game → main → ui/home → ui/replay`。
+   禁止在别处动态注入 `<script>`。当前顺序（与 `index.html` 一致）：
+   `config/version → data/map → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.5'`）。**
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
 4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tools/test-v3.cjs`，失败一律按回归处理；
@@ -20,6 +21,16 @@
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
    `replay()`、`litZone()` 等被 test-v3.cjs 直接依赖）。
+   **写夹具时的三条硬规矩**（2026-11-03 各踩过一次，症状都是"断言静默失败、看不出原因"）：
+   - `newGame()` 会**整个换掉 G 对象** ⇒ 必须 `t.newGame()` **之后**再 `const g = t.G()`。
+     反过来的话后续赋值全打在已被丢弃的旧状态上，会议开不出来、`checkWin` 也不响。
+   - `openMeeting()` 不带参数会去找**尸体**；要一场干净的会就写 `t.openMeeting('day')`，
+     并且 `startVote() → closeVote() → finishMeeting()` 三步走全，
+     少一步就会停在 `discuss` 阶段，`vote` 事件一个都不落（结算页/投票矩阵类断言会因此读 0）。
+   - **"把闲人停到某处"必须停在暗舱**（如引擎室 9,52），不要停亮会议室：
+     亮区放开后，亮舱里的人能顺着**相连直走廊**看到任意远（亮舱→走廊分支不看距离，只要求 LOS），
+     拖尸/出刀/伪装类夹具会因此凭空多出一圈目击者。藏尸夹具就是这样以 2/12 的概率随机失败
+     （旧写法停车 30,32），改停暗舱后 0/20。
 6. **素材署名不可删。** `assets/scene/cozy`、`assets/scene/rooms` 为 CC-BY 4.0，
    `audio/` 为 CC0；对应的 `LICENSE.txt` / `CREDITS.md` 必须保留，二次分发同样适用。
 7. **模块边界不许穿透。** 地图数据只放 `js/data/map.js`；几何/寻路只放 `js/engine/geo.js`；
@@ -134,10 +145,14 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
-| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（599 条） |
-| `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现） |
+| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（712 条） |
+| `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现；报告含**配置快照 / 机制触达率 / 分桶胜率 / 结束原因×胜者交叉表**） |
+| `js/data/lines.js` | 数据 | 会议台词语料库（58 类 × hot/cold + 组合式模板 + 证据短语子池 WHY），唯一台词真源 |
+| `tools/lines-audit.cjs` | 门禁 | 语料体检：禁词 / 长度 / 槽位 / 骨架撞车 + 复现 `pickLine` 抽样口径模拟十局疲劳（`--strict` 有 FAIL 退出码 1） |
+| `tools/lines-report.md` | 数据 | `lines-audit` 生成的语料体检报告（工具产出，勿手改） |
 | `tools/ship.cjs` | 发布 | **一键发布**：门禁 → APK（同步/构建/传 Release）→ CF Pages → GitHub+Gitee → 作品集（素材/部署/推送）。`npm run ship`；`--fast` 跳过门禁、`--only=web,portfolio` 跳过 APK |
-| `tools/mc-report.md` | 数据 | 2026-10-30 1000 局蒙特卡洛汇总（原始局在 `mc-results.json`） |
+| `tools/mc-report.md` | 数据 | **最近一次** 1000 局蒙特卡洛汇总（当前为 F 轮 · 2026-11-03；原始局在 `mc-results.json`，工具生成勿手改） |
+| `tools/mc-results-E.json` · `tools/mc-report-E.md` | 数据 | **放眼前的对照基线**（E 轮 · AI/玩家数值一致化）：`--out tools/mc-results-E.json --report tools/mc-report-E.md` 产出；跨批对比先读它 |
 | `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`；内置 5.2 版本守卫） |
 | `tools/check-blender.ps1` | 门禁 | 校验权威 Blender（路径 / 版本 / build hash / Python 载荷），不通过退出码 1 |
 | `tools/logs/` | 日志 | 渲染日志统一落点，命名 `<脚本>-<YYYYMMDD-HHmmss>.log`；`logs/legacy-4.5.9/` 为已归档的 4.5.9 旧日志 |
@@ -148,6 +163,11 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `tools/gen-hull.py` | 美术工具 | 船体底板 `hull-deck.png` 程序化生成（分块装甲 + 接缝 + 格栅 + 管线 + 暗角） |
 | `tools/map-check.cjs` | 工具 | 离线地图体检：可行走网格 / 掩体审计 / 巡逻线 / 任务点可达性（不开浏览器） |
 | `assets/` · `audio/` | 素材 | 许可与署名见各子目录 `LICENSE*` 与 `audio/CREDITS.md` |
+| `3d/` | 子项目 | **Godot 4.6 3D 预演**（独立工程，不参与 `index.html` 加载；地图由 `3d/tools/export-map.cjs` 从 `js/data/map.js` 导出）。入口见 `3d/README.md`，架构见 `3d/ARCHITECTURE.md`，决策见 `3d/DECISIONS.md` |
+
+> 3D 子项目边界：**不继承**主项目的 `file://` / 经典 `<script>` 红线；
+> 但素材许可、中文记录、数据单一真源、门禁/自测留痕仍然适用。
+> Godot 便携版在 `E:\ai-tools\godot`（4.6 stable，`89cea1439`），不在 PATH 上。
 
 ## 四、架构约定
 
@@ -171,16 +191,87 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   - **破坏的落点与"施展"是两件事**（2026-11-01 用户裁定）：落点 = 该舱室里**均匀随机**的一个
     任务点（`sabSpot`，按夜缓存），异形**不需要走到那台设备前** —— 进舱即触发，
     设备自己坏掉。玩家侧 `sabTick` 同口径。
-- **伪装收益（`SKSanity.DISGUISE`）**：异形演"正经事"（假做任务 / 假装修理 / 合闸）必须先算收益分
-  `disguiseScore({audience, duration, risk})`，且 **audience>0**（真的看得见人）才允许，`minScore` 不过就不演。
-  演完进 `cooldown`（18 秒），防止连演刷分。收益分是"一次被目击的正经动作 ≈ 1 分"的量纲，
-  改数值前先看 `sanity.js` 里的量纲说明。
+- **伪装收益（`SKSanity.DISGUISE`，2026-11-03 重做）**：异形的三种演出（假装修理 / 假装做任务 /
+  **当众合闸**）全部进 `alienPlan` 效用表比分，不再有 `if` 硬排、不再有每秒掷骰：
+  `scDis = planValue × disguiseScore({audience: 观众权重, duration, risk}) − 走到演出点的秒数`，
+  与 chase（贴脸 12 / 可追 9 / 远距 2）、breaker、sabotage 同台。
+  **历史上这里有一个自相矛盾的硬前置** `(knife<=0 || close>8)`：`close` 与观众数的是同一批人，
+  `close>8` 时观众恒为 0 ⇒ 那半边是死代码，伪装只剩"刀用完 + 8 格内有人"一条缝
+  （实测 1.06 次/只/整局、触发率 18%）。**新增演出候选不许再回到 if 硬排。**
+  · **观众 = 看得见"我"的人**（`aiCanSee(w, a.x, a.y, rad)`），不是"我看得见的人"——
+    信誉兑现走 `credBroadcast`，用的就是目击者视野，两边口径必须一致，否则异形会为看不见它的人白站。
+  · 观众**按人加权**（`audSus` 怀疑我的人 / `audInf` 高 soc 或本局领袖）：谁盯我我就在谁面前干活。
+    读嫌疑走 `susOf(w,i,true)`（夜间口径，跨夜存量 ×0.7），不许直读 `mind.sus` 全额。
+  · **risk 回答"这一下会不会被识破"**：`redHot` 刚出刀身上还热 / `donePoint` 这个点最近被人做过 /
+    `repeatSpot` 90 秒内在同一地点演过 / `idleEyes` 闲着看我的人 / `manyEyes` 人多眼杂 /
+    `dark` 暗处看不清动作（负项）/ `breakerLoss` 当众合闸 = 主动放弃暗视野。
+    旧口径"这夜被多少人看见过"与收益项量的是同一件事、两个公式互相打架，**已废，别改回去**。
+  · **只靠 `cooldown`（18 秒）+ `minScore` 两道闸**：没有"每夜 1 次"硬上限（一晚上演两次很正常）。
+    要临时关掉伪装（门禁 / 调试）用显式抑制位 `a._noFake` ⇔ `SKV3._t.noFake(i,on)`。
+  · **拖着尸体不许演**：候选要求 `a.drag==null`，与 `alienSupport` 开头同一条口径
+    （藏尸是唯一任务，不能被"演一下"打断）。
+  · 站桩时长 / 搜索半径 / 到位半径 / 记忆窗口都在表里（`dur` `spotR` `arriveR` `doneWindow`
+    `repeatWindow`），业务代码不写数字。`doneWindow` 的单位是**模拟秒**（playT 一局 ≈ 450 秒），
+    写成 600 就等于"这局做过一次就永久是破绽"，会把刚修好的触发率再掐回去。
+  · 量纲：收益分是"一次被目击的正经动作 ≈ 1 分"；只读探针 `SKV3._t.disguise(i)` 重算一遍
+    观众/风险/收益供门禁做方向断言。
 - **正向信任（`mind.cred`）**：第三条通道，和 `trust`（他帮过我）/ `grudge`（他咬过我）分开 ——
   `cred` 是"他干的是正经事"，来源全部是可被目击的正经行为（`CRED.gains`：做任务 / 修故障 /
   合闸 / 拖伤员进医疗间 / 施救 / 伪装干活）。写入只走 `credBroadcast(actor,kind,x,y)`，
   它按**真实目击半径**广播给看得见的人。读取三处：指控（`credOf≥0.35` 且无确证就不咬）、
   投票（`credVoteShield` 概率弃票）、证言权重。跨夜 ×0.92 慢衰减。
   **cred 绝不能写 `known`** —— 信誉再高也洗不掉亲眼所见。
+  · **信任必须有焦点（2026-11-03）**：实测"每人都有点 cred 但没人被信"是假象 ——
+     阈值过了却没兑现口。现在读取端统一走 `topCred(a,min)`（我信得最多的那个人），
+     三个出口：① 当众**背书**（`pushEndorse` → `SKLines.endorse` 池，一场会议最多一次，
+     门槛复用 `CRED.accuseShieldAt`，**不新造数值**）；② 空闲时**往他那边靠**（`credFollow`）；
+     ③ 领袖指令的**接牌率**（`obeyTrustMul` = 号召力 × 「我有多信他」）。
+     遥测：`endorses` / `credFollow` / `credShieldVotes` / `abstains` 全部进蒙特卡洛。
+- **贵信号（`SKSanity.LENS`，2026-11-03）**：LENS 是**似然比表**（人类意愿 vs 异形意愿 0~3 档），
+  本体只回答"这件事有多像人"，**不持有分数** —— 信任增量仍只在 `CRED.gains`、嫌疑增量仍只在
+  `EV_W`，别在这张表里加第二个真源。`lr(kind)=Infinity` 的行是 knownOnly（出刀/钻管道/破坏/拉闸/
+  停摆/红身），硬线不参与比值。
+  · **异形的贵信号候选**：`realFix`（真修故障）与 `realRevive`（真救非队友）**必须走与玩家、
+    AI 人类完全同一条入口**（`startFix/finishFix` / `_doing='revive'`），这样修好会真的扣进度、
+    救活会真的扣医疗包，目击者拿到的是同一笔 `cred` —— 没有特权也没有折扣。
+  · **但"入口通"不等于"会自发去做"**：假装修不吃 `DISGUISE.risk.realCost`、只站 `dur` 秒，
+    实测分数仍然压过真修（量化事实，门禁把这条**写成断言**以免被当成 bug 修掉）。
+    要让贵信号真的贵，动的是 `risk.realCost` 或 `CRED.gains.fixDone`，**不是**再加一条通道。
+- **取消异形全图锁敌（2026-11-03 用户裁定）**：挑目标只有三档信息，和玩家同口径 ——
+  ① `aiCanSee` 现在看得见 → 用实时位置（"他在站桩干活"这类信息也只有看得见才知道）；
+  ② 看不见但本夜亲眼见过 → 用 `saw_agent` 的**最后目击位置**，超过 `SKSanity.HUNT.memorySec`（25 秒）
+  就当跟丢；③ 完全没印象 → **不进候选**，只能巡逻 / 钻管道 / 破坏，或按 `huntSpotFor(a)`
+  （最后目击点 → 最常撞见的舱室 → 任务最热的舱室中心）去碰运气。
+  这是明确的**平衡位移**（异形找人变难），必须用 1000 局量，不要靠"更拟人"这种话交差。
+  以前那段直接遍历 `G.agents` 取实时坐标的代码等于给异形开全图挂，别再写回来。
+- **报告绑定"那一次倒下"（2026-11-03）**：`bodyReported(v)` 对**还活着的濒死者**比的是
+  `v.reportSeq === v.downSeq`（每次倒下 `downSeq++`，报告时写 `reportSeq=downSeq`），
+  而不是旧的"按夜"口径 —— 同一夜他被打倒两次是**两次发现**，可以报第二次；
+  同一次倒下躺着被人反复报才是漏洞。尸体语义（真死）仍按夜 + `openMeeting` 开场即 `bodyGone` 兜底。
+- **互斥证词（2026-11-03）**：A 咬 B「亲眼看见」、B 同时咬 A「亲眼看见」——两条硬证词
+  **不可能同时为真**。现在：① 互咬双方都不吃共证加成（`TESTIFY.corrobMul` 归 1，
+  对抗中的证词不是"汇合"）；② 系统 `sysSay` 当众点破一次（每场最多一句）；
+  ③ **不新增任何 `sus` 数值**，谁对谁错仍由 `known` / 时间线判。遥测 `mutualFrames`。
+- **终结者时刻（`SKSanity.TERMINATOR`，2026-11-03 用户裁定）**：第 `night`（10）夜开始时
+  `checkTerminator()` 一次性触发：**全场身份公开**（`G.revealAll`，标签走 `omniscient` 之外的
+  公开分支，不借用 DEV/旁观的全知画法）+ **每人补子弹到 `bullets`（1）**（只补到 1，不叠加）。
+  残局（1 异形 vs 2 人类）此前 energy-neutral 会拖到十几夜，这条给一个必然的收束点。
+- **会议三段时长（`SKSanity.MEET`）**：白天与**开局**讨论 `discussDay/discussPre = 50`
+  （用户裁定 60→50，且明确"涵盖开局讨论"）、夜会 `discussNight = 25`（原值）；
+  投票等待 `voteDay/voteNight = 15`（2026-11-03 晚 5→15）；结果公布 `reveal = 5`（原 6）。
+  **只在表里改，不要在 `openMeeting` 里写数字**；门禁按运行时值断言（`_t.meetCfg()`），不写死秒数。
+  投票阶段的「跳过投票」按钮 = **结束剩余投票时间**：已经投给谁就保留那一票，没投才记弃权；
+  走 `closeVote()`，不强制改票，也不是第二种票。它只对活着的玩家显示，幽灵/旁观者不可用。
+- **对局骨架数值外提（2026-11-03，**数值一个没改**）**：`SKSanity.NIGHT.len` / `WIN.pts` /
+  `WIN.faultPenalty` / `STAND.*`（站桩秒数与故障窗口）/ `REACH.*`（近身判定距离）/ `SHOT.*`（开枪与追击距离）
+  是 `game.js` 顶部那些 `const NIGHT=75`、`WIN_PTS=45`、`a.doing=5` 的**唯一真源**。
+  搬家的理由不是整洁：蒙特卡洛报告要能把「这批局用的是哪套数」打进配置快照
+  （`tools/monte-carlo.cjs` 直接 eval `js/ai/sanity.js`）。
+  ⚠ **搬家时发现两处既有不一致，只记录不改**（等用户决策）：
+  ① AI 人类合闸站桩是 3 秒（`STAND.aiBreakerHuman`），玩家与异形演出走 `breakerOnTime()`
+  （断电当夜 4.5 秒）⇒ 断电时 AI 比玩家快 1.5 秒复电；
+  ② `REACH.knifePlayer = 1.35` 与 `REACH.knifeAI = 1.4` 是两个数（瞄准方式不同，不算特权，
+  但提示文案必须跟着读常量，别写死"1.3 格内"）。
 - **诬陷（`SKSanity.FRAME`，2026-11-01）**：异形没有目击也会编一份**具体伪证**
   （`accuseWhy={kind:'saw_knife'|'saw_pipe', room, solid:true, fake:true}`），
   措辞和真目击一字不差 —— 听众无从分辨，这是社交推理里最难拆的一手。
@@ -190,20 +281,54 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   被驱逐的真是异形 → 投对的人 +cred；是人类的 → 投错的人 −cred，**带头的人**还被记一笔嫌疑。
   `meet.lead[目标]` 记第一个公开指控他的席位。这是诬陷的代价：诬陷成功收益极大，
   一旦被证伪，带头的人自己就变成下一个目标。**改这条必须跑 1000 局**。
-- **台词语料（`js/data/lines.js`，2026-11-01）**：会议台词**不再散写在 `say()` 调用处**。
-  按六类说服策略（身份声明/指控/辩护/证据/询问/行动号召）+ 对质 + 领袖指令分组，
-  每类分 `hot/cold` 两档，由 `SKLines.toneOf(a)` 按性格选档。
-  `pickLine(a,'accuse',0,{t,r,k})` 传字符串即查池子；传数组仍兼容但改为**等概率随机**。
-  **写台词纪律**：8~18 字、口语、可省略主语、不用书面词（时间线/证据链）、不写脏话。
-  改之前先读文件头那段注释。
+- **台词语料（`js/data/lines.js`，2026-11-03 扩充 + 全量迁移）**：会议台词**一律不得写在 `say()` 调用处**。
+  这一条以前只是"约定"，`game.js` 里还散着 23 处 `pickLine(a,[...])` 内联池（每池 2~4 条，
+  且都是每局必说的开场 / 自述 / 跟票 / 确证指控 / 玩家发言回应句）—— 现在**全部搬进 SKLines**，
+  `grep -c "pickLine([a-z0-9_.]*,\[" js/game.js` 必须是 **0**，门禁直接断言渲染结果。
+  分组：六类说服策略（身份声明/指控/辩护/证据/询问/行动号召）+ 对质 / 领袖指令 / 准-确证 /
+  犹豫 / 收回 + **新增三类（背书 `endorse`、接牌拒绝 `leader_refuse`、自述位置 `selfcite`）**
+  + 迁移类（报案 `open_body_dead`/`open_body_alive`、无尸开场 `open_nobody`/`open_nobody_night`、
+  路线 `route_plan`、自述词干 `stem_room` + 子句 `task_*_clause`/`mate_clause`、
+  异形含糊指控 `alien_accuse_soft`、确证硬指控 `known_accuse_hard`、对质回应族……）。
+  每类分 `hot/cold` 两档，由 `SKLines.toneOf(a)` 按性格选档；当前规模 **1152 行 / 58 类**
+  （迁移前 336 行 / 11 类）。
+  **槽位真值表（越界就渲染出空话，`tools/lines-audit.cjs` 会拦）**：
+  `{n}` 说话人 · `{t}` 对象 · `{r}` 舱室 · `{r2}` 第二舱室（案发舱 / 上次口供舱）·
+  `{u}` 第二人（发起人 / 玩家名）· `{k}` 任务或行为词 · `{when}` 时间词（走 `whenWord()`）·
+  `{prev}` 上一场会议 · `{why}` 证据短语。`{a|b|c}` 是**交替槽**，由 `fillTpl` 随机展开
+  （先展开交替、再填具名槽，顺序不能反）。
+  **组合式模板**：`POOLS[cat].combo`（`SKLines.pool(cat,'combo')`），`pickLine` 三成概率改用它 ——
+  行数不变但成品句空间是乘出来的，这才是"十局不腻"的主杠杆。
+  **证据短语**从 `evClause` 的 switch 抽成 `SKLines.WHY`（每 kind 3~5 个同义说法）：
+  **只换措辞，kind / solid / fake / known / sus / 投票一律不动**。
+  **去重与连说**：`pickLine` 按**模板**记 `G.lineUsed`，用过就按 `1/(1+3n)` 降权重挑；
+  `sayStreakOK` 限制同一类别连说 ≤2。遥测 `lineDups` / `streakCuts` 进蒙特卡洛。
+  **写台词纪律**：8~18 字（报案/确证类带三个槽，上限放到 30，见 audit 的 `LONG_OK`）、口语、
+  可省略主语、不用书面词（时间线/证据链）、不写脏话、**不许出现「狼/狼人/查杀/归票」这类
+  狼人杀词汇**（本游戏阵营是人类 / 异形）、舱室名只能出现在槽或 `|` 交替里
+  （唯一例外：「送/抬进/去医疗间」是机制目的地，不是位置自述）。
+  **改语料后必须跑 `node tools/lines-audit.cjs`**（零依赖，禁词/长度/槽位/骨架撞车 +
+  复现 `pickLine` 抽样口径模拟十局，报重复率；`--strict` 有 FAIL 就退出码 1）。
+  验收目标：**玩家连续玩 10 局都不会觉得"这些话我全看过"**。
 - **讨论 → 投票（说服力侧，`SKSanity.TESTIFY`）**：反咬削弱的是**别人信不信他**（×0.85），
   共证加成（第二个独立指控者 ×1.25）。**绝不动 `known`** —— 目击者的判断是硬约束，这条红线不能破。
 - **讨论 → 行为（`SKSanity.WARM`）**：共同指控同一人 → 彼此 `warm +0.10`；
   任务全做完后 45% 概率往 `warm` 高的人那边走。只在空闲阶段生效。
   `warm` 与 `trust`（他帮过我）/ `cred`（他能干）是三套独立的东西，别混。
-- **领袖型玩家（`SKSanity.LEADER`）**：22% 的对局有一个"爱指挥"的人，**不预设阵营**，
-  只在 `soc≥45` 里选；会议里下 1~2 条指令（`scheduleLeaderOrders`，开局与夜间会议都调）。
-  效果刻意做轻（听众 +0.06 warm、被点名者 +0.02 嫌疑）。
+- **领袖型玩家（`SKSanity.LEADER`，2026-11-03 重做）**：22% 的对局有一个"爱指挥"的人，
+  **不预设阵营**（人类异形都可能），只在 `soc≥45` 里选；会议排期里下 1~2 条指令
+  （`scheduleLeaderOrders`，开局与白天/夜会两条分支都调 —— 注意：**AI 对 AI 模拟里这段不跑**，
+  因为台词排期在 simMode 直接 return，所以 `orders/endorses` 在蒙特卡洛里恒为 0，
+  那是工具口径盲区不是机制没接，行为由门禁覆盖）。
+  用户裁定：**偶现、不传承、是小变量不是主设计** —— "号召力有偶然性，
+  可能一个人都不听，也可能极端到所有人都听"。所以：
+  · 号召力 `LEADER.bands` 是**重尾分布** [0/.15, .25/.50, .65/.30, 1/.05]，两端都不截断；
+  · 接牌概率 = 号召力 ×「我有多信这个领袖」（`obeyTrustMul`，挂在 `cred` 上，不新造数值）；
+  · 被点名者**可以当众拒绝**（`SKLines.leader_refuse` 池，`LEADER.refuseSpeakP` 只影响台词）；
+  · 命令只在本夜有效（天亮重排，不留跨夜隐性指令）。
+  效果仍然刻意做轻：听众 +0.06 warm。**已删除**「被点名者 +0.02 嫌疑」——
+  被分配任务是干活，不是作案；要付代价的是**口头应下却没去**（`orderBroke`，同舱的人能看见）。
+  另外修了一处**读数口径**：本来就要去那间舱（`idx===tIdx`）以前被记成抗命，服从率被系统性低估。
 - **情绪记忆（`mind.trust` / `mind.grudge`）**：跨会议保留、每场会议 ×0.8 衰减（`mindReset` 里做）。
   写入只有三个入口：AI 当众指控（`grudgeAdd`）、AI 当众辩护（`trustAdd`）、
   玩家发言（`playerTalk` 里指控/投票记仇、点名"不是异形/别投他"记恩）。
@@ -219,11 +344,42 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 - **确证是长期记忆**：`mind.known` 由 `mindReset()` **跨夜保留**（普通 `mem / sus` 仍按夜清空）；
   `bestKnownTarget()` 驱动会议指控、投票与开枪距离。新增「身份级」证据必须写进 `known`，
   但只有人类做不到的行为（出刀 / 钻管道 / 破坏 / 停摆机器人 / 刀者红身）才允许写入。
-- **视野半径**：`HUMAN_LIGHT_R = 7`（手电锥 60°）、`HUMAN_DARK_R = 2.8`（人类近身圆）、
-  `ALIEN_INNATE_MUL = 10/9`（异形唯一调参点 ⇒ `ALIEN_DARK_R ≈ 3.11`）。2026-10-30 同日两次削弱：
-  异形 ×4/3 → ×10/9（削约 1/6）、人类近身 4.2 → 2.8（削 1/3）。异形与人类共用同一只手电，
-  AI 的 `aiCanSee` 远景上限与人类一致（8 格），暗处按近身半径结算。
-  改这几个常量会同时影响 `aiCanSee`、`visibleAt`、`drawFog` 与门禁里的视野断言（断言用 2/3/4 格实测点）。
+- **AI 与玩家数值必须完全一致（2026-11-03 用户裁定）**：同一个**能力**只准有一个数，
+  表里不许出现 `xxxPlayer` / `xxxAI` 这种成对的键。历史上分叉过四处，现已全部归一：
+  出刀近身 `REACH.knife`（曾 1.35/1.4）、开枪射程 `SHOT.range`（曾玩家 9 / AI 10 与 8）、
+  合闸站桩走同一个 `breakerOnTime()`（曾 AI 3 秒 / 玩家 4.5 秒）、钻管道冷却 `PIPE.cooldown`
+  （曾 AI 20 秒 / 玩家**零冷却**）。第五处是**视野模型**（玩家亮区整间可见、AI 被 8 格卡住）——
+  2026-11-03 已按用户裁定给 AI 同样的亮区视野（见下条），这是**唯一一处靠改判定而不是改数值**归一的能力。
+  取值方向固定为**不给 AI 新增权力、也不留玩家白拿的特权**。
+  ⚠ 两件事不算不对称、不要顺手一起"统一"：① `SHOT.chaseKnown/chaseSus` 是 AI"愿意走多远去开枪"的
+  **决策**参数（玩家没有这个概念）；② 冷却/计时的**递减入口只能有一处** —— 冷却以前在 AI 循环里减一次、
+  `tickActs` 又减一次 = 一帧双倍速；写在 AI 循环里"顺手也减一下玩家"更糟（4 只异形 ⇒ 玩家 4 倍速）。
+- **视野半径（2026-11-03 起唯一真源是 `SKSanity.SIGHT`）**：`humanLightR = 7`（手电锥 60°）、
+  `humanDarkR = 2.8`（人类近身圆）、`alienDarkR = 3.5`（异形近身圆，**用户裁定的直接数值**）、
+  `aiCapR = 8`（**暗处**的 AI 视距上限）、`corrR = 12` / `litRoomMul = 1.15`。
+  旧版把异形写成 `ALIEN_INNATE_MUL = 10/9`（⇒ ≈3.11），改一次要反推乘法 —— 现在直接给数值。
+  ⚠ `aiCapR` **只管暗处**：亮区（同亮舱整间 / 同亮走廊整条）不受它约束，见下条。
+  改这几个数会同时影响 `aiCanSee`、`visibleAt`、`drawFog`、`sightRangeAt`（AI 的暴露度口径）
+  与门禁里的视野断言（断言用 2/3/4 格实测点）。
+- **亮区整片可见对 AI 同样成立（2026-11-03 用户裁定，推翻旧的"AI 8 格上限"）**：
+  `aiCanSee` 先看 `litZoneAt` —— **观察者与目标在同一亮舱 ⇒ 整间可见**（中央会议室对角 42 格），
+  同一亮走廊 ⇒ 整条可见，从亮舱看进相连走廊 ⇒ 可见但要 `losNow`；这三条**都不看距离**。
+  理由很直白：玩家异形在亮房里本来就能看见里面所有人，AI 却被 8 格卡住 ⇒
+  **AI 比它自己扮演的角色还弱**，而且伪装/暴露度那套"亮房整间都算观众"的口径只对了一半。
+  配套的第三处一致化：`watchersAt` 的半径改成 `max(调用方 rad, sightRangeAt(x,y))` ——
+  以前刀口那条固定 6 格，等于让异形当着满屋子人出刀还自以为没人看见（AGENTS 早就骂过"按 6 格数人头"，
+  但 `exposureAt` 改了、`watchersAt` 没改）。**别把这两处再改回固定半径。**
+  仍然受 `aiCapR` 约束的是：暗舱、以及**站在舱外看进亮舱**（不会全船看进亮房）。
+  实测代价（F 轮 vs E 轮，同 seed 1000 局，详见 CHANGELOG §十七）：**人类 60.2% → 57.6%**（约 1.2σ，噪声边缘），
+  `knownWrites` 7.52 → 7.01、`exiles` 3.28 → 3.12（**远处的观众只加嫌疑、不写确证**，这是 `CONFIRM.nearR` 的设计），
+  伪装演出 `fakeTasks` 8.19 → 9.28、回避 `avoidCount` 42 → 47（观众变多，演出的账面收益变高，异形更早绕开人）。
+  驱逐准确率几乎没动（51.94% → 52.07%）。**这是一次真实的平衡位移，不是纯拟人化**——要收回只能动
+  `NIGHT` / `WIN_PTS` / `aiCapR`，不要偷偷把亮区规则改回去。
+- **迷雾只是表现层（2026-11-03 用户裁定）**：`SIGHT.fog = {roomMask .87, corridorMask .50}` ——
+  用户原话是「除了船的房间的其他地方要能看见（前提是没有拉闸）」，所以**压淡的是走廊与船体背景**，
+  未进舱室的暗度维持原值。**判定一点没动**：单位/尸体在画进迷雾之前就被 `canSee()`/`visibleAt` 裁掉，
+  所以背景看得清 ≠ 能看见人；断电（`G.lightState===2`）时整步跳过，退回全暗。
+  改这里必须同时看门禁的「背景压淡不等于看得见人」那条。
 - **亮房不画自身视野**：人站在**亮舱**里时 `drawFog` 只整间开孔，**不再叠手电锥与近身圈**——
   整间本来就揭开，那只锥会在门口拖出一块跟着鼠标转的亮楔形，是噪声不是信息。
   注意 `visibleAt` 的判定**没有**跟着改：亮房里朝门口外仍按逻辑可见，这是有意的（表现层收敛，玩法不收敛）。
@@ -237,9 +393,8 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   `visibleAt` 对同一条走廊的任意点直接返回 true（`litZoneAt` 用 `'c:索引'` 标识），不必瞄准手电；
   从亮舱看进相连走廊时也可见，但要求 `losNow`，避免隔着舱壁看见走廊弯后的人。
   `drawFog` 站在亮走廊里整条揭开，并**不再叠手电锥**；断电后 `corrLit=false`，退回原来的近身圈 + 手电。
-  新增走廊/断电视野改动时，`litZoneAt`、`visibleAt`、`drawFog` 三处必须同批改。
-  AI 侧仍受 `aiCanSee` 的 8 格上限（与亮房同一口径），不要顺手把异形 AI 改成整条走廊视野——
-  那会直接改蒙特卡洛的攻防节奏。
+  新增走廊/断电视野改动时，`litZoneAt`、`visibleAt`、`drawFog`、`aiCanSee` **四处必须同批改**
+  （2026-11-03：AI 已经与玩家同一条亮区规则，漏改任何一处就又会分叉成"玩家看得见、AI 看不见"）。
 - **AI 回场报告**：异形杀完人后可能 `_reportPlan`——先离开 5–12 秒做不在场、再回尸体旁拉铃；
   报告太快的代价是 `quick_report` 嫌疑（死亡 10 秒内报告，见过尸体的人会怀疑报案人）。
   不要让 `aiScanBodies` 抢在计划前面拉铃（它已 `if(a._reportPlan)return`）。
@@ -287,6 +442,15 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 - **统一移速**：所有活人（玩家 / AI 人类 / AI 异形）统一使用 `MOVE_SPEED = 4.2`（2026-10-31 从 4 上调）；
   拖拽尸体 `DRAG_SPEED = 2.7` 格/秒（玩家与 AI 共用 `moveSpeed(a)`）、玩家幽灵 6.5 格/秒是显式例外。
   新增移动入口必须走 `moveSpeed(a)`，不要手写常量，否则 AI 会出现“拖着尸体满速跑”。
+  `moveSpeed(a)` 的**优先级次序固定：拖尸 > 击杀加速 > 基础**（2026-11-03），改这条等于改逃逸动力学。
+- **击杀加速 ≠ 红身（2026-11-03 用户裁定）**：异形把人**放倒**（不是致死 —— 本作的死常在天亮失血/驱逐，
+  绑致死等于没有这个机制）后获得 3 秒 ×1.5 移速。状态是独立字段 `a.rushT`，
+  数值只在 `SKSanity.RUSH = { dur:3, mul:1.5, alienOnly:true }`，
+  授予只有 `killRushStart(a)` 一个入口，由 `knife()` 与 `fireShot()` 的致 down 分支调用。
+  **绝不允许从 `redT` 推导位移**：两个计时器都取 3 秒纯属巧合，红身管"别人看不看得见我"、
+  rush 管"我跑得快不快"，一旦耦合，以后想把红身拉长 1 秒给目击者反应时间就会顺手 buff 凶手逃逸。
+  只给异形（人类有无人机与同伴救援，不需要逃逸加速，给了还会把误伤同伴变成 buff）；
+  拖尸期间不加速；幽灵 6.5 / 追捕 7.5 是显式例外，不走这条路。门禁有**双向解耦断言**守住它。
 - **拖拽是通用状态**：拖拽关系存在拖拽者身上（`a.drag` = 被拖席位），被拖者 `draggedBy` 指回；
   玩家额外用 `G.drag` 做 UI 别名（不变量 D7 会校验两者同步）。
   玩家与 AI 都必须走 `startDrag / releaseDragBy / syncDragOf / releaseAllDrags`，
@@ -299,8 +463,12 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   评分，只在**没有活人**的候选舱室里随机取前 3（不再固定仓库）；拖尸途中任何非队友活人 6.5 格内可视
   就松手（`_hideCD=8`），开始藏尸前也要求尸体旁没有非队友目击者。改藏尸逻辑时不要退回“始终仓库”。
 - **刀者红身**：`knife()` 命中后给出手者 `redT = 3.0`，在 `tickActs()` 里按 dt 递减，
-  绘制端用 `tintedSheet()` 缓存的红色染色图叠加。红身是**纯表现层**，不得参与任何判定、
-  证据或会议发言；新增攻击入口若要给红身，必须在真实扣刀分支里赋值。
+  绘制端用 `tintedSheet()` 缓存的红色染色图叠加。
+  **2026-11-03 改述（旧表述与代码不符，已经误导过后续修改）**：红身**不是纯表现层**，
+  它也不是体力状态 —— 它是**目击证据**：`trackNight` 看见 `redT>0` 会写 `known`/`mates`（身份级），
+  `disguiseRiskParts` 用它算"这一下会不会被识破"（`SKSanity.DISGUISE.risk.redHot`）。
+  位移**一律不许读 `redT`**，逃逸加速走独立的 `a.rushT`（见上一条"击杀加速 ≠ 红身"）；
+  新增攻击入口若要给红身，必须在真实扣刀 / 扣子弹分支里赋值。
 - **任务提示不用边框**：自己的任务点所在掩体由 `drawTaskCoverFlash()` 从底图裁出物体像素做金色
   `screen` 脉冲（`G.gfx.coverFlashes` 计数），不得再画黄色虚线矩形；`G.gfx.dashedBorders`
   只允许在无掩体的空地分支上增长，门禁据此回归。改底图烘焙尺寸/对齐会同时影响这个取样框。
@@ -602,10 +770,25 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 ## 六、当前基线（返航录V3）
 
-- 门禁：`node tools/test-v3.cjs` —— **631 条断言，631 通过 / 0 失败**（2026-11-02 实跑，Edge headless）。
+- 门禁：`node tools/test-v3.cjs` —— **712 条断言，712 通过 / 0 失败**（2026-11-03 晚实跑，Edge headless）。
+  语料体检：`node tools/lines-audit.cjs --strict` —— **1400 通过 / 0 失败**（退出码 0）。
+  **当前数值基线 = F 轮（亮区整片可见放开之后）**：人类 **57.6% / 异形 42.4% / 超时 0**
+  （95% Wilson 54.51~60.63），夜 5.682、进度 34.245、刀 10.04、会议 11.35、破坏 10.101；
+  **驱逐准确率 52.07%**（人类赢的局 64.3% 准 / 异形赢的局 34.8% 准）。
+  上一轮 E 轮（AI/玩家数值一致化）是 60.2/39.8、51.94% ⇒ **放开的代价 ≈ −2.6pp 朝异形，约 1.2σ**，
+  不能当作已定位移；真正变化的是 **`knownWrites` 7.52 → 7.01、`exiles` 3.28 → 3.12**（远处观众只加嫌疑），
+  以及伪装演出与回避变多（`fakeTasks` 8.19 → 9.28、`avoidCount` 42 → 47）。
+  两个原始包并排保留：`tools/mc-results.json`（F）与 `tools/mc-results-E.json`（E，放眼前的对照基线）。
+  D 轮（一致化之前）是 58.5/41.5、52.25%。
   夜长是**变动值**（120 → 100 → 90 → 75）：门禁里**不要写死 80 / 120** 之类的秒数，
   用 `_t.nightLen()` 取运行时真值（`暂停面板「重开本局」` 那条已经改掉）。
-  本轮（节奏批）新增：每夜会议上限 2 场、报告额度 2 次/人（用完被拒）、开夜 5 秒禁刀、
+  本轮（拟人批次一）新增：击杀加速与红身解耦、终结者时刻、报告绑定"那一次倒下"、
+  领袖号召力重尾 + 有人接牌 + 当众拒绝、LENS 贵信号（异形真修 / 真救走同一条入口）、
+  非舱室迷雾压淡但不透雾看见人、取消全图锁敌（视野 + 25 秒记忆 + `huntSpotFor`）、
+  会议 50/5/5 节奏、互斥证词不吃共证加成、语料 1152 行渲染体检（零花括号 / 零空句 /
+  `selfcite` 真被 parseSpeech 认成自述）、内联台词池源码级归零、结算页身份表 + 投票矩阵、
+  复盘页「聊天/发言」独立筛选。
+  上一轮（节奏批）新增：每夜会议上限 2 场、报告额度 2 次/人（用完被拒）、开夜 5 秒禁刀、
   夜晚会议不打断任务（doing 保留 / 只清路径）、白天会议刷新到会议室并打断任务、点错给禁止符号。
   本轮（证据分级 + 读人批）新增：远距目击不写确证 / 贴脸照旧确证、`almost.foe` 票权、
   `almost.friend` 挡票、软联盟连坐、回避可观察。
@@ -630,6 +813,30 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   **sfx-gun 峰值 -2.8 / 短窗 -11.1 / 起始 19ms**（旧文件起始 140ms，已修）；出刀两条 -13.1 / -13.3；
   door / metal / flesh / scream 已全部重新母带到 -3 dBFS 以下；step 统一到 -20 RMS；
   新增 ui / work / win / lose 采样池。**没有静音、削顶或 >80ms 前导静音。**
+- **蒙特卡洛 · 拟人批次一（2026-11-03，D 轮 · 1000 局 seed 20261030 · 报告已扩充）**：
+  **人类 58.5% / 异形 41.5% / 超时 0%**（95% Wilson 55.42~61.52），与上一批（C 轮 58.0/41.9）**持平**
+  —— 这一批只动台词、UI、遥测、数值搬家与两处逻辑 bug，没碰任何平衡数。
+  均值：夜 **5.687**、进度 **34.434**、会议 11.454、刀 **10.272**、破坏 10.793、驱逐 3.317
+  （人类被逐 1.584 / 异形 1.733 ⇒ **误逐占比 47.75%**）。
+  人类胜里 维修 45 分 **320** / 异形全灭 **265**；异形胜 415 局全是"人类全灭"。
+  **刀数断崖（调平衡最该盯）**：≤8 刀 343 局人类 **97.67%**、9~10 刀 74.63%、11~12 刀 38.83%、
+  13~14 刀 13.33%、≥15 刀 6.77%；夜数分桶 1~3 夜 97.59% → ≥11 夜 5%；
+  **人类存活 ≥3 的局 100% 人类赢**，存活 ≤2 只剩 5.47%。
+  速率：进度/夜 **6.055**、刀/夜 **1.806**、会议/夜 2.014、驱逐/会议 0.29、
+  清场压力（刀数÷11）**0.934**、进度达成（÷45）**0.765**。
+  **要调平衡**：往人类偏加 `NIGHT`（75，每 +15 秒约 +4~5pp）或降 `WIN_PTS`（45）；
+  往异形偏反之。**报告规则与 `pauseClock` 是承重墙，不要动。**
+  **本批新报告口径**（`tools/mc-report.md`）：① 配置快照（eval `sanity.js` 读数，隔周对比先对这栏）；
+  ② **机制触达率**（多少比例的对局真的发生过，均值抹不平长尾）；
+  ③ 刀数/夜数/会议/驱逐/进度/存活六套分桶胜率 + P10/P50/P90 分布；
+  ④ 结束原因 × 胜者交叉表。**三条待决策读数**：终结者第 10 夜只 **5.3%** 的局进得来；
+  `almost.friend` 0.328 次/局、`friendShield` 0.007 次/局 ⇒ 伪装能演但不能洗白；
+  `realFixes`/`fakeBreaker` 恒 0 是效用表自己选的（贵信号不划算）。
+  ⚠ **同 seed 不等于同随机路径**：任何新增一次 `Math.random()` 都会把后面整条随机流挪位
+  （语料交替槽展开、去重重挑都算），所以**单机制次数**在跨批对比里可以大幅摆动而不代表回归；
+  要归因必须换 seed 各跑一批看摆动幅度。
+  ⚠ **工具口径盲区**：`orders/orderObey/orderRefuse/endorses` 在 AI 对 AI 里恒为 0
+  （`startChatter` 在 simMode 直接跳过台词排期段，计数长在段里），机制本身由门禁覆盖、真人局照常发生。
 - **蒙特卡洛 · 节奏批（2026-11-02，1000 局 seed 20261030，夜长最终 75 秒）**：
   **人类 56.5% / 异形 43.0% / 超时 0.5%**（95% Wilson 53.41~59.54），
   上一批（证据分级 + 读人）是 54.0% / 45.3% —— **基本持平**。
