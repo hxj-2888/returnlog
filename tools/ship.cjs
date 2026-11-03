@@ -95,7 +95,10 @@ function preflight(remote, dir, label) {
   return false;
 }
 /* GitHub 是发布目标，失败即致命；Gitee 只是镜像，抖一下不该让整条流水线 exit(1)。
-   旧版 Gitee 推送失败会连带把已成功发布的这次报成"推送失败"。 */
+   旧版 Gitee 推送失败会连带把已成功发布的这次报成"推送失败"。
+   路由交给 git 的 http.<url>.proxy 按域名分流，别在这里写死：github.com 走
+   127.0.0.1:7897（实测 0.9s；直连能否通取决于 DNS 当下给哪个 IP，会 21s 超时），
+   gitee.com 直连（实测 0.3s，绕代理反而 13s）。 */
 function pushRemote(remote, dir, fatal) {
   const label = REMOTE_LABEL[remote] || remote;
   const hint = 'git push ' + remote + ' main';
