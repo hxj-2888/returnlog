@@ -303,6 +303,35 @@
 - 模拟还发现并修复了一个真实的寻路 bug：**A* 目标在地图外时 `prev[负数]` 为 undefined，重建路径会死循环**；
   `geo.astar` 现在会先做越界/不可走检查并安全返回 `null`。
 
+## 一键发布（2026-11-03）
+
+```bash
+npm run ship              # 门禁 → APK → Cloudflare → GitHub/Gitee → 作品集
+npm run ship:fast         # 同上但跳过门禁（只发不测）
+npm run ship:web          # 只发主站 + 作品集（不动 APK）
+node tools/ship.cjs --only=web,apk --msg "feat: ..."
+```
+
+一条命令覆盖五个出口，**失败即停**并打印可单独重跑的单步命令：
+
+| 步骤 | 做什么 | 产物 / 地址 |
+|---|---|---|
+| ① 门禁 | `tools/test-v3.cjs` 全量断言（631 条）；不绿就停 | — |
+| ② APK | 同步 `android/assets/www` → `android/build.cmd` → `gh release upload --clobber` | `https://github.com/hxj-2888/space-kill-web/releases/download/returnlog-v3/ReturnLog.apk` |
+| ③ 主站 | `tools/deploy-pages.cjs`（白名单暂存 276 文件 / 44 MB） | `https://space-kill-web.pages.dev` |
+| ④ 本仓 | `git add -A` → 有暂存才提交 → push `origin`(GitHub) + `gitee` | GitHub / Gitee 同号 |
+| ⑤ 作品集 | 拷 4 个素材 → 白名单暂存 → `wrangler pages deploy` → push 两个远程 | `https://portfolio-ji.pages.dev` |
+
+**前置**：`gh auth login`、`wrangler login`、JDK 17 + Android SDK build-tools 34 + 7-Zip、
+`.env` 里的 `KEYSTORE_PASS` / `KEY_PASS`（APK 签名）。缺 APK 工具链时用 `--only=web,portfolio`。
+
+**实现要点**（改这个脚本前先读）：
+- `playwright-core` 不在本仓时，`ensurePlaywright()` 自动找常见位置并设 `PLAYWRIGHT_CORE`；
+- `git commit` / `gh` 一律走 **no-shell** 的 `args()`：中文、括号、带空格的路径走 `cmd /c` 会被拆散
+  （踩过两次：提交信息被当成 pathspec、gh 报 `no matches found for "C:\...apk"`）；
+- 提交判据看 `git diff --cached --name-only`，**不要**看 `git status`——作品集仓库里常有别人的未跟踪文件；
+- 作品集只 `git add` 那 4 个素材，绝不 `-A`。
+
 ## 量化风险表（2026-11-02 节奏批 · 报告变成稀缺资源之后）
 
 > 所有数值只声明在 `js/ai/sanity.js` 的表里（`CARRY / ALMOST / RELIA / MISLEAD / CONFIRM /
