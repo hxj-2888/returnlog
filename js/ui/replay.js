@@ -13,13 +13,20 @@
   'use strict';
 
   var M = global.SKMapData;
-  var NIGHT_LEN = 120;   /* 与 js/game.js 的 NIGHT 一致，仅用于把剩余秒换算成夜里时间 */
+  /* 夜长从 SKSanity 读（单一真源），不再在本文件写死。
+     以前这里是 `var NIGHT_LEN = 120`，而 game.js 早已改成 75 ——
+     复盘页把剩余秒换算成夜里时间时，一直按过期的 120 秒在画时间轴。
+     读不到 SKSanity 时（单独打开复盘页之类）退回原硬值，只是显示口径不精确。 */
+  var NIGHT_LEN = (global.SKSanity && global.SKSanity.NIGHT) ? global.SKSanity.NIGHT.len : 120;
   var FILTERS = [
     { id: 'all', label: '全部', kinds: null },
     { id: 'fight', label: '击杀/战斗', kinds: ['knife', 'shoot', 'kill', 'eject', 'detain', 'bot_hit', 'bot_down'] },
     { id: 'task', label: '任务/维修', kinds: ['task', 'fix', 'sabotage', 'revive'] },
     { id: 'move', label: '管道/移动', kinds: ['pipe', 'breaker', 'drag_start', 'drag_end'] },
-    { id: 'meet', label: '会议/投票', kinds: ['meeting', 'report', 'vote', 'chat'] },
+    /* 「会议/投票」与「聊天」分家（2026-11-03）：发言数量远大于会议与投票事件本身，
+       混在一起时时间轴被台词刷屏，反而看不见"哪一轮开了会、谁投了谁"。 */
+    { id: 'meet', label: '会议/投票', kinds: ['meeting', 'report', 'vote'] },
+    { id: 'chat', label: '聊天/发言', kinds: ['chat'] },
     { id: 'loot', label: '搜尸/资源', kinds: ['search', 'supply', 'qual'] }
   ];
   var KIND_ICON = {

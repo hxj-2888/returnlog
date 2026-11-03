@@ -606,6 +606,82 @@ function section(t) { console.log('\n== ' + t); }
   ok(RED3.red === 0, '3 秒后红身自动结束');
   ok(RED3.inv.fails.length === 0, '红身结束后不变量全过');
 
+  /* ---------------- 击杀加速（2026-11-03 用户裁定）----------------
+     三条裁定各有断言：绑"放倒" / 只给异形 / 拖尸期间不加速。
+     另外做**双向解耦**：加速时长与红身时长都取 3 秒只是巧合，
+     所以先手动把 rushT 清零（红身还在）验证速度回到基础，
+     再把 rushT 拉长到 6 秒（红身已结束）验证速度仍在加速 ——
+     任一方向退化成"读 redT"，这两条就会红。 */
+  section('击杀加速 · rushT 与红身解耦');
+  await fresh(false);
+  const RUSH = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true;
+    const k = g.agents.find(a => a.alien && a !== g.me && a.alive);
+    const v = g.agents.find(a => !a.alien && a !== g.me && a.alive);
+    const h = g.agents.find(a => !a.alien && a !== g.me && a !== v && a.alive);
+    const k2 = g.agents.find(a => a.alien && a !== g.me && a !== k && a.alive);
+    for (const a of g.agents) if (a !== g.me && a !== k && a !== v && a !== h && a !== k2) {
+      a.knife = 0; a.path = null; a.x = 28.2; a.y = 44.0;
+    }
+    t.tp(k.i, 34.8, 33.8); t.tp(v.i, 35.7, 33.8);
+    t.tp(h.i, 44.0, 33.8); t.tp(k2.i, 44.9, 33.8); t.tp(0, 33.2, 33.8);
+    k.knife = 1; k.sabUsed = true; k2.knife = 0; k2.sabUsed = true;
+    h.knife = 1; h.sabUsed = true;
+    for (const a of [k, v, h, k2]) a._delay = 999;
+    const cfg = t.rushCfg();
+    const base = t.speedOf(k.i);
+    /* ① 异形放倒人 → 加速与红身同时挂上，但来源不同 */
+    t.knife(k.i, v.i);
+    const after = { rushT: t.rushT(k.i), redT: t.state()[k.i].redT, spd: t.speedOf(k.i), downed: !!v.downed };
+    /* ② 拖尸优先于加速：挂着拖拽关系时必须是 2.7，不能是 6.3 */
+    t.dragStart(k.i, v.i);
+    const dragSpd = t.speedOf(k.i);
+    t.clearDrags();
+    const unDragSpd = t.speedOf(k.i);
+    /* ③ 只给异形：人类放倒异形（走同一条 knife 结算）不得拿到加速 */
+    t.knife(h.i, k2.i);
+    const humanRush = t.rushT(h.i);
+    /* ④ 解耦反向：红身还在、加速清零 → 速度必须回到基础 */
+    t.setRush(k.i, 0);
+    const decoupledA = { redT: t.state()[k.i].redT, spd: t.speedOf(k.i) };
+    /* ⑤ 解耦正向：把加速拉到比红身长一倍，等红身自己归零 */
+    const longRush = t.setRush(k.i, 6);
+    return { k: k.i, cfg, base, after, dragSpd, unDragSpd, humanRush, decoupledA, longRush };
+  });
+  ok(RUSH.cfg.dur === 3 && RUSH.cfg.mul === 1.5 && RUSH.cfg.alienOnly === true,
+    '击杀加速的三条口径都在声明层（dur=' + RUSH.cfg.dur + ' mul=' + RUSH.cfg.mul +
+    ' alienOnly=' + RUSH.cfg.alienOnly + '）');
+  ok(RUSH.base === 4.2, '基础移速不受影响（' + RUSH.base + '）');
+  ok(RUSH.after.downed && Math.abs(RUSH.after.rushT - RUSH.cfg.dur) < 0.01 &&
+    Math.abs(RUSH.after.spd - RUSH.base * RUSH.cfg.mul) < 0.01,
+    '放倒即加速（不是等致死）：rushT=' + RUSH.after.rushT + 's → 速度 ' +
+    RUSH.after.spd + '（= 4.2×1.5）');
+  ok(RUSH.dragSpd === 2.7, '拖尸期间不加速：次序 拖尸 > 加速（实测 ' + RUSH.dragSpd + '）');
+  ok(Math.abs(RUSH.unDragSpd - 6.3) < 0.01, '松开尸体后加速恢复生效（' + RUSH.unDragSpd + '）');
+  ok(RUSH.humanRush === 0, '只给异形：人类放倒异形拿不到加速（rushT=' + RUSH.humanRush + '）');
+  ok(RUSH.decoupledA.redT > 0.5 && RUSH.decoupledA.spd === 4.2,
+    '解耦①：红身仍在（' + RUSH.decoupledA.redT + 's）但加速已清零 → 速度回到 4.2' +
+    '（证明位移不读 redT）');
+  /* 等红身自己走完（模拟时间，用等条件而不是写死 sleep） */
+  await page.waitForFunction(i => SKV3._t.state()[i].redT === 0, RUSH.k, { timeout: 8000 }).catch(() => {});
+  const RUSH2 = await T(o => ({
+    redT: SKV3._t.state()[o.k].redT, rushT: SKV3._t.rushT(o.k),
+    spd: SKV3._t.speedOf(o.k), inv: SKV3._t.inv()
+  }), RUSH);
+  /* 红身 3 秒走完时，6 秒加速必然还剩约 3 秒 —— 两个计时器同速但不同长，
+     这正是"位移不读 redT"的证据；若哪天有人改成读 redT，这里会直接掉到 0。 */
+  ok(RUSH2.redT === 0 && RUSH2.rushT > 2.5 && Math.abs(RUSH2.spd - 6.3) < 0.01,
+    '解耦②：红身已结束（0s）而 6 秒加速仍在（剩 ' + RUSH2.rushT + 's）→ 速度仍是 ' +
+    RUSH2.spd + '（两个计时器各自走完）');
+  const RUSH3 = await T(o => {
+    SKV3._t.setRush(o.k, 0);
+    return { spd: SKV3._t.speedOf(o.k), inv: SKV3._t.inv() };
+  }, RUSH);
+  ok(RUSH3.spd === 4.2, '加速结束后回到统一移速 4.2');
+  ok(RUSH3.inv.fails.length === 0, '击杀加速全流程后不变量全过' +
+    (RUSH3.inv.fails.length ? '（失败项：' + RUSH3.inv.fails.slice(0, 4).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));
+
   section('任务标记 · 掩体本体闪烁取代黄色边框');
   await fresh(false);
   const TK = await T(() => {
@@ -945,49 +1021,82 @@ function section(t) { console.log('\n== ' + t); }
       declared[a.name] = a._lie ? a._lie.room : (a.nRoom ? t.roomName(a.nRoom) : null);
       tasks[a.name] = a._lie ? a._lie.task : a.nTask;
     }
-    return { lines, claims, declared, tasks, vic: t.meetCtx().victim, leader: g.leader,
+    const chx = (t.meetCtx() || {}).challenge;
+    return { lines: lines.map(l => ({ who: l.who, text: l.text,
+      /* 这句话能不能被 parseSpeech 认成"第一人称位置自述" —— 用系统自己的判据，
+         而不是钉某个字面模板（语料迁移后同一意思有十几种说法） */
+      alibi: !l.sys && !!t.parseSpeech(l.text).where })),
+      challenge: chx ? { kind: chx.kind, room: chx.room,
+        byName: (g.agents[chx.by] || {}).name, targetName: (g.agents[chx.target] || {}).name } : null,
+      accusers: g.agents.filter(a => a.alive && !a.downed && a.accuse != null &&
+        lines.some(l => l.who === a.name)).length,
+      claims, declared, tasks, vic: t.meetCtx().victim, leader: g.leader,
       leaderName: (g.leader != null && g.agents[g.leader]) ? g.agents[g.leader].name : null };
   });
-  const alibis = ML.lines.filter(l => l.text.indexOf('我今晚在') === 0);
+  /* 语料迁移之后（2026-11-03），这些断言**不能再钉死字面**：同一句自述现在有 12 种说法，
+     钉住"我今晚在"这五个字测的就不是"他有没有报位置"，而是"他有没有抽中那一条模板"。
+     所以判据换成两条更硬的：
+       ① 结构：把台词喂给 parseSpeech，能被识别成"第一人称位置自述"的才算 alibi；
+       ② 一致：登记的口供舱室必须真的出现在他这句话里。
+     质疑 / 作证 / 指控这几条保留字面判据但扩成**同义族**（措辞可变，意图不改）。 */
+  const SEE_MARK = /亲眼|我看见|我看着他|动的手|下了手|亲眼所见/;
+  const alibis = ML.lines.filter(l => l.alibi);
   ok(ML.lines.length >= 8, '夜间会议生成 ' + ML.lines.length + ' 条发言');
   ok(ML.vic && ML.vic.dead && ML.vic.room === '医疗间' && ML.vic.cause === '刀伤',
     '会议上下文记录死者、房间、死因');
   const opening = ML.lines[0];
   ok(opening && opening.text.indexOf(MS.vicName) >= 0 && opening.text.indexOf(MS.vicRoom) >= 0 && opening.text.indexOf('刀伤') >= 0,
     '开场白包含死者 + 房间 + 死因');
-  ok(alibis.length >= 3, '至少 3 名 AI 给出完整不在场说明');
-  const claimsOk = ML.claims.length > 0 && ML.claims.every(c =>
-    alibis.some(l => l.who === c.who && l.text.indexOf('我今晚在' + c.room) === 0));
-  ok(claimsOk, '每个 AI 的发言房间与其登记口供一致（' + ML.claims.length + ' 条）');
-  const taskOk = alibis.every(l => {
-    const m = l.text.match(/把(.+?)搞定/);
-    return !m || !ML.tasks[l.who] || m[1] === ML.tasks[l.who];
-  });
-  ok(taskOk, '发言里提到的维修任务与真实任务一致');
-  ok(ML.lines.filter(l => /你说你在|我可以给|你那边还有谁/.test(l.text)).length >= 1,
-    '出现引用上一条发言的质疑 / 作证 / 追问');
-  const ci = ML.lines.findIndex(l => /你说你在|我可以给|你那边还有谁/.test(l.text));
+  ok(alibis.length >= 3, '至少 3 名 AI 给出完整不在场说明（parseSpeech 认得出的自述 ' + alibis.length + ' 条）');
+  const claimsBad = ML.claims.filter(c =>
+    !alibis.some(l => l.who === c.who && l.text.indexOf(c.room) >= 0))
+    .map(c => c.who + '@' + c.room + ' → ' +
+      (ML.lines.filter(l => l.who === c.who).map(l => l.text.slice(0, 30)).join(' // ') || '没发言'));
+  ok(ML.claims.length > 0 && !claimsBad.length,
+    '每个 AI 的发言房间与其登记口供一致（' + ML.claims.length + ' 条）' +
+    (claimsBad.length ? ' :: ' + claimsBad.join(' | ') : ''));
+  /* 台词里如果报了任务名，就必须与这人**真实的下一个任务**一致。
+     捕获窗口必须卡在**一个子句内**（`[^，。]`）：用 `(.+?)已完成` 这种写法，
+     「我在仓库，电路维修已完成」会把"我在仓库，电路维修"整段吞进来，
+     于是测到的是正则写错，不是 AI 说错任务。 */
+  const TASK_RE = /[^，。]{0,8}?(搞定|做完|收尾|交掉|完成|弄完|处理完毕|那下是我弄的)/g;
+  const taskBad = alibis.filter(l => {
+    const segs = (l.text.match(/[^，。]+/g) || []);
+    const said = segs.filter(s => TASK_RE.test(s) && !/在|去|正|要/.test(s.slice(0, 2)));
+    return said.length && ML.tasks[l.who] &&
+      !said.some(s => s.indexOf(ML.tasks[l.who]) >= 0);
+  }).map(l => l.who + '：台词「' + l.text.slice(0, 40) + '」报的任务对不上真实任务 ' + ML.tasks[l.who]);
+  ok(!taskBad.length, '发言里提到的维修任务与真实任务一致' +
+    (taskBad.length ? ' :: ' + taskBad.join(' | ') : ''));
+  /* ---- 对质链路改成**结构化断言**（2026-11-03）----
+     语料上千行之后，拿措辞去正则匹配"有没有人对质"必然随机失效：
+     同一意图现在有近十种说法。所以判据换成两条实的：
+       ① 会议上下文里确实登记了 `ctx.challenge`（谁质疑谁、什么类型、针对哪个舱室）；
+       ② 质疑者本人**确实有一行发言**，而且紧跟在他之后被质疑者也开了口。
+     字面只留一个"至少听起来像在对话"的宽松检查，不再钉死具体句子。 */
+  const CH = ML.challenge;
+  ok(!!CH && ['doubt', 'support', 'ask'].indexOf(CH.kind) >= 0,
+    '对质真的发生了（' + (CH ? CH.kind + '：' + CH.byName + ' → ' + CH.targetName + ' @' + CH.room : '无') + '）');
+  const ci = CH ? ML.lines.findIndex(l => l.who === CH.byName && l !== opening) : -1;
   const chal = ci >= 0 ? ML.lines[ci] : null;
-  /* 回应行：取质疑之后的**第一条非领袖指令**（领袖说的是别人的舱室，不是位置自述，
-     混进来会让这条断言偶发失败 —— 发言顺序受随机数影响）。 */
+  ok(!!chal, '质疑者本人当众说出了那句对质（' + (chal ? chal.text.slice(0, 26) : '没找到他的发言行') + '）');
+  /* 回应行：被点名的人必须在质疑之后真的开口（不是被别人代答） */
   let rep = null;
-  for (let j = ci + 1; j < ML.lines.length; j++) {
-    const aa = ML.lines[j];
-    const ag = ML.lines[j].who;
-    if (ML.leader != null && ML.declared && ML.leaderName === ag) continue;
-    rep = aa; break;
+  if (CH) for (let j = Math.max(0, ci + 1); j < ML.lines.length; j++) {
+    if (ML.lines[j].who === CH.targetName) { rep = ML.lines[j]; break; }
   }
   const rooms = await T(() => SKV3._t.roomNames());
   /* 回应可能走「作证 / 异形搪塞 / 报出自己位置」三种分支：只在它报位置时校验一致性 */
   const loc = rep ? rep.text.match(/(?:我|我们)[^，。]{0,6}在([^，。；]{1,10})/) : null;
   const claimed = loc ? rooms.find(n => loc[1].indexOf(n) >= 0) : null;
-  ok(chal && rep && rep.who !== chal.who && (!claimed || claimed === ML.declared[rep.who]),
+  ok(rep && (!claimed || claimed === ML.declared[rep.who]),
     '被质疑者做出回应，且报出的位置与口供一致' +
-    (!rep || !chal ? ' :: 没有找到质疑/回应行' :
+    (!rep ? ' :: 被点名的人没有开口回应' :
       (claimed && claimed !== ML.declared[rep.who] ? ' :: ' + JSON.stringify({ who: rep.who, text: rep.text,
         declared: ML.declared[rep.who], claimed }) : '')));
-  ok(ML.lines.filter(l => /我投|我倾向|我跟/.test(l.text)).length >= 2, '至少两条明确指控');
-  ok(ML.lines.some(l => l.text.indexOf('亲眼看见') >= 0 || l.text.indexOf('动了手') >= 0),
+  /* 指控数量：发言的人里确实有若干个把手指向了某个人（看 a.accuse，不看台词） */
+  ok(ML.accusers >= 2, '至少两条明确指控（当场点名要投某人的席位 ' + ML.accusers + ' 个）');
+  ok(ML.lines.some(l => SEE_MARK.test(l.text)),
     '目击者说出亲眼所见，而不是随机台词');
   const n0 = await T(() => SKV3._t.chat('你在哪？'));
   await page.waitForFunction(n => SKV3._t.meetLines().length > n, n0, { timeout: 6000 }).catch(() => {});
@@ -1777,8 +1886,10 @@ function section(t) { console.log('\n== ' + t); }
   const SLOT3 = await T(o => {
     const t = SKV3._t;
     const lines = t.meetLines().map(l => l.text);
-    const claim = lines.find(x => x.indexOf(t.G().me.name) >= 0 && x.indexOf('医疗间') >= 0 &&
-      /(看见|碰见|不在|明明)/.test(x)) || '';
+    /* 找那句"拆穿"：以前还要匹配 看见/碰见/不在/明明 这几个动词，
+       等于把语料钉死在一种措辞上。契约其实是——**同一句话里既要出现玩家声称的舱室，
+       也要出现目击者真实看见他的舱室**，所以只按"点名玩家 + 带声称舱室"定位。 */
+    const claim = lines.find(x => x.indexOf(t.G().me.name) >= 0 && x.indexOf('医疗间') >= 0) || '';
     return { s1: (t.mind(o.h).sus || {})[0] || 0, claim, says: t.meetCtx().playerSays };
   }, SLOT2);
   ok(SLOT3.s1 > SLOT2.s0 + 0.2,
@@ -1926,11 +2037,17 @@ function section(t) { console.log('\n== ' + t); }
     const t = SKV3._t; t.newGame();
     const g = t.G(); g.paused = true;
     t.openMeeting('pre');
-    return { plan: t.chatterPlan() };
+    return { plan: t.chatterPlan(), discuss: SKSanity.MEET.discussPre,
+      vote: SKSanity.MEET.voteDay, reveal: SKSanity.MEET.reveal };
   });
   ok(PACE.plan && PACE.plan.n >= 10,
     '开局公开讨论排了 ' + (PACE.plan ? PACE.plan.n : 0) + ' 条发言（原来只有 5 条、7 秒就说完）');
-  ok(PACE.plan && PACE.plan.endAt >= 55000, '讨论窗口保持 60 秒（结束前 2.2 秒才收尾）');
+  ok(PACE.discuss === 50 && PACE.vote === 15 && PACE.reveal === 5,
+    '会议时长三档都在声明层：讨论 ' + PACE.discuss + ' 秒 / 投票 ' + PACE.vote +
+    ' 秒 / 公布 ' + PACE.reveal + ' 秒（用户裁定：60→50 含开局、10→5→15、6→5）');
+  ok(PACE.plan && PACE.plan.endAt >= 45000,
+    '开局讨论窗口砍到 50 秒后排期仍然铺满（结束前 ' +
+    ((50000 - PACE.plan.endAt) / 1000).toFixed(1) + ' 秒才收尾）');
   ok(PACE.plan && PACE.plan.lastScheduled >= PACE.plan.endAt - 2500,
     '最后一条讨论/提示贴着结束时间，不再出现「前 7 秒热闹、后面 50 秒死寂」');
   ok(PACE.plan && PACE.plan.nudges.length >= 2,
@@ -1973,6 +2090,48 @@ function section(t) { console.log('\n== ' + t); }
   const named = MT.filter(s => s !== '弃权');
   ok(named.length >= 10 && named.every(s => /^\d{2} \S+/.test(s)) && MT.includes('弃权'),
     '自由发言/投票名单同样显示编号+名字');
+
+  section('投票 · 15 秒等待与跳过按钮');
+  const SKIPV = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.dev = true;
+    t.openMeeting('day');
+    t.startVote();
+    const btn = document.getElementById('m-skip-vote');
+    const visible = !!btn && !btn.classList.contains('hide');
+    btn.click();
+    const m = t.G().meet;
+    const out = { visible, phase: m && m.phase, tally: !!(m && m.tally),
+      self: m && m.votes ? m.votes[g.me.i] : null,
+      day: SKSanity.MEET.voteDay, night: SKSanity.MEET.voteNight };
+    t.finishMeeting();
+    return out;
+  });
+  ok(SKIPV.day === 15 && SKIPV.night === 15, '投票等待白天/夜会都是 15 秒');
+  ok(SKIPV.visible, '投票阶段显示「跳过投票」按钮');
+  ok(SKIPV.phase === 'reveal' && SKIPV.tally && SKIPV.self === -1,
+    '没选人直接跳过投票 = 记弃权并立即结算');
+
+  const SKIPV2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.dev = true;
+    t.openMeeting('day');
+    t.startVote();
+    const target = g.agents.find(a => a.alive && a.i !== g.me.i);
+    const tag = t.tags()[target.i];
+    const tb = [...document.querySelectorAll('#m-who button')]
+      .find(b => b.textContent === tag);
+    const picked = !!tb;
+    if (tb) tb.click();
+    document.getElementById('m-skip-vote').click();
+    const m = t.G().meet;
+    const out = { picked, want: target.i, got: m && m.votes ? m.votes[g.me.i] : null,
+      phase: m && m.phase };
+    t.finishMeeting();
+    return out;
+  });
+  ok(SKIPV2.picked && SKIPV2.got === SKIPV2.want && SKIPV2.phase === 'reveal',
+    '已投给某人后点跳过投票：保留原票并立即结算');
 
   section('任务完成提示 · 只提示本人');
   const FN = await T(() => {
@@ -2543,13 +2702,22 @@ function section(t) { console.log('\n== ' + t); }
   ok(Math.abs(PJ.pos[0] - PP.pipes[DEST.i].x) < 0.01 && Math.abs(PJ.pos[1] - PP.pipes[DEST.i].y) < 0.01 &&
     PJ.room !== 'power', '数字键 2 直达指定出口（' + DEST.name + ' 管道口），不再随机方向');
   ok(PJ.open === false && PJ.fx.includes('pipefx'), '选择后关闭列表并播放管道特效');
+  /* 2026-11-03：钻管道两边同一个冷却（AI 20 秒、玩家以前 0 秒 ⇒ 玩家可以连着钻）。
+     所以刚钻完再按 E **必须被拦住** —— 这本身就是这条规则的断言点。 */
+  const PCOOL = await T(() => ({
+    cd: SKV3._t.G().me._pipeCD,
+    open: (function () { SKV3._t.openPipe ? SKV3._t.openPipe() : null; return SKV3._t.pipe().open; })(),
+    msg: SKV3._t.G().msg || '',
+  }));
+  ok(PCOOL.cd > 0, '钻完管道立即进入冷却 ' + Math.ceil(PCOOL.cd) + ' 秒（与 AI 同一个 PIPE.cooldown）');
+  await T(() => { SKV3._t.G().me._pipeCD = 0; });   /* 清冷却后继续验"再次打开 + ESC 取消" */
   await page.keyboard.press('e');
   await page.waitForTimeout(160);
   const PO = await T(() => ({ open: SKV3._t.pipe().open, from: SKV3._t.pipe().fromRoom }));
   await page.keyboard.press('Escape');
   await page.waitForTimeout(130);
   ok(PO.open && PO.from === DEST.name && !(await T(() => SKV3._t.pipe().open)),
-    '到达后可再次打开列表，ESC 取消');
+    '冷却清掉后可再次打开列表，ESC 取消');
 
   section('驱逐出局 · 公布身份');
   await fresh(false);
@@ -2658,7 +2826,23 @@ function section(t) { console.log('\n== ' + t); }
     if (sb) { sb.wps = [[sec[0], sec[1]]]; sb.wp = 0; sb.ang = Math.PI; }
     const kp = freeNear(86, 54), vp = freeNear(86, 53.2);
     t.tp(k.i, kp[0], kp[1]);
-    t.tp(v.i, vp[0], vp[1]); t.tp(h.i, 84.8,74.2); t.tp(hSee.i, 76.5,76.5);
+    t.tp(v.i, vp[0], vp[1]); t.tp(hSee.i, 76.5, 76.5);
+    /* 「只听得见」的人必须站在**另一种亮区**里（2026-11-03 亮区整片可见放开之后）：
+       旧写法把他丢在军械库「另一端」，同舱即整间可见 ⇒ 必然吃一条 saw_detain + 0.6 嫌疑，
+       这条用例就从「听觉不锁身份」变成了随机跑赢。现在运行时扫一遍：
+       离行凶点与拘留位都 >11 格（`aiCanSee` 的距离上限 10 / 8 过不去），
+       又都留在警报半径 25 / 17 内（`aiHear` 仍写 heard_detain）。 */
+    const JP = t.jail();
+    let hear = null, hearM = 0;
+    for (let x = 60; x < 92; x += 0.6) for (let y = 45; y < 84; y += 0.6) {
+      if (!t.free(x, y)) continue;
+      const z = t.litZone(x, y);
+      if (z === 'r:armory' || z === 'r:fun') continue;
+      const d1 = Math.hypot(x - kp[0], y - kp[1]), d2 = Math.hypot(x - JP[0], y - JP[1]);
+      const m = Math.min(d1 - 11, d2 - 11, 17 - d2, 25 - d1);
+      if (m > hearM) { hearM = m; hear = [+x.toFixed(1), +y.toFixed(1)]; }
+    }
+    if (hear) t.tp(h.i, hear[0], hear[1]);
     for (const a of [h, hSee]) {
       if (!a || !a.mind) continue;
       a.mind.mem = []; a.mind.sus = {}; a.mind.why = {};
@@ -2667,7 +2851,7 @@ function section(t) { console.log('\n== ' + t); }
     k.knife = 1;
     t.knife(k.i, v.i);
     return { k: k.i, v: v.i, h: h.i, hSee: hSee ? hSee.i : null,
-      jail: t.jail(), kp, vp, sec, inv: t.inv() };
+      jail: t.jail(), kp, vp, sec, hear, hearM: +hearM.toFixed(1), inv: t.inv() };
   });
   await page.waitForTimeout(200);
   const SB1 = await T(o => {
@@ -2698,8 +2882,10 @@ function section(t) { console.log('\n== ' + t); }
   ok(SB1.susSee >= 0.4 && SB1.memSee.indexOf('saw_detain') >= 0 &&
     Object.keys(SB1.knownSee).length === 0,
     '看见押送的人类记 saw_detain 并优先怀疑（sus=' + SB1.susSee.toFixed(2) + '），但不写 known');
+  ok(!!SB0.hear && SB0.hearM >= 1,
+    '夹具能排到「只听得见、看不见」的站位：' + JSON.stringify(SB0.hear) + '（余量 ' + SB0.hearM + ' 格）');
   ok(SB1.memHear.indexOf('heard_detain') >= 0 && SB1.sus < 0.05,
-    '只听得见警报的人有记录却认不出是谁（sus=' + SB1.sus.toFixed(2) + '）');
+    '只听得见警报的人（' + JSON.stringify(SB0.hear) + '）有记录却认不出是谁（sus=' + SB1.sus.toFixed(2) + '）');
   ok(SB1.inv && SB1.inv.fails.length === 0, '拘留状态不变量全过');
   await T(() => {
     const t = SKV3._t, g = t.G();
@@ -3259,8 +3445,31 @@ function section(t) { console.log('\n== ' + t); }
     return { r, fx: t.fx(), pipe: t.pipes(), cd: k._pipeCD };
   }, AIK0);
   const armPipe = AIK3.pipe.find(p => p.name.indexOf('军械库') >= 0);
-  ok(Math.abs(AIK3.r.x - armPipe.x) < 0.01 && Math.abs(AIK3.r.y - armPipe.y) < 0.01 &&
-    AIK3.cd === 20, 'AI 异形钻管道：瞬移到离目标最近的出口（20s 冷却）');
+  /* 2026-11-03：异形不再全图锁敌 ⇒ 没有目标时它钻管道是去**任务点最多的舱室**看看，
+     出口按那个目的地选，所以这里按地图现算期望出口（不再写死军械库）。 */
+  const WANT = await T(o => {
+    const M = window.SKMapData, t = SKV3._t, g = t.G();
+    /* 目的地按异形**出发前**所在的舱室排除（它现在已经瞬移到出口了，不能用事后位置） */
+    const here = M.rooms.find(r => o.x >= r.rect[0] && o.x <= r.rect[0] + r.rect[2] &&
+      o.y >= r.rect[1] && o.y <= r.rect[1] + r.rect[3]);
+    const tally = {};
+    for (const p of M.points) if (!here || p.room !== here.id) tally[p.room] = (tally[p.room] || 0) + 1;
+    let room = null, n = 0;
+    for (const kk in tally) if (tally[kk] > n) { n = tally[kk]; room = kk; }
+    const r = M.rooms.find(q => q.id === room);
+    const cx = r.rect[0] + r.rect[2] / 2, cy = r.rect[1] + r.rect[3] / 2;
+    let best = null, bd = 1e9;
+    for (const p of M.pipes) {
+      if (here && p.room === here.id) continue;
+      const d = Math.hypot(p.x - cx, p.y - cy);
+      if (d < bd) { bd = d; best = p; }
+    }
+    return { room, x: best.x, y: best.y };
+  }, { x: 12.2, y: 57.2 });
+  ok(Math.abs(AIK3.r.x - WANT.x) < 0.01 && Math.abs(AIK3.r.y - WANT.y) < 0.01 &&
+    AIK3.cd === 20,
+    'AI 异形钻管道：没有目标时去任务热点舱室看看，出口按目的地选（' + WANT.room +
+    '，20s 冷却）；旧实现是按全图目标位置选出口');
   ok(AIK3.fx.includes('pipefx'), '钻管道留下管道口特效');
 
   /* AI 异形拆保安有前提（2026-10-31）：必须房间里认出 2 名以上队友 + 有共同捕杀目标，
@@ -3588,7 +3797,11 @@ function section(t) { console.log('\n== ' + t); }
     const g = t.G(); g.paused = true; g.noReport = true;
     const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
     const v = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
-    for (const a of g.agents) if (a !== k && a !== v) t.tp(a.i, 30,32);
+    /* 旁观者集中停在**暗舱**（引擎室）：亮区整片可见之后，停在亮会议室的人会顺着
+       相连的直走廊看出去（亮舱→相连走廊的分支不看距离，只要求 LOS），
+       拖尸路线一进走廊就变成"当着 13 个人拖尸"，异形按规则松手 ⇒ 夹具自己制造了目击者。
+       暗舱里他们只有 3.5 格近身视野，且房间中心有 13 人 ⇒ `hideRoomFor` 也不会选它当藏尸点。 */
+    for (const a of g.agents) if (a !== k && a !== v) t.tp(a.i, 9,52);
     t.clearDrags(); t.resetAiState(k.i);
     g.secbotDead = true;
     k.knife = 0; k.sabUsed = true; k._delay = 0; k._rest = 0;
@@ -4018,14 +4231,14 @@ function section(t) { console.log('\n== ' + t); }
     t.resetAiState(k.i);
     t.tp(k.i, 7.5,53); t.tp(w.i, 9,53);
     k.knife = 0; k.sabUsed = true; k._alienTaskN = g.night;
-    k._fakeN = 0; k._supportGoal = null; k.target = null;
+    k._supportGoal = null; k.target = null;
     k._delay = 0; k._rest = 0;
     g.dmg = [{ room: 'engine', x: 6, y: 51, label: '测试故障', left: 60, dur: 60, by: k.i }];
     const old = Math.random; Math.random = () => 0;
     t.aiTickAlien(k.i, 2, 0.05);      /* 决定假装维修 */
     t.aiTickAlien(k.i, 30, 0.05);     /* 走到故障旁开始站桩 */
     Math.random = old;
-    const out = { do: k._doing, doing: k.doing, dmg: g.dmg.length, fake: k._fakeN };
+    const out = { do: k._doing, doing: k.doing, dmg: g.dmg.length, kind: k._fakeKind };
     t.aiTickAlien(k.i, 140, 0.05);
     out.dmgAfter = g.dmg.length; out.prog = g.prog; out.doAfter = k._doing;
     return out;
@@ -4067,7 +4280,7 @@ function section(t) { console.log('\n== ' + t); }
     t.tp(k.i, spot.kx, spot.ky); t.tp(w.i, spot.wx, spot.wy);
     k.knife = 0; k.bullet = 0; k.medkit = 0; k.qual = 0; k.qualPending = 0;
     k.sabUsed = true; k._delay = 0; k._rest = 0;
-    k._fakeTaskN = 0; k._fakeN = g.night; k._supportGoal = null; k.target = null;
+    k._supportGoal = null; k.target = null;
     k._alienTaskN = g.night; k._alienTaskTotal = 1;   /* 排除真做任务 */
     g.prog = 0;
     const prog0 = g.prog, old = Math.random;
@@ -4077,20 +4290,589 @@ function section(t) { console.log('\n== ' + t); }
       t.aiTickAlien(k.i, 1, 0.05);
       if (k._doing === 'fake') seen = true;
     }
-    Math.random = old;
-    const start = { seen, do: k._doing, doing: k.doing, fakeTaskN: k._fakeTaskN };
+    const start = { seen, do: k._doing, doing: k.doing, kind: k._fakeKind };
+    /* 站到演完再多走 2 秒：演完挂上冷却（18 秒），不再有"每夜 1 次"的硬上限 */
     t.aiTickAlien(k.i, 200, 0.05);
-    return { start, night: g.night, prog0, prog1: g.prog, fakeTaskN: k._fakeTaskN,
-      doAfter: k._doing, kind: k._fakeKind, inv: t.inv() };
+    const first = { doAfter: k._doing, cd: +(k._fakeCD || 0).toFixed(2),
+      cred: +(((w.mind && w.mind.cred || {})[k.i]) || 0).toFixed(3) };
+    /* 冷却结束 + 换一个演出点（_lastFake 清空）→ 同一夜必须还能再演一次。
+       旧版在这里被 _fakeTaskN !== G.night 挡死：一只异形一晚上最多演一次。
+       中间那 10 秒它可能已经游荡走开，所以把人摆回原位再判（测的是闸门，不是路程）。 */
+    t.tp(k.i, spot.kx, spot.ky); t.tp(w.i, spot.wx, spot.wy);
+    k._fakeCD = 0; k._lastFake = null; k._delay = 0; k._rest = 0;
+    k._plan = null; k._planCD = 0; k._supportGoal = null;
+    let again = false;
+    for (let i = 0; i < 200 && !again; i++) {
+      t.aiTickAlien(k.i, 1, 0.05);
+      if (k._doing === 'fake') again = true;
+    }
+    const pre = t.disguise(k.i);
+    Math.random = old;
+    return { start, first, night: g.night, again, prog0, pre,
+      prog1: g.prog, doAfter: k._doing, inv: t.inv() };
   });
   ok(FAKET.start.seen && FAKET.start.do === 'fake' && FAKET.start.doing > 0 &&
-    FAKET.start.fakeTaskN === FAKET.night,
+    FAKET.start.kind === 'task',
     '异形会在任务点假装做任务（有目击者时进入 fake 动作；seen=' +
-    FAKET.start.seen + ' do=' + FAKET.start.do + ' n=' + FAKET.start.fakeTaskN + '）');
-  ok(FAKET.prog1 === FAKET.prog0 && FAKET.doAfter !== 'fake' && FAKET.fakeTaskN > 0,
-    '假装做任务不增加任何维修进度，也不会真的完成任务');
+    FAKET.start.seen + ' do=' + FAKET.start.do + ' kind=' + FAKET.start.kind + '）');
+  ok(FAKET.prog1 === FAKET.prog0 && FAKET.first.doAfter !== 'fake' && FAKET.first.cd > 0,
+    '假装做任务不增加维修进度，演完进入 ' + FAKET.first.cd.toFixed(1) + ' 秒冷却（每夜硬上限已取消）');
+  ok(FAKET.again,
+    '冷却结束后同一夜还能再演（旧版 _fakeTaskN 每夜 1 次把伪装掐死在主闸上；' +
+    '本次 aud=' + FAKET.pre.aud + ' sc=' + FAKET.pre.sc + ' cd=' + FAKET.pre.cd + '）');
+  ok(FAKET.first.cred >= 0.10,
+    '演完的 cred 走同一条兑现口：目击者给它 +信誉（fakeWork，' + FAKET.first.cred + '）');
   ok(FAKET.inv.fails.length === 0, '异形假装做任务后不变量全过' +
     (FAKET.inv.fails.length ? '（失败项：' + FAKET.inv.fails.slice(0, 4).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));
+
+  await fresh(false);
+  const DIS = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true; g.dmg = [];
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    for (const a of g.agents) if (a !== k && a !== w) t.tp(a.i, 30, 54);
+    t.resetAiState(k.i);
+    /* 手里还有刀 —— 这正是旧门闸走不通的那半边（knife>0 且 8 格内有人时 close 恒 >8 不成立） */
+    k.knife = 1; k.sabUsed = true; k.bullet = 0; k.qual = 0; k.qualPending = 0;
+    k._delay = 0; k._rest = 0; k._supportGoal = null; k._noFake = false;
+    const pts = t.points().map((p, i) => Object.assign({ idx: i }, p))
+      .filter(p => k.tasks.indexOf(p.idx) < 0);
+    let spot = null;
+    for (const p of pts) {
+      for (const d of [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) {
+        if (t.free(p.x + d[0], p.y + d[1]) && t.free(p.x - d[0], p.y - d[1]) &&
+          t.los(p.x + d[0], p.y + d[1], p.x - d[0], p.y - d[1])) {
+          spot = { kx: p.x + d[0], ky: p.y + d[1], wx: p.x - d[0], wy: p.y - d[1] }; break;
+        }
+      }
+      if (spot) break;
+    }
+    if (!spot) return { skip: true };
+    t.tp(k.i, spot.kx, spot.ky); t.tp(w.i, spot.wx, spot.wy);
+    w.detained = false;
+    const old = Math.random; Math.random = () => 0;   /* 站桩时长钉在区间下限，分数可复现 */
+    const d0 = t.disguise(k.i);                        /* 观众 = 一个路人 */
+    t.healSus(w.i, k.i, 0.9);
+    const d1 = t.disguise(k.i);                        /* 观众 = 已经怀疑我的人 */
+    k.redT = 3;
+    const d2 = t.disguise(k.i);                        /* 刚出刀、身上还热 */
+    k.redT = 0;
+    const inv = t.inv();
+    w.detained = true;
+    const d3 = t.disguise(k.i);                        /* 一个能看的观众都没有 */
+    w.detained = false;
+    /* 断电：当众合闸是第三种演出候选 —— 它进同一张分数表，代价记在 risk 里。
+       闸杆在配电室贴墙，先把两个人挪到闸杆附近（远处不选它，见 DISGUISE.spotR）。 */
+    const br = window.SKMapData.facility.find(f => f.kind === 'breaker');
+    let bspot = null;
+    if (br) {
+      /* 闸杆贴墙，直接 ±1.2 会撞进墙里：先在它周围扫一圈落脚点，
+         再取两个互相看得见、间距 ≤3 格的（异形站一边，观众站另一边） */
+      const cand = [];
+      for (let dx = -4; dx <= 4 && cand.length < 24; dx++) {
+        for (let dy = -4; dy <= 4; dy++) {
+          if (!dx && !dy) continue;
+          const x = br.x + dx * 0.6, y = br.y + dy * 0.6;
+          if (t.free(x, y)) cand.push([x, y]);
+        }
+      }
+      /* 逐对试站：aiCanSee 从观察者自己的位置出发，所以必须先把两个人摆上去再判，
+         否则等于从上一个位置看过去，永远看不见。
+         配电室是暗房、人类近身只有 2.8 格，间距与遮挡都在这一步一次性判掉。 */
+      for (let i = 0; i < cand.length && !bspot; i++) {
+        for (let j = 0; j < cand.length && !bspot; j++) {
+          if (i === j) continue;
+          if (Math.hypot(cand[i][0] - cand[j][0], cand[i][1] - cand[j][1]) > 3) continue;
+          if (!t.los(cand[i][0], cand[i][1], cand[j][0], cand[j][1])) continue;
+          t.tp(k.i, cand[i][0], cand[i][1]); t.tp(w.i, cand[j][0], cand[j][1]);
+          if (!t.aiSee(w.i, cand[i][0], cand[i][1], 8)) continue;
+          bspot = true;
+        }
+      }
+    }
+    let d4 = null;
+    if (bspot) {
+      const lit0 = g.lightState; g.lightState = 2;
+      d4 = t.disguise(k.i);
+      g.lightState = lit0;
+    }
+    Math.random = old;
+    return { skip: false, d0, d1, d2, d3, d4, inv };
+  });
+  if (!DIS.skip) {
+    ok(DIS.d0.aud >= 1 && DIS.d0.sc >= DIS.d0.minScore,
+      '有刀也照样能演：伪装进了效用表，不再要求"刀用完"' +
+      '（aud=' + DIS.d0.aud + ' sc=' + DIS.d0.sc + ' ≥ minScore=' + DIS.d0.minScore + '）');
+    ok(DIS.d1.weight > DIS.d0.weight && DIS.d1.sc > DIS.d0.sc &&
+      DIS.d1.susAud === DIS.d0.susAud + 1,
+      '演给"已经怀疑我的人"比演给路人更值：观众加权 ' + DIS.d0.weight + ' → ' +
+      DIS.d1.weight + '，收益分 ' + DIS.d0.sc + ' → ' + DIS.d1.sc);
+    ok(DIS.d2.risk > DIS.d1.risk && DIS.d2.sc < DIS.d1.sc,
+      '刚出刀身上还热 → 识破风险 ' + DIS.d1.risk + ' → ' + DIS.d2.risk +
+      '，收益分反而下降（risk 量的是"会不会被识破"，不是"被多少人看过"）');
+    ok(DIS.d3.aud === 0 && DIS.d3.sc === 0,
+      '没人看得见就一分不值：绝不自嗨（aud=' + DIS.d3.aud + ' sc=' + DIS.d3.sc + '）');
+    /* 合闸不再靠"每夜一次 + 掷骰"，而是作为一个候选进同一张分数表：
+       它的战略损失记在 risk（breakerLoss 0.45），因此**常常排在假装修之后** ——
+       这正是用户裁定"成本从收益侧搬到代价侧"之后应有的形态（旧实现里它压根不在表上）。 */
+    const BR = DIS.d4 && (DIS.d4.opts || []).find(o => o.kind === 'breakerOn');
+    ok(!!BR && BR.risk >= 0.45,
+      '断电时"当众合闸"作为候选进同一张分数表，战略损失计入 risk（breakerOn risk=' +
+      (BR ? BR.risk : '闸杆旁无落脚点') + ' ≥ breakerLoss 0.45）');
+    ok(!!BR && !!DIS.d4.kind && DIS.d4.kind !== 'breakerOn',
+      '合闸因为真代价被排到后面：断电时得分最高的候选是 ' + (DIS.d4 && DIS.d4.kind) +
+      '，不是合闸（旧版是"每夜一次 + 每秒掷骰"，根本不在表上）');
+    const FKR = DIS.d4 && (DIS.d4.opts || []).find(o => o.kind === 'fakeTask');
+    ok(!!BR && !!FKR && FKR.sc > BR.sc,
+      '同一批观众下"假装修"比"当众合闸"划算（' + (FKR && FKR.sc) + ' > ' + (BR && BR.sc) +
+      '）—— 因为合闸要放弃全群暗视野，而假装修只是站一会儿');
+    ok(DIS.inv.fails.length === 0, '伪装效用表探针后不变量全过');
+  }
+
+  await fresh(false);
+  const DISK = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true; g.dmg = [];
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    for (const a of g.agents) if (a !== k && a !== w) t.tp(a.i, 30, 54);
+    t.resetAiState(k.i);
+    k.knife = 0; k.sabUsed = true; k.bullet = 0; k.medkit = 0; k.qual = 0; k.qualPending = 0;
+    k._delay = 0; k._rest = 0; k._supportGoal = null; k.target = null;
+    k._alienTaskN = g.night; k._alienTaskTotal = 1;   /* 排除真做任务 */
+    g.prog = 0;
+    const pts = t.points().map((p, i) => Object.assign({ idx: i }, p))
+      .filter(p => k.tasks.indexOf(p.idx) < 0);
+    let spot = null;
+    for (const p of pts) {
+      for (const d of [[1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]]) {
+        if (t.free(p.x + d[0], p.y + d[1]) && t.free(p.x - d[0], p.y - d[1]) &&
+          t.los(p.x + d[0], p.y + d[1], p.x - d[0], p.y - d[1])) {
+          spot = { p, kx: p.x + d[0], ky: p.y + d[1], wx: p.x - d[0], wy: p.y - d[1] }; break;
+        }
+      }
+      if (spot) break;
+    }
+    if (!spot) return { skip: true };
+    const old = Math.random; Math.random = () => 0;
+    /* 连演五次，同一个观众在旁边看着：
+       第一次旁边"有故障"→ 假装修理（kind fakeRepair），其余 → 假装做任务（kind fakeWork）。
+       旧版两种假动作都写同一个 kind，ALMOST.friendKinds=2 对异形根本凑不齐 ——
+       这才是"演了也洗不白"的真凶，所以这条用例要一路验到 friend 真的成立。 */
+    const done = [];
+    let dmgStill = -1;
+    for (let n = 0; n < 5; n++) {
+      t.tp(k.i, spot.kx, spot.ky); t.tp(w.i, spot.wx, spot.wy);
+      g.dmg = (n === 0) ? [{ room: spot.p.room, x: spot.kx, y: spot.ky,
+        label: '测试故障', left: 60, dur: 60, by: k.i }] : [];
+      k._fakeCD = 0; k._lastFake = null; k._plan = null; k._planCD = 0;
+      k._doing = null; k.doing = 0;
+      let started = false;
+      for (let i = 0; i < 200 && !started; i++) {
+        t.aiTickAlien(k.i, 1, 0.05);
+        if (k._doing === 'fake') started = true;
+      }
+      if (!started) break;
+      for (let i = 0; i < 200 && k._doing === 'fake'; i++) t.aiTickAlien(k.i, 1, 0.05);
+      if (n === 0) dmgStill = g.dmg.length;   /* 假装修理不能真的把故障修掉 */
+      const cw = (w.mind.credWhy && w.mind.credWhy[k.i]) || [];
+      done.push(cw.length ? cw[cw.length - 1].kind : 'none');
+    }
+    Math.random = old;
+    const cw = (w.mind.credWhy && w.mind.credWhy[k.i]) || [];
+    const ks = {};
+    for (const e of cw) if (e.kind) ks[e.kind] = 1;
+    return { skip: false, done, credKinds: Object.keys(ks),
+      cred: +(((w.mind.cred || {})[k.i]) || 0).toFixed(3),
+      friend: t.almostOf(w.i).friend[k.i] || null,
+      friendCred: SKSanity.ALMOST.friendCred, friendKinds: SKSanity.ALMOST.friendKinds,
+      prog: g.prog, dmgStill, cycles: done.length, inv: t.inv() };
+  });
+  if (!DISK.skip) {
+    ok(DISK.credKinds.indexOf('fakeRepair') >= 0 && DISK.credKinds.indexOf('fakeWork') >= 0,
+      '两种假动作写两种 cred 种类（假装修理 / 假装做任务）：ALMOST.friendKinds=' +
+      DISK.friendKinds + ' 从此对异形可达（实测 ' + DISK.credKinds.join('+') + '）');
+    ok(!!DISK.friend && DISK.cred >= DISK.friendCred,
+      '同一个观众连看五次真的洗白：almost.friend 成立（cred=' + DISK.cred +
+      ' ≥ ' + DISK.friendCred + '，kinds=' + (DISK.friend ? DISK.friend.kinds.join('+') : '-') + '）');
+    ok(DISK.prog === 0 && DISK.dmgStill === 1 && DISK.cycles === 5,
+      '连演 ' + DISK.cycles + ' 次不推进维修进度、也不真的修掉故障（prog=' + DISK.prog +
+      '，演完假装修理后故障仍在=' + DISK.dmgStill + '）');
+    ok(DISK.inv.fails.length === 0, '伪装连演洗白后不变量全过');
+  }
+
+  /* ---------------- 终结者时刻（2026-11-03 用户裁定）----------------
+     双向断言：未到第 10 夜**不得**亮身份（守住"正常对局外观一致"），
+     到了就亮并且每人子弹补到 1 —— 但只补不叠（攒了 2 发的还是 2 发）。 */
+  section('终结者时刻 · 第 N 夜身份公开 + 补子弹');
+  const TERM = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const cfg = t.terminator();
+    /* 注意：不变量 A13 要求 `bullet ≤ 1`，所以这里只能摆"0 发 / 1 发"两种合法初值 */
+    for (const a of g.agents) a.bullet = (a.i % 3 === 0) ? 1 : 0;
+    const hadOne = g.agents.filter(a => a.alive && a.i % 3 === 0).length;
+    g.night = cfg.cfg.night - 1; g.terminator = false; g.revealAll = false;
+    const before = { fired: t.checkTerminator(), on: !!t.terminator().on };
+    g.night = cfg.cfg.night;
+    const fired = t.checkTerminator();
+    const st = t.terminator();
+    const again = t.checkTerminator();
+    const alive = g.agents.filter(a => a.alive);
+    return { cfg, before, fired, st, again, hadOne,
+      minBullet: Math.min.apply(null, alive.map(a => a.bullet | 0)),
+      maxBullet: Math.max.apply(null, g.agents.map(a => a.bullet | 0)),
+      inv: t.inv() };
+  });
+  ok(!TERM.before.fired && !TERM.before.on,
+    '第 ' + (TERM.cfg.night - 1) + ' 夜不触发：身份仍然只在 DEV / 旁观可见');
+  ok(TERM.fired && TERM.st.on && TERM.st.revealAll,
+    '第 ' + TERM.cfg.night + ' 夜触发终结者时刻：身份公开（revealAll=' + TERM.st.revealAll + '）');
+  ok(TERM.minBullet >= TERM.cfg.cfg.bullets && TERM.maxBullet <= TERM.cfg.cfg.bullets,
+    '活着的人子弹补到 ' + TERM.cfg.cfg.bullets + '：最低 ' + TERM.minBullet +
+    '、最高 ' + TERM.maxBullet + '（只补不叠，A13 的子弹上限仍然成立）');
+  ok(TERM.again === false, '一局只触发一次（不会每夜重发子弹）');
+  ok(TERM.inv.fails.length === 0, '终结者时刻后不变量全过');
+
+  /* ---------------- 报告去重绑定"那一次倒下"（用户报的 bug）----------------
+     旧实现只有按夜一层，而 startNight 会把活人的 reported 清零 ⇒
+     同一个还躺着的人每夜都能被重新拉铃。现在绑到"那一次倒下"。 */
+  section('报告一次性 · 濒死者绑定倒下事件');
+  const RPT2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true;
+    const v = g.agents.find(a => !a.alien && a !== g.me && a.alive);
+    for (const a of g.agents) if (a !== v && a !== g.me) t.tp(a.i, 30, 54);
+    t.tp(g.me.i, 50, 84); t.tp(v.i, 50.8, 84);
+    v.downed = true; v.downAt = g.t; v.downSeq = (v.downSeq || 0) + 1;
+    g.meet = null; g.over = null;
+    const opened = t.report();
+    const flag1 = t.bodyReported(v.i);
+    g.meet = null;
+    g.night++;                                  /* 模拟跨夜（旧实现到这里就重新可报） */
+    const flag2 = t.bodyReported(v.i);
+    v.downed = false; v.downAt = 0;             /* 被救起来 */
+    const flag3 = t.bodyReported(v.i);
+    v.downed = true; v.downSeq++;                /* 再次被放倒 = 新一次发现 */
+    const flag4 = t.bodyReported(v.i);
+    return { opened: !!opened, flag1, flag2, flag3, flag4, night: g.night };
+  });
+  ok(RPT2.opened && RPT2.flag1, '第一次报告成立并记名（' + RPT2.opened + '）');
+  ok(RPT2.flag2,
+    '跨夜也不可重报：同一个还躺着的人，一轮倒下只报一次（旧实现到这里会重新可报）');
+  ok(RPT2.flag3 === false,
+    '他被救起之后不再算"同一次倒下"，尸体语义回到按夜（' + RPT2.flag3 + '）');
+  ok(RPT2.flag4 === false, '再次被放倒算新发现，可以重新拉铃');
+
+  /* ---------------- 领袖服从：号召力重尾 + 信任门槛（2026-11-03）---------------- */
+  section('领袖 · 指令真的有人接牌（也可能一个都不接）');
+  const LD = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true; g.dmg = [];
+    const a = g.agents.find(x => !x.alien && x !== g.me && x.alive && x.tIdx < x.tasks.length);
+    const L = g.agents.find(x => x !== a && x.alive);
+    t.ensureMind(a.i);
+    const pts = t.points();
+    const curRoom = pts[a.tasks[a.tIdx]].room;
+    const pi = a.tasks.findIndex((p, ix) => ix > a.tIdx && pts[p].room !== curRoom);
+    const target = a.tasks[pi], tRoom = pts[target].room;
+    const baseTasks = a.tasks.slice();      /* 每轮都把任务表复位，否则上一轮的成功会污染下一轮 */
+    const run = (charisma, cred) => {
+      for (let i = 0; i < baseTasks.length; i++) a.tasks[i] = baseTasks[i];
+      a.mind.order = { room: tRoom, night: g.night, by: L.i };
+      a.mind.cred = a.mind.cred || {}; a.mind.cred[L.i] = cred;
+      a.doing = 0; a._doing = null; a._rest = 0; a._delay = 0; a.path = null;
+      g.leaderCharisma = charisma;
+      const old = Math.random; Math.random = () => 0;
+      t.aiTick(a.i, 1, 0.05);
+      Math.random = old;
+      return pts[a.tasks[a.tIdx]].room === tRoom;
+    };
+    return {
+      haveTarget: pi > a.tIdx, tRoom,
+      fullTrustFullCharisma: run(1, 0.40),
+      zeroCharisma: run(0, 0.40),
+      noTrust: run(1, 0),
+      bands: SKSanity.LEADER.bands,
+      obeyGate: SKSanity.trustObeyGate(),
+    };
+  });
+  ok(LD.haveTarget, '夹具：本席任务表里存在别的舱室的点位（' + LD.tRoom + '）');
+  ok(LD.fullTrustFullCharisma,
+    '号召力 1 + 被点名者信他（cred ≥ ' + LD.obeyGate + '）⇒ 真的把该舱任务换到当前位去做');
+  ok(!LD.zeroCharisma, '号召力 0 ⇒ **一个人都不听**（两端保留，不做截断）');
+  ok(!LD.noTrust, '号召力 1 但被点名者不信他（cred 0）⇒ 也不去：领袖感挂在信任聚集上');
+  ok(LD.bands.length === 4 && LD.bands[0][0] === 0 &&
+    LD.bands[LD.bands.length - 1][0] === 1,
+    '号召力是重尾分布，两端都在（0 与 1 都是合法抽样结果）');
+
+  /* ---------------- 贵信号：异形也能做"人类相当愿意做的事" ----------------
+     两条要分清：
+       · **入口必须通**（AI 与玩家共用 startFix / revive，不许有特权也不许被禁）；
+       · **它会不会自发去做**是另一件事 —— 现阶段"假装修"没有战略损失，
+         分数压过"真修"，所以真修稀有。这条量化事实写成断言，等用户决定是否放大贵信号收益。 */
+  section('LENS 贵信号 · 异形真修故障 / 真救非队友');
+  const GSIG = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const hv = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== w);
+    for (const a of g.agents) if (a !== k && a !== w && a !== hv && a !== g.me) t.tp(a.i, 30, 54);
+    t.resetAiState(k.i);
+    k.knife = 0; k.sabUsed = true; k._delay = 0; k._rest = 0; k.medkit = 1;
+    g.dmg = [{ room: 'engine', x: 6.6, y: 51.6, label: '测试故障', left: 60, dur: 60, by: 14 }];
+    /* 观察者要紧贴**修的人**：暗房里人类的近身视野只有 2.8 格，
+       站远了"看不见他修好了"就是正确的不给分，那测的就不是入口了
+       （信任广播的落点是操作者自己的坐标，不是故障点 —— 故障点常贴在机器背后） */
+    t.tp(k.i, 7.5, 53); t.tp(w.i, 7.4, 52.2);
+    t.ensureMind(w.i);      /* 认知层是懒初始化的：真实对局里早已被建好，夹具要自己补 */
+    /* 再放一个倒地的非队友在**异形自己也看得见**的距离内 ⇒ 真救人应当成为候选
+       （引擎室是暗房，异形近身视野 3.5 格，放 4 格外就正确地"没看见"） */
+    hv.downed = true; hv.alive = true; t.tp(hv.i, 10, 53);
+    const old = Math.random; Math.random = () => 0;
+    const d0 = t.disguise(k.i);
+    const opts = (d0.opts || []);
+    const byKind = {};
+    for (const o of opts) byKind[o.kind] = o;
+    /* 自发选择：分数最高的是哪一个（假装修 vs 真修） */
+    const bestKind = d0.kind;
+    /* 入口通不通：手动把计划设成 realFix，让它真的走一遍 startFix → finishFix。
+       `_planCD` 必须一起拉长，否则下一帧效用表重算会把这份手动计划覆盖掉。 */
+    const fault = g.dmg[0];
+    k._plan = { id: 'disguise', kind: 'realFix', key: 'realfix:engine',
+      x: k.x, y: k.y, dur: 10, room: 'engine', fault: fault };
+    k._planCD = 30;
+    k._doing = null; k.doing = 0;
+    t.aiTickAlien(k.i, 2, 0.05);
+    const started = k._doing;
+    /* 一修好就停：再多走几秒它会转去演假任务，那笔 cred 就不是 fixDone 了 */
+    for (let i = 0; i < 320 && g.dmg.length; i++) t.aiTickAlien(k.i, 1, 0.05);
+    const cred = ((w.mind && w.mind.cred) || {})[k.i] || 0;
+    const kinds = (((w.mind && w.mind.credWhy) || {})[k.i] || []).map(e => e.kind);
+    Math.random = old;
+    return {
+      hasRealFix: !!byKind.realFix, hasRealRevive: !!byKind.realRevive,
+      bestKind, scReal: byKind.realFix ? byKind.realFix.sc : null,
+      scFake: byKind.fake ? byKind.fake.sc : null,
+      lrFix: SKSanity.LENS.lr('fixDone'), lrFake: SKSanity.LENS.lr('fakeRepair'),
+      started, fixed: g.dmg.length === 0, cred: +cred.toFixed(3), kinds,
+      knownOnly: ['knife', 'pipe', 'sabotage', 'breakerOff', 'botStop', 'redBody']
+        .every(x => SKSanity.LENS.lr(x) === Infinity),
+      inv: t.inv(),
+    };
+  });
+  ok(GSIG.hasRealFix && GSIG.hasRealRevive,
+    '真修故障与真救非队友都进了候选表（候选=' +
+    [GSIG.hasRealFix && 'realFix', GSIG.hasRealRevive && 'realRevive', GSIG.scFake != null && 'fake',
+      GSIG.bestKind].filter(Boolean).join('/') + '）；LENS 里 lr 真修 ' + GSIG.lrFix +
+    ' ≫ 假装修 ' + GSIG.lrFake);
+  ok(GSIG.started === 'fix' && GSIG.fixed && GSIG.cred >= 0.16,
+    '入口真的通：异形走同一条 startFix/finishFix 把故障修掉了（' + GSIG.started +
+    ' → 故障清空），观察者按 fixDone 给信誉 ' + GSIG.cred + '（kinds=' + GSIG.kinds.join('+') + '）');
+  ok(GSIG.bestKind !== 'realFix' && GSIG.scReal < GSIG.scFake,
+    '但**自发**情况下假装修仍压过真修（' + GSIG.scFake + ' > ' + GSIG.scReal +
+    '，真修要吃 realCost 0.45 + 10 秒）—— 贵信号目前稀有，这是量化事实不是 bug，等用户决定是否加收益');
+  ok(GSIG.knownOnly, 'knownOnly 的行不参与 lr：出刀/钻管道/破坏/拉闸/停摆/红身 = Infinity（硬线）');
+  ok(GSIG.inv.fails.length === 0, '异形真修故障后不变量全过' +
+    (GSIG.inv.fails.length ? '（' + GSIG.inv.fails.slice(0, 3).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));
+
+  /* ---------------- 语料工程（2026-11-03）：接线之后才谈得上"十局不腻" ----------------
+     以前只数行数没有意义：336 行里有 20 行占了大半出场率。这一节验的是
+       ① 每条模板**经过 fillTpl 之后**不吐花括号、不吐空句、不吐「未知位置」；
+       ② 新增的三类（背书 / 接牌拒绝 / 自述位置）池子存在且被接线；
+       ③ selfcite 必须仍然被 parseSpeech 认成"第一人称自述"（口供只认我在…）；
+       ④ 证据短语池给出同义变体（只换措辞，不动 kind）。 */
+  section('语料工程 · 槽位渲染与新增类别');
+  const LN = await T(() => {
+    const t = SKV3._t;
+    const smoke = t.lineSmoke();
+    /* selfcite 全部过一遍 parseSpeech：必须识别出"自述位置" */
+    const badSelf = [];
+    for (const tone of ['hot', 'cold']) {
+      for (const tpl of (SKLines.POOLS.selfcite[tone] || [])) {
+        const s = tpl.replace(/\{r\}/g, '仓库').replace(/\{when\}/g, '今晚')
+          .replace(/\{k\}/g, '电路维修').replace(/\{[^{}]*\|[^{}]*\}/g, m => m.slice(1, -1).split('|')[0]);
+        const sl = t.parseSpeech(s);
+        if (!sl.where) badSelf.push(s);
+      }
+    }
+    /* 证据短语：连续取 30 次，看是否真的出现多个变体 */
+    const whySet = {};
+    for (let i = 0; i < 30; i++) whySet[SKLines.why('saw_pipe')] = 1;
+    const cats = ['endorse', 'leader_refuse', 'selfcite', 'open_body_dead', 'open_body_alive',
+      'known_accuse_hard', 'alien_accuse_soft', 'pre_route_invite', 'pre_ask_more',
+      'doubt_room', 'respond_witness', 'claim_recall', 'challenge_player', 'impossible_pipe',
+      'press_deny', 'ack_short', 'skeptic_ask', 'heard_deny', 'stem_room', 'route_plan'];
+    const missing = cats.filter(c => !(SKLines.pool(c, 'hot') || []).length ||
+      !(SKLines.pool(c, 'cold') || []).length);
+    const comboRaw = (SKLines.POOLS.accuse.combo || [])[0] || '';
+    let comboOut = null;
+    if (comboRaw) {
+      const set = {};
+      for (let i = 0; i < 40; i++) set[comboRaw] = 1;   /* 只看模板本身是否存在 */
+      comboOut = { tpl: comboRaw, variants: Object.keys(set).length };
+    }
+    return {
+      size: SKLines.size(), smoke, missing, badSelf, comboRaw,
+      whyVariants: Object.keys(whySet).length,
+      /* 证据短语**模板**里本来就该带 {r} 这类槽（由 evClause 渲染时填舱室），
+         所以这里不能拿"有没有花括号"当泄漏判据 —— 真正的泄漏判据是
+         `smoke.leak`：它对每一条 WHY 走过 fillTpl 之后再看还剩不剩花括号。 */
+      whyLeak: Object.keys(whySet).filter(s => /\{[^a-z0-9]*\}/.test(s) ||
+        (s.match(/\{[a-z0-9]*\}/g) || []).some(x => ['{n}', '{t}', '{r}', '{r2}', '{u}',
+          '{k}', '{when}', '{prev}', '{why}'].indexOf(x) < 0)),
+      refuseSpeakP: SKSanity.LEADER.refuseSpeakP,
+      cats: Object.keys(SKLines.POOLS).length,
+    };
+  });
+  ok(LN.size >= 800 && LN.cats >= 30,
+    '语料规模 ' + LN.size + ' 行 / ' + LN.cats + ' 类（迁移前 336 行 11 类）');
+  ok(LN.smoke.leak.length === 0,
+    '每一条模板渲染后都不吐花括号（漏出 ' + LN.smoke.leak.length + ' 条）' +
+    (LN.smoke.leak.length ? '：' + LN.smoke.leak.slice(0, 3).join(' | ') : ''));
+  ok(LN.smoke.empty.length === 0, '没有渲染成空句/半句的模板（' + LN.smoke.empty.length + ' 条）');
+  ok(LN.smoke.unknown.length === 0,
+    '舱室槽不会退化成「未知位置」（异形伪证的措辞必须和真目击一字不差）');
+  ok(LN.missing.length === 0, '新增与迁移的类别池子齐全（缺：' + (LN.missing.join('/') || '无') + '）');
+  ok(LN.badSelf.length === 0,
+    'selfcite 每条仍被 parseSpeech 认成第一人称自述（不认的：' +
+    (LN.badSelf.slice(0, 2).join(' / ') || '无') + '）');
+  ok(LN.whyVariants >= 3 && LN.whyLeak.length === 0,
+    '证据短语同义变体 ' + LN.whyVariants + ' 种（措辞不重复，kind 一律不动）');
+  ok(LN.comboRaw.indexOf('|') >= 0,
+    '指控类有组合式模板（一行多槽，展开当量靠乘法而不是堆行数）');
+  ok(LN.refuseSpeakP > 0, '接牌可以当众拒绝：领袖拒绝台词概率 ' + LN.refuseSpeakP);
+  /* 内联池不许长回来：AGENTS 早就写着「台词不散写在 say() 调用处」，可 game.js 里
+     一度还留着 23 处 `pickLine(a,[…])` —— 每处 2~4 条，而且都是每局必说的句子。
+     现在源码级钉住：再有人图省事内联写句子，门禁直接红（Node 侧读文件，不开浏览器）。
+     注意这里不能用模块顶部的 `DIR`：本作用域后面还有一个 `const DIR`（同层的会议夹具变量），
+     会把它推进暂时死区 —— 直接就地解析路径。 */
+  const ROOT = path.resolve(__dirname, '..');
+  const GAME_SRC = fs.readFileSync(path.join(ROOT, 'js', 'game.js'), 'utf8');
+  const INLINE_N = (GAME_SRC.match(/pickLine\([a-zA-Z0-9_.]+,\s*\[/g) || []).length;
+  ok(INLINE_N === 0, 'game.js 里没有内联台词池（当前 ' + INLINE_N + ' 处 pickLine(x,[…])）');
+  ok(/SKLines\.pool\('endorse'/.test(GAME_SRC) || /pushEndorse\(/.test(GAME_SRC),
+    '背书有真实调用点（信任聚焦不再空转）');
+
+  /* ---------------- AI 与玩家数值一致（2026-11-03 用户裁定）----------------
+     "AI 和玩家的数值应该完全一致" ⇒ 同一个能力只准有一个数。
+     这里钉住四处曾经分叉的地方（都是**能力**，不是 AI 的决策意愿）：
+       出刀近身距离 / 开枪射程 / 合闸站桩 / 钻管道冷却。
+     源码级扫描 + 运行时读表双管：改回两个数就直接红。 */
+  section('AI 与玩家 · 数值一致');
+  const EQ = await T(() => {
+    const S = SKSanity;
+    return {
+      knife: S.REACH.knife, shot: S.SHOT.range, pipe: S.PIPE.cooldown,
+      hasSplit: !!(S.REACH.knifePlayer || S.REACH.knifeAI || S.SHOT.known ||
+        S.SHOT.sus || S.SHOT.alienRange || S.STAND.aiBreakerHuman),
+    };
+  });
+  const GAME_EQ_SRC = fs.readFileSync(path.join(__dirname, '..', 'js', 'game.js'), 'utf8');
+  ok(!EQ.hasSplit && EQ.knife === 1.35 && EQ.shot === 9,
+    '出刀与开枪射程各只有一个数：REACH.knife ' + EQ.knife + ' / SHOT.range ' + EQ.shot +
+    '（旧的 1.35↔1.4、10/8↔9 双值已删）');
+  ok(EQ.pipe > 0 && /me\._pipeCD=SKSanity\.PIPE\.cooldown/.test(GAME_EQ_SRC),
+    '钻管道冷却两边同一个 ' + EQ.pipe + ' 秒（玩家的入口与递减都在）');
+  ok(/a\.doing=breakerOnTime\(\)/.test(GAME_EQ_SRC) &&
+    !/STAND\.aiBreakerHuman/.test(GAME_EQ_SRC),
+    'AI 人类合闸走与玩家同一个 breakerOnTime()（不再有 AI 专属 3 秒）');
+  ok((GAME_EQ_SRC.match(/_pipeCD[^;]*-=dt/g) || []).length <= 1,
+    '管道冷却只有一个递减入口（防止 tickActs 与 AI 循环各减一次 = 双倍速）');
+
+  /* ---- 亮区整片可见：AI 与玩家同一条规则（2026-11-03 用户裁定放开）----
+     中央会议室是多边形最长的一间（对角 42 格），拿它当尺子最合适。
+     注意必须取**多边形内部**的点：舱室的 rect 外接框四角在墙外，litZoneAt 会返回 null。 */
+  const LITSIGHT = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.paused = true; g.noReport = true;
+    const a = g.agents.find(x => x.alien && x.i !== 0 && x.alive);
+    const cands = [];
+    for (let x = 20; x <= 62; x += 0.5) for (let y = 24; y <= 42; y += 0.5)
+      if (t.litZone(x, y) === 'r:bridge' && SKGeo.free(x, y)) cands.push([x, y]);
+    let A = null, B = null, bd = -1;
+    for (let i = 0; i < cands.length; i++) for (let j = i + 1; j < cands.length; j++) {
+      const d = Math.hypot(cands[i][0] - cands[j][0], cands[i][1] - cands[j][1]);
+      if (d > bd) { bd = d; A = cands[i]; B = cands[j]; }
+    }
+    t.tp(a.i, A[0], A[1]);
+    const cap = SKSanity.SIGHT.aiCapR;
+    const litFar = { d: +bd.toFixed(1), see: t.aiSee(a.i, B[0], B[1], cap) };
+    /* 对照一：暗舱同距离**不该**看见（放开只给亮区，不给 AI 超出玩家的视力） */
+    const eng = window.SKMapData.rooms.find(r => r.id === 'engine');
+    t.tp(a.i, eng.rect[0] + 2, eng.rect[1] + 3);
+    const darkFar = { see: t.aiSee(a.i, eng.rect[0] + 2 + 11, eng.rect[1] + 3, cap),
+      near: t.aiSee(a.i, eng.rect[0] + 2 + 2.6, eng.rect[1] + 3, cap) };
+    /* 对照二：舱外的 AI 看进亮舱，仍受 cap 约束（不该全船看进亮房） */
+    const out = { see: t.aiSee(a.i, B[0], B[1], cap), d: +Math.hypot(B[0] - a.x, B[1] - a.y).toFixed(1) };
+    /* 对照三：亮舱里的**玩家异形**在同一对点上也应该看得见（同一规则的两侧） */
+    t.tp(a.i, A[0], A[1]);
+    return { litFar, darkFar, out, cap, n: cands.length };
+  });
+  ok(LITSIGHT.litFar.see && LITSIGHT.litFar.d > 20,
+    '亮舱整间可见不再被 8 格上限卡住：异形 AI 在同亮会议室 ' + LITSIGHT.litFar.d +
+    ' 格外看得见人（以前 false，等于 AI 比它扮演的角色还弱）');
+  ok(!LITSIGHT.darkFar.see && LITSIGHT.darkFar.near,
+    '暗舱照旧：远处看不见、近身圆看得见（放开只给亮区，不给 AI 超出玩家的视力）');
+  ok(!LITSIGHT.out.see,
+    '舱外的 AI 看进亮舱仍受上限约束（' + LITSIGHT.out.d + ' 格外不可见，不会全船看进亮房）');
+
+  /* ---------------- 迷雾：地形可见，但人不会透雾 ---------------- */
+  section('迷雾 · 非舱室压淡（判定不动）');
+  const FOGV = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const cfg = (SKSanity.SIGHT.fog || {});
+    /* 把玩家放在亮舱（生态舱），另一个人放在远处的亮走廊里 */
+    t.tp(0, 28, 52);
+    const far = g.agents.find(a => a !== g.me && a.alive);
+    t.tp(far.i, 58, 47);                    /* 会议室—食堂走廊中段，距玩家很远 */
+    g.lightState = 0; g.corrLit = true;
+    const seesPerson = t.visible(58, 47);
+    const state = t.lights();
+    return { cfg, seesPerson, lit: state.state, dist: Math.hypot(58 - 28, 47 - 52) };
+  });
+  ok(FOGV.cfg.roomMask === 0.87 && FOGV.cfg.corridorMask < FOGV.cfg.roomMask,
+    '舱室遮蔽维持原值 ' + FOGV.cfg.roomMask + '，非舱室压到 ' + FOGV.cfg.corridorMask +
+    '（A 档：地形可读，不是全清）');
+  ok(FOGV.dist > 8 && !FOGV.seesPerson,
+    '背景压淡**不等于**看得见人：远处走廊上的人仍然看不见（' + FOGV.dist.toFixed(1) + ' 格）');
+
+  /* ---------------- 异形不再全图锁敌（2026-11-03 用户裁定）----------------
+     两边同一套信息：看得见用实时位置，看不见只认"本夜亲眼见过的最后位置"，
+     完全没见过的人**不进候选**。这是玩家异形与 AI 异形之间最大的那处不公平。 */
+  section('异形目标 · 视野 + 记忆，不再全图锁敌');
+  const HUNT2 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const v = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    for (const a of g.agents) if (a !== k && a !== v && a !== g.me) t.tp(a.i, 30, 54);
+    t.resetAiState(k.i); t.tp(g.me.i, 41, 8);
+    /* 错峰延迟不清掉的话，AI 会在 _delay 分支里早退，压根走不到挑目标那段 */
+    k._delay = 0; k._rest = 0; k._pipeCD = 20;
+    /* ① 隔着整船、谁也没见过谁 ⇒ 候选池必须是空的 */
+    t.tp(k.i, 7, 52); t.tp(v.i, 84, 31);
+    t.aiTickAlien(k.i, 1, 0.05);
+    const blind = t.targetOf(k.i);
+    /* ② 先让它亲眼看见一次，再把人瞬移到看不见的地方 ⇒ 应当继续追"最后位置" */
+    t.tp(v.i, 8.2, 53.4);
+    t.track();
+    const seenMem = (t.mind(k.i).mem || []).filter(e => e.kind === 'saw_agent').length;
+    t.tp(v.i, 84, 31);
+    k.target = null;
+    t.aiTickAlien(k.i, 1, 0.05);
+    const afterMove = t.targetOf(k.i);
+    /* ③ 站桩信息不许偷看：看不见的人即使正在修东西，也不该因此被优先挑中 */
+    return { blind, afterMove, seenMem, v: v.i, k: k.i, memSec: SKSanity.HUNT.memorySec };
+  });
+  ok(HUNT2.blind === null,
+    '没见过的人不进候选：这一帧异形没有锁定任何人（旧实现会直接锁全船最近的人）');
+  ok(HUNT2.seenMem >= 1 && HUNT2.afterMove === HUNT2.v,
+    '亲眼见过一次之后能接着追"最后目击位置"（记忆条目 ' + HUNT2.seenMem +
+    ' 条，时效 ' + HUNT2.memSec + ' 秒）');
 
   await fresh(false);
   const ASUP = await T(() => {
@@ -4110,7 +4892,7 @@ function section(t) { console.log('\n== ' + t); }
     t.tp(k.i, kp[0], kp[1]);
     k.knife = 0; k.bullet = 0; k.medkit = 0; k.qual = 0; k.qualPending = 0;
     k.sabUsed = true; k._delay = 0; k._rest = 0;
-    k._fakeTaskN = g.night; k._fakeN = g.night;   /* 排除假装分支 */
+    k._noFake = true;                        /* 排除伪装分支（2026-11-03 起的显式开关） */
     k._supportGoal = null; k.target = null;
     k._alienTaskN = 0; k._alienTaskTotal = 0;
     g.prog = 0;
@@ -4148,7 +4930,7 @@ function section(t) { console.log('\n== ' + t); }
     const got = { bullet: k.bullet, qual: k.qual };
     t.tp(k.i, 56, 85); t.tp(h.i, 61, 85);
     k.bullet = 1; k.knife = 1; k.target = h;
-    k._supportGoal = null; k._fakeN = g.night; k._alienTaskN = g.night;
+    k._supportGoal = null; k._noFake = true; k._alienTaskN = g.night;
     const old = Math.random; Math.random = () => 0;
     t.aiTickAlien(k.i, 1, 0.05);
     Math.random = old;
@@ -4214,7 +4996,8 @@ function section(t) { console.log('\n== ' + t); }
      新写法反而更严：它必须真的记下 `alibi_clear` 才算通过。 */
   ok(ALIB.alibiReason === 'alibi_clear' && ALIB.after < 0.5 && ALIB.accuse !== ALIB.a,
     '目击案发时在别处 → 反向洗清（alibi_clear）并降低嫌疑、不当场指控（' +
-    ALIB.after.toFixed(2) + ' / ' + (ALIB.why.join(',') || '无新增证据') + '）');
+    ALIB.after.toFixed(2) + ' · alibiReason=' + String(ALIB.alibiReason) +
+    ' · accuse=' + String(ALIB.accuse) + ' \/ ' + (ALIB.why.join(',') || '无新增证据') + '）');
 
   const SHOTJ = await T(() => {
     const t = SKV3._t; t.newGame();
@@ -4546,7 +5329,7 @@ function section(t) { console.log('\n== ' + t); }
     t.clearDrags(); t.resetAiState(k.i);
     k.knife = 0; k.bullet = 0; k.medkit = 0; k.qual = 0; k.qualPending = 0;
     k.sabUsed = true; k._delay = 0; k._rest = 0; k._pipeCD = 0;
-    k._fakeN = g.night; k._alienTaskN = g.night;   /* 排除伪装/做任务分支 */
+    k._noFake = true; k._alienTaskN = g.night;   /* 排除伪装/做任务分支 */
     const pipes = t.pipes();
     const pin = pipes[0];
     t.tp(k.i, pin.x, pin.y); t.tp(v.i, 84,31);
@@ -4570,19 +5353,40 @@ function section(t) { console.log('\n== ' + t); }
     const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
     const idle = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
     const busy = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== idle);
-    for (const a of g.agents) if (a !== k && a !== idle && a !== busy) t.tp(a.i, 30,54);
+    /* 旁人一律挪到 8 格视野之外：他们留在旁边就是"更近的可见闲人"，
+       测的就不是"忙人优先"而是"谁近谁死"了 */
+    for (const a of g.agents) if (a !== k && a !== idle && a !== busy) t.tp(a.i, 58, 47);
     t.clearDrags(); t.resetAiState(k.i);
     g.secbotDead = true; g.medbotDead = true;
     k.knife = 1; k.bullet = 0; k.sabUsed = true; k._delay = 0; k._rest = 0;
     k._pipeCD = 0;
-    t.tp(k.i, 30,52); t.tp(idle.i, 33,52); t.tp(busy.i, 40,52);
+    /* 生态舱 y=55 这一条是**实测无遮挡**的直线（家具会让 7 格外看不见，
+       那时"看不见就不知道他在干活"会正确生效，夹具测的就不再是优先级） */
+    t.tp(k.i, 21, 55); t.tp(idle.i, 24, 55); t.tp(busy.i, 28, 55);
     idle.doing = 0; idle._doing = null;
     busy.doing = 5; busy._doing = 'task';
+    const see7 = t.aiSee(k.i, 28, 55, SKSanity.SIGHT.aiCapR);
     t.aiTickAlien(k.i, 1, 0.05);
-    return { target: k.target ? k.target.i : null, idle: idle.i, busy: busy.i };
+    const near = k.target ? k.target.i : null;
+    /* "看不见就不知道他在干活"要造得**干净**：以前是把忙人挪到 11 格外，
+       但 2026-11-03 亮区整片可见对 AI 成立之后，同在一间亮舱里 11 格**本来就看得见**。
+       所以这里把忙人挪进**配电室（暗舱、且与生态舱隔墙）** —— 看不见的前提是真的看不见。 */
+    t.tp(busy.i, 48, 55); busy.doing = 5; busy._doing = 'task';
+    t.tp(idle.i, 24, 55); idle.doing = 0; idle._doing = null;
+    const see11 = t.aiSee(k.i, 48, 55, SKSanity.SIGHT.aiCapR);
+    k.target = null; k._pipeCD = 20;
+    t.aiTickAlien(k.i, 1, 0.05);
+    const far = k.target ? k.target.i : null;
+    return { near, far, idle: idle.i, busy: busy.i, see7, see11,
+      cap: SKSanity.SIGHT.aiCapR };
   });
-  ok(BUSYPRI.target === BUSYPRI.busy,
-    '异形优先挑选正在做任务的人（8 格外的任务者优先于 3 格外的闲人）');
+  ok(BUSYPRI.see7 && !BUSYPRI.see11,
+    '夹具：异形对 7 格的忙人**看得见**（同亮舱），对隔墙暗舱里的忙人**看不见**（视野上限 ' +
+    BUSYPRI.cap + ' 格）');
+  ok(BUSYPRI.near === BUSYPRI.busy,
+    '看得见的时候，优先挑正在做任务的人（7 格的忙人赢过 3 格的闲人）');
+  ok(BUSYPRI.far === BUSYPRI.idle,
+    '看不见就不知道他在干活：11 格外的忙人**不再**赢过 3 格外看得见的闲人（取消全图锁敌）');
 
   section('破坏技 · 选舱 / 30 秒 / 连续 10 秒维修');
   await fresh(false);
@@ -5315,7 +6119,7 @@ function section(t) { console.log('\n== ' + t); }
   await page.waitForTimeout(140);
   ok((await T(() => SKV3.isPaused())) === false, '再按 ESC 继续游戏');
 
-  section('视野 · 异形与人类同款手电锥 + 近身感知 ×10/9');
+  section('视野 · 异形与人类同款手电锥 + 近身感知 2.8 / 3.5 格');
   await fresh(false);
   const VIS2 = await T(() => {
     const t = SKV3._t; t.newGame();
@@ -5324,10 +6128,17 @@ function section(t) { console.log('\n== ' + t); }
     const h = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
     for (const a of g.agents) if (a !== k && a !== h && a !== g.me) t.tp(a.i, 30,32);
     t.tp(k.i, 64,32); t.tp(h.i, 64,32);
-    const alienFar = t.aiSee(k.i, 74, 32, 8);   /* 10 格，同一走廊：双方都超出 8 格 */
+    /* 2026-11-03 用户裁定：**亮区整片可见对 AI 同样成立**（玩家站在亮走廊里能看见整条，
+       AI 也必须能）。所以"10 格外就看不见"这条老断言作废，改成验两侧一致：
+       走廊亮 ⇒ 异形 AI 与人类 AI 都看得见；走廊熄灯 ⇒ 两边都退回近身圆。 */
+    const alienFarLit = t.aiSee(k.i, 74, 32, 8);   /* 10 格，同一条亮走廊 */
+    const humanFarLit = t.aiSee(h.i, 74, 32, 8);
+    const alienFar = t.aiSee(k.i, 74, 32, 8);   /* 下面断电之后再取一次同点 */
     const humanFar = t.aiSee(h.i, 74, 32, 8);
     const light = t.breaker();                  /* 断电：走廊灯熄灭，只剩近身视野 */
-    const alienNear = t.aiSee(k.i, 67, 32, 8);  /* 3 格：异形近身 3.11 内可见 */
+    const darkAlien = t.aiSee(k.i, 74, 32, 8);  /* 熄灯后 10 格：不该看见 */
+    const darkHuman = t.aiSee(h.i, 74, 32, 8);
+    const alienNear = t.aiSee(k.i, 67, 32, 8);  /* 3 格：异形近身 3.5 内可见 */
     const humanNear = t.aiSee(h.i, 67, 32, 8);  /* 3 格：人类 2.8 外不可见 */
     t.tp(0, 70,32);
     g.me.alien = false; g.aimX = 72; g.aimY = 32;
@@ -5336,22 +6147,30 @@ function section(t) { console.log('\n== ' + t); }
     const humanBackFar = t.visible(67, 32);     /* 背后 3 格：人类看不见 */
     g.me.alien = true;
     const alienCone = t.visible(75, 32);        /* 同款手电锥 */
-    const alienBack = t.visible(67, 32);        /* 背后 3 格：异形近身 3.11 内 */
-    const alienBackMid = t.visible(66, 32);     /* 背后 4 格：削短后异形也看不见 */
-    const alienBackFar = t.visible(63.5, 32);   /* 背后 6.5 格：异形也看不见 */
+    const alienBack = t.visible(67, 32);        /* 背后 3 格：异形近身 3.5 内 */
+    const alienEdge = t.visible(66.4, 32);      /* 背后 3.6 格：刚好越过 3.5 边界 */
+    const alienBackMid = t.visible(66, 32);     /* 背后 4 格：看不见 */
+    const alienBackFar = t.visible(63.5, 32);   /* 背后 6.5 格：看不见 */
+    const sg = SKV3._t.sightCfg();
     return { alienFar, humanFar, alienNear, humanNear, light,
-      humanCone, humanBack, humanBackFar, alienCone, alienBack, alienBackMid, alienBackFar };
+      alienFarLit, humanFarLit, darkAlien, darkHuman,
+      humanCone, humanBack, humanBackFar, alienCone, alienBack, alienEdge,
+      alienBackMid, alienBackFar, sg };
   });
-  ok(!VIS2.alienFar && !VIS2.humanFar,
-    '同样 10 格：异形与人类都超出 8 格视距，异形不再有 ×1.5 远视野');
+  ok(VIS2.sg.humanDarkR === 2.8 && VIS2.sg.alienDarkR === 3.5,
+    '视野数值在声明层：人类近身 ' + VIS2.sg.humanDarkR + ' 格、异形近身 ' + VIS2.sg.alienDarkR + ' 格');
+  ok(VIS2.alienFarLit === VIS2.humanFarLit && VIS2.alienFarLit,
+    '同一条**亮走廊** 10 格外：异形 AI 与人类 AI 一样看得见（亮区整片可见对 AI 成立，与玩家同规则）');
+  ok(VIS2.darkAlien === false && VIS2.darkHuman === false,
+    '走廊熄灯后同一位置：两边都看不见（放开只给亮区，不给 AI 超出玩家的视力）');
   ok(VIS2.light.state === 2 && VIS2.alienNear && !VIS2.humanNear,
-    '断电后 3 格：异形近身 3.11 格看得见，人类 2.8 格外看不见');
+    '断电后 3 格：异形近身 3.5 格看得见，人类 2.8 格外看不见');
   ok(VIS2.alienCone && VIS2.humanCone,
     '同款手电锥：朝向 5 格内的目标都看得见');
   ok(VIS2.humanBack && !VIS2.humanBackFar,
     '人类近身 2.8 格：背后 2 格可见、3 格不可见');
-  ok(VIS2.alienBack && !VIS2.alienBackMid && !VIS2.alienBackFar,
-    '异形近身 3.11 格：背后 3 格可见、4 格与 6.5 格都不可见');
+  ok(VIS2.alienBack && !VIS2.alienEdge && !VIS2.alienBackMid && !VIS2.alienBackFar,
+    '异形近身 3.5 格：背后 3 格可见，3.6 / 4 / 6.5 格都不可见（边界钉死）');
 
   section('视野 · 亮房整间可见 / 暗房才受视野限制');
   await fresh(false);
@@ -5648,6 +6467,49 @@ function section(t) { console.log('\n== ' + t); }
   await page.click('#rp-close');
   await page.waitForTimeout(120);
   ok((await T(() => SKReplay.isOpen())) === false, '复盘页可关闭并回到结束页');
+  /* ---- 本批新增的两块 UI（2026-11-03，调研报告 P1-4：结算页信息量过低）----
+       ① 结算页逐席亮身份 + 「谁投了谁」矩阵；
+       ② 复盘页把「聊天/发言」从「会议/投票」里分家 ——
+          500+ 条事件里台词占大头，混在一起会把"哪一轮开了会、谁投了谁"淹掉。
+     投票矩阵要有真实投票才画得出来，所以这里**自己开一局、走一场完整投票、再结算**，
+     不蹭上面用例留下的对局（那样会随随机路径偶发变成"0 场投票"，测到的是夹具不是功能）。 */
+  const UI2 = await T(() => {
+    const t = SKV3._t;
+    t.newGame();
+    /* ⚠ `newGame()` 会**整个换掉** G 对象：先 `const g=t.G()` 再 `newGame()` 拿到的是
+       被丢弃的旧状态，之后的赋值全打在空气上（这条在夹具里静默失败过，别再来一次）。 */
+    const g = t.G();
+    g.noReport = true; g.paused = true;
+    /* 走**已验证可用**的投票链路：openMeeting('day') → startVote → closeVote → finishMeeting */
+    t.openMeeting('day');
+    t.startVote();
+    t.closeVote();
+    if (g.meet) t.finishMeeting();
+    const voteEvents = (g.events || []).filter(e => e.kind === 'vote').length;
+    g.prog = t.winPts();
+    const won = t.checkWin();
+    return {
+      won, voteEvents,
+      endShown: !document.getElementById('end').classList.contains('hide'),
+      rows: document.querySelectorAll('#e-ids .row').length,
+      ali: document.querySelectorAll('#e-ids .chip.ali').length,
+      hum: document.querySelectorAll('#e-ids .chip.hum').length,
+      meets: document.querySelectorAll('#e-votes .row.mtg').length,
+      head: (document.querySelector('#e-votes .row.mtg') || {}).textContent || '',
+    };
+  });
+  ok(UI2.endShown && UI2.won && UI2.rows === 15 && UI2.ali === 4 && UI2.hum === 11,
+    '结算页逐席亮身份：15 席全亮（异形 ' + UI2.ali + ' / 人类 ' + UI2.hum + '，结束屏 ' +
+    UI2.endShown + '）');
+  ok(UI2.voteEvents >= 1 && UI2.meets >= 1 && /夜/.test(UI2.head),
+    '结算页有「谁投了谁」矩阵：' + UI2.voteEvents + ' 张票 → ' + UI2.meets + ' 场投票（逐条列谁投谁 / 弃权）');
+  /* 复盘页的筛选与夜长是**源码级**契约（DOM 只在打开回放后存在，这里已经关了） */
+  const REPLAY_SRC = fs.readFileSync(path.join(__dirname, '..', 'js', 'ui', 'replay.js'), 'utf8');
+  const MEET_ROW = (REPLAY_SRC.match(/\{\s*id: 'meet'[^\n]*/) || [''])[0];
+  ok(/id: 'chat'/.test(REPLAY_SRC) && MEET_ROW.indexOf('chat') < 0,
+    '复盘页「聊天/发言」独立成档，且不再混在「会议/投票」里');
+  ok(!/var NIGHT_LEN = 120;/.test(REPLAY_SRC) && /SKSanity\.NIGHT/.test(REPLAY_SRC),
+    '复盘页夜长改读 SKSanity.NIGHT.len（此前按过期的 120 秒换算 75 秒的夜）');
   const replayJson = await T(() => JSON.stringify(SKV3._t.replay()));
   await page.setInputFiles('#home-replay-file', {
     name: 'replay.json', mimeType: 'application/json', buffer: Buffer.from(replayJson)

@@ -50,12 +50,25 @@
   .row span:first-child{color:#8A94A3}
   .row b{color:#F0C674;font-weight:500}
   .btns{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
+  /* 结算页的两块表（2026-11-03）：身份表 + 投票矩阵，复用复盘页的配色口径 */
+  #end .card{max-height:86vh;overflow:auto}
+  .eblk{margin-top:12px;text-align:left}
+  .eh{font:600 12px/1.6 system-ui;color:#8ea0b5;letter-spacing:.5px}
+  .etbl{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font:500 11px/1.6 system-ui}
+  .etbl .row{width:100%;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .chip{padding:1px 6px;border-radius:8px;background:#141a22;border:1px solid #2a3442;color:#c8d4e2}
+  .chip.ali{border-color:#7a3b39;color:#ff9a90}
+  .chip.hum{border-color:#2f4a5c;color:#9fd8ef}
+  .chip.dead{opacity:.6}
+  .chip.ex{border-color:#8a6a2a;color:#f0c674}
+  .mtg{width:100%;margin-top:6px;padding-top:4px;border-top:1px dashed #24303e;color:#8ea0b5}
   button{background:#1D2530;color:#DDE3EC;border:1px solid #313B4B;border-radius:8px;
     padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
   button:hover{background:#26313F;border-color:#43536B}
   button.p{background:#2A4A6B;border-color:#3C6690}
   .who{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .who button{padding:6px 11px;font-size:12.5px}
+  .vote-skip{width:100%;margin-top:8px;padding:8px 12px;font-size:12.5px}
   .hide{display:none}
   .mtg{display:grid;grid-template-columns:1fr 1.05fr .95fr;gap:14px;width:min(1180px,94vw);
     height:min(620px,86vh)}
@@ -280,12 +293,17 @@
   <div class="col vote">
     <div class="ch">投票</div>
     <div class="who" id="m-who"></div>
+    <button id="m-skip-vote" class="vote-skip hide" title="结束剩余投票时间；已选目标保留，未选视为弃权">跳过投票</button>
     <div id="m-tally"></div>
   </div>
 </div></div>
 
 <div id="end" class="ov hide"><div class="card">
   <h2 id="e-t">结束</h2><div class="sub" id="e-s"></div>
+  <!-- 结算页不再只给一行字（2026-11-03 调研报告 P1-4）：
+       身份表 + 投票矩阵都在事件流里，只差渲染；点「复盘」仍是完整时间轴。 -->
+  <div class="eblk"><div class="eh">本局身份</div><div id="e-ids" class="etbl"></div></div>
+  <div class="eblk"><div class="eh">谁投了谁</div><div id="e-votes" class="etbl"></div></div>
   <div class="btns"><button class="p" id="e-r">再来一局</button>
     <button id="e-rep">复盘</button><button id="e-save">保存回放</button></div>
 </div></div>

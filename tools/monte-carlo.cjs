@@ -52,6 +52,57 @@ function median(a, key) {
   return xs.length % 2 ? xs[m] : (xs[m - 1] + xs[m]) / 2;
 }
 function pct(n, d) { return d ? +(n / d * 100).toFixed(2) : 0; }
+/* 读 SKSanity 的当前配置（js/ai/sanity.js 是纯模块，Node 里可以直接 eval）。
+   报告里必须写清"这批局用的是哪套数"，否则隔一周没人知道 56.5% 对应什么参数。 */
+function readCfg() {
+  try {
+    const win = {};
+    new Function('window', require('fs').readFileSync(
+      path.resolve(__dirname, '..', 'js/ai/sanity.js'), 'utf8'))(win);
+    const S = win.SKSanity || {};
+    const M = S.MEET || {}, N = S.NIGHT || {}, W = S.WIN || {}, D = S.DISGUISE || {};
+    return {
+      nightLen: N.len, meetPerNight: M.perNight, reportsPerAgent: M.reportsPerAgent,
+      discussDay: M.discussDay, discussNight: M.discussNight,
+      voteDay: M.voteDay, voteNight: M.voteNight, reveal: M.reveal,
+      winPts: W.pts, faultPenalty: W.faultPenalty,
+      alienDarkR: SIGHT_R(S, 'alienDarkR'), humanDarkR: SIGHT_R(S, 'humanDarkR'),
+      aiCapR: (S.SIGHT || {}).aiCapR, confirmNearR: (S.CONFIRM || {}).nearR,
+      huntMemorySec: (S.HUNT || {}).memorySec, rushMul: (S.RUSH || {}).mul,
+      terminatorNight: (S.TERMINATOR || {}).night, disguiseCooldown: D.cooldown,
+    };
+  } catch (e) { return { cfgError: e.message }; }
+}
+function SIGHT_R(S, k) { return (S.SIGHT || {})[k]; }
+function quantile(xs, q) {
+  const v = xs.filter(Number.isFinite).slice().sort((a, b) => a - b);
+  if (!v.length) return 0;
+  const i = Math.min(v.length - 1, Math.max(0, Math.round((v.length - 1) * q)));
+  return +v[i].toFixed(3);
+}
+/* Wilson 区间（小样本/极端比例下比正态区间稳） */
+function wilson(k, n) {
+  if (!n) return [0, 0];
+  const p = k / n, z = 1.96, d = 1 + z * z / n;
+  const c = (p + z * z / (2 * n)) / d;
+  const h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [+(Math.max(0, c - h) * 100).toFixed(2), +(Math.min(1, c + h) * 100).toFixed(2)];
+}
+/* 分桶：edges 为 [下,上] 闭区间数组，返回每桶的局数与人类胜率 + Wilson 区间 */
+function bucket(results, key, edges) {
+  return edges.map(([lo, hi]) => {
+    const g = results.filter(r => {
+      const v = +r[key];
+      return Number.isFinite(v) && v >= lo && v <= hi;
+    });
+    const hw = g.filter(r => r.winner === 'human').length;
+    return { label: (lo === 0 ? '≤' + hi : (hi >= 1e9 ? '≥' + lo : lo + '~' + hi)),
+      games: g.length, share: pct(g.length, results.length),
+      humanWin: pct(hw, g.length), ci: wilson(hw, g.length),
+      avgNights: +mean(g, 'nights').toFixed(2), avgProg: +mean(g, 'prog').toFixed(2),
+      avgKnives: +mean(g, 'knives').toFixed(2), avgMeetings: +mean(g, 'meetings').toFixed(2) };
+  }).filter(b => b.games > 0);
+}
 
 function summarize(results) {
   const n = results.length;
@@ -69,8 +120,14 @@ function summarize(results) {
   const keys = ['nights', 'prog', 'steps', 'meetings', 'knives', 'shots', 'sabotages',
     'exiles', 'humanExiles', 'alienExiles', 'searches', 'loots', 'bulletsLooted',
     'medkitsLooted', 'qualsLooted', 'humanLoots', 'alienLoots', 'humanShots',
-    'alienShots', 'fakeRepairs', 'fakeTasks', 'alienTasks', 'revives', 'alienPipes',
+    'alienShots', 'fakeRepairs', 'fakeTasks', 'fakeBreaker', 'rushKills', 'alienTasks', 'revives', 'alienPipes',
     'alienPipePlans', 'humans', 'aliens', 'downed',
+    /* 2026-11-03 新增：终结者时刻到达率与补枪数（均值即"多少比例的局打得进第 10 夜"） */
+    'terminatorGames', 'terminatorArms',
+    /* 2026-11-03 新增：信任聚焦 / 领袖服从 / 贵信号（这些是"机制有没有落地"的判据） */
+    'orders', 'orderObey', 'orderRefuse', 'endorses', 'credFollow',
+    'realFixes', 'realRevives', 'credShieldVotes', 'abstains',
+    'streakCuts', 'lineDups', 'mutualFrames',
     /* 2026-10-31 新增：医疗无人机救治 / 医疗包施救 / 幽灵任务 / 幽灵修故障 /
        人类辩护 / 异形质疑快速报案者 */
     'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
@@ -114,11 +171,74 @@ function summarize(results) {
   };
   const tries = sab.triesPerGame;
   sab.hitRate = tries ? +((sab.hitsPerGame / tries) * 100).toFixed(1) : 0;
+  /* ---------------- 2026-11-03 报告要素扩充（用户：尽可能扩充，便于看怎么调平衡） ----------------
+     只加读数，**不动任何数值与判定**。三件事是调平衡时真正要盯的：
+       ① 机制触达率：新加的机制（背书/领袖/贵信号/伪装/终结者）到底在多少比例的对局里发生过？
+          均值 0.05 这种数看不出是「每局都有一点点」还是「20 局里 1 局爆了」——所以按局数分布报。
+       ② 分桶胜率：把单一变量（刀数 / 夜数 / 会议数 / 驱逐数 / 进度）切片，看胜率断崖在哪儿。
+       ③ 交叉表：结束原因 × 胜者，回答「人类赢是靠修完还是靠清剿」。 */
+  const REACH_KEYS = ['terminatorGames', 'orders', 'orderObey', 'orderRefuse', 'endorses',
+    'credFollow', 'realFixes', 'realRevives', 'credShieldVotes', 'fakeRepairs', 'fakeTasks',
+    'fakeBreaker', 'rushKills', 'alienTasks', 'alienPipes', 'almostFriendCount', 'friendShield',
+    'almostCount', 'almostEject', 'presenceDeny', 'avoidSus', 'retractCount', 'allyRevealed',
+    'humanDefends', 'reportDoubts', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
+    'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives'];
+  const reach = {};
+  for (const k of REACH_KEYS) {
+    const xs = results.map(r => +r[k]).filter(Number.isFinite);
+    const hit = xs.filter(x => x > 0).length;
+    reach[k] = {
+      anyRate: pct(hit, results.length),          /* 至少发生过一次的局数占比 */
+      twoRate: pct(xs.filter(x => x >= 2).length, results.length),
+      mean: +mean(results, k).toFixed(3),
+      meanWhenHit: hit ? +(xs.filter(x => x > 0).reduce((s, x) => s + x, 0) / hit).toFixed(2) : 0,
+      max: xs.length ? Math.max.apply(null, xs) : 0,
+    };
+  }
+  /* 分桶：先看刀数断崖（历史上胜率几乎完全由它决定），再看夜数/会议/驱逐/进度 */
+  const buckets = {
+    knives: bucket(results, 'knives', [[0, 8], [9, 10], [11, 12], [13, 14], [15, 1e9]]),
+    nights: bucket(results, 'nights', [[1, 3], [4, 5], [6, 7], [8, 10], [11, 1e9]]),
+    meetings: bucket(results, 'meetings', [[0, 6], [7, 10], [11, 14], [15, 1e9]]),
+    exiles: bucket(results, 'exiles', [[0, 1], [2, 3], [4, 6], [7, 1e9]]),
+    prog: bucket(results, 'prog', [[0, 14], [15, 29], [30, 44], [45, 1e9]]),
+    humansAlive: bucket(results, 'humans', [[0, 2], [3, 5], [6, 8], [9, 1e9]]),
+    aliensAlive: bucket(results, 'aliens', [[0, 0], [1, 1], [2, 2], [3, 1e9]]),
+  };
+  /* 关键变量的分布（P10/P50/P90）：均值会把"少数极端局"抹平，这三档才是调参依据 */
+  const dist = {};
+  for (const k of ['nights', 'prog', 'knives', 'meetings', 'exiles', 'humans', 'aliens',
+    'sabotages', 'shots', 'searches', 'fakeRepairs', 'fakeTasks', 'knownWrites', 'contradictions']) {
+    const xs = results.map(r => +r[k]).filter(Number.isFinite);
+    dist[k] = { p10: quantile(xs, 0.1), p50: quantile(xs, 0.5), p90: quantile(xs, 0.9),
+      mean: +mean(results, k).toFixed(3) };
+  }
+  /* 结束原因 × 胜者交叉表 */
+  const cross = {};
+  for (const r of results) {
+    const w = r.winner || 'timeout', y = r.why || '(空)';
+    cross[w] = cross[w] || {};
+    cross[w][y] = (cross[w][y] || 0) + 1;
+  }
+  /* 速率：把"每夜"这一维单独算出来 —— 夜长 NIGHT 与胜利分 WIN_PTS 的作用点就在这两条上 */
+  const rate = {
+    progPerNight: +(avg.prog / Math.max(0.5, avg.nights)).toFixed(3),
+    knivesPerNight: +(avg.knives / Math.max(0.5, avg.nights)).toFixed(3),
+    meetingsPerNight: +(avg.meetings / Math.max(0.5, avg.nights)).toFixed(3),
+    exilesPerMeeting: +(avg.exiles / Math.max(0.5, avg.meetings)).toFixed(3),
+    downPerNight: +(avg.downed / Math.max(0.5, avg.nights)).toFixed(3),
+    humanExileShare: pct(avg.humanExiles, Math.max(0.001, avg.exiles)),
+    /* 清场线：异形要赢需要把 11 人类打到 0，实测"每局刀数 / 11"就是清场压力 */
+    knifePressure: +(avg.knives / 11).toFixed(3),
+    /* 人类进度达成率：局末进度 / 45（未赢的局也计入，看差多少） */
+    progRate: +(avg.prog / 45).toFixed(3),
+  };
   return {
     games: n,
     wins: { human, alien, timeout },
     tasksPerGame,
     sab,
+    reach, buckets, dist, cross, rate,
     winRate: { human: pct(human, n), alien: pct(alien, n), timeout: pct(timeout, n) },
     humanWin95CI: [+(ciLo * 100).toFixed(2), +(ciHi * 100).toFixed(2)],
     reasons: why,
@@ -132,17 +252,37 @@ function summarize(results) {
 }
 
 function writeOut(results, finished) {
+  const cfg = readCfg();
   const payload = {
     meta: {
       generatedAt: new Date().toISOString(),
       games: GAMES, finished, seed: BASE_SEED, dt: DT, maxNights: MAX_NIGHTS,
       mode: 'AI vs AI（旁观者局，无玩家操作）',
+      config: cfg,
       notes: [
-        '夜会议按 30 秒扣夜；白天会议不占夜。',
+        '会议期间夜晚时钟暂停（SKSanity.MEET.pauseClock），白天会议不占夜；旧口径「夜会议按 30 秒扣夜」已作废。',
         '讨论台词不逐条播放，会议决策与传闻嫌疑在开会时同步结算。',
         '跳过渲染/HUD/音效/自动不变量；对局逻辑与正式版一致。',
+        '⚠ **配置快照里的 `aiCapR` 只封暗处**：F 轮（2026-11-03）起 `aiCanSee` 先走亮区整片可见' +
+        '（同亮舱整间 / 同亮走廊整条 / 亮舱看相连走廊要 LOS），命中不看这个上限，' +
+        '只有暗舱与「站在舱外看进亮舱」才受它约束。跨批比较视野相关读数（knownWrites / 目击 / 伪装）前先看这条。',
+        '⚠ **工具口径盲区（读数为 0 不等于机制没接）**：`startChatter` 在 simMode 下排期段直接 return' +
+        '（讨论台词不逐条播放），而 `orders` / `orderObey` / `orderRefuse` / `endorses` 这几个计数就长在排期段里' +
+        ' ⇒ AI 对 AI 恒为 0。领袖指令与当众背书**在真人局里照常发生**，' +
+        '行为由门禁的「领袖 · 指令真的有人接牌」与「语料工程」两组用例覆盖，不要拿这几格 0 去判机制死活。',
+        '⚠ **真实行为读数（0 就是 0）**：`realFixes`（异形真修故障）与 `fakeBreaker`（异形当众合闸）' +
+        '不依赖排期，恒为 0 是**效用表自己选的** —— 假装修不吃 realCost、也不站满 10 秒，' +
+        '所以自发情况下没人选贵信号。这条与门禁里那条"量化事实"断言一致，等用户决定是否抬高收益。',
+        '⚠ **同 seed 不等于同随机路径**：批次模拟用 simRng(seed) 播种 Math.random，' +
+        '所以**任何新增一次随机调用都会把后面整条随机流挪位**' +
+        '（语料交替槽展开、去重重挑都算随机调用）。后果：胜率与粗粒度总量' +
+        '（夜数、进度、刀数、会议数）可以跨批对比；**单个机制的次数**' +
+        '（fakeRepairs / fakeTasks / alienPipes 这类）在同一 seed 下也可能因路径漂移大幅摆动，' +
+        '**这不是回归**。要在两批之间做归因，必须换 seed 各跑一批看摆动幅度，' +
+        '不要拿单批的格子差值下结论。',
         '统计口径：searches/loots 为搜尸次数与真正取到物资的次数；humanLoots/alienLoots 按阵营拆分；' +
-          'alienPipes 为实际钻管道次数，fakeRepairs/fakeTasks 为异形假装维修与假装做任务次数，' +
+          'alienPipes 为实际钻管道次数；fakeRepairs / fakeTasks / fakeBreaker 分别为异形' +
+          '假装修理、假装做任务、当众合闸的演出次数（三者同进 alienPlan 效用表比分）；' +
           'alienTasks 为真做任务次数。'
       ]
     },
@@ -167,6 +307,30 @@ function writeOut(results, finished) {
     '| 超时未决 | ' + s.wins.timeout + ' | ' + s.winRate.timeout + '% |',
     '',
     '人类胜率 95% Wilson 区间：' + s.humanWin95CI[0] + '% ~ ' + s.humanWin95CI[1] + '%',
+    '',
+    '## 本次实测用的配置（单一真源快照 · 便于对照调参）',
+    '',
+    '> 这张表由 `tools/monte-carlo.cjs` 直接 eval `js/ai/sanity.js` 读出，**不是手写的**。',
+    '> 隔一周回头看胜率，先对这一栏：数没变才能比，数变了就是另一批。',
+    '',
+    '| 参数 | 值 | 位置 |',
+    '|---|---:|---|',
+    '| 夜长（秒） | ' + cfg.nightLen + ' | SKSanity.NIGHT.len |',
+    '| 人类胜利维修分 | ' + cfg.winPts + ' | SKSanity.WIN.pts |',
+    '| 故障超时扣分 | ' + cfg.faultPenalty + ' | SKSanity.WIN.faultPenalty |',
+    '| 每夜会议上限 | ' + cfg.meetPerNight + ' | SKSanity.MEET.perNight |',
+    '| 每人报告额度 | ' + cfg.reportsPerAgent + ' | SKSanity.MEET.reportsPerAgent |',
+    '| 白天讨论 / 夜会讨论 | ' + cfg.discussDay + ' / ' + cfg.discussNight + ' | SKSanity.MEET |',
+    '| 投票等待（白天/夜会） | ' + cfg.voteDay + ' / ' + cfg.voteNight + ' | SKSanity.MEET |',
+    '| 结果公布 | ' + cfg.reveal + ' | SKSanity.MEET.reveal |',
+    '| 异形暗处视野 | ' + cfg.alienDarkR + ' | SKSanity.SIGHT.alienDarkR |',
+    '| 人类暗处视野 | ' + cfg.humanDarkR + ' | SKSanity.SIGHT.humanDarkR |',
+    '| AI 视距上限 | ' + cfg.aiCapR + ' | SKSanity.SIGHT.aiCapR |',
+    '| 确证距离门槛 | ' + cfg.confirmNearR + ' | SKSanity.CONFIRM.nearR |',
+    '| 追猎记忆时效（秒） | ' + cfg.huntMemorySec + ' | SKSanity.HUNT.memorySec |',
+    '| 击杀加速倍率 | ' + cfg.rushMul + ' | SKSanity.RUSH.mul |',
+    '| 终结者夜数 | ' + cfg.terminatorNight + ' | SKSanity.TERMINATOR.night |',
+    '| 伪装冷却（秒） | ' + cfg.disguiseCooldown + ' | SKSanity.DISGUISE.cooldown |',
     '',
     '## 结束原因',
     '',
@@ -238,6 +402,91 @@ function writeOut(results, finished) {
     '| 每局被修掉 | ' + s.sab.fixedPerGame + ' | 平均存活 ' + s.sab.avgFixSec + ' 秒（上限 30） |',
     '| 其中幽灵抢修 | ' + s.sab.ghostFixedPerGame + ' | 幽灵修复额度被故障吃掉多少 |',
     '',
+    '## 机制触达率（2026-11-03 扩充 · 调平衡先看清"这条线到底有没有跑"）',
+    '',
+    '> `任何一局发生过的比例` 才是"机制是否落地"的判据；均值 0.05 可能是"每局一点点"，',
+    '> 也可能是"20 局里 1 局爆发"，两者要的处理完全不同。`命中局均值` 只在发生过时统计。',
+    '',
+    '| 指标 | 触达率(≥1 次的局) | ≥2 次的局 | 全局均值 | 命中局均值 | 单局最大 |',
+    '|---|---:|---:|---:|---:|---:|',
+    ...Object.keys(s.reach || {}).map(k => '| ' + k + ' | ' + s.reach[k].anyRate + '% | ' +
+      s.reach[k].twoRate + '% | ' + s.reach[k].mean + ' | ' + s.reach[k].meanWhenHit + ' | ' +
+      s.reach[k].max + ' |'),
+    '',
+    '## 刀数分桶胜率（清场线断崖在哪）',
+    '',
+    '> 异形清场需要 11 刀；这条桶表用来确认胜率拐点是否仍压在刀数上。',
+    '',
+    '| 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 | 平均夜数 | 平均进度 | 平均会议 |',
+    '|---|---:|---:|---:|---|---:|---:|---:|',
+    ...(s.buckets.knives || []).map(b => '| 刀 ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' +
+      b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' | ' + b.avgNights + ' | ' + b.avgProg + ' | ' + b.avgMeetings + ' |'),
+    '',
+    '## 夜数分桶胜率（夜长 NIGHT 的作用点）',
+    '',
+    '| 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 | 平均刀数 | 平均进度 |',
+    '|---|---:|---:|---:|---|---:|---:|',
+    ...(s.buckets.nights || []).map(b => '| 夜 ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' +
+      b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' | ' + b.avgKnives + ' | ' + b.avgProg + ' |'),
+    '',
+    '## 会议数分桶胜率（会议是"伴随现象"还是"因"）',
+    '',
+    '| 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 | 平均夜数 | 平均刀数 |',
+    '|---|---:|---:|---:|---|---:|---:|',
+    ...(s.buckets.meetings || []).map(b => '| 会 ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' +
+      b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' | ' + b.avgNights + ' | ' + b.avgKnives + ' |'),
+    '',
+    '## 驱逐数分桶胜率',
+    '',
+    '| 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 | 平均夜数 | 平均进度 |',
+    '|---|---:|---:|---:|---|---:|---:|',
+    ...(s.buckets.exiles || []).map(b => '| 逐 ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' +
+      b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' | ' + b.avgNights + ' | ' + b.avgProg + ' |'),
+    '',
+    '## 局末进度分桶（差多少分才赢）',
+    '',
+    '| 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 | 平均夜数 | 平均刀数 |',
+    '|---|---:|---:|---:|---|---:|---:|',
+    ...(s.buckets.prog || []).map(b => '| 分 ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' +
+      b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' | ' + b.avgNights + ' | ' + b.avgKnives + ' |'),
+    '',
+    '## 结束时存活分桶',
+    '',
+    '| 维度 | 区间 | 局数 | 占比 | 人类胜率 | 95% 区间 |',
+    '|---|---|---:|---:|---:|---|',
+    ...(s.buckets.humansAlive || []).map(b => '| 人类存活 | ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' + b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' |'),
+    ...(s.buckets.aliensAlive || []).map(b => '| 异形存活 | ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' + b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' |'),
+    '',
+    '## 关键变量分布（P10 / P50 / P90 · 均值会抹平长尾）',
+    '',
+    '| 指标 | P10 | P50 | P90 | 均值 |',
+    '|---|---:|---:|---:|---:|',
+    ...Object.keys(s.dist || {}).map(k => '| ' + k + ' | ' + s.dist[k].p10 + ' | ' + s.dist[k].p50 +
+      ' | ' + s.dist[k].p90 + ' | ' + s.dist[k].mean + ' |'),
+    '',
+    '## 每夜速率（调 NIGHT / WIN_PTS 之前先看这两条）',
+    '',
+    '| 指标 | 数值 | 说明 |',
+    '|---|---:|---|',
+    '| 进度/夜 | ' + s.rate.progPerNight + ' | 人类每个夜晚平均推进多少维修分（45 分胜利） |',
+    '| 刀/夜 | ' + s.rate.knivesPerNight + ' | 异形每个夜晚平均出刀次数 |',
+    '| 会议/夜 | ' + s.rate.meetingsPerNight + ' | 每夜会议密度（每夜上限 ' + cfg.meetPerNight + ' 场） |',
+    '| 驱逐/会议 | ' + s.rate.exilesPerMeeting + ' | 一场会议平均产出几次驱逐 |',
+    '| 濒死/夜 | ' + s.rate.downPerNight + ' | 每夜平均倒下人数（含未致死） |',
+    '| 误逐占比 | ' + s.rate.humanExileShare + '% | 被驱逐的人里是人类的比例 |',
+    '| 清场压力 | ' + s.rate.knifePressure + ' | 平均刀数 ÷ 11（≥1 表示异形平均能摸到清场线） |',
+    '| 进度达成 | ' + s.rate.progRate + ' | 局末进度 ÷ 45（未赢的局也计入） |',
+    '',
+    '## 结束原因 × 胜者交叉表',
+    '',
+    '| 胜者 | 结束原因 | 局数 | 占该阵营胜局 |',
+    '|---|---|---:|---:|',
+    ...Object.keys(s.cross || {}).sort().flatMap(w => {
+      const tot = Object.values(s.cross[w]).reduce((a, b) => a + b, 0);
+      return Object.keys(s.cross[w]).sort().map(y => '| ' + w + ' | ' + y + ' | ' + s.cross[w][y] +
+        ' | ' + pct(s.cross[w][y], tot) + '% |');
+    }),
+    '',
     '## 分任务点完成次数（每局平均 · 由少到多）',
     '',
     '> 只统计、不干预。用来回答「电路维修是不是几乎没人做」这类分布问题：',
@@ -254,6 +503,20 @@ function writeOut(results, finished) {
     ''
   ];
   fs.writeFileSync(REPORT, md.join('\n'));
+}
+
+/* 只重建报告，不重跑对局：`node tools/monte-carlo.cjs --rereport`
+   改了报告模板 / 加了新统计格的时候用，直接读 tools/mc-results.json 里那 1000 局，
+   **数字与跑批时完全一致**（同一批局），省掉 7 分钟的重复模拟。 */
+if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
+  const raw = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+  const rs = raw.results || [];
+  if (!rs.length) { console.error('mc-results.json 里没有局数据'); process.exit(2); }
+  writeOut(rs, rs.length);
+  const s2 = summarize(rs);
+  console.log('报告已由 ' + rs.length + ' 局既有结果重建 → ' + path.relative(DIR, REPORT));
+  console.log('人 ' + s2.winRate.human + '% / 异 ' + s2.winRate.alien + '% / 超时 ' + s2.winRate.timeout + '%');
+  process.exit(0);
 }
 
 (async () => {
