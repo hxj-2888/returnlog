@@ -16,6 +16,9 @@
     "start": "node tools/serve.cjs",
     "dev": "node tools/serve.cjs",
     "test": "node tools/test-v3.cjs",
-    "sim": "node tools/monte-carlo.cjs"
+    "sim": "node tools/monte-carlo.cjs",
+    "ship": "node tools/ship.cjs",
+    "ship:fast": "node tools/ship.cjs --fast",
+    "ship:web": "node tools/ship.cjs --only=web,portfolio"
   }
 }
