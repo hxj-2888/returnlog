@@ -76,8 +76,51 @@ function commitAndPush(dir, paths, msg, hint) {
     if (args('git', ['commit', '-q', '-m', msg], dir).status !== 0) fail('git commit 失败', hint);
     console.log('[ship] 已提交：' + msg);
   } else console.log('[ship] ' + path.basename(dir) + ' 无改动，跳过提交');
-  if (args('git', ['push', 'origin', 'main'], dir).status !== 0) fail('推送 GitHub 失败', 'git push origin main');
-  if (args('git', ['push', 'gitee', 'main'], dir).status !== 0) fail('推送 Gitee 失败', 'git push gitee main');
+  pushRemote('origin', dir, true);
+  pushRemote('gitee', dir, false);
+}
+const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const REMOTE_LABEL = { origin: 'GitHub', gitee: 'Gitee' };
+/* 认证坏了和链路坏了必须分开报。凭据失效时 git 会想找终端要账号密码，而这里是
+   spawnSync 没有 TTY，失败信息长得像网络问题，于是出现"GitHub 明明上去了却报推送失败"。 */
+function preflight(remote, dir, label) {
+  const r = args('git', ['-c', 'credential.interactive=false', 'ls-remote', '--exit-code', remote, 'HEAD'], dir, true);
+  if (r.status === 0) return true;
+  const out = (r.out || '').trim();
+  if (/could not read Username|Authentication failed|terminal prompts disabled|Permission denied|403/i.test(out)) {
+    console.error('[ship] ✗ ' + label + ' 认证失败（不是网络）：' + (remote === 'origin' ? '跑 `gh auth login`' : '重新输入 Gitee 账号/令牌'));
+  } else {
+    console.error('[ship] ⚠ ' + label + ' 预检不通（网络/代理）：' + out.split('\n').slice(-2).join(' '));
+  }
+  return false;
+}
+/* GitHub 是发布目标，失败即致命；Gitee 只是镜像，抖一下不该让整条流水线 exit(1)。
+   旧版 Gitee 推送失败会连带把已成功发布的这次报成"推送失败"。 */
+function pushRemote(remote, dir, fatal) {
+  const label = REMOTE_LABEL[remote] || remote;
+  const hint = 'git push ' + remote + ' main';
+  if (!preflight(remote, dir, label)) {
+    if (fatal) fail('推送 ' + label + ' 失败', hint);
+    results.push({ name: '推送 ' + label, ok: false });
+    return;
+  }
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const r = args('git', ['push', remote, 'main'], dir, true);
+    if (r.status === 0) {
+      console.log('[ship] ✓ 已推送 ' + label + (attempt > 1 ? '（第 ' + attempt + ' 次重试成功）' : ''));
+      results.push({ name: '推送 ' + label, ok: true });
+      return;
+    }
+    if (attempt < 3) {
+      console.log('[ship] ' + label + ' 第 ' + attempt + ' 次失败，1.5s 后重试…');
+      sleepSync(1500);
+    } else {
+      console.error('[ship] ' + label + ' 三次都失败，最后输出：\n  ' +
+        (r.out || '').trim().split('\n').slice(-6).join('\n  '));
+      if (fatal) fail('推送 ' + label + ' 失败', hint);
+      results.push({ name: '推送 ' + label, ok: false });
+    }
+  }
 }
 function log(m) { console.log('\n[ship] ' + m); }
 function ok(name, t0) { results.push({ name, ok: true, ms: Date.now() - t0 }); console.log('[ship] ✓ ' + name + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + 's)'); }
