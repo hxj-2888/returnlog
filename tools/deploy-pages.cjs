@@ -50,7 +50,20 @@ console.log('[deploy] 暂存 ' + n + ' 个文件 · ' + (bytes / 1048576).toFixe
 
 if (DRY) { console.log('[deploy] --dry-run：不实际上传'); process.exit(0); }
 
-const cmd = process.env.WRANGLER_CMD || 'wrangler';
+/* Windows 上 `wrangler` 只有 .ps1/.cmd 包装，spawnSync 直接调 'wrangler' 会
+   ENOENT（退出码 null）。这里自动找 npm 全局目录里的 wrangler.cmd，
+   免得每次都要手写 WRANGLER_CMD。 */
+function resolveWrangler() {
+  if (process.env.WRANGLER_CMD) return process.env.WRANGLER_CMD;
+  if (process.platform !== 'win32') return 'wrangler';
+  const cands = [
+    path.join(process.env.APPDATA || '', 'npm', 'wrangler.cmd'),
+    path.join(process.env.ProgramFiles || '', 'nodejs', 'wrangler.cmd'),
+  ];
+  for (const c of cands) if (c && fs.existsSync(c)) return c;
+  return 'wrangler.cmd';
+}
+const cmd = resolveWrangler();
 const args = ['pages', 'deploy', stageDir, '--project-name', PROJECT, '--commit-dirty=true'];
 const isWinCmd = /\.cmd$/i.test(cmd);
 const r = spawnSync(isWinCmd ? 'cmd.exe' : cmd,
