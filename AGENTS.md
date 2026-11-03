@@ -136,6 +136,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
 | `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（599 条） |
 | `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现） |
+| `tools/ship.cjs` | 发布 | **一键发布**：门禁 → APK（同步/构建/传 Release）→ CF Pages → GitHub+Gitee → 作品集（素材/部署/推送）。`npm run ship`；`--fast` 跳过门禁、`--only=web,portfolio` 跳过 APK |
 | `tools/mc-report.md` | 数据 | 2026-10-30 1000 局蒙特卡洛汇总（原始局在 `mc-results.json`） |
 | `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`；内置 5.2 版本守卫） |
 | `tools/check-blender.ps1` | 门禁 | 校验权威 Blender（路径 / 版本 / build hash / Python 载荷），不通过退出码 1 |
