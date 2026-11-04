@@ -34,3 +34,9 @@ assets/scene/v4/tex/*
 # 记录仍成对保留（F 与 E 基线各一份压缩档），只是不再屯原始字节。
 tools/mc-results.json
 tools/mc-results-E.json
+
+# ---- 层外目录：一切层均进库（2026-11-04 用户裁定）----
+# docs/_reference/（参考层 R）与 docs/_planned/（预增层 P）不再排除。
+# 只排除敏感信息：.env（上）、android/release.keystore（上）、
+# android/assets/www/（APK 打包副本，上）等既有条目保持有效。
+# 入库前须复核：不写 API key / token / 口令 / 私钥 / 凭据明文。

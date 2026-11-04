@@ -1,3 +1,13 @@
+/* ==== ARCH NODE · 架构节点标注（根 ARCHITECTURE.md） ====
+ * layer     : T2
+ * domain    : 跨域
+ * definedBy : 数值与判据
+ * truth     : js/ai/sanity.js#SKSanity.*
+ * verify    : mc 配置快照 / 门禁
+ * flag      : F  (F=现行事实 / N=规范裁定)
+ * note      : 数值真源 NIGHT/WIN/STAND/MEET/CRED/LENS
+ * 说明      : 本注释只作架构标注，不改变任何运行逻辑；多父只引用不复制。
+ * ============================================================== */
 /* =============================================================
  * 新返航录 · 理智兜底 / 伪装收益 / 正向信任（Sanity）
  *
@@ -297,6 +307,13 @@
     accuseShieldAt: 0.35,
     voteShield: 0.55,     /* 投票回避概率 = min(0.85, cred × 0.55) */
     testimony: 0.60,      /* 证言权重里 cred 的系数 */
+    /* 档 2 真源归一（2026-11-04）：演出种类 → CRED.gains 键的映射原本在
+       game.js 里另写一份 `KIND_CRED`，现外提到这里作为**唯一定义点**。
+       game.js 只引用 SKSanity.CRED.kindMap，不再复制第二张表。 */
+    kindMap: Object.freeze({
+      realFix:'fixDone', realRevive:'revive', breakerOn:'breakerOn',
+      fake:'fakeRepair', fakeTask:'fakeWork',
+    }),
   };
 
   /* ---------------- ⑤ 追责（2026-11-01） ----------------
