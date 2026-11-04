@@ -21,6 +21,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const zlib = require('zlib');
 const { deployDir } = require('./lib/wrangler.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -183,6 +184,22 @@ function pushRemote(remote, dir, fatal) {
   results.push({ name: '推送 ' + label, ok: false });
 }
 function log(m) { console.log('\n[ship] ' + m); }
+/* 蒙特卡洛原始局已改为 .json.gz 入库（.json 被 .gitignore 排除，实测压缩省 94%）。
+   发布前重压一次，避免仓里的压缩档比本机 json 旧——这一步不做，压缩档就会静默失真。 */
+function packSimArtifacts(dir) {
+  let packed = 0;
+  for (const rel of ['tools/mc-results.json', 'tools/mc-results-E.json']) {
+    const abs = path.join(dir, rel);
+    if (!fs.existsSync(abs)) continue;
+    const src = fs.readFileSync(abs);
+    const gz = zlib.gzipSync(src, { level: 9 });
+    fs.writeFileSync(abs + '.gz', gz);
+    packed++;
+    console.log('[ship] 压缩 ' + rel + ' ' + (src.length / 1048576).toFixed(2) + ' MB -> '
+      + (gz.length / 1048576).toFixed(2) + ' MB');
+  }
+  if (!packed) console.log('[ship] 无仿真原始局可压缩（跳过）');
+}
 function ok(name, t0) { results.push({ name, ok: true, ms: Date.now() - t0 }); console.log('[ship] ✓ ' + name + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + 's)'); }
 function summary() {
   if (!results.length) return;
@@ -214,6 +231,13 @@ function ensurePlaywright() {
 function main() {
   /* ① 门禁 */
   log('步骤 ' + (++step) + '/' + TOTAL + ' · 门禁');
+  /* 出仓素材完整性：只警告不拦停。这些贴图是烘焙/重渲源件，deploy 的 SKIP 规则
+     本来就不上传它们，缺了不影响站点上线；但它们是"本机唯一副本"，缺了会影响下次重烘焙。 */
+  const ac = shell('node tools/assets-check.cjs', ROOT, true);
+  if (ac.status === 2) console.log('[ship] 无 assets/MANIFEST.json，跳过出仓素材校验（可 --write 生成）');
+  else if (ac.status !== 0) console.log('[ship] ⚠ 出仓素材与清单不一致（不影响部署，影响后续重烘焙）：\n'
+    + ac.out.trim().split('\n').slice(0, 6).join('\n'));
+  else console.log('[ship] ✓ 出仓素材 ' + (ac.out.match(/校验 (\d+)/) || [])[1] + ' 项与清单一致');
   const pw = ensurePlaywright();
   if (pw) console.log('[ship] playwright-core: ' + pw);
   if (FAST) console.log('[ship] --fast：跳过门禁');
@@ -269,6 +293,7 @@ function main() {
     log('步骤 ' + (++step) + '/' + TOTAL + ' · 推送本仓：GitHub + Gitee');
     t0 = Date.now();
     const msg = MSG || ('chore(ship): 一键发布 ' + new Date().toISOString().slice(0, 10));
+    packSimArtifacts(ROOT);
     args('git', ['add', '-A'], ROOT);
     commitAndPush(ROOT, null, msg, 'git commit -m "..."');
     ok('本仓推送', t0);
