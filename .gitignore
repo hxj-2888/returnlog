@@ -19,3 +19,18 @@ android/assets/www/
 assets/scene/v4/facility/_raw/
 # Blender 渲染的原始帧（正式图由 tools/fx-post.py 合成）
 assets/scene/v4/facility/_raw_fx/
+
+# ---- 2026-11-04 载荷改造 ----
+# 烘焙源材质：js/ 里零引用，deploy-pages.cjs 的 SKIP 也把它们排除在上传之外，
+# 只在本机磁盘留着供 Blender/SDXL 复用。唯一例外 door-panel.png 被 js/game.js
+# 的 drawDoors 采样，是运行时依赖，继续入库。
+assets/scene/v4/tex/*
+!assets/scene/v4/tex/door-panel.png
+# 3D 预演的贴图是 v4/tex 的逐字节副本（sha1 相同），Godot 工程要本地文件，
+# 但仓库不必为同一份内容记两遍。
+3d/preview/assets/textures/
+# 蒙特卡洛原始局：改为 .json.gz 入库（实测 2.61 MB -> 0.16 MB，省 94%），
+# 未压缩 .json 降为本地工作文件，`npm run sim` 随时可复现。
+# 记录仍成对保留（F 与 E 基线各一份压缩档），只是不再屯原始字节。
+tools/mc-results.json
+tools/mc-results-E.json
