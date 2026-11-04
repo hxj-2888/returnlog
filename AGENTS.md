@@ -155,9 +155,10 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/engine/clock.js` | 引擎 | 相位时钟 / 个人技能槽 / 动作请求队列（纯逻辑） |
 | `js/engine/invariants.js` | 引擎 | 对局不变量断言（只读，`SKInvariants.check`） |
 | `js/engine/geo.js` | 引擎 | 几何、可行走网格（硬掩体）、A*、视线 |
-| `js/t2/space.js` | T2 · 空间与资源 | **方案 A 第一 / 四块**：8 个运行常量真源；第四批扩展为「常量 + 12 个几何 / 数值纯函数 + `ROW` / `PIPE_TINT` 两张表」（`SKT2Space`）。`game.js` 常量走局部别名、函数走薄委托；数值一个未改 |
-| `js/t2/ai.js` | T2 · AI 拟人化 | **方案 A 第二块**：认知链读值与时间窗真源（`SKT2AI`：susOf / topSus / crimeWindow）；状态沿用 `_t.G()`，`game.js` 保留同名薄委托 |
-| `js/t2/decision.js` | T2 · 玩家决策 | **方案 A 第三块**：报告额度（`bodyReported` / `markBodyReported` / `nightMeetLeft`）、会议席位标签与发言解析（`seatNo` / `tagName` / `tagByName` / `nameOf` / `whenWord` / `seatIndex` / `parseSpeech`）与 `ROOM_WORDS` / `CN_SEAT` 词表真源（`SKT2Decision`）；状态沿用 `_t.G()`，`game.js` 保留同名薄委托 |
+| `js/t2/space.js` | T2 · 空间与资源 | **方案 A 第一 / 四块**：8 个运行常量 + 12 个几何 / 数值纯函数 + `ROW` / `PIPE_TINT` 两张表真源（`SKT2Space`）；数值一个未改 |
+| `js/t2/ai.js` | T2 · AI 拟人化 | **方案 A 第二块 + 第 6 项**：认知链整组 26 个函数（读值与时间窗 + `evPush` / `susAdd` / `evalAlmost` / `checkAlibi` / `mindReset` / `bestKnownTarget` 等 23 个）与 `MEM_MAX` 常量真源（`SKT2AI`）；状态沿用 `_t.G()` |
+| `js/t2/decision.js` | T2 · 玩家决策 | **方案 A 第三 / 五块**：报告额度、会议席位标签与发言解析、`ROOM_WORDS` / `CN_SEAT` 词表，以及会议排期 `MEET_SCHED` + `stopChatter` / `meetLater` / `sayStreakOK` 真源（`SKT2Decision`）；状态沿用 `_t.G()` |
+| `js/game.js` 顶部别名块 | 编排 | **薄委托已收敛**：25 + 3 + 23 个 T2 函数以 `const x=SKT2X.x` 局部别名直接绑定（同一函数对象、无转发层）；最初试过 `SKT2X.x(...)` 命名空间直调，实测使渲染帧率下降、旁观者断言从 4.4 格掉到 2.4 格，故改为局部别名。详见 CHANGELOG |
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
