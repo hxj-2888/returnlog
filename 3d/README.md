@@ -2,6 +2,7 @@
 
 > 状态：**垂直切片 / 可行性验证**，不是正式 3D 客户端。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
+> 2026-11-04 早补：完整版（含 .NET / `GodotSharp`）已装，GDScript 工程两份编辑器读数一致，见 §3。
 > 主项目 2.5D 的 `file://` 红线**不适用**于本目录；这里不通过 `index.html` 加载。
 
 ## 1. 这个预演回答什么问题
@@ -24,8 +25,10 @@
 ## 3. 快速运行
 
 ```bash
-# 便携版 Godot（不在 PATH 上）
+# 便携版 Godot（不在 PATH 上）—— 标准版
 GODOT="E:/ai-tools/godot/Godot_v4.6-stable_win64_console.exe"
+# 完整版（含 .NET，2026-11-04 装）——要上 C# 时用这一份
+GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win64_console.exe"
 
 # 首次导入资源
 "$GODOT" --headless --path 3d/preview --editor --quit
