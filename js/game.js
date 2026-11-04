@@ -4672,20 +4672,11 @@
        现在把"报告一个还活着的人"绑定到**那一次倒下**：`downSeq` 每次倒下 +1，
        报告时记下 `reportSeq`；同一轮倒下报过就到底，被救起后再次倒下才算新发现。
        尸体的语义保持不变（按夜重报），因为会议一开始就把尸体清场了。 */
-    function bodyReported(v){
-      if(!v.reported)return false;
-      if(v.alive&&v.downed&&v.reportSeq===v.downSeq)return true;
-      return v.reportNight===G.night;
-    }
-    function markBodyReported(v){
-      v.reported=true;v.reportNight=G.night;v.reportSeq=v.downSeq||0;
-    }
+    function bodyReported(v){ return SKT2Decision.bodyReported(v); }
+    function markBodyReported(v){ return SKT2Decision.markBodyReported(v); }
     /* 还能不能再开一场夜晚会议（2026-11-02）：本夜没开满、且当前不在会议里。
        **在消耗报告额度之前**必须先问这一句，否则额度会被一次开不起来的报告吃掉。 */
-    function nightMeetLeft(){
-      if(!G||G.over||G.meet)return 0;
-      return Math.max(0,SKSanity.MEET.perNight-(G.nightMeets||0));
-    }
+    function nightMeetLeft(){ return SKT2Decision.nightMeetLeft(); }
     function tryReport(){
       if(!G.me.alive||G.me.downed||G.meet||G.over)return;
       let best=null,bd=2.4;
@@ -4768,14 +4759,11 @@
       box.appendChild(d); box.scrollTop=box.scrollHeight;
       if(G.meet){G.meet.lines=G.meet.lines||[];G.meet.lines.push({who,text:raw,sys:kind==='sys'});}
     }
-    function seatNo(a){return String(((a&&a.i)||0)+1).padStart(2,'0');}
-    function tagName(a){return a?(seatNo(a)+' '+a.name):'—';}
-    function tagByName(who){
-      const a=G.agents.find(x=>x.name===who);
-      return a?tagName(a):who;
-    }
+    function seatNo(a){ return SKT2Decision.seatNo(a); }
+    function tagName(a){ return SKT2Decision.tagName(a); }
+    function tagByName(who){ return SKT2Decision.tagByName(who); }
     function sysSay(t){ say('系统',t,'sys'); }
-    function nameOf(i){const a=G.agents[i];return a?a.name:'—';}
+    function nameOf(i){ return SKT2Decision.nameOf(i); }
     function seenNames(a,opt){
       const out=[];
       for(const k in (a.nSeen||{})){
@@ -4789,9 +4777,7 @@
     }
     /* 时间词（2026-11-02 措辞修正）：夜晚会议说"今晚"，**白天会议必须说"昨晚"** ——
        以前白天开会也一律说"今晚"，读起来像穿帮。 */
-    function whenWord(){
-      return (G&&G.meet&&G.meet.kind==='day')?'昨晚':'今晚';
-    }
+    function whenWord(){ return SKT2Decision.whenWord(); }
     function alibiOf(a){
       /* roomId 是拆谎核对用的**机器口径**（room 是台词用的中文名）：
          saw_agent 记录里存的是舱室 id，对质时必须按 id 比，不能再拿名字去撞。 */
@@ -5868,94 +5854,9 @@
        把自由文本拆成「提到的人 / 舱室 / 指控 / 投票 / 是否否认 / 自述位置」，
        再用这些槽位生成 AI 回应：时间线对质、当场辩护、附和确证、追问证据。
        纯本地规则，不接模型；关键词只做槽位抽取，不做语义理解。 */
-    const ROOM_WORDS=[
-      ['中央会议室','bridge'],['会议室','bridge'],['大厅','bridge'],
-      ['仓库','warehouse'],['库房','warehouse'],['食堂','transit'],['餐厅','transit'],
-      ['监控室','cam'],['监控','cam'],['中控室','cam'],['中控','cam'],
-      ['生态舱','ecosys'],['生态区','ecosys'],['生态','ecosys'],
-      ['配电室','power'],['配电站','power'],['配电间','power'],['配电','power'],
-      ['中转间','transit'],['中转舱','transit'],['中转','transit'],
-      ['娱乐室','fun'],['娱乐间','fun'],['休闲室','fun'],['娱乐','fun'],
-      ['引擎室','engine'],['引擎','engine'],
-      ['医疗间','med'],['医疗舱','med'],['医务室','med'],['病房','med'],['医疗','med'],
-      ['军械库','armory'],['军械室','armory'],['武器库','armory'],['军械','armory'],
-      ['走廊','corridor'],['通道','corridor']
-    ];
-    const CN_SEAT={一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10,
-      十一:11,十二:12,十三:13,十四:14,十五:15};
-    function seatIndex(n){
-      const i=(n|0)-1;
-      return i>=1&&i<G.agents.length?i:null;
-    }
-    function parseSpeech(text){
-      const s=String(text||'');
-      const out={raw:s.slice(0,80),rooms:[],people:[],accuse:null,vote:null,
-        deny:false,where:null,when:null,claim:null,support:null};
-      for(const [w,id] of ROOM_WORDS){
-        if(s.indexOf(w)>=0&&out.rooms.indexOf(id)<0)out.rooms.push(id);
-      }
-      /* 人物按在文本里第一次出现的位置排序，避免「南极被北极杀了」把凶手认成南极 */
-      const at={};
-      const put=(i,pos)=>{
-        if(i==null||i===0||at[i]!=null)return;
-        at[i]=pos;
-      };
-      for(const a of G.agents){
-        if(a.i===0||!a.name)continue;
-        let p1=s.indexOf(a.name),p2=s.indexOf(seatNo(a));
-        if(p1<0)p1=1e9; if(p2<0)p2=1e9;
-        const p=Math.min(p1,p2);
-        if(p<1e9)put(a.i,p);
-      }
-      let m;
-      const reNum=/(?:第\s*)?0?([1-9]|1[0-5])\s*(?:号|席)/g;
-      while((m=reNum.exec(s))){const i=seatIndex(+m[1]); if(i!=null)put(i,m.index);}
-      const reCn=/([一二三四五六七八九十]{1,3})\s*(?:号|席)/g;
-      while((m=reCn.exec(s))){const i=seatIndex(CN_SEAT[m[1]]||0); if(i!=null)put(i,m.index);}
-      out.people=Object.keys(at).map(Number).sort((a,b)=>at[a]-at[b]);
-      const has=out.people.length>0;
-      const support=has&&/(作证|担保|保他|保她|相信他|相信她|信他|是好人|不是他|不是异形|不是凶手|不是狼|不是内鬼|别投|不要投|投错|无辜|没问题)/.test(s);
-      const negVote=/不投|别投|不要投|投错|不能投/.test(s);
-      const negAcc=/(不怀疑|没怀疑|不是他|不是异形|不是凶手|不是狼|不是内鬼|没问题|好人|无辜|冤枉)/.test(s);
-      const negSee=/(没看见|没看到|没发现|没亲眼|看错|误会|不确定)/.test(s);
-      if(support)out.support=out.people[0];
-      let claimKind=null;
-      if(!support){
-        for(const [k,re] of [
-          ['saw_pipe',/(钻管道|钻进管道|钻了管道|从管道里|管道里出来)/],
-          ['saw_red',/(红光|发红|红身|身上带着红|带着红光)/],
-          ['saw_knife',/(出刀|捅了|捅人|刀了|杀人|杀了|动手|行凶)/],
-          ['saw_sabotage',/(破坏设备|破坏舱|拆设备|弄坏设备|损毁设备)/],
-          ['saw_bot',/(停摆机器人|关掉机器人|弄停机器人|机器人停摆|拆机器人)/],
-          ['saw_breaker',/(拉闸|断电|关灯|电闸)/]
-        ]){
-          if(re.test(s)){claimKind=k;break;}
-        }
-      }
-      const saw=/(亲眼|看见|看到|发现|确定|确认|我保证|我发誓|确实看到|确实看见)/.test(s);
-      if(claimKind&&saw&&!negSee&&has&&!support){
-        out.claim={target:out.people[0],kind:claimKind,room:out.rooms[0]||null};
-      }
-      if(!support&&!out.claim){
-        if(has&&/怀疑|凶手|内鬼|狼|可疑|有问题|就是他|是他|他杀|杀了|动了手|出刀|钻管道|红光/.test(s)&&!negAcc)
-          out.accuse=out.people[0];
-        if(has&&/我(投|跟|票给)|投给/.test(s)&&!negVote)
-          out.vote=out.people[0];
-      }
-      if(/不是我|我没|我没去|我没动|不在场|冤枉|我是好人|别投我|我清白|我无辜/.test(s))out.deny=true;
-      /* 只认第一人称的自述位置，避免「我看见X在配电室」被当成玩家在配电室 */
-      /* 第一人称自述的识别（2026-11-03 补"昨晚"一族）：白天会议里 whenWord() 给的是"昨晚"，
-         玩家照着 AI 的说法回一句"我昨晚在仓库"以前**认不出来**，自述槽就丢了。
-         只认第一人称这条铁律不变（"我看见 X 在"仍然不算玩家的位置）。 */
-      if(out.rooms.length&&/(我今晚在|我昨晚在|我当时在|我整晚都在|我整晚在|我一整晚都在|我今晚都在|我昨晚都在|我一直在|我就在|我待在|我去过|我刚才在|我之前在|我现在在|我在)/.test(s))
-        out.where=out.rooms[0];
-      /* 时间槽（2026-11-01）：口供说的是哪个时段，拆谎就只核对那一段 ——
-         说「我刚才在」只比最近 20 秒，说「我一直/整晚在」才比整夜。
-         没有再拿半分钟前的旧位置去否定「我刚才在仓库」这种话。 */
-      if(/(刚才|刚刚|这会儿|这一会儿|刚过去)/.test(s))out.when='recent';
-      else if(/(一直|整晚|一整晚|从头到尾|一开始|开头|最开始|自始至终)/.test(s))out.when='night';
-      return out;
-    }
+    /* 方案 A 第三批：ROOM_WORDS / CN_SEAT 真源在 js/t2/decision.js#SKT2Decision，本文件不再定义。 */
+    function seatIndex(n){ return SKT2Decision.seatIndex(n); }
+    function parseSpeech(text){ return SKT2Decision.parseSpeech(text); }
     /* 找一个能替某人作证的证人（只用于台词，不改变判定）—— 该包装从未被调用，
        台词现取一律走 seenNames()，已删。 */
     function playerTalk(text){

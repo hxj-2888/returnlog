@@ -6,6 +6,16 @@
 本文件记录《新返航录》试玩版的所有可见变更。版本口径：**返航录V3.6**。
 格式参考 Keep a Changelog；日期使用本地时间（Asia/Shanghai）。
 
+## [未发布 · 方案 A 第三批：玩家决策域会议基础层] — 2026-11-04
+
+- **本批改动**（用户 20:40「继续」＝放行第三批；上轮其余提问按保守做法：薄委托保留、偶发读数留台账、3D 素材不提交）：
+  - 新建 **`js/t2/decision.js`**（T2 · 玩家决策），承接报告额度与会议发言基础层共 **10 个函数**：`bodyReported` / `markBodyReported` / `nightMeetLeft`（额度与消耗），`seatNo` / `tagName` / `tagByName` / `nameOf` / `whenWord` / `seatIndex` / `parseSpeech`（会议时序与传播），以及 `ROOM_WORDS` / `CN_SEAT` 两张词表。函数体与拆分前逐行一致，仅取状态方式改为 `const G = global.SKV3._t.G()`（用户裁定沿用 `_t.G()`）、`SKSanity` 改为模块顶部别名 `SK`。
+  - `js/game.js` 保留 **10 个同名薄委托**，下游调用零改动；`ROOM_WORDS` / `CN_SEAT` 从 `game.js` **删除定义**，模块成为唯一真源（不是别名副本）。`index.html` 加载清单在 `t2/ai` 之后、`game` 之前插入 `t2/decision`；`AGENTS.md` 红线 2 顺序 / 文件地图、`README.md` 分层约定、方案 A 施工单进度表同步。
+  - **连带修复**（真源唯一）：`tools/lines-audit.cjs` 原从 `js/game.js` 静态读取 `parseSpeech` 的第一人称自述正则，外提后会硬报错；现改为从 **`js/t2/decision.js`** 读正则，并把手抄的 `ROOM_WORDS` 镜像表改为从 `SKT2Decision.ROOM_WORDS` 读取，消除第二份词表。
+  - 剧情语料 `js/data/lines.js` 未动（等用户上传新版直接替换）；固定 seed 剧情切片清单随新版一起给；3D 素材与 `tools/ux-*` 仍不提交。
+- **读数变化**：本批门禁实跑 **712 通过 / 0 失败**（`tools/_gate-batch3-20261104.log`，一次通过、无偶发项）；语料体检实跑 `node tools/lines-audit.cjs --strict` **1400 通过 / 0 失败 / 118 提示**，报告 `tools/lines-report.md` 无内容变化。未跑 sim，未改任何平衡数值与数值表。
+- **下一批立项依据**（用户裁定后填）：________（候选：第四批 `js/runtime.js` 状态机 / 渲染 / HUD / 输入；或继续拆 `decision.js` 余下的开会 / 投票 / 发言编排函数；或剧情语料新版接入）
+
 ## [未发布 · 方案 A 第二批：认知链函数外提] — 2026-11-04
 
 - **本批改动**（用户 20:24 裁定「对 / 沿用 / 接受 / 做 / 留 / 暂无」）：
