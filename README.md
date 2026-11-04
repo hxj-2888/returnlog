@@ -4,7 +4,9 @@
 > 零依赖前端 · 无构建步骤 · 双击 `index.html` 即玩 · 单机 AI 托管对局
 
 - **版本**：返航录V3.6（`package.json` 语义化镜像 `3.6.0`）
-- **仓库**：[GitHub](https://github.com/hxj-2888/space-kill-web) · [Gitee](https://gitee.com/hxj-2888/space-kill-web)
+- **权威口径**：数值基线 = `tools/mc-report.md`（2026-11-03T11:50Z · seed 20261030 · 人类 **57.6% / 异形 42.4%**）；
+  门禁 = `npm test` 实跑（现 **712 / 0**，2026-11-04 复跑）；出仓素材清单 = `assets/MANIFEST.json`。
+- **仓库**：[GitHub](https://github.com/hxj-2888/space-kill-web)（发布目标）· [Gitee](https://gitee.com/hxj-2888/space-kill-web)（镜像，尽力同步，可能滞后）
 - **许可**：代码 MIT；音效 CC0；场景素材 CC-BY 4.0（详见[素材与许可](#素材与许可)）
 
 ### 关于「继承」
@@ -25,8 +27,8 @@
 |---|---|
 | 直接运行 | 双击 `index.html`（推荐 Chrome / Edge；手机请横屏） |
 | 本地服务 | `npm start` → <http://127.0.0.1:5173> |
-| 回归门禁 | `npm test`（需要 `playwright-core`，见[开发与测试](#开发与测试)） |
-| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，输出 `tools/mc-results.json` 与 `tools/mc-report.md`） |
+| 回归门禁 | `npm test`（依赖本仓 `playwright-core@^1.64.1`，见[开发与测试](#开发与测试)） |
+| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI；汇总 `tools/mc-report.md` 入库，原始局入库形态为 `tools/mc-results.json.gz`） |
 | 语料体检 | `node tools/lines-audit.cjs`（零依赖，不开浏览器；`--strict` 有 FAIL 就退出码 1） |
 
 开始页选择「人类」「异形」进入对局，或选「旁观者」作为**第 16 人**观战；每局仍是 15 席（11 人类 + 4 异形），全部由 AI 托管，旁观者不参与任何判定。
@@ -301,8 +303,8 @@
   **驱逐准确率 52.07%**（人类赢的局 64.3% 准 / 异形赢的局 34.8% 准）。
 - 机制面：`knownWrites` 7.52 → **7.01**（远处目击只加嫌疑、不写确证）、
   `fakeTasks` 8.19 → **9.28**（观众池变大，伪装更划算）、`avoidCount` 42 → **47**（异形更早绕人）。
-- 两个原始包并排保留：`tools/mc-results.json`（F）与 `tools/mc-results-E.json`（E）。
-  **`npm run sim` 只写前者**，要和 E 轮对比就先 `cp` 出副本或用 `--out tools/mc-results-E.json` 重跑。
+- 两个原始包并排保留（入库为压缩档）：`tools/mc-results.json.gz`（F）与 `tools/mc-results-E.json.gz`（E）。
+  **`npm run sim` 只写未压缩的 `.json`**（本地工作文件，已 `.gitignore`）；要和 E 轮对比就先 `cp` 副本或用 `--out tools/mc-results-E.json` 重跑，压缩档由 `npm run ship` 在提交前自动生成。
 
 ### 历史 · 节奏批（2026-11-02：会议限额 + 报告额度 + 75 秒夜）
 
@@ -322,7 +324,7 @@
 - 报告实际用掉 **7.12 次/局**（额度 2 次/人），因"本夜会议已开满"被拒 **0 次**（基本不撞顶）。
 - 推理读数：跨夜存量 39.6 / `almost.foe` 5.25 次 / 准-确证驱动驱逐 0.96 /
   远距目击 3.12 / 沉默线索 13.22 / 在场反驳 4.04 / 认错 1.22。
-- 原始结果见 `tools/mc-results.json`，汇总见 `tools/mc-report.md`。方法/局限写在 `tools/monte-carlo.cjs`
+- 原始结果见 `tools/mc-results.json`（本地）/ `tools/mc-results.json.gz`（入库），汇总见 `tools/mc-report.md`。方法/局限写在 `tools/monte-carlo.cjs`
   头部（不模拟玩家发言；**夜会议不再从夜晚时间里扣**，白天会议固定 1 场）。
 - 模拟还发现并修复了一个真实的寻路 bug：**A* 目标在地图外时 `prev[负数]` 为 undefined，重建路径会死循环**；
   `geo.astar` 现在会先做越界/不可走检查并安全返回 `null`。
@@ -330,7 +332,7 @@
 ## 一键发布（2026-11-03）
 
 ```bash
-npm run ship              # 门禁 → APK → Cloudflare → GitHub/Gitee → 作品集
+npm run ship              # 门禁 → APK → Cloudflare → 本仓(GitHub 必需 / Gitee 尽力) → 作品集
 npm run ship:fast         # 同上但跳过门禁（只发不测）
 npm run ship:web          # 只发主站 + 作品集（不动 APK）
 node tools/ship.cjs --only=web,apk --msg "feat: ..."
@@ -343,7 +345,7 @@ node tools/ship.cjs --only=web,apk --msg "feat: ..."
 | ① 门禁 | `tools/test-v3.cjs` 全量断言（712 条）；不绿就停 | — |
 | ② APK | 同步 `android/assets/www` → `android/build.cmd` → `gh release upload --clobber` | `https://github.com/hxj-2888/space-kill-web/releases/download/returnlog-v3/ReturnLog.apk` |
 | ③ 主站 | `tools/deploy-pages.cjs`（白名单暂存 276 文件 / 44 MB） | `https://space-kill-web.pages.dev` |
-| ④ 本仓 | `git add -A` → 有暂存才提交 → push `origin`(GitHub) + `gitee` | GitHub / Gitee 同号 |
+| ④ 本仓 | `git add -A` → 有暂存才提交 → push `origin`(GitHub，失败即中止) + `gitee`(镜像，失败仅警告) | GitHub 为准，Gitee 可能滞后 |
 | ⑤ 作品集 | 拷 4 个素材 → 白名单暂存 → `wrangler pages deploy` → push 两个远程 | `https://portfolio-ji.pages.dev` |
 
 **前置**：`gh auth login`、`wrangler login`、JDK 17 + Android SDK build-tools 34 + 7-Zip、
@@ -439,9 +441,12 @@ tools/
   master-sfx.py            用 tools/_sfx 公共 CC0 素材分层混音 + 归一，产出 audio/sfx-*.ogg
   gen-hull.py              船体底板 hull-deck.png 程序化生成（与底图同尺寸同色温）
   map-check.cjs           离线地图体检（可行走网格 / 掩体审计 / 巡逻线 / 任务点可达）
-  monte-carlo.cjs         无渲染 AI 对 AI 批量模拟（默认 1000 局 · seed 可复现 · 产出 mc-results.json / mc-report.md）
+  monte-carlo.cjs         无渲染 AI 对 AI 批量模拟（默认 1000 局 · seed 可复现 · 产出 mc-report.md 与 mc-results.json；入库为 .json.gz）
   lines-audit.cjs         会议语料体检（禁词 / 长度 / 槽位 / 骨架撞车 + 复现 pickLine 抽样口径模拟十局疲劳）
   lines-report.md         lines-audit 生成的语料体检报告（工具产出，勿手改）
+  ux-audit.cjs            游玩体验量测（真实 DOM 输入：点击起移延迟 / HUD 与会议 rect / 迷雾四态亮度 /
+                          会议三段墙钟 / 代打墙钟占比 / 手机档几何 / FPS）；需先 npm start 起同源服务器
+  ux-report.md            ux-audit 生成的读数表（工具产出，勿手改）· ux-results.json 为原始数据
 3d/                        独立 Godot 4.6 3D 预演子项目（不参与 index.html；见 3d/README.md）
 ```
 
@@ -459,7 +464,7 @@ tools/
 
 - 无构建：改完源码刷新浏览器即可；新增模块必须同步更新 `index.html` 的加载顺序（依赖自上而下）。
 - 门禁：`node tools/test-v3.cjs` 会用 Playwright 跑完整浏览器断言（712 条，含事件流/回放/走廊亮灯视野/不变量、寻路、会议、音效、机器人巡逻、AI 夜间能力、视野射击、暂停、自动门、硬掩体审计、物资申请单、E/H 交互轮盘、站桩维修、任务乱序维修、幽灵乱序任务/故障维修/2 分额度、AI 认知/证据链/搜尸/异形报告/弃权投票、反常拖尸嫌疑与藏尸避人、AI 完成 3 分后自己领申请单、AI 不读取队友信息/投票可投队友、Q/B 射击分离、AI 与玩家同耗时、保安 10.5 格 180° 弧形 / 追捕押送 / 30 秒 / 2 次、机器人受击与摧毁、医疗机器人 2 次电量 / 5 秒施救、F/H 分离、12 类 CC0 音效（枪/刀/命中/交互/维修/胜负分离）、地图外 A* 安全返回、蒙特卡洛 1000 局基线、统一移速、**AI 拖尸送医疗间复活、AI 异形藏尸、藏尸远离医疗间、AI 避开保安扇形、AI 断电合闸、AI 主动寻管道口、刀用完后仍会钻管道、管道口供只落在 6 个管道舱、刀者 3 秒红身、任务点改为掩体本体闪烁、管道/红身/拉闸断电目击确证、开枪/拘留/合闸不确证、确证跨夜长期记忆、**时间线拆谎量词与时间窗（有匹配记录就不定罪 / 走廊不算舱室 / 窗口外不算 / 没记录就闭嘴）**、电闸两种操作（拉闸 → 人类 known + 异形 mates；合闸 → 人类 cred / 异形 humanT，且都不写 known/mates）、保安拘留进记忆但不写 known、**跨夜嫌疑三条护栏（分类型衰减 / 无证据加速 / 封顶）、证言可信度双向回写、准-确证 foe/friend 与 known 硬覆盖、在场反驳（亮房限定）、信念熵高低档、沉默只对白纸、口供史只记不判、人类辩护不看阵营**、**证据分级（>4.5 格只加嫌疑不确证）、almost 票权与 friend 挡票、软联盟连坐、回避可观察、口供矛盾按目标去重**、发言槽位与时间线对质、开局讨论时长覆盖、搜尸取物资（玩家/AI/倒地伤员）、记忆收尸、AI 回场报告与快速报告嫌疑、AI 避目击退让与直接报案、异形会议反咬/构陷与时间线拆谎、会议模板一键发言、玩家直接证据词库与时间线拆谎、AI 无休息连续维修、故障/合闸优先与弃修逃跑、异形队友识别/保护/联合构陷、AI 幽灵 2 分额度、AI 都会搜尸取物资/用枪、异形假装维修/假装做任务/真做任务抑制与救队友、异形优先攻击做任务的人、30 秒故障与 -5、45 分人类胜利、AI 推理反向洗清/枪击正当性/空口指控、异形幽灵不推进进度、外观一致、亮房整间可见、断电后全门扫描 2 秒（含会议室三门）、旁观者跳过讨论与 0 号 AI 托管、故障修好立即松手、WASD 主操作与尸体交互轮盘、设置面板音量与暂停、门顶面视角、异形同款手电锥 + 近身视野 3.5 格（人类 2.8 格）、声纹不计幽灵脚步（带活人对照组）、HUD 进度上限与胜利目标同源、待领申请单 HUD 提示与圆桌 2.3 格判定、59 件真实掩体 / 22 件桌面级装饰、旁观者模式**等）。
-  默认查找本地 `node_modules` 中的 `playwright-core`，找不到时用环境变量指定：
+  依赖本仓 devDependency `playwright-core@^1.64.1`（`npm i` 即得）；若 `node_modules` 缺失，可用环境变量后备：
 
   ```bash
   PLAYWRIGHT_CORE=/path/to/playwright-core node tools/test-v3.cjs
@@ -496,7 +501,7 @@ tools/
 | 空间站素材（`assets/scene/station`） | Kenney（CC0） | 见 `LICENSE-Kenney.txt` |
 | 2.5D 底图 / 门框（`assets/scene/v4/base-lit.png`） | Blender 由本仓地图数据烘焙 | `tools/blender-ship.py`（98×94 → 4704×4413） |
 | 船体底板（`assets/scene/v4/hull-deck.png`） | 本仓程序化生成 | `tools/gen-hull.py` |
-| 家具/掩体材质（`assets/scene/v4/tex/panel-*`、`crate-*`、`fabric-*`、`table-*`、`cafeteria-*`、`warehouse-*`、`ao-soft`、`hazard-stripe`） | 本仓扩散模型（SDXL）生成 + 程序化贴图 | `tools/gen-materials.py`，随仓库 MIT |
+| 家具/掩体材质（`assets/scene/v4/tex/panel-*`、`crate-*`、`fabric-*`、`table-*`、`cafeteria-*`、`warehouse-*`、`ao-soft`、`hazard-stripe`） | 本仓扩散模型（SDXL）生成 + 程序化贴图 | `tools/gen-materials.py`；**生成脚本随仓库 MIT，素材本体 2026-11-04 起已出仓**（清单 `assets/MANIFEST.json`） |
 | 自动门门板纹理（`assets/scene/v4/tex/door-panel.png`） | 本仓扩散模型生成 | 仅用于本项目 |
 
 > 二次分发时请保留上述署名文件。音频包原始来源与替换说明见 `audio/CREDITS.md`。

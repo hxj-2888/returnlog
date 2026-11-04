@@ -3,6 +3,10 @@
 > **当前版本**：返航录V3.6（2026-11-03）· `package.json` 3.6.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
+> **权威口径（2026-11-04 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-03T11:50:27Z ·
+> seed 20261030 · 1000 局 · 人类 **57.6% / 异形 42.4% / 超时 0**，Wilson 54.51~60.63）。§六 是它的摘录；
+> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **712 通过 / 0 失败**（2026-11-04 复跑）。
+> 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
 ## 一、红线（违反即回退）
 
@@ -47,9 +51,9 @@
 | 直接试玩 | 双击 `index.html` |
 | 本地服务 | `npm start`（`node tools/serve.cjs`，默认 5173） |
 | 全量门禁 | `npm test`（即 `node tools/test-v3.cjs`） |
-| 指定 Playwright | `PLAYWRIGHT_CORE=/path/to/playwright-core npm test` |
-| 指定截图目录 | `SHOT_DIR=./tools/screenshots npm test` |
-| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；输出 `tools/mc-results.json` / `tools/mc-report.md`） |
+| 门禁依赖 | 本仓 devDependency `playwright-core@^1.64.1`；`npm i` 后 `npm test` 直接可跑（2026-11-04 实测） |
+| 指定 Playwright（后备） | 仅当 `node_modules` 缺失时：`PLAYWRIGHT_CORE=/path/to/playwright-core npm test` |
+| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；汇总 `tools/mc-report.md` **入库**；原始局 `tools/mc-results.json` 是本地工作文件，入库形态为 `tools/mc-results.json.gz`） |
 | 调试模式 | `index.html?test`（跳过开局会议）/ `?dev`（DEV 面板）/ `&strict` |
 
 ### 本机环境（后续 Agent 直接照这个用，**不要再说"Blender 没装"**）
@@ -60,7 +64,7 @@
 | 无头渲染 | `"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test` |
 | 本地 SDXL | `D:\ai-models\sdxl-base`（fp16）+ `D:\ai-models\vae-fp16-fix`；`SDXL_MODEL` / `SDXL_VAE` 可覆盖 |
 | Python | `C:\Python314\python.exe`（3.14.5，装了 torch 2.11+cu128 / diffusers 0.42 / transformers） |
-| Playwright | `C:\Users\ASUS\.workbuddy-ai\binaries\node\workspace\node_modules\playwright-core`（配合 `PLAYWRIGHT_CORE` 用系统 Edge） |
+| Playwright | 本仓 `node_modules/playwright-core`（devDependency `^1.64.1`；`node_modules/` 不入库，`npm i` 复现，驱动系统 Edge）。2026-11-04 前曾寄生在 `~\.workbuddy-ai\binaries\node\workspace\`，已收回本仓 |
 | GPU | RTX 5060 Laptop **8GB**。SDXL 768² 一张 8~9 分钟、640² 约 4 分钟；出图前会 `VRAM free 0.00`，属正常 |
 
 > Blender **不在 PATH 上**，也不在 `C:\Program Files` 下 —— 它在 E 盘 Steam 库里。
@@ -145,14 +149,14 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
-| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（712 条） |
+| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（712 条；2026-11-04 复跑 712 通过 / 0 失败） |
 | `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现；报告含**配置快照 / 机制触达率 / 分桶胜率 / 结束原因×胜者交叉表**） |
 | `js/data/lines.js` | 数据 | 会议台词语料库（58 类 × hot/cold + 组合式模板 + 证据短语子池 WHY），唯一台词真源 |
 | `tools/lines-audit.cjs` | 门禁 | 语料体检：禁词 / 长度 / 槽位 / 骨架撞车 + 复现 `pickLine` 抽样口径模拟十局疲劳（`--strict` 有 FAIL 退出码 1） |
 | `tools/lines-report.md` | 数据 | `lines-audit` 生成的语料体检报告（工具产出，勿手改） |
-| `tools/ship.cjs` | 发布 | **一键发布**：门禁 → APK（同步/构建/传 Release）→ CF Pages → GitHub+Gitee → 作品集（素材/部署/推送）。`npm run ship`；`--fast` 跳过门禁、`--only=web,portfolio` 跳过 APK |
-| `tools/mc-report.md` | 数据 | **最近一次** 1000 局蒙特卡洛汇总（当前为 F 轮 · 2026-11-03；原始局在 `mc-results.json`，工具生成勿手改） |
-| `tools/mc-results-E.json` · `tools/mc-report-E.md` | 数据 | **放眼前的对照基线**（E 轮 · AI/玩家数值一致化）：`--out tools/mc-results-E.json --report tools/mc-report-E.md` 产出；跨批对比先读它 |
+| `tools/ship.cjs` | 发布 | **一键发布**：门禁（含出仓素材校验，仅警告）→ APK → CF Pages → 本仓提交推送 → 作品集。推送里 GitHub 是致命目标、Gitee 是尽力镜像（失败仅警告），两条通道互为兜底（先用 `push --dry-run` 探测，不通就跳，不硬撞 20s）。`npm run ship`；`--fast` 跳门禁、`--only=web,portfolio` 跳 APK |
+| `tools/mc-report.md` | 数据 | **当前权威基线**：F 轮 · 生成 2026-11-03T11:50Z · 人类 57.6% / 异形 42.4%（原始局入库形态 `tools/mc-results.json.gz`，工具生成勿手改） |
+| `tools/mc-results-E.json.gz` · `tools/mc-report-E.md` | 数据 | **对照基线**（E 轮 · AI/玩家数值一致化）：`--out tools/mc-results-E.json --report tools/mc-report-E.md` 产出，压缩档由发布前自动生成；跨批对比先读它 |
 | `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`；内置 5.2 版本守卫） |
 | `tools/check-blender.ps1` | 门禁 | 校验权威 Blender（路径 / 版本 / build hash / Python 载荷），不通过退出码 1 |
 | `tools/logs/` | 日志 | 渲染日志统一落点，命名 `<脚本>-<YYYYMMDD-HHmmss>.log`；`logs/legacy-4.5.9/` 为已归档的 4.5.9 旧日志 |
@@ -162,12 +166,18 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `tools/sfx-report.md` | 数据 | `python tools/sfx-audit.py` 生成的全量音效电平表 |
 | `tools/gen-hull.py` | 美术工具 | 船体底板 `hull-deck.png` 程序化生成（分块装甲 + 接缝 + 格栅 + 管线 + 暗角） |
 | `tools/map-check.cjs` | 工具 | 离线地图体检：可行走网格 / 掩体审计 / 巡逻线 / 任务点可达性（不开浏览器） |
+| `tools/ux-audit.cjs` | 工具 | **游玩体验量测**（只量测不断言）：真实 DOM 输入下点击起移延迟、A* 规划耗时、HUD/会议 rect 与命中区、迷雾四态画面亮度、会议三段墙钟、代打墙钟占比、手机档几何、FPS；需先起 `tools/serve.cjs`（`file://` 下画布跨域 taint，读不了像素） |
+| `tools/ux-report.md` · `tools/ux-results.json` | 数据 | `ux-audit` 生成的读数表与原始数据（工具产出，勿手改） |
 | `assets/` · `audio/` | 素材 | 许可与署名见各子目录 `LICENSE*` 与 `audio/CREDITS.md` |
 | `3d/` | 子项目 | **Godot 4.6 3D 预演**（独立工程，不参与 `index.html` 加载；地图由 `3d/tools/export-map.cjs` 从 `js/data/map.js` 导出）。入口见 `3d/README.md`，架构见 `3d/ARCHITECTURE.md`，决策见 `3d/DECISIONS.md` |
 
 > 3D 子项目边界：**不继承**主项目的 `file://` / 经典 `<script>` 红线；
 > 但素材许可、中文记录、数据单一真源、门禁/自测留痕仍然适用。
 > Godot 便携版在 `E:\ai-tools\godot`（4.6 stable，`89cea1439`），不在 PATH 上。
+> **完整版（含 .NET / `GodotSharp`）已装**：`E:\ai-tools\godot\Godot_v4.6-stable_mono_win64\`，
+> 版本串 `4.6.stable.mono.official.89cea1439`，本机 .NET SDK 10.0.300 可直接编 C# 工程；
+> 标准版 `Godot_v4.6-stable_win64_console.exe` 保留作对照。两份都能开 `3d/preview`，
+> 三条自测读数一致（见 `docs/3D_预演_20261103.md` §9A）。导出模板（1117 MB）**未下载**，需要出包时再说。
 
 ## 四、架构约定
 
@@ -719,6 +729,9 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   改家具**材质**（`assets/scene/v4/tex/panel-metal|crate-steel|fabric-weave|table-composite|panel-white|hazard-stripe|ao-soft.png`）
   同样要重烘一次；材质由 `tools/gen-materials.py --mode sdxl` 用本地 SDXL 生成
   （768px 出图 → 降饱和冷调 → 四向镜像拼贴 → 回缩 1024）。
+  **（2026-11-04）** 上述 `assets/scene/v4/tex/*.png` 与 `3d/preview/assets/textures/*` 已**出仓**：文件仍在
+  本机磁盘（重烘要用），但不再进 git；入库的只有运行时真读的 `door-panel.png`。完整性由
+  `assets/MANIFEST.json` + `node tools/assets-check.cjs` 兜住，恢复路径见该工具的 `--from-git`。
   该工具刻意**不走 diffusers 默认的 safetensors mmap 加载**（5.13GB fp16 UNet 在 16GB 内存机器上
   会 access violation 段错误），而是逐张量流式上卡 + 先编码提示词再释放文本编码器；
   没有显卡时用 `--mode reuse` 从场景已有素材派生兜底。
@@ -766,11 +779,11 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 2. 小步修改；涉及地图/寻路/会议/输入的改动，先 `npm start` 或直接 `file://` 冒烟。
 3. 跑 `npm test`，确认「X 通过 / 0 失败」，并抽查 `tools/screenshots/` 的截图（元素存在 ≠ 像素可见）。
 4. 更新 `CHANGELOG.md`（版本号 + 日期 + 实测读数）。
-5. 提交并推送 GitHub / Gitee 的 `main`，仓库简介保持「新返航录 · 返航录V3」口径。
+5. 提交并推送：`origin`(GitHub) 是发布目标，`gitee` 是镜像（失败只警告、不拦停）；GitHub 走代理、Gitee 直连，两条互为兜底。仓库简介保持「新返航录 · 返航录V3」口径。
 
 ## 六、当前基线（返航录V3）
 
-- 门禁：`node tools/test-v3.cjs` —— **712 条断言，712 通过 / 0 失败**（2026-11-03 晚实跑，Edge headless）。
+- 门禁：`node tools/test-v3.cjs` —— **712 条断言，712 通过 / 0 失败**（2026-11-04 复跑，Edge headless，依赖已收回本仓）。
   语料体检：`node tools/lines-audit.cjs --strict` —— **1400 通过 / 0 失败**（退出码 0）。
   **当前数值基线 = F 轮（亮区整片可见放开之后）**：人类 **57.6% / 异形 42.4% / 超时 0**
   （95% Wilson 54.51~60.63），夜 5.682、进度 34.245、刀 10.04、会议 11.35、破坏 10.101；
@@ -778,7 +791,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   上一轮 E 轮（AI/玩家数值一致化）是 60.2/39.8、51.94% ⇒ **放开的代价 ≈ −2.6pp 朝异形，约 1.2σ**，
   不能当作已定位移；真正变化的是 **`knownWrites` 7.52 → 7.01、`exiles` 3.28 → 3.12**（远处观众只加嫌疑），
   以及伪装演出与回避变多（`fakeTasks` 8.19 → 9.28、`avoidCount` 42 → 47）。
-  两个原始包并排保留：`tools/mc-results.json`（F）与 `tools/mc-results-E.json`（E，放眼前的对照基线）。
+  两个原始包并排保留（入库为压缩档）：`tools/mc-results.json.gz`（F）与 `tools/mc-results-E.json.gz`（E，放眼前的对照基线）。
   D 轮（一致化之前）是 58.5/41.5、52.25%。
   夜长是**变动值**（120 → 100 → 90 → 75）：门禁里**不要写死 80 / 120** 之类的秒数，
   用 `_t.nightLen()` 取运行时真值（`暂停面板「重开本局」` 那条已经改掉）。
@@ -876,7 +889,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   且裁决口径是「窗口内**所有**记录都对不上」——省下的全是**对真话者的误判**，
   而 site-1 的打击对象本来就全是人类 ⇒ 人类之间少了一大截内耗。
   **这就是胜率上移的全部来源**：本次没有动任何平衡数值（`WIN_PTS` / `NIGHT` / `EV_W` 全未改）。
-  要拉回五五开，按上一节的口径动 `NIGHT`（120→130）或 `WIN_PTS`（45→44），**不要回退拆谎逻辑**。
+  要拉回五五开，按上一节的口径动 `NIGHT`（120→130）或 `WIN_PTS`（45→44），**不要回退拆谎逻辑**。（2026-11-04 标注：本句是 2026-10-31 批次当时的口径，那时 `NIGHT=120`、人类 43.1% 偏异形；现值 `NIGHT=75`，**调参方向以 §六 重判，不要照本句执行**）
   遥测新增：`contradictions` 71.76 / `contradictionOld` 129.39 / `falseContradictions` 11.56 /
   `knownWrites` 8.88 / `knownVotes` 3.30 / `ejectByKnown` 1.68 / `detainWitness` 0.055 /
   `detainEvictions` 0.012（每局均值）。`knownBy` 实测只有 saw_red / saw_sabotage / saw_knife / saw_pipe，
@@ -892,9 +905,9 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   结束时人类存活 2.34/11、异形 1.23/4，平均进度 38.9/45（中位数 41）。
   异形真做任务 0.41 次/局、假装做任务 1.01、假装维修 0.14、钻管道 **5.62 次**（规划 10.18）；
   搜尸 6.31 次/局、双方取到物资 4.05 次、复活 0.59 次。
-  原始局在 `tools/mc-results.json`，汇总在 `tools/mc-report.md`。这是当前基线，不是通过/失败门禁。
-  **要调回五五开**：往人类偏（当前方向）把 `NIGHT` 从 120 加到 ~130，或把 `WIN_PTS` 从 45 降 1~2 分；
-  往异形偏则把 `MEDBOT_CHARGES` 调回 1 或降 `NIGHT`。**报告规则是承重墙，不要动。**
+  原始局当时在 `tools/mc-results.json`（现入库形态为 `.json.gz`），汇总在 `tools/mc-report.md`。**「当前基线」只对该 2026-10-31 批次成立**；现行基线见 §六（F 轮 57.6% / 42.4%）。
+  **要调回五五开**（该批次当时的方向）：往人类偏把 `NIGHT` 从 120 加到 ~130，或把 `WIN_PTS` 从 45 降 1~2 分；
+  往异形偏则把 `MEDBOT_CHARGES` 调回 1 或降 `NIGHT`。**报告规则是承重墙，不要动。**（这条与批次无关，仍然有效）
   **会议数 14.8 次**是“每具尸体都能报告一次 + 跑图变长”的直接结果；调平衡优先动 NIGHT/WIN_PTS，
   不要拿报告规则开刀。
 - **刀数断崖（拆解，别乱调）**：胜负几乎完全由**刀数**决定，不是由会议数决定——
