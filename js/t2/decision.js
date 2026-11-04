@@ -146,11 +146,50 @@
     return Math.max(0,SK.MEET.perNight-(G.nightMeets||0));
   }
 
+  /* ---- 会议排期（方案 A 第五批）：MEET_SCHED 是运行时状态，
+         与 SKSanity.MEET（会议配置表）不是一回事；2026-11-04 消歧时由 MEET 改名。
+         整组从 game.js 外提，状态随模块持有，game.js 只留局部别名直调。 ---- */
+  const MEET_SCHED={id:0,timers:[]};
+  function stopChatter(){
+    MEET_SCHED.id++;
+    for(const h of MEET_SCHED.timers)clearTimeout(h);
+    MEET_SCHED.timers=[];
+  }
+  function meetLater(m,ms,fn){
+    const id=MEET_SCHED.id;
+    const h=setTimeout(()=>{
+      MEET_SCHED.timers=MEET_SCHED.timers.filter(x=>x!==h);
+      const G=global.SKV3._t.G();
+      if(G.meet!==m||MEET_SCHED.id!==id||m.phase!=='discuss')return;
+      try{fn();}catch(e){}
+    },ms);
+    MEET_SCHED.timers.push(h);
+  }
+  /* 连说让位：同一个人连着说到第 3 句起不再播；系统行与玩家自己的发言不受限。 */
+  function sayStreakOK(who,kind){
+    const G=global.SKV3._t.G();
+    if(!G||!G.meet)return true;
+    if(kind==='sys'||kind===true||kind==='me')return true;
+    const m=G.meet, ls=m.lines;
+    if(ls&&ls.length){
+      const last=ls[ls.length-1];
+      if(last&&last.who===who&&!last.sys){
+        m.streak=(m.streak||1)+1;
+        if(m.streak>2){
+          if(G.simMode&&G.simStats)G.simStats.streakCuts=(G.simStats.streakCuts||0)+1;
+          return false;
+        }
+      }else m.streak=1;
+    }else m.streak=1;
+    return true;
+  }
+
   global.SKT2Decision = Object.freeze({
     ROOM_WORDS: ROOM_WORDS, CN_SEAT: CN_SEAT,
     seatNo: seatNo, tagName: tagName, tagByName: tagByName, nameOf: nameOf,
     whenWord: whenWord, seatIndex: seatIndex, parseSpeech: parseSpeech,
     bodyReported: bodyReported, markBodyReported: markBodyReported,
-    nightMeetLeft: nightMeetLeft
+    nightMeetLeft: nightMeetLeft,
+    stopChatter: stopChatter, meetLater: meetLater, sayStreakOK: sayStreakOK
   });
 })(typeof window !== 'undefined' ? window : globalThis);
