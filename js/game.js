@@ -1678,13 +1678,8 @@
       if(r.match&&r.mismatched>0&&G&&G.simStats)G.simStats.falseContradictions++;
       return r;
     }
-    /* 案发口径的时间窗：死亡（或倒地）时刻 ±8 秒；没有尸体时退回默认回看窗口 */
-    function crimeWindow(victim){
-      const t=victim?(victim.alive?(victim.downAt||0):(victim.deathAt||0)):null;
-      if(t==null)return null;
-      const ref=NIGHT-Math.max(0,t);
-      return {t0:Math.max(0,ref-SKSanity.ALIBI.core),t1:ref+SKSanity.ALIBI.core,tRef:ref};
-    }
+    /* 方案 A 第二批：真源已外提 js/t2/ai.js，状态沿用 _t.G()；保留函数声明作薄委托。 */
+    function crimeWindow(victim){ return SKT2AI.crimeWindow(victim); }
     /* 口供口径的时间窗：说「刚才」只比最近 20 秒；说「一直/整晚」比整夜；
        没说时段按默认 45 秒。口供说的是哪个时段，就只核对那一段。 */
     function claimWindow(when){
@@ -1717,27 +1712,10 @@
       }
       return false;
     }
-    /* 嫌疑读值：跨夜留下的存量对**夜间行动**要打 0.7 折 ——
-       否则天亮第一分钟就有人凭昨晚的旧印象去开枪（存量上限 0.45 仍然高于
-       激进档的开枪门槛 0.36）。会议里的指控/投票读全额。 */
-    function susOf(a,i,forNight){
-      const v=(a&&a.mind&&a.mind.sus&&a.mind.sus[i])||0;
-      if(!v)return 0;
-      if(!forNight)return v;
-      const n=(a.mind.susNight&&a.mind.susNight[i])||0;
-      if(n>=G.night)return v;
-      return v*SKSanity.CARRY.nightReadSec;
-    }
-    function topSus(a,min,forNight){
-      if(!a||!a.mind)return null;
-      let best=null,bi=null;
-      for(const k in a.mind.sus){
-        const i=+k,s=susOf(a,i,forNight);
-        if(s<(min==null?0.5:min))continue;
-        if(best==null||s>best){best=s;bi=i;}
-      }
-      return bi==null?null:{i:bi,score:best,why:(a.mind.why[bi]||[]).slice(-4)};
-    }
+    /* 方案 A 第二批：真源已外提 js/t2/ai.js（susOf / topSus），状态沿用 _t.G()；
+       此处保留同名函数声明作薄委托，下游调用零改动。 */
+    function susOf(a,i,forNight){ return SKT2AI.susOf(a,i,forNight); }
+    function topSus(a,min,forNight){ return SKT2AI.topSus(a,min,forNight); }
     function liveTarget(i,self){const t=G.agents[i];return t&&t!==self&&t.alive&&!t.downed?t:null;}
     function bestSusTarget(a,min,forNight){
       const s=topSus(a,min,forNight); if(!s)return null;
