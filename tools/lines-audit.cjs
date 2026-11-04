@@ -65,19 +65,24 @@ try {
   const w2 = {}; new Function('window', fs.readFileSync(MAPSRC, 'utf8'))(w2);
   ROOMS = Array.from(new Set(ROOMS.concat((w2.SKMapData.rooms || []).map(r => r.name).filter(Boolean))));
 } catch (e) { /* 地图读不到就用兜底表 */ }
-/* 镜像 game.js 的 ROOM_WORDS：验 selfcite 真能解析出舱室 */
-const ROOM_WORDS = ['中央会议室', '会议室', '大厅', '仓库', '库房', '食堂', '餐厅', '监控室', '监控',
-  '生态舱', '生态区', '生态', '配电室', '配电', '娱乐室', '娱乐舱', '休闲室', '娱乐',
-  '引擎室', '引擎', '医疗间', '医疗舱', '医务室', '病房', '医疗', '军械库', '武器库', '军械', '走廊', '通道'];
-/* 镜像 game.js parseSpeech 的 `out.where` 第一人称正则（改那边必须改这里） */
-/* 自述识别正则**从 js/game.js 里读**，不在这里抄一份。
+/* 舱室词表与自述正则**都从真源 js/t2/decision.js#SKT2Decision 里读**，不在这里抄一份。
+   方案 A 第三批（2026-11-04）已把 parseSpeech 与 ROOM_WORDS 外提到玩家决策域；
    以前这里是手抄的副本，game.js 补了「我昨晚在」之后体检还在按旧表判，
    两边同时"看起来对"——这正是最坑的那种漂移（本项目已经被它咬过几次）。
    读不到就硬报错，宁可工具跑不起来，也不要拿着过期的表去放行语料。 */
-const GAME_SRC = fs.readFileSync(path.join(DIR, 'js', 'game.js'), 'utf8');
-const WRE = (GAME_SRC.match(/out\.rooms\.length&&\/(.*?)\/\.test\(s\)/) || [])[1];
+const DECISION_SRC = fs.readFileSync(path.join(DIR, 'js', 't2', 'decision.js'), 'utf8');
+let ROOM_WORDS;
+try {
+  const w3 = {};
+  new Function('window', DECISION_SRC)(w3);
+  ROOM_WORDS = w3.SKT2Decision.ROOM_WORDS.map(p => p[0]);
+} catch (e) {
+  console.error('FAIL 无法从 js/t2/decision.js 读出 ROOM_WORDS 舱室词表：' + e.message);
+  process.exit(1);
+}
+const WRE = (DECISION_SRC.match(/out\.rooms\.length&&\/(.*?)\/\.test\(s\)/) || [])[1];
 if (!WRE) {
-  console.error('FAIL 无法从 js/game.js 读出 parseSpeech 的第一人称自述正则' +
+  console.error('FAIL 无法从 js/t2/decision.js 读出 parseSpeech 的第一人称自述正则' +
     '（parseSpeech 的写法变了就同步改这里，别在体检工具里另抄一份表）');
   process.exit(1);
 }
@@ -400,7 +405,7 @@ function CTX() {
     r: ROOMS[Math.floor(R() * ROOMS.length)],
     r2: ROOMS[Math.floor(R() * ROOMS.length)],
     k: TASKS[Math.floor(R() * TASKS.length)],
-    /* game.js 的 whenWord() 在会议里只会给 昨晚 / 今晚（新鲜度词是 alibiTimeWord 的活），
+    /* js/t2/decision.js 的 whenWord() 在会议里只会给 昨晚 / 今晚（新鲜度词是 alibiTimeWord 的活），
        抽样必须跟它同一值域，否则 selfcite 的 parseSpeech 校验会误报。 */
     when: ['昨晚', '今晚'][Math.floor(R() * 2)],
     prev: ['上次', '上一轮', '前面那回'][Math.floor(R() * 3)],
