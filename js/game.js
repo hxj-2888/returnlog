@@ -535,8 +535,26 @@
       /* 横栏高度要等布局落定才量得准（首次显示时 offsetHeight 还是 0）：
          同步一次 + 下一帧再校正一次，保证左上角的维修进度永远在横栏下方。 */
       const place=()=>{
-        if(!hud)return;
-        hud.style.top=on?(dev?Math.max(96,dev.offsetHeight+18):96)+'px':'';
+        /* 横栏高度按运行时实测，窄屏会从 8 列变 5/3 列，别写死 134。 */
+        const off=on&&dev?dev.offsetHeight:0;
+        if(hud)hud.style.top=on?Math.max(96,off+18)+'px':'';
+        /* T3（2026-11-05）：DEV / 旁观顶栏贴顶时，会议卡与结算卡改为"从栏底开始"。
+           不用 margin-top —— 覆盖层是 flex 居中，margin 会被折半，窄屏仍可能被盖。
+           改成 padding-top + align-items:flex-start，位移等于实测栏高。 */
+        const meet=document.getElementById('meet');
+        if(meet){
+          meet.style.paddingTop=off?off+'px':'';
+          meet.style.alignItems=off?'flex-start':'';
+        }
+        const mtg=document.querySelector('#meet .mtg');
+        if(mtg)mtg.style.maxHeight=off?('calc(100vh - '+(off+16)+'px)'):'';
+        const end=document.getElementById('end');
+        if(end){
+          end.style.paddingTop=off?off+'px':'';
+          end.style.alignItems=off?'flex-start':'';
+        }
+        const endCard=document.querySelector('#end .card');
+        if(endCard)endCard.style.maxHeight=off?('calc(100vh - '+(off+16)+'px)'):'';
       };
       place();
       if(on&&typeof requestAnimationFrame==='function')requestAnimationFrame(place);
@@ -3847,7 +3865,7 @@
         closeWheel(true);
         G.sabTarget=null;
         G.fogOn=false;
-        toast('你已阵亡 · 幽灵态：穿墙、全视，仍可维修（1.6×）');
+        toast('你已阵亡 · 幽灵态：穿墙、全视，仍可做自己剩下的任务（1.6×，最多 2 分）');
         SND.ghost();
         syncHud();
       }
@@ -4365,6 +4383,8 @@
       closeWheel(true);
       if(G.meet){ clearInterval(meetingTick); G.meet=null; document.getElementById('meet').classList.add('hide'); }
       document.getElementById('end').classList.remove('hide');
+      /* 结算卡同样要给 DEV / 旁观横栏让位，否则标题被压住（T3） */
+      if(!G.simMode)syncDevUi();
       document.getElementById('e-t').textContent=win?'人类胜利':'异形胜利';
       /* 结算摘要带上本局新增的三项统计（2026-10-31）：医疗无人机救治 / 幽灵任务 / 幽灵修故障 */
       const st=G.stats||{};
@@ -4436,7 +4456,10 @@
       }
       const box=document.getElementById('m-say'); if(!box)return;
       const d=document.createElement('div');
-      d.className='ln'+(kind===true||kind==='me'?' me':'')+(kind==='sys'?' sys':'');
+      /* T8（2026-11-05）：夜会一秒一条、每条 20+ 字，玩家最容易漏掉"谁在点我"。
+         纯表现层：只在整行文本里出现玩家名字时加左侧金条，不改台词、不改解析、不写 sus。 */
+      const hit=kind!=='sys'&&G&&G.me&&G.me.name&&raw.indexOf(G.me.name)>=0;
+      d.className='ln'+(kind===true||kind==='me'?' me':'')+(kind==='sys'?' sys':'')+(hit?' hit':'');
       const b=document.createElement('b'); b.textContent=tagByName(who);
       d.appendChild(b); d.appendChild(document.createTextNode(raw));
       box.appendChild(d); box.scrollTop=box.scrollHeight;
@@ -5892,6 +5915,8 @@
               discuss,voteT,votes:{},tally:null,remainMs:remainMs,startAt:performance.now(),
               ctx,lines:[]};
       document.getElementById('meet').classList.remove('hide');
+      /* DEV / 旁观横栏此刻可能刚显示：量一次高度，把会议卡整体让下去（T3） */
+      if(!G.simMode)syncDevUi();
       document.getElementById('m-title').textContent=
         kind==='pre'?'第 1 天 · 开局公开讨论':(kind==='day'?('第 '+G.night+' 天 · 全员会议'):'紧急会议');
       document.getElementById('m-sub').textContent=
@@ -5915,6 +5940,9 @@
       const inp=document.getElementById('m-text');
       inp.disabled=!canAct;
       inp.placeholder=canAct?'自由发言，回车发送':(G.spectMode?'旁观者只读':'幽灵只能旁观');
+      /* 与输入框同源：不能发言时发送按钮也一并禁用（含投票期结束回到讨论的重置） */
+      const sndBtn=document.getElementById('m-send');
+      if(sndBtn)sndBtn.disabled=!canAct;
       document.getElementById('m-who').innerHTML='';
       document.getElementById('m-tally').innerHTML='';
       document.getElementById('m-skip-vote').classList.add('hide');
@@ -5959,6 +5987,12 @@
       stopChatter();
       document.getElementById('m-skip').classList.add('hide');
       const tpl=document.getElementById('m-tpl'); if(tpl)tpl.classList.add('hide');
+      /* T5（2026-11-05）：投票期发言通道已经关闭（sendPlayerSpeech 在 phase!=='discuss'
+         时直接 return），但输入框仍能打字、发送按钮仍可点，玩家会以为发出去了。
+         这里显式禁用并改占位，讨论期由 openMeeting 恢复。 */
+      const vinp=document.getElementById('m-text'), vsb=document.getElementById('m-send');
+      if(vinp){vinp.disabled=true;vinp.placeholder='投票中…';}
+      if(vsb)vsb.disabled=true;
       const box=document.getElementById('m-who'); box.innerHTML='';
       if(!G.me.downed&&G.me.alive&&!G.spectMode){
         for(const a of G.agents){
@@ -6916,7 +6950,9 @@
     }
     function openBodyCard(b){
       const bp=bodyPos(b);
-      G.inspect={agent:b};
+      /* 尸检/伤情卡打开期间世界冻结，但夜钟是真实时间：记下打开时刻，
+         关闭时把相位整体平移（与 togglePause 同一套补偿，见 closeBodyCard）。 */
+      G.inspect={agent:b,openedAt:performance.now()};
       document.getElementById('b-t').textContent=(b.alive?'伤情记录 · ':'尸检记录 · ')+b.name;
       document.getElementById('b-s').textContent=bp?roomNameAt(bp[0],bp[1]):'船体未知区域';
       let h='';
@@ -6946,7 +6982,16 @@
     function closeBodyCard(){
       const el=document.getElementById('body');
       if(el)el.classList.add('hide');
-      if(G)G.inspect=null;
+      if(!G)return;
+      /* T1（2026-11-05）：卡片冻结了多少墙钟，就把夜晚相位往后推多少，
+         否则读卡片的时间会被夜钟白吃掉。与 togglePause 的补偿口径一致：
+         只平移 phase，不新造计时器。 */
+      const ins=G.inspect;
+      if(ins&&ins.openedAt!=null){
+        const d=performance.now()-ins.openedAt;
+        if(d>0&&G.phase&&G.t>0){G.phase.startedAt+=d;G.phase.endsAt+=d;}
+      }
+      G.inspect=null;
     }
     function toggleDrag(){
       const me=G.me;
@@ -9207,7 +9252,7 @@
               :(G.sabTarget&&G.me.alien&&!G.me.sabUsed
                 ?'破坏目标：'+roomNameById(G.sabTarget.room)+'「'+G.sabTarget.label+'」· 进入舱室自动下手 · 30 秒内可被修复'
                 :(!G.me.alive
-                  ?'幽灵态：点击穿墙移动 · E 维修任务（1.6×，额度 '+(2-(G.me.ghostPts||0))+' 分）/故障 · 不能报告/投票/搜尸 · 不能破坏 · F2 DEV'
+                  ?'幽灵态：点击穿墙移动 · E 维修任务（1.6×，额度 '+(2-(G.me.ghostPts||0))+' 分）· 不能修故障/报告/投票/搜尸 · 不能破坏 · F2 DEV'
                   :(G.me.downed
                     ?'你已濒死：等队友 F 施救，或被拖进医疗间 · F2 DEV'
                     :(G.me.detained
@@ -9584,6 +9629,10 @@
       clearDrags:()=>{releaseAllDrags(true);return G.drag;},
       inspect:()=>G.inspect?G.inspect.agent.name:null,
       openBody:i=>openBodyCard(G.agents[i]),
+      /* T1 探针：必须走真实关闭路径（closeBodyCard）才会触发相位补偿 */
+      closeBody:()=>closeBodyCard(),
+      /* T8 探针：直接播一句会议发言，用于验证"点名玩家"的行高亮 */
+      sayLine:(who,text,kind)=>say(who,text,kind),
       openMeeting:(kind,r,v)=>openMeeting(kind||'night',
         r==null?G.me:G.agents[r],
         v==null?(G.agents.find(a=>bodyPos(a))||null):G.agents[v]),

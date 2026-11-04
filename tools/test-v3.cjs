@@ -181,9 +181,17 @@ function section(t) { console.log('\n== ' + t); }
   const t1 = await T(() => SKV3._t.G().t);
   ok(Math.abs(t0 - t1) < 0.02, '尸检期间游戏暂停（计时冻结）');
   await shot('26_搜尸.png');
+  /* T1（2026-11-05）：读卡期间世界冻结，但夜钟是真实时间。
+     必须走真实关闭路径（closeBodyCard），关闭后把冻结时长补回相位；
+     否则"看两秒尸检卡"就等于白掉两秒夜晚。 */
+  const cardCloseT0 = await T(() => SKV3._t.G().t);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
+  const cardCloseT1 = await T(() => SKV3._t.G().t);
   ok((await T(() => SKV3._t.inspect())) === null, 'Esc 关闭尸检卡');
+  ok(cardCloseT0 - cardCloseT1 < 0.5,
+    '关闭尸检卡后夜钟补偿：读卡不偷夜晚时间（损失 ' +
+    (cardCloseT0 - cardCloseT1).toFixed(2) + 's < 0.5s）');
 
   section('拖拽');
   await page.keyboard.press('g');
@@ -2099,9 +2107,14 @@ function section(t) { console.log('\n== ' + t); }
     t.startVote();
     const btn = document.getElementById('m-skip-vote');
     const visible = !!btn && !btn.classList.contains('hide');
+    /* T5（2026-11-05）：投票期发言通道关闭，输入框与发送按钮必须同步禁用，
+       不能出现"能打字、按下没反应"的静默失败。 */
+    const inp = document.getElementById('m-text'), sb = document.getElementById('m-send');
+    const lock = { disabled: !!inp && inp.disabled === true, ph: inp ? inp.placeholder : '',
+      send: !!sb && sb.disabled === true };
     btn.click();
     const m = t.G().meet;
-    const out = { visible, phase: m && m.phase, tally: !!(m && m.tally),
+    const out = { visible, lock, phase: m && m.phase, tally: !!(m && m.tally),
       self: m && m.votes ? m.votes[g.me.i] : null,
       day: SKSanity.MEET.voteDay, night: SKSanity.MEET.voteNight };
     t.finishMeeting();
@@ -2109,6 +2122,8 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(SKIPV.day === 15 && SKIPV.night === 15, '投票等待白天/夜会都是 15 秒');
   ok(SKIPV.visible, '投票阶段显示「跳过投票」按钮');
+  ok(SKIPV.lock.disabled && SKIPV.lock.send && /投票中/.test(SKIPV.lock.ph),
+    '投票期发言框与发送按钮同步禁用，占位改为「' + SKIPV.lock.ph + '」');
   ok(SKIPV.phase === 'reveal' && SKIPV.tally && SKIPV.self === -1,
     '没选人直接跳过投票 = 记弃权并立即结算');
 
@@ -6503,6 +6518,35 @@ function section(t) { console.log('\n== ' + t); }
     UI2.endShown + '）');
   ok(UI2.voteEvents >= 1 && UI2.meets >= 1 && /夜/.test(UI2.head),
     '结算页有「谁投了谁」矩阵：' + UI2.voteEvents + ' 张票 → ' + UI2.meets + ' 场投票（逐条列谁投谁 / 弃权）');
+
+  /* T2（2026-11-05）：身份表 + 投票矩阵让结算卡变得很高，主操作按钮曾被挤到
+     折叠线以下。这里在两个视口各断言一次「再来一局」完整落在首屏，断言完恢复 1440×900。 */
+  const ENDBTN1 = await T(() => {
+    const r = document.getElementById('e-r').getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: innerHeight };
+  });
+  ok(ENDBTN1.top >= 0 && ENDBTN1.bottom <= ENDBTN1.vh,
+    '结算页「再来一局」在首屏完整可见（' + ENDBTN1.top + '~' + ENDBTN1.bottom + ' / 视口 ' + ENDBTN1.vh + '）');
+  await page.setViewportSize({ width: 1120, height: 700 });
+  await page.waitForTimeout(160);
+  const ENDBTN2 = await T(() => {
+    const r = document.getElementById('e-r').getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: innerHeight };
+  });
+  ok(ENDBTN2.top >= 0 && ENDBTN2.bottom <= ENDBTN2.vh,
+    '1120×700 下「再来一局」仍在首屏（' + ENDBTN2.top + '~' + ENDBTN2.bottom + ' / 视口 ' + ENDBTN2.vh + '）');
+  await shot('47_结算页_1120x700_按钮首屏.png');
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.waitForTimeout(160);
+  const ENDBTN3 = await T(() => {
+    const r = document.getElementById('e-r').getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: innerHeight };
+  });
+  ok(ENDBTN3.top >= 0 && ENDBTN3.bottom <= ENDBTN3.vh,
+    '844×390 横屏下「再来一局」仍在首屏（' + ENDBTN3.top + '~' + ENDBTN3.bottom + ' / 视口 ' + ENDBTN3.vh + '）');
+  await shot('47b_结算页_844x390_按钮首屏.png');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(160);
   /* 复盘页的筛选与夜长是**源码级**契约（DOM 只在打开回放后存在，这里已经关了） */
   const REPLAY_SRC = fs.readFileSync(path.join(__dirname, '..', 'js', 'ui', 'replay.js'), 'utf8');
   const MEET_ROW = (REPLAY_SRC.match(/\{\s*id: 'meet'[^\n]*/) || [''])[0];
@@ -6633,6 +6677,64 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(BAD.r && BAD.r.ok === false && /走不过去/.test(BAD.msg) && BAD.fx && BAD.fx.bad,
     '点到不可交互处：给出文字提示 + 点击处标记禁止符号（' + BAD.msg + '）');
+
+  section('DEV 顶栏让位 / 会议点名高亮（2026-11-05）');
+  const DEVMEET = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    t.setDev(true);
+    t.openMeeting('day');
+    return { devOn: !!document.getElementById('dev') &&
+      !document.getElementById('dev').classList.contains('hide') };
+  });
+  await page.waitForTimeout(240);
+  const DEVMEET2 = await T(() => {
+    const dev = document.getElementById('dev').getBoundingClientRect();
+    const title = document.getElementById('m-title').getBoundingClientRect();
+    return { devBottom: Math.round(dev.bottom), devH: Math.round(dev.height),
+      titleTop: Math.round(title.top) };
+  });
+  ok(DEVMEET.devOn && DEVMEET2.titleTop >= DEVMEET2.devBottom,
+    'DEV 顶栏（' + DEVMEET2.devH + 'px）不再盖住会议标题（标题 ' +
+    DEVMEET2.titleTop + ' ≥ 栏底 ' + DEVMEET2.devBottom + '）');
+
+  const DEVEND = await T(() => {
+    const t = SKV3._t, g = t.G();
+    t.startVote(); t.closeVote(); if (g.meet) t.finishMeeting();
+    g.prog = t.winPts();
+    t.checkWin();
+    return { end: !document.getElementById('end').classList.contains('hide') };
+  });
+  await page.waitForTimeout(240);
+  const DEVEND2 = await T(() => {
+    const dev = document.getElementById('dev').getBoundingClientRect();
+    const title = document.getElementById('e-t').getBoundingClientRect();
+    return { devBottom: Math.round(dev.bottom), titleTop: Math.round(title.top),
+      end: !document.getElementById('end').classList.contains('hide') };
+  });
+  ok(DEVEND.end && DEVEND2.end && DEVEND2.titleTop >= DEVEND2.devBottom,
+    'DEV 顶栏不再盖住结算标题（标题 ' + DEVEND2.titleTop + ' ≥ 栏底 ' + DEVEND2.devBottom + '）');
+  await shot('48_DEV顶栏让位.png');
+
+  const HIT = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    t.setDev(false);
+    t.openMeeting('day');
+    const name = g.me.name;
+    /* 一句点名玩家、一句不点名：只有前者应带 .hit */
+    t.sayLine(g.agents[1].name, '我刚才看见' + name + ' 在走廊', '');
+    t.sayLine(g.agents[1].name, '我在引擎室修东西', '');
+    const rows = [...document.querySelectorAll('#m-say .ln')];
+    const hit = rows.filter(r => r.classList.contains('hit'));
+    return { name, total: rows.length, hits: hit.length,
+      text: hit.length ? hit[0].textContent : '' };
+  });
+  ok(HIT.total >= 2 && HIT.hits === 1 && HIT.text.indexOf(HIT.name) >= 0,
+    '点名玩家的发言行加 .hit 高亮，未点名的行不加（' + HIT.hits + '/' + HIT.total + '）');
+  await shot('49_会议点名高亮.png');
+  await T(() => { const t = SKV3._t, g = t.G();
+    t.startVote(); t.closeVote(); if (g.meet) t.finishMeeting(); });
 
   section('暂停 / 重开 / 退出');
   await fresh(false);

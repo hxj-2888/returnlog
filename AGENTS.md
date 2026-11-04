@@ -10,7 +10,7 @@
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
 > **权威口径（2026-11-04 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-03T11:50:27Z ·
 > seed 20261030 · 1000 局 · 人类 **57.6% / 异形 42.4% / 超时 0**，Wilson 54.51~60.63）。§六 是它的摘录；
-> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **712 通过 / 0 失败**（2026-11-04 复跑）。
+> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **720 通过 / 0 失败**（2026-11-05 复跑）。
 > 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
 ## 一、红线（违反即回退）
@@ -786,6 +786,16 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   新增破坏入口必须走 `damageRoom()`，新增维修入口必须走 `startFix()`（`doing='fix'`，连续 10 秒，
   移动打断）。幽灵不可破坏；天亮清空故障且不扣分。
 
+- **冻结世界的卡片必须补偿相位（2026-11-05，T1）**：尸检 / 伤情卡打开时 `loop()` 跳过 `update()`，
+  但夜钟是 `SKClock` 的真实时间。`closeBodyCard()` 必须按 `G.inspect.openedAt` 把
+  `G.phase.startedAt / endsAt` 整体平移，口径与 `togglePause()` 完全一致；
+  新增任何"全屏冻结但仍读真实时钟"的遮罩都照这个模式，**不要只冻结不补偿**。
+- **覆盖层给 DEV / 旁观顶栏让位（2026-11-05，T3）**：`#dev` 贴顶且高度随媒体查询变化，
+  会议卡 `#meet .mtg` 与结算卡 `#end .card` 必须由 `syncDevUi()` 按 `dev.offsetHeight` 让位。
+  用 `#meet` / `#end` 的 `padding-top + align-items:flex-start`（位移等于实测栏高），
+  **不要用 margin-top**：覆盖层是 flex 居中，margin 会被折半，窄屏仍会被盖。
+  结算页主操作按钮用 `.btns{position:sticky;bottom:0}` 固定，不随身份表 / 投票矩阵滚走（T2）。
+
 ## 五、改动流程
 
 1. 先读 `README.md`、本文件、`CHANGELOG.md` 最近条目。
@@ -796,7 +806,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 ## 六、当前基线（返航录V3）
 
-- 门禁：`node tools/test-v3.cjs` —— **712 条断言，712 通过 / 0 失败**（2026-11-04 复跑，Edge headless，依赖已收回本仓）。
+- 门禁：`node tools/test-v3.cjs` —— **720 条断言，720 通过 / 0 失败**（2026-11-05 复跑，Edge headless，依赖已收回本仓）。
   语料体检：`node tools/lines-audit.cjs --strict` —— **1400 通过 / 0 失败**（退出码 0）。
   **当前数值基线 = F 轮（亮区整片可见放开之后）**：人类 **57.6% / 异形 42.4% / 超时 0**
   （95% Wilson 54.51~60.63），夜 5.682、进度 34.245、刀 10.04、会议 11.35、破坏 10.101；
