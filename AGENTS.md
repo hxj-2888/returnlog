@@ -155,7 +155,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/engine/clock.js` | 引擎 | 相位时钟 / 个人技能槽 / 动作请求队列（纯逻辑） |
 | `js/engine/invariants.js` | 引擎 | 对局不变量断言（只读，`SKInvariants.check`） |
 | `js/engine/geo.js` | 引擎 | 几何、可行走网格（硬掩体）、A*、视线 |
-| `js/t2/space.js` | T2 · 空间与资源 | **方案 A 第一块**：移动 / 拖拽 / 旁观 / 自动门常量真源（`SKT2Space`）；`game.js` 只引用，数值一个未改 |
+| `js/t2/space.js` | T2 · 空间与资源 | **方案 A 第一 / 四块**：8 个运行常量真源；第四批扩展为「常量 + 12 个几何 / 数值纯函数 + `ROW` / `PIPE_TINT` 两张表」（`SKT2Space`）。`game.js` 常量走局部别名、函数走薄委托；数值一个未改 |
 | `js/t2/ai.js` | T2 · AI 拟人化 | **方案 A 第二块**：认知链读值与时间窗真源（`SKT2AI`：susOf / topSus / crimeWindow）；状态沿用 `_t.G()`，`game.js` 保留同名薄委托 |
 | `js/t2/decision.js` | T2 · 玩家决策 | **方案 A 第三块**：报告额度（`bodyReported` / `markBodyReported` / `nightMeetLeft`）、会议席位标签与发言解析（`seatNo` / `tagName` / `tagByName` / `nameOf` / `whenWord` / `seatIndex` / `parseSpeech`）与 `ROOM_WORDS` / `CN_SEAT` 词表真源（`SKT2Decision`）；状态沿用 `_t.G()`，`game.js` 保留同名薄委托 |
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
