@@ -6792,8 +6792,8 @@
       SND.interact();
       return true;
     }
-    function ghostTaskPts(p){return p&&p.kind==='hard'?2:1;}
-    function ghostTaskAllowed(a,p){return !a||!a.ghost||((a.ghostPts||0)+ghostTaskPts(p)<=2);}
+    function ghostTaskPts(p){ return SKT2Space.ghostTaskPts(p); }
+    function ghostTaskAllowed(a,p){ return SKT2Space.ghostTaskAllowed(a,p); }
     function startTask(me,p,ghost){
       me.path=null;me.moving=false;
       if(me.ghost&&me.alien){if(me===G.me&&!G.spectMode)toast('异形幽灵不能执行维修');return false;}
@@ -7081,12 +7081,8 @@
       else if(!G.spectMode&&shooter===G.me) toast('开枪击中 '+target.name);
       return true;
     }
-    function botDead(kind){return kind==='secbot'?!!G.secbotDead:!!G.medbotDead;}
-    function botHp(kind){
-      if(!G.botHp)G.botHp={secbot:2,medbot:1};
-      if(G.botHp[kind]==null)G.botHp[kind]=kind==='secbot'?2:1;
-      return G.botHp[kind];
-    }
+    function botDead(kind){ return SKT2Space.botDead(kind); }
+    function botHp(kind){ return SKT2Space.botHp(kind); }
     /* 出刀打机器人的公共入口：玩家 Q 与 AI 异形共用，
        必须消耗刀数并按装甲 HP（保安 2 / 医疗 1）结算，不允许"一刀拆死" */
     function knifeBot(a,kind){
@@ -7558,8 +7554,8 @@
     /* 监控台 / 电闸的贴图不再进运行时：它们的本体由 Blender 底图烘出来，
        面板与屏幕材质走 assets/scene/v4/tex/facility-*.png（见 tools/blender-ship.py）。
        assets/scene/v4/facility/monitor.png / breaker.png 保留为素材库。 */
-    const ROW={down:0,up:1,left:3,right:4};
-    function ready(im){return im&&im.complete&&im.naturalWidth>0;}
+    const ROW=SKT2Space.ROW;  /* 真源 js/t2/space.js；另有两处直接使用 ROW */
+    function ready(im){ return SKT2Space.ready(im); }
     
     let PAT={};
     function patFor(r){
@@ -7610,22 +7606,7 @@
       }
     }
     /* 每条走廊两盏顶灯，配电室拉闸后整条走廊全熄 */
-    function corridorLampPos(c){
-      let total=0; const segs=[];
-      for(let i=0;i<c.pts.length-1;i++){
-        const a=c.pts[i],b=c.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
-        segs.push({a,b,L,s:total,ang:Math.atan2(b[1]-a[1],b[0]-a[0])}); total+=L;
-      }
-      const at=(f)=>{
-        const d=total*f;
-        for(const s of segs) if(d<=s.s+s.L||s===segs[segs.length-1]){
-          const k=s.L?Math.min(1,Math.max(0,(d-s.s)/s.L)):0;
-          return [s.a[0]+(s.b[0]-s.a[0])*k,s.a[1]+(s.b[1]-s.a[1])*k,s.ang];
-        }
-        return [c.pts[0][0],c.pts[0][1],0];
-      };
-      return [at(0.28),at(0.72)];
-    }
+    function corridorLampPos(c){ return SKT2Space.corridorLampPos(c); }
     function drawCorridorLights(T){
       if(!G)return;
       for(const c of M.corridors){
@@ -8060,16 +8041,8 @@
        形状语言全船统一（菱形 + 三道格栅 + 呼吸环），配色跟随所在舱室的主题色，
        这样食堂口是暖金、医疗口是冷青、引擎口是橙红，看起来长在房间里而不是贴上去的。
        颜色值与 tools/blender-ship.py 的 ROOM_THEME[].mark 对齐。 */
-    const PIPE_TINT={
-      engine:[245,117,51], cam:[61,199,242], armory:[250,184,51], warehouse:[250,199,61],
-      transit:[250,204,115], med:[77,209,240], bridge:[242,184,71], ecosys:[87,219,112],
-      power:[245,179,41], fun:[224,82,204],
-    };
-    function pipeTint(rid){
-      const c=PIPE_TINT[rid]||[168,150,255];
-      return {a:(v)=>'rgba('+c[0]+','+c[1]+','+c[2]+','+v+')',
-              dim:(v)=>'rgba('+Math.round(c[0]*0.82)+','+Math.round(c[1]*0.82)+','+Math.round(c[2]*0.88)+','+v+')'};
-    }
+    /* 方案 A 第四批：ROW / PIPE_TINT 真源在 js/t2/space.js#SKT2Space；PIPE_TINT 本文件不再定义。 */
+    function pipeTint(rid){ return SKT2Space.pipeTint(rid); }
     function drawPipes(T){      const s=VIEW.s;
       for(const q of M.pipes){
         const x=SX(q.x),y=SY(q.y);
@@ -8348,26 +8321,9 @@
     }
 
     /* ---- 动作贴片：工具 / 武器 / 命中特效（纯视觉，不改判定） ---- */
-    function rowForAng(ang){
-      const c=Math.cos(ang),s=Math.sin(ang);
-      if(Math.abs(c)>=Math.abs(s)) return c>0?ROW.right:ROW.left;
-      return s>0?ROW.down:ROW.up;
-    }
-    function dirAng(a){
-      if(!a)return 0;
-      if(a.dir==='left')return Math.PI;
-      if(a.dir==='up')return -Math.PI/2;
-      if(a.dir==='down')return Math.PI/2;
-      return 0;
-    }
-    function workStyle(a){
-      if(a._doing==='med')return {c:'#3FBF8C',icon:'cross',glow:'rgba(63,191,140,.12)'};
-      if(a._doing==='ammo')return {c:'#E0A94B',icon:'bullet',glow:'rgba(224,169,75,.12)'};
-      if(a._doing==='search')return {c:'#7FD3F0',icon:'lens',glow:'rgba(127,211,240,.10)'};
-      if(a._doing==='revive')return {c:'#3FBF8C',icon:'cross',glow:'rgba(63,191,140,.12)'};
-      if(a._doing==='breaker')return {c:'#7FD3F0',icon:'bolt',glow:'rgba(127,211,240,.12)'};
-      return {c:'#F0C674',icon:'wrench',glow:'rgba(240,198,116,.11)'};
-    }
+    function rowForAng(ang){ return SKT2Space.rowForAng(ang); }
+    function dirAng(a){ return SKT2Space.dirAng(a); }
+    function workStyle(a){ return SKT2Space.workStyle(a); }
     /* 开口扳手（维修专用）：手柄 + C 形开口头，开口朝 +X；原点在手柄末端，
        外层直接 rotate 就是「以握持点为轴拧动」。深色描边保证在暗房地板也读得清。 */
     function drawWrenchShape(len,fill,edge){
@@ -8773,7 +8729,7 @@
       }
       G.fx=G.fx.filter(f=>f.t>0);
     }
-    function k1(p){return p<0.35?p/0.35*0.6:(0.6+(p-0.35)/0.65*0.4);}
+    function k1(p){ return SKT2Space.k1(p); }
     /* 头顶常显「席位号 + 名字」；编号永远在前，会议里也用同一套标签 */
     let TAG_RECTS=[];
     function drawNameTag(a,x,y,isMe){
@@ -9379,7 +9335,7 @@
       if(c&&G.corrLit)return 'c:'+M.corridors.indexOf(c);
       return null;
     }
-    function corrJoinsRoom(r,c){return !!(r&&c&&(c.a===r.id||c.b===r.id));}
+    function corrJoinsRoom(r,c){ return SKT2Space.corrJoinsRoom(r,c); }
     function visibleAt(x,y){
       if(G.dev||!G.fogOn||!G.me.alive)return true;
       const me=G.me;

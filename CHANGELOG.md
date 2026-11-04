@@ -6,6 +6,17 @@
 本文件记录《新返航录》试玩版的所有可见变更。版本口径：**返航录V3.6**。
 格式参考 Keep a Changelog；日期使用本地时间（Asia/Shanghai）。
 
+## [未发布 · 方案 A 第四批：空间与资源域几何 / 数值纯函数归位] — 2026-11-04
+
+- **本批改动**（用户 20:54「继续」＝放行第四批；按「分类交给 agent 处理」的既有授权，自行裁定本批范围）：
+  - **不新建 `js/runtime.js`**：渲染 / HUD / 输入 / 状态机整体依赖 `ctx` / `VIEW` / `MEET_SCHED` / 定时器与 DOM，硬搬会重演 §八 的全量拆分失败；先做可按三域安全归位的部分，`runtime.js` 顺延为第五批并需先定依赖注入。
+  - **`js/t2/space.js` 从「8 个常量」扩展为「常量 + 12 个纯函数 + 2 张表」**（T2 · 空间与资源，`SKT2Space`）：角色/任务数值 `ghostTaskPts` / `ghostTaskAllowed` / `botDead` / `botHp`，地图几何 `corridorLampPos` / `corrJoinsRoom`，渲染方向与配色 `ready` / `rowForAng` / `dirAng` / `workStyle` / `pipeTint` / `k1`，以及 `ROW` / `PIPE_TINT` 两张表。函数体逐行一致，`botDead` / `botHp` 的状态走 `_t.G()`。
+  - `js/game.js` 保留 **12 个同名薄委托**；`PIPE_TINT` 定义**删除**（只被 `pipeTint` 用），`ROW` 保留 `const ROW=SKT2Space.ROW` 别名（另有 2 处直接使用）。`AGENTS.md` 文件地图、`README.md` 分层约定、施工单 §七 进度表同步。
+  - **`tools/` 静态读取全量盘点**（上轮第 3 条提问，本批前置完成）：结论与逐条清单写入施工单 **§九**。要点：`test-v3.cjs` 的 `GAME_SRC` / `GAME_EQ_SRC` 仍断言 `pickLine` / `_pipeCD` / `breakerOnTime` 等 game.js 形态（本批未碰）；`lines-audit.cjs` 已在第三批改指 `decision.js`；`ux-audit.cjs`（用户未提交）用 `k === 'x'` 正则读输入区键位——本批键位命中数 HEAD 与现在均为 32，未受影响，agent 不改该工具。已把「每批外提前先查静态读取」写成规则。
+  - 剧情语料 `js/data/lines.js`、切片清单、3D 素材与 `tools/ux-*` 均未动、未提交。
+- **读数变化**：本批门禁实跑 **712 通过 / 0 失败**（`tools/_gate-batch4-20261104.log`，一次通过）；空间域验证物 `node tools/map-check.cjs`：**gaps 0 / dead 0 / unreachable 空**；18 个 `js/` 语法全过。未跑 sim，未改任何平衡数值与数值表。
+- **下一批立项依据**（用户裁定后填）：________（候选：第五批 `js/runtime.js` 需先定依赖注入方案；或继续拆 `decision.js` 余下的开会 / 投票 / 发言编排；或剧情语料新版接入）
+
 ## [未发布 · 方案 A 第三批：玩家决策域会议基础层] — 2026-11-04
 
 - **本批改动**（用户 20:40「继续」＝放行第三批；上轮其余提问按保守做法：薄委托保留、偶发读数留台账、3D 素材不提交）：

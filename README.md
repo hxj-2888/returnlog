@@ -454,7 +454,7 @@ tools/
 3d/                        独立 Godot 4.6 3D 预演子项目（不参与 index.html；见 3d/README.md）
 ```
 
-分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域常量）、`js/t2/ai.js`（AI 拟人化域认知链读值与时间窗）、`js/t2/decision.js`（玩家决策域报告额度与会议发言解析）；`game.js` 保留编排与薄委托，状态沿用 `_t.G()`。
+分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链读值与时间窗）、`js/t2/decision.js`（玩家决策域报告额度与会议发言解析）；`game.js` 保留编排与薄委托，状态沿用 `_t.G()`。
 所有脚本都是有顺序的经典脚本（IIFE + `window.SK*` 命名空间），不使用 ES Module 与构建步骤。
 
 ### 3D 预演（独立子项目）
