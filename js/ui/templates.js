@@ -60,7 +60,12 @@
   .row b{color:#F0C674;font-weight:500}
   .btns{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap}
   /* 结算页的两块表（2026-11-03）：身份表 + 投票矩阵，复用复盘页的配色口径 */
-  #end .card{max-height:86vh;overflow:auto}
+  #end .card{max-height:86vh;overflow:auto;padding-bottom:0}
+  /* T2（2026-11-05）：身份表 / 投票矩阵可以滚，但主操作按钮必须始终在第一屏。
+     .card 本身就是滚动容器，sticky 直接生效；底色用卡片同色，滚过表格时不透字。
+     卡片底部内边距归零，由按钮条自带下边距，避免表格行从按钮条下方漏出来。 */
+  #end .card .btns{position:sticky;bottom:0;z-index:2;background:#12161E;
+    margin-top:12px;padding:10px 0 16px;border-top:1px solid #1F2733}
   .eblk{margin-top:12px;text-align:left}
   .eh{font:600 12px/1.6 system-ui;color:#8ea0b5;letter-spacing:.5px}
   .etbl{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;font:500 11px/1.6 system-ui}
@@ -89,6 +94,9 @@
   #m-say .ln{margin-bottom:6px;color:#C9D1DB;word-break:break-word}
   #m-say .ln b{color:#8FA6C0;font-weight:500;margin-right:8px}
   #m-say .ln.me b{color:#F0C674}
+  /* T8（2026-11-05）：点名玩家的发言，左侧加金条 + 极淡底色，便于扫读 */
+  #m-say .ln.hit{box-shadow:inset 2px 0 0 #F0C674;background:rgba(240,198,116,.07);
+    padding-left:8px;border-radius:0 4px 4px 0}
   #hud .surv b{font-variant-numeric:tabular-nums}
   #hud #hum{color:#8FD3F0}
   #hud #ali{color:#FF8A80}
