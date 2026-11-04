@@ -83,47 +83,103 @@ const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0
 const REMOTE_LABEL = { origin: 'GitHub', gitee: 'Gitee' };
 /* 认证坏了和链路坏了必须分开报。凭据失效时 git 会想找终端要账号密码，而这里是
    spawnSync 没有 TTY，失败信息长得像网络问题，于是出现"GitHub 明明上去了却报推送失败"。 */
+/* 预检只区分"凭据坏了"和"链路坏了"，并把它作为路由决策的输入：
+   凭据问题与通道无关，直接判死；链路问题不能在这里 bail out，否则默认通道一抖，
+   连"换一条通道"的机会都被跳过了（这正是以前"GitHub 推不上去"的形态）。 */
 function preflight(remote, dir, label) {
   const r = args('git', ['-c', 'credential.interactive=false', 'ls-remote', '--exit-code', remote, 'HEAD'], dir, true);
-  if (r.status === 0) return true;
+  if (r.status === 0) return 'ok';
   const out = (r.out || '').trim();
   if (/could not read Username|Authentication failed|terminal prompts disabled|Permission denied|403/i.test(out)) {
     console.error('[ship] ✗ ' + label + ' 认证失败（不是网络）：' + (remote === 'origin' ? '跑 `gh auth login`' : '重新输入 Gitee 账号/令牌'));
-  } else {
-    console.error('[ship] ⚠ ' + label + ' 预检不通（网络/代理）：' + out.split('\n').slice(-2).join(' '));
+    return 'auth';
   }
-  return false;
+  console.log('[ship] ' + label + ' 预检默认通道不通（' + (out.split('\n').pop() || '') + '），把兜底通道排到前面');
+  return 'transport';
 }
-/* GitHub 是发布目标，失败即致命；Gitee 只是镜像，抖一下不该让整条流水线 exit(1)。
-   旧版 Gitee 推送失败会连带把已成功发布的这次报成"推送失败"。
-   路由交给 git 的 http.<url>.proxy 按域名分流，别在这里写死：github.com 走
-   127.0.0.1:7897（实测 0.9s；直连能否通取决于 DNS 当下给哪个 IP，会 21s 超时），
-   gitee.com 直连（实测 0.3s，绕代理反而 13s）。 */
+/* 代理地址从 git 配置读，不写死某台机器。本仓配的是 http.https://github.com.proxy。 */
+function configuredProxy(dir) {
+  return args('git', ['config', '--get', 'http.https://github.com.proxy'], dir, true).out.trim();
+}
+const DIRECT_ARGV = ['-c', 'http.proxy=', '-c', 'https.proxy=',
+  '-c', 'http.https://github.com.proxy=', '-c', 'http.https://gitee.com.proxy='];
+/* URL 级键优先于通用 http.proxy，所以"走代理"必须连 gitee 的 URL 级空值一起覆盖。 */
+function proxyArgv(proxy) {
+  return ['-c', 'http.proxy=' + proxy, '-c', 'https.proxy=' + proxy, '-c', 'http.https://gitee.com.proxy=' + proxy];
+}
+/* 双通道：默认沿用按域名分流的 git 配置（github=代理 0.9s、gitee=直连 0.3s），
+   第二条互为兜底。实测两条各有单独失效的时刻：直连推 GitHub 曾 21s 超时，
+   同一时刻 Gitee 直连 13s 成功；改回代理 2.6s 就上去。所以传输层错误要换通道重试，
+   而不是原样重敲三次。 */
+function routesFor(remote, dir) {
+  const inherited = { name: '按配置', argv: [] };
+  const proxy = configuredProxy(dir);
+  if (remote === 'gitee') return proxy ? [inherited, { name: '走代理', argv: proxyArgv(proxy) }] : [inherited];
+  return [inherited, { name: '直连', argv: DIRECT_ARGV }];
+}
+const TRANSFER_ERR = /Failed to connect|Could not connect|Could not resolve|timed out|Connection refused|Connection reset|Recv failure|Send failure|RPC failed|curl \d+|empty reply|hung up unexpectedly|Encountered end of file|error: 5\d\d/i;
+/* 直连 GitHub 是"能读不能写"：实测 ls-remote 0.95s 通，但 push 两次都死
+   （Recv failure: Connection was reset 19.5s / Failed to connect 21s）。所以兜底通道
+   不能盲试——先花 1 次 ls-remote 探测，且只探测不写；探测不通就直接报错让人拉起代理，
+   省掉 20 秒的必然失败。 */
+function probeRoute(remote, dir, argv) {
+  const r = args('git', argv.concat(['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=6',
+    '-c', 'credential.interactive=false', 'ls-remote', '--exit-code', remote, 'HEAD']), dir, true);
+  return r.status === 0;
+}
 function pushRemote(remote, dir, fatal) {
   const label = REMOTE_LABEL[remote] || remote;
   const hint = 'git push ' + remote + ' main';
-  if (!preflight(remote, dir, label)) {
-    if (fatal) fail('推送 ' + label + ' 失败', hint);
+  const pre = preflight(remote, dir, label);
+  if (pre === 'auth') {
+    if (fatal) fail('推送 ' + label + ' 失败（凭据）', hint);
     results.push({ name: '推送 ' + label, ok: false });
     return;
   }
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const r = args('git', ['push', remote, 'main'], dir, true);
+  const routes = routesFor(remote, dir);
+  const order = pre === 'transport' ? routes.slice(1).concat(routes.slice(0, 1)) : routes;
+  const notes = [];
+  for (const route of order) {
+    if (route.name !== routes[0].name && route.name === '直连' && !probeRoute(remote, dir, route.argv)) {
+      notes.push('·直连：探测不通（GitHub 直连常是能读不能写），不做无谓的 20s 硬撞');
+      continue;
+    }
+    const t0 = Date.now();
+    const r = args('git', route.argv.concat(['push', remote, 'main']), dir, true);
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    const out = (r.out || '').trim();
     if (r.status === 0) {
-      console.log('[ship] ✓ 已推送 ' + label + (attempt > 1 ? '（第 ' + attempt + ' 次重试成功）' : ''));
+      const switched = route !== routes[0];
+      console.log('[ship] ✓ 已推送 ' + label + ' ·' + route.name + ' 通道 ' + secs + 's' + (switched ? '（兜底生效）' : ''));
+      if (switched) {
+        console.log('[ship]   默认通道此刻不通：' + (route.name === '直连'
+          ? '代理 ' + (configuredProxy(dir) || '未配置') + ' 没起或正在切节点'
+          : '直连被 DNS/路由卡住') + '；下次发布仍会先试默认通道');
+      }
       results.push({ name: '推送 ' + label, ok: true });
       return;
     }
-    if (attempt < 3) {
-      console.log('[ship] ' + label + ' 第 ' + attempt + ' 次失败，1.5s 后重试…');
-      sleepSync(1500);
-    } else {
-      console.error('[ship] ' + label + ' 三次都失败，最后输出：\n  ' +
-        (r.out || '').trim().split('\n').slice(-6).join('\n  '));
-      if (fatal) fail('推送 ' + label + ' 失败', hint);
-      results.push({ name: '推送 ' + label, ok: false });
+    notes.push('·' + route.name + '（' + secs + 's）：' + (out.split('\n').pop() || '退出码 ' + r.status));
+    /* 非传输层错误（non-fast-forward、权限、hook 拒绝）换通道也没用，立刻停手报告。 */
+    if (!TRANSFER_ERR.test(out)) {
+      notes.push('（非传输层错误，不再换通道）');
+      break;
     }
+    console.log('[ship] ' + label + ' ·' + route.name + ' 传输失败，换通道…');
+    sleepSync(1200);
   }
+  console.error('[ship] ✗ ' + label + ' 推送失败：\n  ' + notes.join('\n  '));
+  /* 提示按"默认通道是什么"来给，而不是在报错文本里找关键字：git 的死代理报错里
+     只有 via 127.0.0.1，没有"代理"两个字，按词匹配会漏。 */
+  const proxy = configuredProxy(dir);
+  if (remote !== 'gitee' && proxy) {
+    console.error('[ship]   提示：默认通道是代理 ' + proxy + '，确认 Clash Verge 在跑且混合端口没漂；' +
+      '恢复后单跑 ' + hint + '（直连兜底此刻也不可用，GitHub 直连常是能读不能写）');
+  } else {
+    console.error('[ship]   提示：默认走直连；确认本机能出网后单跑 ' + hint);
+  }
+  if (fatal) fail('推送 ' + label + ' 失败', hint);
+  results.push({ name: '推送 ' + label, ok: false });
 }
 function log(m) { console.log('\n[ship] ' + m); }
 function ok(name, t0) { results.push({ name, ok: true, ms: Date.now() - t0 }); console.log('[ship] ✓ ' + name + ' (' + ((Date.now() - t0) / 1000).toFixed(1) + 's)'); }
