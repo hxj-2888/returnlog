@@ -20,5 +20,8 @@
     "ship": "node tools/ship.cjs",
     "ship:fast": "node tools/ship.cjs --fast",
     "ship:web": "node tools/ship.cjs --only=web,portfolio"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
   }
 }

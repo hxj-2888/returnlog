@@ -1,0 +1,289 @@
+{
+  "generated": "2026-11-04T03:41:22.124Z",
+  "note": "以下文件不入 git（.gitignore 的 2026-11-04 载荷改造段落），本机为唯一副本。校验：node tools/assets-check.cjs；重生成：--write",
+  "restoreHint": "2026-11-04 之前入库过的版本仍可从 git 历史取回，见 --from-git",
+  "count": 56,
+  "totalBytes": 76593208,
+  "files": [
+    {
+      "path": "assets/scene/v4/tex/ao-soft.png",
+      "bytes": 29343,
+      "sha256": "9bb6ea05e966c6a4e3854489e9f5d602ee4081af4d59dadc01fb55c639c6dce8"
+    },
+    {
+      "path": "assets/scene/v4/tex/cafeteria-floor.png",
+      "bytes": 1970215,
+      "sha256": "0e1551f92abb04a1f18ab1b41af9e9a33cde86a92ae9bb3a288b459cdb22fb47"
+    },
+    {
+      "path": "assets/scene/v4/tex/cafeteria-top.png",
+      "bytes": 2144907,
+      "sha256": "55a6195254d20bfb3553862037445b8e8e6a6325f942dcc71b14881a24e36cb2"
+    },
+    {
+      "path": "assets/scene/v4/tex/crate-steel.png",
+      "bytes": 1862989,
+      "sha256": "20807932f25e874977d62e93638f2861dfb6abe6da635970c67a16a270b3f66e"
+    },
+    {
+      "path": "assets/scene/v4/tex/fabric-weave.png",
+      "bytes": 1947280,
+      "sha256": "23c75678641bf7374f294ec3392e21689a06843b68fc30bea92be06dd45bec68"
+    },
+    {
+      "path": "assets/scene/v4/tex/facility-panel.png",
+      "bytes": 1921623,
+      "sha256": "7abcb5d31ee4ba39ea4f78e230f23c52d7c80a9279b9ebf0c69ccd7a90304c72"
+    },
+    {
+      "path": "assets/scene/v4/tex/facility-screen.png",
+      "bytes": 1818356,
+      "sha256": "282666c3c72afc3eaee0bb0e37486c57b0e7efb55b9d8c6d05d28b546e82b4c8"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-carpet.png",
+      "bytes": 2311433,
+      "sha256": "05f943143030bf91a13c2c1006266d982c631399d624b23b9d572a6e2cb617df"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-eco.png",
+      "bytes": 2125025,
+      "sha256": "73974763ecd2477e3c0af6806d6a30e94b3a629ca6ebad7f3354d9d6500665da"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-engine.png",
+      "bytes": 2412239,
+      "sha256": "62b12f3c35181b0485392b0b6139edf998fc63d6dbe7edc09ed15165411126c2"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-grate.png",
+      "bytes": 2090669,
+      "sha256": "8fdec8be494560d44401a4c8c71e6b6c605d7e7ff127a0378f3ffc2e73aa2e13"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-hazard.png",
+      "bytes": 2135818,
+      "sha256": "a01c7fddaa697602e595793f33af08274a6389c81e9163a07cf3eee2fc0185dd"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-lab.png",
+      "bytes": 1435790,
+      "sha256": "7340c9e2abdda5ef6576e139552294f3817fbc6a761fb460f36f4759fba72e4e"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-lounge.png",
+      "bytes": 1794943,
+      "sha256": "fab57c650d0570253dd8d292fb7bc76b20a86e1592c5151b092523d7205d49d1"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-monitor.png",
+      "bytes": 1913705,
+      "sha256": "c00809b015e584043eff56732bda4cec07780c0bf3f997690e7f0e66ed2cc092"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-power.png",
+      "bytes": 2380711,
+      "sha256": "605d64e4d71b8a383c7bb129308d69cf3a8f868be18e23f7aebab4a566f80e1b"
+    },
+    {
+      "path": "assets/scene/v4/tex/floor-steel.png",
+      "bytes": 1829775,
+      "sha256": "9dc2b3ab45617d1aa7cbbab8780b329f0187188821df53b4ffe12d3a2b597f36"
+    },
+    {
+      "path": "assets/scene/v4/tex/hazard-stripe.png",
+      "bytes": 330888,
+      "sha256": "e854fcb91cad88f599b9d5729c711f517aa90ece050e1a024bbf2cf8cf216e9f"
+    },
+    {
+      "path": "assets/scene/v4/tex/panel-metal.png",
+      "bytes": 1803058,
+      "sha256": "fe06357062530aff4a1610e0df96d9b4440aadf1a01f1689352cde639074c15a"
+    },
+    {
+      "path": "assets/scene/v4/tex/panel-white.png",
+      "bytes": 1697650,
+      "sha256": "30609dd0b1e991193fd3bd512ced4774ca8f6053b3ad70ce58f2ac90ab4434d9"
+    },
+    {
+      "path": "assets/scene/v4/tex/table-composite.png",
+      "bytes": 2033720,
+      "sha256": "59810b006c3c111f9c71c2fc88267a85f3a86c1ffb0686311ff1cd02bce01e6b"
+    },
+    {
+      "path": "assets/scene/v4/tex/wall-panel.png",
+      "bytes": 1729481,
+      "sha256": "621c04e80e832775ab578d596ef6395b3549e85a1dc052fe69cdfbc9d01cb6ae"
+    },
+    {
+      "path": "assets/scene/v4/tex/warehouse-floor.png",
+      "bytes": 2415707,
+      "sha256": "49bbddc19abbc6ee6414be2a08d35c2966326596269e108a8d01fcc9bffbb1f0"
+    },
+    {
+      "path": "assets/scene/v4/tex/warehouse-rack.png",
+      "bytes": 2197322,
+      "sha256": "4b028af80249de695d8ec13d171fbe715fc4c8a01d310bae78a29405e5447a0f"
+    },
+    {
+      "path": "3d/preview/assets/textures/cafeteria-floor.png",
+      "bytes": 1970215,
+      "sha256": "0e1551f92abb04a1f18ab1b41af9e9a33cde86a92ae9bb3a288b459cdb22fb47"
+    },
+    {
+      "path": "3d/preview/assets/textures/cafeteria-floor.png.import",
+      "bytes": 965,
+      "sha256": "b49e61a9ffea56f414d0f804a174c11b07c6157dc792a15f94740d662d0e691e"
+    },
+    {
+      "path": "3d/preview/assets/textures/crate-steel.png",
+      "bytes": 1862989,
+      "sha256": "20807932f25e874977d62e93638f2861dfb6abe6da635970c67a16a270b3f66e"
+    },
+    {
+      "path": "3d/preview/assets/textures/crate-steel.png.import",
+      "bytes": 953,
+      "sha256": "1eed236cf7ef076e95dfc14e571fcbeaefbf1a7eda3b5cd953469cfb6b2847c3"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-carpet.png",
+      "bytes": 2311433,
+      "sha256": "05f943143030bf91a13c2c1006266d982c631399d624b23b9d572a6e2cb617df"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-carpet.png.import",
+      "bytes": 956,
+      "sha256": "d6263bbbf39668f7efe6e6843e762dbb6c0c6a9eb99fe78119e5757c9dd6cacd"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-eco.png",
+      "bytes": 2125025,
+      "sha256": "73974763ecd2477e3c0af6806d6a30e94b3a629ca6ebad7f3354d9d6500665da"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-eco.png.import",
+      "bytes": 947,
+      "sha256": "d2754a418edcb919aa20b53482659b696386d8d3b259bc100fd706ecde8f98cf"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-engine.png",
+      "bytes": 2412239,
+      "sha256": "62b12f3c35181b0485392b0b6139edf998fc63d6dbe7edc09ed15165411126c2"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-engine.png.import",
+      "bytes": 956,
+      "sha256": "8271ed25d4cd64db4430ef490fabfa98d760d01f99cd88085e88324dfd9e28c6"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-grate.png",
+      "bytes": 2090669,
+      "sha256": "8fdec8be494560d44401a4c8c71e6b6c605d7e7ff127a0378f3ffc2e73aa2e13"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-grate.png.import",
+      "bytes": 952,
+      "sha256": "828810391c75cbc89139a25871a4d5085419f8e60a7ab88f7f0ed00280e5c169"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-hazard.png",
+      "bytes": 2135818,
+      "sha256": "a01c7fddaa697602e595793f33af08274a6389c81e9163a07cf3eee2fc0185dd"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-hazard.png.import",
+      "bytes": 956,
+      "sha256": "03e0eb2e7f7245a2e0df7b387128969b7926382782e039727d2faec0a0eb8c65"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-lab.png",
+      "bytes": 1435790,
+      "sha256": "7340c9e2abdda5ef6576e139552294f3817fbc6a761fb460f36f4759fba72e4e"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-lab.png.import",
+      "bytes": 947,
+      "sha256": "d30ba2c90897373888a84384bb714a0c6e2500bd5183ac0d77f34088534c9ee2"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-lounge.png",
+      "bytes": 1794943,
+      "sha256": "fab57c650d0570253dd8d292fb7bc76b20a86e1592c5151b092523d7205d49d1"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-lounge.png.import",
+      "bytes": 956,
+      "sha256": "138c071e76bdc4f1b9b06f12a8971ab71323ef60fb10fd200768d4624a2c38cd"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-monitor.png",
+      "bytes": 1913705,
+      "sha256": "c00809b015e584043eff56732bda4cec07780c0bf3f997690e7f0e66ed2cc092"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-monitor.png.import",
+      "bytes": 959,
+      "sha256": "f07d59839f4e6c92284dbc3468c344968199cbea627a952db1208aee03c6490d"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-power.png",
+      "bytes": 2380711,
+      "sha256": "605d64e4d71b8a383c7bb129308d69cf3a8f868be18e23f7aebab4a566f80e1b"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-power.png.import",
+      "bytes": 952,
+      "sha256": "f73a9dd2e89bcbbf04d92b1602c56be3bc726d0c1f9a873ccf08821ef7f2cfb6"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-steel.png",
+      "bytes": 1829775,
+      "sha256": "9dc2b3ab45617d1aa7cbbab8780b329f0187188821df53b4ffe12d3a2b597f36"
+    },
+    {
+      "path": "3d/preview/assets/textures/floor-steel.png.import",
+      "bytes": 952,
+      "sha256": "83118c43b0297ee391b51ba7165057e099619f020630b3e7fc83c6bc208ec003"
+    },
+    {
+      "path": "3d/preview/assets/textures/panel-metal.png",
+      "bytes": 1803058,
+      "sha256": "fe06357062530aff4a1610e0df96d9b4440aadf1a01f1689352cde639074c15a"
+    },
+    {
+      "path": "3d/preview/assets/textures/panel-metal.png.import",
+      "bytes": 953,
+      "sha256": "000f0b29927ca4fb7880e731660333e64e78d4263cd5c4e5150d077753bbaf96"
+    },
+    {
+      "path": "3d/preview/assets/textures/table-composite.png",
+      "bytes": 2033720,
+      "sha256": "59810b006c3c111f9c71c2fc88267a85f3a86c1ffb0686311ff1cd02bce01e6b"
+    },
+    {
+      "path": "3d/preview/assets/textures/table-composite.png.import",
+      "bytes": 965,
+      "sha256": "8faf87244287bdea98c121c02ccb01724ccd09cb002482e2f0eefccef1434d90"
+    },
+    {
+      "path": "3d/preview/assets/textures/wall-panel.png",
+      "bytes": 1729481,
+      "sha256": "621c04e80e832775ab578d596ef6395b3549e85a1dc052fe69cdfbc9d01cb6ae"
+    },
+    {
+      "path": "3d/preview/assets/textures/wall-panel.png.import",
+      "bytes": 949,
+      "sha256": "c1f6951f1698ab307328a54e89805723d2cd65c5c1b28e98a7dd5f1162ca28a6"
+    },
+    {
+      "path": "3d/preview/assets/textures/warehouse-floor.png",
+      "bytes": 2415707,
+      "sha256": "49bbddc19abbc6ee6414be2a08d35c2966326596269e108a8d01fcc9bffbb1f0"
+    },
+    {
+      "path": "3d/preview/assets/textures/warehouse-floor.png.import",
+      "bytes": 965,
+      "sha256": "6151d15d673ebd91c5ecf352789725b5ce1a0f4454fad447d924c1c6d0e41c70"
+    }
+  ]
+}
