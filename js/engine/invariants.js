@@ -1,3 +1,13 @@
+/* ==== ARCH NODE · 架构节点标注（根 ARCHITECTURE.md） ====
+ * layer     : T3
+ * domain    : 跨域
+ * definedBy : 验收断言
+ * truth     : js/engine/invariants.js#SKInvariants.check
+ * verify    : 门禁不变量断言
+ * flag      : F  (F=现行事实 / N=规范裁定)
+ * note      : 只读检查，不修状态
+ * 说明      : 本注释只作架构标注，不改变任何运行逻辑；多父只引用不复制。
+ * ============================================================== */
 /* =============================================================
  * SKInvariants · 对局不变量断言（批 V3.1 · 2026-10-28）
  * -------------------------------------------------------------
@@ -15,7 +25,9 @@
 (function (global) {
   'use strict';
 
-  const MAX_PROG = 45;   /* 与 game.js 的 WIN_PTS=45 对齐（旧值 40 会让每次达成胜利都误报 G1） */
+  /* 硬编码拆除（2026-11-04）：本模块不再持有任何胜利分字面量或兜底值。
+     判定上限一律由调用方 env.winPts 注入（game.js 的 WIN_PTS = SKSanity.WIN.pts，
+     即量化表主导）；缺少真源直接抛错，不静默回退。 */
   const CAUSES = { knife: 1, shot: 1, bled: 1, vote: 1 };
   const PHASES = { discuss: 1, vote: 1, reveal: 1 };
 
@@ -30,6 +42,11 @@
       ok(false, 'G0', '缺少对局状态或几何环境');
       return { checks: checks, fails: fails };
     }
+    /* 量化表主导：胜利分只认 env.winPts（= SKSanity.WIN.pts），缺真源即抛错，不做兜底。 */
+    if (typeof env.winPts !== 'number') {
+      throw new Error('SKInvariants: 缺少 env.winPts（真源 SKSanity.WIN.pts），禁止兜底');
+    }
+    const maxProg = env.winPts;
 
     const M = env.M;
     const NIGHT = env.NIGHT;
@@ -85,7 +102,7 @@
     ok(me === agents[0], 'A24', 'me 不是 0 号席位');
 
     /* ---------- 全局 ---------- */
-    ok(G.prog >= 0 && G.prog <= MAX_PROG, 'G1', '维修进度越界 ' + G.prog);
+    ok(G.prog >= 0 && G.prog <= maxProg, 'G1', '维修进度越界 ' + G.prog);
     ok(G.night >= 1, 'G2', '夜数 < 1');
     ok(Number.isFinite(G.t) && G.t >= -1 && G.t <= NIGHT + 1, 'G3', '夜间计时越界 ' + G.t);
     ok(G.lightState === 0 || G.lightState === 1 || G.lightState === 2, 'G4', '灯光态非法 ' + G.lightState);
@@ -148,5 +165,15 @@
     return { checks: checks, fails: fails };
   }
 
-  global.SKInvariants = { check: check, MAX_PROG: MAX_PROG };
+  /* 保留 MAX_PROG 导出名以守 AGENTS.md 公共契约；改为读取量化表的 getter。
+     模块内不再保留任何胜利分字面量或兜底：SKSanity 未加载时读它会抛错，不静默回退。 */
+  global.SKInvariants = { check: check };
+  Object.defineProperty(global.SKInvariants, 'MAX_PROG', {
+    enumerable: true,
+    get: function () {
+      var s = (typeof globalThis !== 'undefined' ? globalThis : global).SKSanity;
+      if (!s || !s.WIN) throw new Error('SKInvariants.MAX_PROG: 缺少 SKSanity.WIN 真源');
+      return s.WIN.pts;
+    }
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

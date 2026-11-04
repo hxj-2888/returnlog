@@ -1,3 +1,13 @@
+/* ==== ARCH NODE · 架构节点标注（根 ARCHITECTURE.md） ====
+ * layer     : T2
+ * domain    : 跨域
+ * definedBy : 机制与执行
+ * truth     : js/game.js#window.SKV3
+ * verify    : 全量门禁 / 蒙特卡洛
+ * flag      : F  (F=现行事实 / N=规范裁定)
+ * note      : 跨层闭包，档 3 拆分对象（取舍单待裁决）
+ * 说明      : 本注释只作架构标注，不改变任何运行逻辑；多父只引用不复制。
+ * ============================================================== */
 /* =============================================================
  * 新返航录 · V3 规则模式（批 V3-合流 · 2026-10-28）
  * -------------------------------------------------------------
@@ -419,7 +429,7 @@
       if(!inv||!G)return null;
       let r;
       try{
-        r=inv.check(G,{M:M,NIGHT:NIGHT,roomAt:roomAt,inCorr:inCorr,free:free,
+        r=inv.check(G,{M:M,NIGHT:NIGHT,winPts:WIN_PTS,roomAt:roomAt,inCorr:inCorr,free:free,
           walkableNear:walkableNear,nearPipe:nearPipeXY,bodyPos:bodyPos});
       }catch(err){
         r={checks:0,fails:[{code:'EX',msg:String((err&&err.message)||err)}]};
@@ -2098,7 +2108,7 @@
       for(const e of a.mind.mem){
         if(e===ev||e.night!==G.night||e.kind!=='saw_agent'||e.subj==null)continue;
         if(e.room!==bi.room)continue;
-        if(Math.abs(e.t-ev.t)>8)continue;
+        if(Math.abs(e.t-ev.t)>SKSanity.ALIBI.core)continue;
         susAdd(a,e.subj,0.16,'near_body',e);
       }
     }
@@ -3139,8 +3149,9 @@
          ④ fake         假装修理（lr 1.2）；
          ⑤ fakeTask     假装做任务（lr 1.2）。
        同类候选内部先挑"今晚见过人的舱室"（常客），再挑"没人做过的点"，最后才比距离。 */
-    const KIND_CRED={realFix:'fixDone',realRevive:'revive',breakerOn:'breakerOn',
-      fake:'fakeRepair',fakeTask:'fakeWork'};
+    /* 档 2 真源归一（2026-11-04）：映射表已外提到 SKSanity.CRED.kindMap，
+       此处只引用不复制；改映射只改 sanity.js 一处。 */
+    const KIND_CRED=SKSanity.CRED.kindMap;
     function disguiseOptions(a){
       const D=SKSanity.DISGUISE, out=[], now=(G.playT||0), hot=audienceHotRooms(a);
       const G0=SKSanity.CRED.gains, base=G0.fakeWork||0.10;
@@ -4878,7 +4889,7 @@
             if(a===w||!a.alive||a.downed)continue;
             for(const e of w.mind.mem.slice(-24)){
               if(e.kind!=='saw_agent'||e.subj!==a.i||!e.room||e.night!==G.night)continue;
-              if(Math.abs(e.t-deathEv)>8||e.room===bodyRoom)continue;
+              if(Math.abs(e.t-deathEv)>SKSanity.ALIBI.core||e.room===bodyRoom)continue;
               susCut(w,a.i,0.25,'alibi_clear',e);
               break;
             }
