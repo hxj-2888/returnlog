@@ -19,7 +19,7 @@
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
    禁止在别处动态注入 `<script>`。当前顺序（与 `index.html` 一致）：
-   `config/version → data/map → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → game → main → ui/home → ui/replay`。
+   `config/version → data/map → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
@@ -155,6 +155,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/engine/clock.js` | 引擎 | 相位时钟 / 个人技能槽 / 动作请求队列（纯逻辑） |
 | `js/engine/invariants.js` | 引擎 | 对局不变量断言（只读，`SKInvariants.check`） |
 | `js/engine/geo.js` | 引擎 | 几何、可行走网格（硬掩体）、A*、视线 |
+| `js/t2/space.js` | T2 · 空间与资源 | **方案 A 第一块**：移动 / 拖拽 / 旁观 / 自动门常量真源（`SKT2Space`）；`game.js` 只引用，数值一个未改 |
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |

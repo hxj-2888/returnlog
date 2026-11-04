@@ -289,7 +289,10 @@
     /* ---------------- 自动门 ----------------
        每个房间门口一扇：房间 door 数据 + 走廊端点配对。没人时闭合，
        有活人进入 3 格内自动滑开；关门后同时阻挡移动与视线。 */
-    const DOOR_OPEN_R=3.0, DOOR_CLOSE_R=3.6, DOOR_SPEED=4.0, DOOR_W=1.8, DOOR_PASS=0.6;
+    /* 方案 A 第一批：空间与资源域常量已外提到 js/t2/space.js（数值一个未改），
+       此处保留同名局部别名，下游代码无需改动。 */
+    const DOOR_OPEN_R=SKT2Space.DOOR_OPEN_R, DOOR_CLOSE_R=SKT2Space.DOOR_CLOSE_R,
+          DOOR_SPEED=SKT2Space.DOOR_SPEED, DOOR_W=SKT2Space.DOOR_W, DOOR_PASS=SKT2Space.DOOR_PASS;
     function buildDoors(){
       const out=[];
       for(const c of M.corridors){
@@ -627,9 +630,9 @@
        异形刚放倒人后的**逃逸加速**读 `a.rushT`（SKSanity.RUSH，独立计时器，与红身无关）。
        次序固定为 **拖尸 > 加速 > 基础**：拖着尸体还提速 50% 会直接毁掉藏尸的紧张感，
        也违背"AI 不许拖着尸体满速跑"那条教训。 */
-    const MOVE_SPEED=4.2;
+    const MOVE_SPEED=SKT2Space.MOVE_SPEED;
     /* 拖拽统一降速到 2.5 格/秒；AI 与玩家共用同一入口，避免出现"AI 拖着尸体跑得比人快" */
-    const DRAG_SPEED=2.7;
+    const DRAG_SPEED=SKT2Space.DRAG_SPEED;
     function moveSpeed(a){
       if(a&&a.drag!=null)return DRAG_SPEED;
       if(a&&a.rushT>0)return MOVE_SPEED*SKSanity.RUSH.mul;
@@ -657,7 +660,7 @@
       a.path=p;
     }
     /* 旁观者相机：不在对局里，直线穿墙、9 格/秒，不参与任何碰撞与判定 */
-    const SPECT_SPEED=9;
+    const SPECT_SPEED=SKT2Space.SPECT_SPEED;
     function stepSpect(dt){
       const sp=G&&G.spect; if(!sp)return;
       if(!sp.path||!sp.path.length){sp.moving=false;return;}
@@ -4728,20 +4731,22 @@
        没有接外部 LLM（当前工具里没有可用的模型接口）。这里不随机抽台词，
        而是把每个 AI 真实去过的房间 / 修过的任务 / 看见过的人 / 目击的凶手
        拿来组句；质疑与回应引用上一条发言，投票沿用发言里的指控。 */
-    const MEET={id:0,timers:[]};
+    /* 消歧（2026-11-04）：本对象是会议台词排期的运行时状态，
+       与 SKSanity.MEET（会议配置表）不是一回事，故改名 MEET_SCHED。 */
+    const MEET_SCHED={id:0,timers:[]};
     function stopChatter(){
-      MEET.id++;
-      for(const h of MEET.timers)clearTimeout(h);
-      MEET.timers=[];
+      MEET_SCHED.id++;
+      for(const h of MEET_SCHED.timers)clearTimeout(h);
+      MEET_SCHED.timers=[];
     }
     function meetLater(m,ms,fn){
-      const id=MEET.id;
+      const id=MEET_SCHED.id;
       const h=setTimeout(()=>{
-        MEET.timers=MEET.timers.filter(x=>x!==h);
-        if(G.meet!==m||MEET.id!==id||m.phase!=='discuss')return;
+        MEET_SCHED.timers=MEET_SCHED.timers.filter(x=>x!==h);
+        if(G.meet!==m||MEET_SCHED.id!==id||m.phase!=='discuss')return;
         try{fn();}catch(e){}
       },ms);
-      MEET.timers.push(h);
+      MEET_SCHED.timers.push(h);
     }
     /* 会议发言的两道"人味"闸门（2026-11-03，调研报告 P1-1 / P1-2）
        ① 连说让位：同一个人连着说到第 3 句起**不再播** —— 真人局里有人连说五句时，
