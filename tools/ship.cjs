@@ -118,13 +118,14 @@ function routesFor(remote, dir) {
   return [inherited, { name: '直连', argv: DIRECT_ARGV }];
 }
 const TRANSFER_ERR = /Failed to connect|Could not connect|Could not resolve|timed out|Connection refused|Connection reset|Recv failure|Send failure|RPC failed|curl \d+|empty reply|hung up unexpectedly|Encountered end of file|error: 5\d\d/i;
-/* 直连 GitHub 是"能读不能写"：实测 ls-remote 0.95s 通，但 push 两次都死
-   （Recv failure: Connection was reset 19.5s / Failed to connect 21s）。所以兜底通道
-   不能盲试——先花 1 次 ls-remote 探测，且只探测不写；探测不通就直接报错让人拉起代理，
-   省掉 20 秒的必然失败。 */
+/* 兜底通道不能盲试：先探测，探测不通就跳过，省掉一次必然失败的 20s 硬撞。
+   探测必须用 push --dry-run 而不是 ls-remote —— 前者走 git-receive-pack 的 POST，
+   后者只是 GET，两种能力会在同一时刻分化（实测同一分钟内 GET 通、POST 撞 21s 连接超时，
+   几分钟后两条又都 1.4s 通）。--dry-run 只协商、不改远端，代价约 1.4s。
+   结论修正：GitHub 直连不是"能读不能写"，而是可达性随 DNS 当次返回的 IP 抖动。 */
 function probeRoute(remote, dir, argv) {
-  const r = args('git', argv.concat(['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=6',
-    '-c', 'credential.interactive=false', 'ls-remote', '--exit-code', remote, 'HEAD']), dir, true);
+  const r = args('git', argv.concat(['-c', 'http.lowSpeedLimit=1000', '-c', 'http.lowSpeedTime=8',
+    '-c', 'credential.interactive=false', 'push', '--dry-run', remote, 'main']), dir, true);
   return r.status === 0;
 }
 function pushRemote(remote, dir, fatal) {
