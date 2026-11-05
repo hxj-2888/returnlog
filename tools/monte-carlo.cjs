@@ -144,7 +144,9 @@ function summarize(results) {
     /* 2026-11-02：证据分级 / 联盟连坐 / 伪装挡票 / 回避可观察 */
     'farSight', 'allyRevealed', 'friendShield', 'avoidSus',
     /* 2026-11-02 节奏：报告额度用量 / 因额度或场次被拒的会议 */
-    'reportsUsed', 'nightMeetFull'];
+    'reportsUsed', 'nightMeetFull',
+    /* 2026-11-05 会议中改票：早投 / 依发言改票 / 早投票最终保留 */
+    'earlyVotes', 'voteChanges', 'earlyKept'];
   const avg = {}, med = {};
   for (const k of keys) { avg[k] = +mean(results, k).toFixed(3); med[k] = +median(results, k).toFixed(3); }
   /* 分任务点完成次数：把所有局里每个 label 的计数加起来再除以局数 = 每局平均完成次数。
@@ -182,7 +184,8 @@ function summarize(results) {
     'fakeBreaker', 'rushKills', 'alienTasks', 'alienPipes', 'almostFriendCount', 'friendShield',
     'almostCount', 'almostEject', 'presenceDeny', 'avoidSus', 'retractCount', 'allyRevealed',
     'humanDefends', 'reportDoubts', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
-    'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives'];
+    'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives',
+    'earlyVotes', 'voteChanges', 'earlyKept'];
   const reach = {};
   for (const k of REACH_KEYS) {
     const xs = results.map(r => +r[k]).filter(Number.isFinite);
@@ -391,6 +394,9 @@ function writeOut(results, finished) {
     '| avoidSus | ' + s.avg.avoidSus + ' | 「他刚才绕开了我」被记成弱证据的次数 |',
     '| reportsUsed | ' + s.avg.reportsUsed + ' | 夜晚报告实际用掉几次（额度 2 次/人） |',
     '| nightMeetFull | ' + s.avg.nightMeetFull + ' | 因「本夜会议已开满」被拒的报告次数 |',
+    '| earlyVotes | ' + s.avg.earlyVotes + ' | 讨论一开始就压上桌的票数（手里有确证/准-确证/明确怀疑） |',
+    '| voteChanges | ' + s.avg.voteChanges + ' | 讨论中因「听到某句话」而改票的次数（known 不参与） |',
+    '| earlyKept | ' + s.avg.earlyKept + ' | 早投票到终局没被改掉的次数 |',
     '',
     '## 破坏技能探查（2026-11-01）',
     '',

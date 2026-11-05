@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>{{LABEL}}</title>
+<style>
+  :root{--ink:#DDE3EC;--dim:#8FA6C0;--amber:#F0C674;--teal:#00E5B0;--line:#2A3240}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05080D;color:var(--ink);
+    font-family:system-ui,"Microsoft YaHei",sans-serif;overflow:hidden;
+    -webkit-user-select:none;user-select:none}
+  body{display:grid;grid-template-rows:56px 1fr 48px}
+  header,footer{display:flex;align-items:center;gap:16px;padding:0 22px;position:relative;z-index:3}
+  header{border-bottom:1px solid rgba(42,50,64,.55)}
+  footer{border-top:1px solid rgba(42,50,64,.55)}
+  header h1{margin:0;font-size:15px;font-weight:600;color:var(--amber);letter-spacing:.5px}
+  header .rule{font-size:12px;color:var(--dim)}
+  header .grow,footer .grow{flex:1}
+  .count{font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .count b{color:var(--teal);font-weight:600}
+  .stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+  .plate{position:relative;height:100%;aspect-ratio:1/1;max-width:100%;
+    border:1px solid var(--line);border-radius:8px;overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.7)}
+  .plate svg{display:block;width:100%;height:100%}
+  .tip{font-size:12.5px;color:var(--dim);white-space:nowrap}
+  .tip b{color:var(--ink);font-weight:500}
+  .peek{font-size:11.5px;color:var(--dim);background:#121821;border:1px solid var(--line);
+    border-radius:6px;padding:7px 11px;cursor:pointer;font-family:inherit}
+  .peek:hover{color:var(--ink);border-color:#3A4658}
+  .badge{font-size:10.5px;color:#5C6678;text-align:right;line-height:1.5}
+  @keyframes halo{0%{transform:scale(1);opacity:.5}70%{opacity:.12}100%{transform:scale(2.4);opacity:0}}
+  .halo{transform-box:fill-box;transform-origin:center;animation:halo 1.7s ease-out infinite}
+  .hit{cursor:pointer}
+  .cut-rect{transition:transform .42s cubic-bezier(.2,.8,.2,1)}
+</style>
+</head>
+<body>
+<header>
+  <h1>{{LABEL}}</h1>
+  <div class="rule">线是图里的像素：断口 = 把原图中段挖掉一小块；接上 = 遮罩合拢，原图像素自己长回去</div>
+  <div class="grow"></div>
+  <div class="count" id="count"><b>0</b> / {{COUNT}}</div>
+</header>
+
+<div class="stage">
+  <div class="plate">
+    <svg id="svg" viewBox="{{VIEWBOX}}" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <!-- 显式给区域：mask 默认区域是「包围盒 ±10%」，在裁切视图里会把下半张板裁掉 -->
+        <mask id="cutMask" maskUnits="userSpaceOnUse"
+              x="0" y="0" width="{{W}}" height="{{H}}">
+          <rect x="0" y="0" width="{{W}}" height="{{H}}" fill="#fff"/>
+          <g id="cuts"></g>
+        </mask>
+        <radialGradient id="cutGrad">
+          <stop offset="0%" stop-color="#000"/>
+          <stop offset="52%" stop-color="#000"/>
+          <stop offset="100%" stop-color="#fff"/>
+        </radialGradient>
+        <radialGradient id="emberGrad">
+          <stop offset="0%" stop-color="#FFD79A" stop-opacity=".95"/>
+          <stop offset="42%" stop-color="#E0574F" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#E0574F" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 图只编一份：底层的虚化副本靠 <use> 引用，避免把 1.2MB 的 PNG 塞两遍 -->
+      <defs>
+        <image id="plateSrc" href="{{IMAGE_DATA}}" x="0" y="0" width="{{W}}" height="{{H}}"/>
+      </defs>
+      <!-- 底层：同一张图压暗虚化。挖孔透出来的是"面板内腔"，不是页面底色 -->
+      <use href="#plateSrc" style="filter:blur(7px) brightness(.34) saturate(.7)"/>
+      <!-- 面层：真正的板。断口靠遮罩挖掉一块，不新增任何一根线 -->
+      <use id="plateImg" href="#plateSrc" mask="url(#cutMask)"/>
+
+      <g id="embers"></g>
+      <g id="pulses"></g>
+      <g id="debug" style="display:none"></g>
+    </svg>
+  </div>
+</div>
+
+<footer>
+  <button class="peek" id="peek">按住看原图</button>
+  <div class="tip" id="tip">点断口这头 → 再点那头</div>
+  <div class="grow"></div>
+  <div class="badge">{{ID}} · 裁切 {{CROP}} · 图内要素原型，不新增线条</div>
+</footer>
+
+<script>
+/* 标注只有路径 + 断口，坐标就是图片像素（0~{{W}}）。
+   代码只读不猜：换一张板 = 换一份 plate JSON，不动这里。 */
+const WIRES = {{WIRES}};
+const CUT_W = {{CUT_W}}, CUT_H = {{CUT_H}};
+const EMBER_R = {{EMBER_R}}, HIT_R = {{EMBER_HIT}};
+
+const imgEl = document.getElementById('plateImg');
+const cutsG = document.getElementById('cuts');
+const embers = document.getElementById('embers');
+const pulses = document.getElementById('pulses');
+const debugG = document.getElementById('debug');
+const tipEl = document.getElementById('tip');
+const countEl = document.getElementById('count');
+
+const state = WIRES.map(() => ({ held: -1, done: false }));
+let heldWire = -1;
+
+/* 断口两端的坐标：沿线的切线方向各退半个断口再外扩一点，让标记压在"线头"上 */
+function endsOf(w){
+  const a = w.cut.angle * Math.PI / 180;
+  const dx = Math.cos(a), dy = Math.sin(a), d = CUT_H / 2 + 2.5;
+  return [[w.cut.x - dx * d, w.cut.y - dy * d], [w.cut.x + dx * d, w.cut.y + dy * d]];
+}
+
+function svgEl(tag, attrs){
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+/* 挖孔：窄边横切（把线切断），宽边沿线（留出两个线头），边缘用渐变羽化 */
+function buildCuts(){
+  cutsG.innerHTML = '';
+  WIRES.forEach((w) => {
+    const r = svgEl('rect', {
+      x: w.cut.x - CUT_W / 2, y: w.cut.y - CUT_H / 2,
+      width: CUT_W, height: CUT_H, fill: 'url(#cutGrad)', class: 'cut-rect',
+    });
+    r.style.transformOrigin = 'center';
+    r.style.transformBox = 'fill-box';
+    r.style.transform = 'rotate(' + w.cut.angle + 'deg)';
+    cutsG.appendChild(r);
+  });
+}
+
+function buildEmbers(){
+  embers.innerHTML = '';
+  WIRES.forEach((w, i) => {
+    if (state[i].done) return;
+    endsOf(w).forEach((p, k) => {
+      const heldNow = state[i].held === k;
+      const [x, y] = p;
+
+      /* 外圈呼吸：先让"这里能点"在花花绿绿的电线里一眼可辨 */
+      embers.appendChild(svgEl('circle', {
+        cx: x, cy: y, r: EMBER_R + 2, fill: w.color, opacity: .35, class: 'halo',
+      }));
+      /* 深色底 + 线色圈 + 暖白芯：不靠发光，靠对比度 */
+      embers.appendChild(svgEl('circle', {
+        cx: x, cy: y, r: EMBER_R + 2.4, fill: 'rgba(4,7,11,.72)',
+      }));
+      embers.appendChild(svgEl('circle', {
+        cx: x, cy: y, r: EMBER_R + 1.4, fill: 'none', stroke: w.color,
+        'stroke-width': heldNow ? 2.2 : 1.5,
+      }));
+      embers.appendChild(svgEl('circle', {
+        cx: x, cy: y, r: heldNow ? 2.9 : 2.1,
+        fill: heldNow ? '#FFF1CE' : '#F0C674',
+      }));
+      if (heldNow) {
+        embers.appendChild(svgEl('circle', {
+          cx: x, cy: y, r: EMBER_R + 5.4, fill: 'none', stroke: '#F0C674',
+          'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: .95,
+        }));
+      }
+      const hit = svgEl('circle', {
+        cx: x, cy: y, r: HIT_R, fill: 'transparent', class: 'hit',
+      });
+      hit.addEventListener('click', (e) => { e.stopPropagation(); onEnd(i, k); });
+      embers.appendChild(hit);
+    });
+  });
+}
+
+function onEnd(i, k){
+  const st = state[i];
+  if (st.done) return;
+  if (heldWire >= 0 && heldWire !== i) { tipEl.textContent = '先把这一根接完'; return; }
+  /* 再点同一头 = 松开；捏住一头后点另一头 = 接上 */
+  if (st.held === k) {
+    st.held = -1; heldWire = -1;
+    buildEmbers();
+    tipEl.textContent = '松开线头 · 这头那头都行';
+    return;
+  }
+  if (st.held >= 0) { repair(i); return; }
+  st.held = k; heldWire = i;
+  buildEmbers();
+  tipEl.textContent = '已捏住这头 · 点另一头接上';
+}
+
+function repair(i){
+  const w = WIRES[i];
+  const rect = cutsG.children[i];
+  state[i].done = true; state[i].held = -1; heldWire = -1;
+
+  /* 合拢：把挖孔沿切线压成 0，原图像素自然露出来 */
+  rect.style.transform = 'rotate(' + w.cut.angle + 'deg) scaleX(0)';
+
+  /* 电流脉冲：一条临时高亮沿同一路径跑过去（特效，不是线本身） */
+  const pulse = svgEl('path', {
+    d: w.path, fill: 'none', stroke: '#BFF7E6', 'stroke-width': 2.2,
+    'stroke-linecap': 'round',
+  });
+  pulse.style.filter = 'drop-shadow(0 0 5px #7DFFE0)';
+  pulse.style.strokeDasharray = '26 480';
+  pulse.style.strokeDashoffset = '480';
+  pulses.appendChild(pulse);
+  pulse.animate(
+    [{ strokeDashoffset: 480, opacity: .95 }, { strokeDashoffset: -40, opacity: 0 }],
+    { duration: 620, easing: 'cubic-bezier(.2,.7,.2,1)' }
+  ).onfinish = () => pulse.remove();
+
+  setTimeout(buildEmbers, 60);
+  const done = state.filter(s => s.done).length;
+  countEl.innerHTML = '<b>' + done + '</b> / ' + WIRES.length;
+  tipEl.textContent = done === WIRES.length ? '全部接通 · 这块板就做完了' : '接上了 · 继续下一根';
+}
+
+/* 按住看原图：证明这些线本来就在图里，我们只是把中段挖掉 */
+const peek = document.getElementById('peek');
+function setPeek(on){
+  imgEl.setAttribute('mask', on ? 'none' : 'url(#cutMask)');
+  peek.textContent = on ? '原图（没有断口）' : '按住看原图';
+}
+peek.addEventListener('pointerdown', (e) => { e.preventDefault(); setPeek(true); });
+peek.addEventListener('pointerup', () => setPeek(false));
+peek.addEventListener('pointerleave', () => setPeek(false));
+peek.addEventListener('pointercancel', () => setPeek(false));
+
+/* 标注自检：#debug 时把 path 叠上去，肉眼核对断口是否压在线上 */
+if (location.search.indexOf('debug') >= 0) {
+  debugG.style.display = '';
+  WIRES.forEach((w) => {
+    debugG.appendChild(svgEl('path', {
+      d: w.path, fill: 'none', stroke: w.color, 'stroke-width': 2, opacity: .75,
+    }));
+    debugG.appendChild(svgEl('circle', {
+      cx: w.cut.x, cy: w.cut.y, r: 3.5, fill: '#fff', stroke: '#000', 'stroke-width': 1,
+    }));
+  });
+}
+
+buildCuts();
+buildEmbers();
+</script>
+</body>
+</html>

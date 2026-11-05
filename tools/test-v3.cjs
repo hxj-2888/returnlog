@@ -5124,13 +5124,84 @@ function section(t) { console.log('\n== ' + t); }
     t.tp(w.i, 56, 85); t.tp(k.i, 57, 85);
     const before = (t.mind(w.i).sus || {})[k.i] || 0;
     t.openMeeting('day', null, null);
+    /* 2026-11-05：证言改为**说出口才生效**（会议中改票的前置）。
+       这里显式把排队中的证言发出去，测的仍然是 empty_accuse 这条通道本身。 */
+    const left = t.testimonyLeft();
+    t.deliverTestimony();
     const after = (t.mind(w.i).sus || {})[k.i] || 0;
     if (g.meet) t.finishMeeting();
     if (oldFrame != null && window.SKSanity) window.SKSanity.FRAME.chance = oldFrame;
-    return { before, after };
+    return { before, after, left };
   });
   ok(EMPTY.after > EMPTY.before,
     '零证据指控会损耗发言者可信度（人类听众记一笔小嫌疑）');
+  ok(EMPTY.left > 0,
+    '开会时证言只是排队（' + EMPTY.left + ' 条待发）：没人开口就不该有"听到"');
+
+  /* ---------------- 会议中改票（2026-11-05 用户裁定） ----------------
+     A 手里对 X 的怀疑 0.34、对 Y 0.30，会前先把票压给 X（早投）；
+     B/C/D 三个有依据地公开指控 Y —— 话一落地，A 就应该改投 Y。
+     断言全部是结构化的：只看票、票根和"谁说的"，不碰台词文本。 */
+  section('会议中改票 · 早投 / 听过再改');
+  const VC = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const hum = g.agents.filter(a => !a.alien && a.i !== 0 && a.alive);
+    const A = hum[0], X = hum[1], Y = hum[2];
+    const accs = hum.slice(3, 6);
+    hum.forEach(a => t.seedBelief(a.i, { sus: {}, suspect: null }));
+    t.seedBelief(A.i, { sus: { [X.i]: 0.34, [Y.i]: 0.30 }, suspect: X.i });
+    accs.forEach(b => t.seedBelief(b.i, { sus: { [Y.i]: 0.5 }, suspect: Y.i }));
+    t.openMeeting('day', null, null);
+    const early = t.earlyVotes(), v0 = t.voteOf(A.i), left0 = t.testimonyLeft();
+    const vMid = t.voteOf(A.i);
+    const oldRandom = Math.random;
+    Math.random = () => 0.01;
+    accs.forEach(b => t.deliverTestimony(b.i));
+    Math.random = oldRandom;
+    const v1 = t.voteOf(A.i);
+    const story = t.voteStory().map(s => ({ who: s.who, from: s.from, to: s.to, by: s.by }));
+    const meta = t.voteMeta();
+    if (g.meet) t.finishMeeting();
+    return { A: A.i, X: X.i, Y: Y.i, accs: accs.map(a => a.i), early, v0, vMid, left0, v1, story, meta };
+  });
+  ok(VC.early >= 1, '会议一开始就有人把票压上（早投 ' + VC.early + ' 票）');
+  ok(VC.v0 === VC.X && VC.vMid === VC.X,
+    '手里有明确怀疑的人先投：A → X（第 ' + VC.X + ' 席）');
+  ok(VC.left0 > 0, '其余证言还在排队，没有在开会瞬间生效（' + VC.left0 + ' 条）');
+  ok(VC.v1 === VC.Y,
+    '三个人公开指认 Y 之后，A 的票从 X 改到 Y（' + VC.X + ' → ' + VC.Y + '）');
+  ok(VC.story.some(s => s.who === VC.A && s.from === VC.X && s.to === VC.Y && s.by != null &&
+      VC.accs.indexOf(s.by) >= 0),
+    '改票记录能指认是哪句话推动的（by=' + (VC.story[0] ? VC.story[0].by : '-') + '）');
+  ok(VC.meta && VC.meta[VC.A] && VC.meta[VC.A].chg === 1,
+    '票根记下改票次数（chg=' + (VC.meta && VC.meta[VC.A] ? VC.meta[VC.A].chg : '-') + '）');
+
+  /* 确信不松绑（用户 2026-11-05 明确保留）：亲眼见过 Y 的人，别人再怎么指认 X，
+     这一票也不动。 */
+  const VKN = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const hum = g.agents.filter(a => !a.alien && a.i !== 0 && a.alive);
+    const A = hum[0], X = hum[1], Y = hum[2];
+    const accs = hum.slice(3, 6);
+    hum.forEach(a => t.seedBelief(a.i, { sus: {}, suspect: null }));
+    t.seedBelief(A.i, { sus: { [X.i]: 0.5 }, known: { [Y.i]: { kind: 'saw_knife', room: '配电室', t: 1 } } });
+    accs.forEach(b => t.seedBelief(b.i, { sus: { [X.i]: 0.5 }, suspect: X.i }));
+    t.openMeeting('day', null, null);
+    const v0 = t.voteOf(A.i), why0 = t.voteMeta()[A.i].why;
+    const oldRandom = Math.random;
+    Math.random = () => 0.01;
+    accs.forEach(b => t.deliverTestimony(b.i));
+    Math.random = oldRandom;
+    const v1 = t.voteOf(A.i), m = t.voteMeta()[A.i];
+    if (g.meet) t.finishMeeting();
+    return { A: A.i, X: X.i, Y: Y.i, v0, v1, why0, chg: m.chg };
+  });
+  ok(VKN.v0 === VKN.Y && VKN.why0 === 'known',
+    '亲眼确证 Y 的人开会就把票投给 Y（why=known）');
+  ok(VKN.v1 === VKN.Y && VKN.chg === 0,
+    '「确信不松绑」：三个人指认 X 之后，确证票不动（' + VKN.v1 + ' / chg=' + VKN.chg + '）');
 
   section('AI 异形 · 偶尔直接报案');
   await fresh(false);

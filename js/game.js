@@ -4698,6 +4698,12 @@
       const ctx={kind,reporter,victim,victimInfo:vi,claims:[],playerSays:[],
         playerAccuse:null,playerVote:null,playerClaimRoom:null,quick:null,frames:[],
         playerClaims:[],playerSupport:null,
+        /* testimony：开会时算好、**等话真的说出口**才生效的证言（2026-11-05）。
+           以前在 buildMeetCtx 里一次性写进所有听众的 sus —— 等于一开会所有人
+           就同时"听完了全部发言"，投票也就没有"听完再改"这回事。
+           现在只排队；谁开口（say）就发谁的；讨论结束前没说的统一补发，
+           保证最终信念与旧版逐条一致，变的只是**时间点**。 */
+        testimony:[],
         /* lead[目标席位] = 第一个公开指控他的席位（追责机制要用"谁带的节奏"） */
         lead:{}};
       /* 尸体还热就有人来报：见过这具尸体的 AI 会想"你怎么这么快就到现场"。
@@ -4895,7 +4901,7 @@
           const noEvidence=!a.accuseWhy&&a.suspect==null&&!bestKnownTarget(a)&&!topSus(a,0.5);
           if(noEvidence){
             const ev={kind:'empty_accuse',x:0,y:0,room:null,conf:0.25,src:'speech',subj:a.accuse};
-            susAdd(w,a.i,0.05,'empty_accuse',ev);
+            ctx.testimony.push({li:w.i,by:a.i,tgt:a.i,wgt:0.05,reason:'empty_accuse',ev});
           }else if(a.accuse!==w.i&&!(w.mind.known&&w.mind.known[a.accuse])){
             /* ---- 证言通道（2026-11-01 接线）----
                有依据的公开指控会**真的改变听众的判断**，而不是只当台词播出去。
@@ -4934,7 +4940,7 @@
             const ev={kind:'heard_accuse',x:0,y:0,
               room:a.accuseWhy?a.accuseWhy.room:null,conf:0.6,src:'speech',subj:a.accuse,
               by:a.i};
-            susAdd(w,a.accuse,wgt,'heard_accuse',ev);
+            ctx.testimony.push({li:w.i,by:a.i,tgt:a.accuse,wgt,reason:'heard_accuse',ev});
           }
         }
       }
@@ -5669,7 +5675,8 @@
             return sy-sx;
           }).slice(0,2);
         for(const a of accusers){
-          push(()=>{const l=accuseLine(a,m);if(l)say(a.name,l);});
+          /* 说出口的这一刻才把证言发给听众 —— 早投的人正是在这里改票 */
+          push(()=>{const l=accuseLine(a,m);if(l){say(a.name,l);deliverTestimony(m,a.i);}});
           /* 情绪写入：被当众指控的人记指控者一笔仇 —— 下次会议他大概率反咬 */
           const tgt3=G.agents[a.accuse];
           if(tgt3&&tgt3.alive)grudgeAdd(tgt3,a.i,0.40);
@@ -5693,9 +5700,15 @@
         if(accused)push(()=>say(accused.name,defenseClause(accused,m)));
         /* 有确证的人最后点名：不是"我怀疑"，是"我确定" */
         const sure=sureAcc;
-        if(sure)push(()=>{const l=accuseLine(sure,m);if(l)say(sure.name,l);});
+        if(sure)push(()=>{const l=accuseLine(sure,m);if(l){say(sure.name,l);deliverTestimony(m,sure.i);}});
         /* 异形的反驳 / 反咬紧跟在确证之后；真目击者会再顶回去 */
         for(const fn of deception.lines)push(fn);
+        /* 异形的伪证同样要"说出口"才算数：和人类走同一条时间线（不对等的话，
+           异形的污蔑会在开会瞬间生效，人类的要等台词播完） */
+        if(deception.frames.length)push(()=>{
+          const seen={};
+          for(const f of deception.frames){if(seen[f.by])continue;seen[f.by]=1;deliverTestimony(m,f.by);}
+        });
         /* 已认出队友被普通指控时，队友公开辩护（确证反咬链已处理的不重复）。
            但"锁定过他就不会再保他"：谁手里有对他的确证（mind.known），
            就绝不能再开口说他不是异形——那是当场自相矛盾。 */
@@ -5805,6 +5818,9 @@
         n:agenda.length,lastAt:Math.round(lastAt),endAt:Math.round(endAt),nudges,
         lastScheduled:Math.round(Math.max(lastAt,nudges.length?nudges[nudges.length-1]:0,endAt))};
       meetLater(m,endAt,()=>{
+        /* 讨论里没被说到的证言在这里补发：不改变"最终听到什么"，
+           只保证它发生在投票之前（与旧版集合一致） */
+        deliverTestimony(m,null);
         if(m.kind==='pre')sysSay('讨论结束，进入第 1 夜。');
         else sysSay('讨论时间到，进入投票。');
       });
@@ -6228,6 +6244,9 @@
       document.getElementById('m-say').innerHTML='';
       syncMeetTemplates();
       if(!canAct) say(G.spectMode?'旁观者':G.me.name,G.spectMode?'（旁观）只读观战，不参与讨论与投票。':'（幽灵）我在看着。','sys');
+      /* 手里有确证 / 准-确证的人，会议一开始就把票压上（2026-11-05）。
+         这是"可改票"的另一半：先投，才有"听完改票"这回事。 */
+      castEarlyVotes(G.meet);
       startChatter(G.meet);
       if(!G.simMode)meetingTimer();
     }
@@ -6260,6 +6279,114 @@
       let best=null,bn=0;
       for(const k in tally){if(tally[k]>bn){bn=tally[k];best=+k;}}
       return bn>=2?best:null;
+    }
+    /* ---------------- 会议中改票（2026-11-05 用户裁定）----------------
+       用户口径：**AI 可以在会议进行中改票，依据是别人当场说的话**。
+       四条约束，少一条这条机制就退化成"随机抖动"：
+         ① `known`（亲眼确证）**不松绑**：见过的人不会因为别人一句话改票，
+            也不会被弃票盾挡掉 —— 用户 2026-11-05 明确保留这一条；
+         ② 改票必须由**可指认的发言**触发：谁说的、把票从谁改到谁，全部记进
+            `m.voteStory`，门禁可以结构化断言"没有发言就没有改票"；
+         ③ 只能在自己的信念排序里改（`sus[新目标] > sus[旧目标] + 0.08`）——
+            听得进话，但不是听谁的话就投谁；
+         ④ 先投的是「手里有硬东西」的人；没想好的人可以一直听到投票开始。
+       同批裁定：「通胀降判断」不做（`TESTIFY` 权重不动）。 */
+    function voteLean(a){
+      const kn=bestKnownTarget(a);
+      if(kn)return {v:kn.i,s:3,why:'known'};
+      const af=bestAlmostTarget(a);
+      if(af&&!isPatron(a,af.i)&&!almostFriendOf(a,af.i))return {v:af.i,s:2.5,why:'almost'};
+      const sp=a.suspect;
+      if(sp!=null&&G.agents[sp]&&G.agents[sp].alive&&!G.agents[sp].downed&&sp!==a.i)
+        return {v:sp,s:2,why:'suspect'};
+      const bs=bestSusTarget(a,0.55);
+      if(bs&&!isPatron(a,bs.i)&&!almostFriendOf(a,bs.i))return {v:bs.i,s:1,why:'sus'};
+      return {v:-1,s:0,why:'none'};
+    }
+    function castEarlyVotes(m){
+      if(!m||m.voteT<=0)return 0;
+      m.voteMeta=m.voteMeta||{};
+      let n=0;
+      for(const a of G.agents){
+        if(!a.alive||a.downed||(!G.spectMode&&a===G.me))continue;
+        const lean=voteLean(a);
+        if(lean.s<2)continue;              /* 只有手里有硬东西的人先投 */
+        m.votes[a.i]=lean.v;
+        m.voteMeta[a.i]={v:lean.v,s:lean.s,why:lean.why,chg:0,early:1,
+          rev:(a.mind&&a.mind.rev)|0,t:Math.round(m.t)};
+        n++;
+      }
+      if(G.simStats)G.simStats.earlyVotes=(G.simStats.earlyVotes||0)+n;
+      m.earlyVotes=n;
+      return n;
+    }
+    /* 把排队中的证言发给听众：byId=null 表示「剩下的全发」。
+       谁开口就发谁的 —— 这样"听到"这件事才有时间点，改票才有由头。 */
+    function deliverTestimony(m,byId){
+      if(!m||!m.ctx)return 0;
+      const q=m.ctx.testimony; if(!q||!q.length)return 0;
+      let n=0;
+      for(const it of q){
+        if(it.said)continue;
+        if(byId!=null&&it.by!==byId)continue;
+        it.said=1;
+        const w=G.agents[it.li];
+        if(!w||!w.alive||w.downed||!w.mind)continue;
+        susAdd(w,it.tgt,it.wgt,it.reason,it.ev);
+        n++;
+      }
+      if(n)reconsiderVotes(m,byId);
+      return n;
+    }
+    /* 公共声势：**已经说出口**的指控（含说的人可不可信），不是别人的内心。
+       真人改票很少因为"我的嫌疑分动了 0.02"，而是"三个人都这么说，那我也投他"。
+       所以改票判据 = 自己的 sus + 这场会议里针对他的公开指控分量（封顶 0.30）。 */
+    function votePressure(a,tgt){
+      const q=(G.meet&&G.meet.ctx&&G.meet.ctx.testimony)||[];
+      let p=0;
+      for(const it of q){
+        if(!it.said||it.reason!=='heard_accuse'||it.tgt!==tgt)continue;
+        p+=0.10*Math.max(0.5,Math.min(1,credOf(a,it.by)));
+      }
+      return Math.min(0.30,p);
+    }
+    /* 改票时的目标选择：自己的 sus + 已经说出口的公开指控分量。
+       与 voteLean 的分工：voteLean 决定"会前先投谁"（只有信念，没有声势），
+       这里决定"听完之后谁更该投"（允许被公开声势推过去）。 */
+    function bestVoteTarget(a){
+      let best=null,bs=-1;
+      for(const t of G.agents){
+        if(!t.alive||t.downed||t===a)continue;
+        if(isPatron(a,t.i)||almostFriendOf(a,t.i))continue;
+        const s=susOf(a,t.i)+votePressure(a,t.i);
+        if(s>bs){bs=s;best=t;}
+      }
+      return best?{v:best.i,s:bs,why:'score'}:{v:-1,s:0,why:'none'};
+    }
+    function reconsiderVotes(m,byId){
+      if(!m||m.phase!=='discuss'||!m.voteMeta)return 0;
+      const sp=byId==null?null:G.agents[byId];
+      let changed=0;
+      for(const a of G.agents){
+        if(!a.alive||a.downed||(!G.spectMode&&a===G.me))continue;
+        const mm=m.voteMeta[a.i];
+        if(!mm||mm.why==='known')continue;      /* 确信不松绑 */
+        const lean=bestVoteTarget(a);
+        if(lean.v<0||lean.v===mm.v)continue;
+        const now=lean.s;
+        const old=(mm.v>=0?susOf(a,mm.v)+votePressure(a,mm.v):0);
+        if(!(now>old+0.10))continue;            /* 公开声势盖不过原来的判断，不跟风 */
+        const cred=sp?credOf(a,sp.i):0.5;
+        if(Math.random()>0.35+0.34*Math.max(0,Math.min(1,cred)))continue;
+        m.votes[a.i]=lean.v;
+        m.voteMeta[a.i]={v:lean.v,s:lean.s,why:lean.why,chg:(mm.chg||0)+1,
+          early:mm.early,rev:(a.mind&&a.mind.rev)|0,t:Math.round(m.t)};
+        (m.voteStory=m.voteStory||[]).push({who:a.i,from:mm.v,to:lean.v,by:byId,t:Math.round(m.t)});
+        changed++;
+        if(G.simStats)G.simStats.voteChanges=(G.simStats.voteChanges||0)+1;
+        logEvent('vote_change',{actor:a.i,from:mm.v,to:lean.v,by:byId});
+      }
+      return changed;
     }
     /* 投票区（2026-11-05 用户裁定）：**讨论阶段就可以投，投票结束前都可以改**。
        以前只有 vote 阶段才生成按钮，玩家必须等讨论走完；现在两处共用同一个渲染器，
@@ -6301,7 +6428,11 @@
       box.appendChild(sk);
     }
     function startVote(){
-      const m=G.meet; m.phase='vote'; m.t=m.voteT;
+      const m=G.meet;
+      /* 讨论里没被说出口的证言在这里补发：总集合与旧版逐条一致，
+         变的只是时间点（旧版一开会就全部生效）。补发之后还能改最后一次票。 */
+      deliverTestimony(m,null);
+      m.phase='vote'; m.t=m.voteT;
       stopChatter();
       document.getElementById('m-skip').classList.add('hide');
       const tpl=document.getElementById('m-tpl'); if(tpl)tpl.classList.add('hide');
@@ -6321,6 +6452,14 @@
       // AI 投票：先说出口的指控 → 证据链最高嫌疑 → 人类无证据弃权；异形随机独立投票
       for(const a of G.agents){
         if(!a.alive||(!G.spectMode&&a===G.me)||a.downed)continue;
+        /* 先投的人：这段时间没听到能改我判断的话，就不重掷一次骰子。
+           `rev` 只在 susAdd 时自增 —— 有发言改变了我的信念才允许重算，
+           否则"改票"就成了随机数换了个理由。 */
+        const mm=m.voteMeta&&m.voteMeta[a.i];
+        if(mm&&mm.early&&((a.mind&&a.mind.rev)|0)===mm.rev){
+          if(G.simStats)G.simStats.earlyKept=(G.simStats.earlyKept||0)+1;
+          continue;
+        }
         /* 确证优先：见过异形专属行为的人不需要再猜，直接投确证目标 */
         if(!a.alien){
           const kn=bestKnownTarget(a);
@@ -6448,6 +6587,15 @@
           m.votes[a.i]=-1;
           if(G.simStats)G.simStats.friendShield=(G.simStats.friendShield||0)+1;
         }
+      }
+      /* 补齐票根：没早投的人在这里落定，`voteStory` 才有一份完整的"谁最后投了谁" */
+      m.voteMeta=m.voteMeta||{};
+      for(const a of G.agents){
+        if(!a.alive||a.downed||(!G.spectMode&&a===G.me))continue;
+        if(m.voteMeta[a.i])continue;
+        const v=m.votes[a.i]==null?-1:m.votes[a.i];
+        m.voteMeta[a.i]={v:v,s:1,why:'final',chg:0,early:0,
+          rev:(a.mind&&a.mind.rev)|0,t:0};
       }
     }
     function closeVote(){
@@ -9684,6 +9832,8 @@
           /* 2026-11-03 信任聚焦 / 领袖 / 贵信号（只读旁路，不参与任何判定） */
           orders:0,orderObey:0,orderRefuse:0,endorses:0,credFollow:0,
           realFixes:0,realRevives:0,credShieldVotes:0,abstains:0,
+          /* 会议中改票（2026-11-05）：早投人数 / 早投未被改的人数 / 听到发言后改票次数 */
+          earlyVotes:0,earlyKept:0,voteChanges:0,
           /* 语料工程（连说让位 / 句式重复）——主要在真人局里体现，sim 里也留计数 */
           streakCuts:0,lineDups:0,mutualFrames:0,
           alienPipes:0,alienPipePlans:0,
@@ -9714,6 +9864,7 @@
           farSight:0,allyRevealed:0,friendShield:0,avoidSus:0,
           /* 2026-11-02 节奏：报告额度用量 / 每夜会议场次分布 / 因额度或场次被拒的报告 */
           reportsUsed:0,reportDenied:0,nightMeetFull:0,
+          earlyVotes:0,voteChanges:0,earlyKept:0,
           /* 每个任务点被完成的次数（label → n）：用来观察「电路维修完成率异常低」
              这类分布问题。2026-10-31 起只统计、不改任何 AI 行为。 */
           tasksByPoint:{}};
@@ -9797,6 +9948,9 @@
           farSight:G.simStats.farSight,allyRevealed:G.simStats.allyRevealed,
           friendShield:G.simStats.friendShield,avoidSus:G.simStats.avoidSus,
           reportsUsed:G.simStats.reportsUsed,nightMeetFull:G.simStats.nightMeetFull,
+          /* 2026-11-05 会议中改票：sim 里也要能读到，否则报表恒 0 会误判成机制没生效 */
+          earlyVotes:G.simStats.earlyVotes,voteChanges:G.simStats.voteChanges,
+          earlyKept:G.simStats.earlyKept,
           tasksByPoint:Object.assign({},G.simStats.tasksByPoint)};
       } finally {
         Math.random=oldRandom; SIM_RUN=oldSim;
@@ -10011,6 +10165,15 @@
       parseSpeech:t=>parseSpeech(t),
       tplText:(kind,target,room)=>meetTemplateText(kind,target==null?null:G.agents[target],room),
       chatterPlan:()=>G.meet&&G.meet.plan?Object.assign({},G.meet.plan):null,
+      /* 会议中改票（2026-11-05）：门禁只做结构化断言，不猜台词 */
+      earlyVotes:()=>G.meet?(G.meet.earlyVotes||0):0,
+      voteOf:i=>G.meet&&G.meet.votes?G.meet.votes[i]:null,
+      voteMeta:()=>G.meet&&G.meet.voteMeta?JSON.parse(JSON.stringify(G.meet.voteMeta)):null,
+      voteStory:()=>G.meet&&G.meet.voteStory?G.meet.voteStory.slice():[],
+      testimonyLeft:()=>G.meet&&G.meet.ctx&&G.meet.ctx.testimony?
+        G.meet.ctx.testimony.filter(x=>!x.said).length:0,
+      deliverTestimony:id=>deliverTestimony(G.meet,id==null?null:id),
+      leanOf:id=>{const a=G.agents[id];return a?voteLean(a):null;},
       accuseLineOf:i=>G.agents[i]?(accuseLine(G.agents[i],G.meet)||''):'',
       notice:(i,x,y,rad,kind,victim)=>noticeAction(G.agents[i],x,y,rad,kind,
         victim==null?null:G.agents[victim]),
@@ -10035,6 +10198,17 @@
         SKSanity.beliefEntropy(a.mind.sus,a.i):0;},
       healSus:(w,i,v)=>{const a=G.agents[w];if(!a||!a.mind)return null;
         a.mind.sus[i]=v;a.mind.susNight=a.mind.susNight||{};a.mind.susNight[i]=G.night;return a.mind.sus[i];},
+      /* 会议中改票的用例需要"会前就有的信念"：这是门禁的写入口，不参与正常流程 */
+      seedBelief:(i,o)=>{
+        const a=G.agents[i]; if(!a)return false;
+        o=o||{};
+        if(!a.mind)mindReset(a);
+        if(o.sus)for(const k in o.sus)a.mind.sus[k]=o.sus[k];
+        if(o.suspect!==undefined)a.suspect=o.suspect;
+        if(o.known){a.mind.known=a.mind.known||{};
+          for(const k in o.known)a.mind.known[k]=o.known[k];}
+        return true;
+      },
       claimHistOf:i=>{const a=G.agents[i];return a&&a.mind?(a.mind.claimHist||[]).slice():[];},
       /* 门禁用：让 accI 指控 tgtI，跑一次「人类辩护」决策，看会不会有人开口。
          用来钉住「人类辩护不看阵营」——异形被指控时人类也可能替它说话。 */
