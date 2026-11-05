@@ -1179,8 +1179,11 @@
       if(a.doing<=0.05)return false;
       if(a._mg)return true;
       a._mg=true;
+      /* 按任务点选玩法：高难 8 个各占一型，普通按舱室与名称归类（表在 minigame.js） */
+      const pt=(a._doing==='task'&&a._taskPt!=null)?M.points[a._taskPt]:null;
       SKMiniGame.open(a._doing,{
-        title:STAND_ACT[a._doing]||'任务',
+        title:pt?pt.label:(STAND_ACT[a._doing]||'任务'),
+        label:pt?pt.label:null,
         limit:Math.max(2,a.doing),
         onDone:function(){ a._mg=false; a.doing=0.001; },
         onCancel:function(){
@@ -5046,7 +5049,20 @@
         if(x.mind.known&&x.mind.known[tc.i])continue;
         const subj=G.agents[tc.i];
         if(!subj||subj===x||!subj.alive||subj.downed)continue;
-        push(()=>say(x.name,flavor(x,'endorse',{t:subj.name,r:alibiOf(x).room})));
+        /* 2026-11-05 二组：背书是**公开事件**，听众当场要收到一条弱正向信任。
+           以前只出声、不写分 —— 与 heard_frame 不对称，等于「通道少一条」。
+           权重 0.05 刻意低于 `CRED.gains` 最低档（0.08）：只做软证据，压不过任何实证。
+           写在 push 回调里、而不是排期时，是为了跟「发言 → 结算」的方向一致。 */
+        push(()=>{
+          say(x.name,flavor(x,'endorse',{t:subj.name,r:alibiOf(x).room}));
+          for(const wv of G.agents){
+            if(wv===x||!wv.alive||wv.downed||!wv.mind)continue;
+            credAdd(wv,subj.i,0.05,'heard_vouch');
+            evPush(wv,{kind:'heard_vouch',x:0,y:0,room:null,conf:0.45,
+              src:'speech',subj:subj.i,by:x.i});
+          }
+          if(G.simStats)G.simStats.vouchHeard=(G.simStats.vouchHeard||0)+1;
+        });
         if(G.simMode&&G.simStats)G.simStats.endorses=(G.simStats.endorses||0)+1;
         return;
       }

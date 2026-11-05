@@ -4384,6 +4384,7 @@ function section(t) { console.log('\n== ' + t); }
     const pre = t.disguise(k.i);
     Math.random = old;
     return { start, first, night: g.night, again, prog0, pre,
+      gain: SKSanity.CRED.gains.fakeWork,
       prog1: g.prog, doAfter: k._doing, inv: t.inv() };
   });
   ok(FAKET.start.seen && FAKET.start.do === 'fake' && FAKET.start.doing > 0 &&
@@ -4395,7 +4396,9 @@ function section(t) { console.log('\n== ' + t); }
   ok(FAKET.again,
     '冷却结束后同一夜还能再演（旧版 _fakeTaskN 每夜 1 次把伪装掐死在主闸上；' +
     '本次 aud=' + FAKET.pre.aud + ' sc=' + FAKET.pre.sc + ' cd=' + FAKET.pre.cd + '）');
-  ok(FAKET.first.cred >= 0.10,
+  /* 2026-11-05 二组：CRED.gains 按 LENS.lr 重排后 fakeWork 从 0.10 降到 0.08。
+     断言改成「不低于声明值」——测的仍是"走同一条兑现口"，不再钉死某个数。 */
+  ok(FAKET.first.cred >= FAKET.gain - 0.005,
     '演完的 cred 走同一条兑现口：目击者给它 +信誉（fakeWork，' + FAKET.first.cred + '）');
   ok(FAKET.inv.fails.length === 0, '异形假装做任务后不变量全过' +
     (FAKET.inv.fails.length ? '（失败项：' + FAKET.inv.fails.slice(0, 4).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));
