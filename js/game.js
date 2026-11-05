@@ -135,6 +135,9 @@
        开始页可改玩家名与 14 个 AI 名，但**默认名单只在这里读一次**，不复制副本。 */
     const NAMES=global.SKNames.DEFAULT;
     let G;
+    /* A/B 对照开关：还原 2026-11-05 及更早的模拟口径（讨论发言不执行）。
+       模块级变量，不随 newGame 重建 G 而丢失。默认关。 */
+    let SIM_NO_DISCUSS=false;
     /* 门禁探针：只影响**下一次** newGame（席位 / 名单），用完即清，不污染后续夹具。 */
     let SEAT_FORCE=null, ROSTER_FORCE=null;
     /* 医疗无人机每夜充电次数（每救 1 人扣 1 次）：只在这里改 */
@@ -5597,6 +5600,7 @@
       const humanDefend=decideHumanDefend(cands);
       if(humanDefend)defenseNote(humanDefend.by,humanDefend.target);
       const alienDoubt=decideAlienDoubt(m,cands);
+      if(G.simMode&&SIM_NO_DISCUSS)return;   /* A/B：还原旧模拟口径 */
       if(m.kind==='pre'){
         push(()=>sysSay('第 1 天 · 公开讨论 '+D+' 秒：先认识彼此、报第一站，讨论完直接进入第 1 夜。'));
         for(const a of cands.slice(0,3)) push(()=>say(a.name,alibiLine(a,m)));
@@ -10454,6 +10458,8 @@
         return {lines:(m.lines||[]).length,vouches:(m.ctx&&m.ctx.vouches||[]).length,
           talkN:G.agents.map(a=>a.talkN||0)};},
       attentionOf:i=>attention(G.agents[i]),
+      setSimNoDiscuss:v=>{SIM_NO_DISCUSS=!!v;return SIM_NO_DISCUSS;},
+      setHypGap:v=>{SKSanity.MIND.hypGap=+v;return SKSanity.MIND.hypGap;},
       witnessCtxMul:(x,y,n)=>witnessCtxMul(x,y,n),
       setLightState:v=>{G.lightState=v;return G.lightState;},
       memKindsOf:i=>{const a=G.agents[i];return a&&a.mind?
