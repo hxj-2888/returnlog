@@ -835,6 +835,7 @@
     talkScoreN: 6,        /* 发言权倾斜同样按实际台词数，而不是性格 */
     envTieEps: 0.06,      /* 嫌疑分差在此以内 → 用 envEstimate 的环境读数破平局 */
     seqWindowSec: 25,     /* 行为序列：两个可疑动作的间隔上限 */
+    hypGap: 0.12,         /* 假设层：前两个假说权重差 ≤ 此值 → 难分高下，弃权 */
   };
   /* 信念熵：把 sus 归一化成分布后求 H = -Σ p ln p（空分布返回 0） */
   function beliefEntropy(sus, skip) {

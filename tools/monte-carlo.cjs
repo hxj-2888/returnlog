@@ -147,7 +147,8 @@ function summarize(results) {
     'reportsUsed', 'nightMeetFull',
     /* 2026-11-05 会议中改票：早投 / 依发言改票 / 早投票最终保留 */
     'earlyVotes', 'voteChanges', 'earlyKept',
-    'reachImpossible', 'statementDamp'];
+    'reachImpossible', 'statementDamp', 'discussLines', 'vouchHeard',
+    'hypothesisAbstain'];
   const avg = {}, med = {};
   for (const k of keys) { avg[k] = +mean(results, k).toFixed(3); med[k] = +median(results, k).toFixed(3); }
   /* 分任务点完成次数：把所有局里每个 label 的计数加起来再除以局数 = 每局平均完成次数。
@@ -187,7 +188,8 @@ function summarize(results) {
     'humanDefends', 'reportDoubts', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
     'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives',
     'earlyVotes', 'voteChanges', 'earlyKept',
-    'reachImpossible', 'statementDamp'];
+    'reachImpossible', 'statementDamp', 'discussLines', 'vouchHeard',
+    'hypothesisAbstain'];
   const reach = {};
   for (const k of REACH_KEYS) {
     const xs = results.map(r => +r[k]).filter(Number.isFinite);
@@ -271,10 +273,10 @@ function writeOut(results, finished) {
         '⚠ **配置快照里的 `aiCapR` 只封暗处**：F 轮（2026-11-03）起 `aiCanSee` 先走亮区整片可见' +
         '（同亮舱整间 / 同亮走廊整条 / 亮舱看相连走廊要 LOS），命中不看这个上限，' +
         '只有暗舱与「站在舱外看进亮舱」才受它约束。跨批比较视野相关读数（knownWrites / 目击 / 伪装）前先看这条。',
-        '⚠ **工具口径盲区（读数为 0 不等于机制没接）**：`startChatter` 在 simMode 下排期段直接 return' +
-        '（讨论台词不逐条播放），而 `orders` / `orderObey` / `orderRefuse` / `endorses` 这几个计数就长在排期段里' +
-        ' ⇒ AI 对 AI 恒为 0。领袖指令与当众背书**在真人局里照常发生**，' +
-        '行为由门禁的「领袖 · 指令真的有人接牌」与「语料工程」两组用例覆盖，不要拿这几格 0 去判机制死活。',
+        '⚠ **2026-11-06 起模拟讨论发言会真正执行**：`startChatter` 在 simMode 下把 push 改为' +
+        '按同一顺序立即执行（不排定时器），所以 `orders` / `endorses` / `vouchHeard` / ' +
+        '`discussLines` / `silentSus` / `statementDamp` 不再是结构性 0。' +
+        '代价是模拟局比旧版慢，且胜率口径与 2026-11-05 及更早的报告**不可直接横向对比**。',
         '⚠ **真实行为读数（0 就是 0）**：`realFixes`（异形真修故障）与 `fakeBreaker`（异形当众合闸）' +
         '不依赖排期，恒为 0 是**效用表自己选的** —— 假装修不吃 realCost、也不站满 10 秒，' +
         '所以自发情况下没人选贵信号。这条与门禁里那条"量化事实"断言一致，等用户决定是否抬高收益。',
@@ -401,6 +403,9 @@ function writeOut(results, finished) {
     '| earlyKept | ' + s.avg.earlyKept + ' | 早投票到终局没被改掉的次数 |',
     '| reachImpossible | ' + s.avg.reachImpossible + ' | 不在场口供被「这点时间走不到」判为不可能的次数（可达性反事实） |',
     '| statementDamp | ' + s.avg.statementDamp + ' | 同一目标同时被指控与被背书、公开声势被压低的次数（证言间关系） |',
+    '| discussLines | ' + s.avg.discussLines + ' | 模拟局同步执行的讨论发言条数（2026-11-06 起不再是 0） |',
+    '| vouchHeard | ' + s.avg.vouchHeard + ' | 听众收到 heard_vouch 的次数 |',
+    '| hypothesisAbstain | ' + s.avg.hypothesisAbstain + ' | 两个假说难分高下而弃权的票数（假设层） |',
     '',
     '## 破坏技能探查（2026-11-01）',
     '',
