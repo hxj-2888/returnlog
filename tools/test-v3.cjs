@@ -78,6 +78,29 @@ function section(t) { console.log('\n== ' + t); }
     '主页由 SKMapData 生成整船：' + HOME.rooms + ' 舱 / ' + HOME.pipes + ' 管道口 / ' +
     HOME.chips + ' 项统计');
   ok(HOME.note.length > 0, '主页默认展示已选身份的说明：' + HOME.note + '…');
+  const NAMESUI = await T(() => ({
+    me: (document.getElementById('home-name-me') || {}).value,
+    ai: document.querySelectorAll('#home-name-ai input').length,
+    count: (document.getElementById('home-names-count') || {}).textContent || '',
+    panel: !!document.getElementById('home-names')
+  }));
+  ok(NAMESUI.panel && NAMESUI.me === '星尘' && NAMESUI.ai === 14 &&
+    /14/.test(NAMESUI.count),
+    '开始页可编辑名单：你的名字 + 14 个 AI 席位（' + NAMESUI.me + ' / ' + NAMESUI.ai + ' AI）');
+  const RULES = await T(() => {
+    const l = document.querySelector('[data-home-info="rules"]');
+    if (l) l.click();
+    const n = document.getElementById('home-note');
+    return { len: (n.textContent || '').length, txt: n.textContent || '',
+      stats: document.getElementById('home-stats').textContent || '' };
+  });
+  ok(RULES.len > 200 && /45/.test(RULES.txt) && /声纹环/.test(RULES.txt) &&
+    /45/.test(RULES.stats),
+    '主页玩法说明扩写并读 WIN_PTS（' + RULES.len + ' 字，45 分不再硬编码）');
+  await T(() => {
+    const n = document.getElementById('home-note');
+    if (n) n.classList.remove('show');
+  });
   await page.click('#home-go');
   await page.waitForFunction(() => window.SKV3 && SKV3._t && SKV3._t.assets().base, null, { timeout: 30000 });
   await page.waitForTimeout(400);
@@ -91,9 +114,15 @@ function section(t) { console.log('\n== ' + t); }
   ok(A.a.base && A.a.w === 4704 && A.a.h === 4413, 'Blender 2.5D 底图已加载 ' + A.a.w + '×' + A.a.h);
   ok(A.n === 15, '15 个席位');
   ok(A.inv && A.inv.fails.length === 0 && A.inv.checks > 200, '不变量基线 ' + (A.inv && A.inv.checks) + ' 项检查全过');
-  ok(A.role.indexOf('人类') >= 0, 'HUD 显示人类');
-  ok(A.tip.indexOf('S 搜尸') >= 0 && A.tip.indexOf('D 收尸') >= 0 && A.tip.indexOf('W 交互') >= 0,
-    '提示栏改为 WASD 主操作键：W 交互 / S 搜尸 / D 收尸');
+  ok(A.role.indexOf('人类') >= 0 && A.role.indexOf('01') >= 0 &&
+    A.role.indexOf('星尘') >= 0,
+    'HUD 显示席位 + 名字 + 阵营（' + A.role + '）');
+  ok(A.tip.indexOf('S/X 搜尸') >= 0 && A.tip.indexOf('D/G 收尸') >= 0 &&
+    A.tip.indexOf('W/E 交互') >= 0,
+    '提示栏改为 WASD 主操作键：W/E 交互 / S/X 搜尸 / D/G 收尸');
+  ok(A.tip.indexOf('不是移动') >= 0 && A.tip.indexOf('Q') >= 0 && A.tip.indexOf('G') >= 0 &&
+    A.tip.indexOf('M 音效') >= 0 && A.tip.indexOf('P/ESC') >= 0,
+    '操作提示覆盖 17 个单键，并明确「W/A/S/D 不是移动」');
   ok(!A.meet, '?test 跳过开局会议，直接进夜');
   await T(() => { SKV3._t.tp(0, 34.8,33.8); });
   await page.waitForTimeout(300);
@@ -1980,6 +2009,25 @@ function section(t) { console.log('\n== ' + t); }
     /钻管道/.test(TPL2.text), '点击「看见钻管道」会以玩家身份发出并解析成直接证据');
   ok(TPL2.sus >= 0.2 && Object.keys(TPL2.known).length === 0,
     'AI 只把玩家的话记成传闻嫌疑（' + TPL2.sus.toFixed(2) + '），绝不写成 known');
+
+  /* T6（2026-11-05）：模板默认不能选中第一个活人，未选对象点「怀疑」必须只提示、不发言。 */
+  const TPL0 = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    t.openMeeting('day');
+    const sel = document.getElementById('m-tpl-target');
+    const placeholder = sel.value;
+    const firstOpt = sel.options[0] ? sel.options[0].textContent : '';
+    const before = document.querySelectorAll('#m-say .ln').length;
+    document.querySelector('#m-tpl-btns button[data-tpl="accuse"]').click();
+    const after = document.querySelectorAll('#m-say .ln').length;
+    const msg = g.msg || '';
+    t.startVote(); t.closeVote(); if (g.meet) t.finishMeeting();
+    return { placeholder, firstOpt, before, after, msg };
+  });
+  ok(TPL0.placeholder === '' && /选择对象/.test(TPL0.firstOpt) &&
+    TPL0.before === TPL0.after && /先选对象/.test(TPL0.msg),
+    '模板默认「— 选择对象 —」：未选对象点「怀疑」只提示、不误指控（' + TPL0.msg + '）');
 
   await fresh(false);
   const TPL3 = await T(() => {
@@ -6736,6 +6784,40 @@ function section(t) { console.log('\n== ' + t); }
   await T(() => { const t = SKV3._t, g = t.G();
     t.startVote(); t.closeVote(); if (g.meet) t.finishMeeting(); });
 
+  section('名单 / 随机席位（2026-11-05）');
+  const ROSTER = await T(() => {
+    const t = SKV3._t;
+    const ai = [];
+    for (let i = 1; i <= 14; i++) ai.push('测试' + String(i).padStart(2, '0'));
+    const r = t.nextGame({ seat: 6, roster: { me: '试航员', ai: ai } });
+    return { me: r.me, names: r.names, aliens: r.aliens, uniq: new Set(r.names).size,
+      meName: t.G().me.name, alienMe: t.G().me.alien };
+  });
+  ok(ROSTER.me === 6 && ROSTER.meName === '试航员' && ROSTER.names[6] === '试航员' &&
+    ROSTER.names[0] === '测试01' && ROSTER.names[7] === '测试07' &&
+    ROSTER.uniq === 15 && ROSTER.aliens.length === 4 && !ROSTER.alienMe,
+    '自定义名单 + 指定席位：玩家名落在 07 席，14 个 AI 名按序补位，15 名唯一、4 异形');
+
+  const DUP = await T(() => {
+    const t = SKV3._t;
+    const r = t.nextGame({ seat: 2, roster: { me: '星尘', ai: ['星尘', '', '银翼'] } });
+    return { me: r.me, names: r.names, uniq: new Set(r.names).size, name: r.names[2] };
+  });
+  ok(DUP.me === 2 && DUP.name === '星尘' && DUP.uniq === 15,
+    '名单兜底：重名 / 空名自动去重补位，15 席仍唯一');
+
+  const WAVEHINT = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.msg = ''; g.waveHint = false;
+    t.hear(g.me.x, g.me.y, 'knife', 1);
+    const first = g.msg;
+    g.msg = '';
+    t.hear(g.me.x, g.me.y, 'knife', 1);
+    return { first, second: g.msg, waves: t.waves().length };
+  });
+  ok(/声纹环/.test(WAVEHINT.first) && WAVEHINT.second === '' && WAVEHINT.waves >= 1,
+    '声纹环首次出现给一次图例教学，之后不再重复打扰');
+
   section('暂停 / 重开 / 退出');
   await fresh(false);
   await page.keyboard.press('Escape');
@@ -6776,6 +6858,24 @@ function section(t) { console.log('\n== ' + t); }
     pick: getComputedStyle(document.getElementById('pick')).display !== 'none'
   }));
   ok(!EX.open && !EX.root && EX.pick, '暂停面板「退出到开始页」：覆盖层移除，开始页恢复');
+
+  section('随机席位 · 非门禁口径（2026-11-05）');
+  /* 主门禁页用 ?test 固定 0 号；这里另开一个 ?test&randomseat 页，验证真实开局路径
+     每局都会换席位（只断言"出现 ≥2 个不同席位"，不依赖具体随机结果）。 */
+  const p2 = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+  await p2.goto(URL + '&randomseat');
+  await p2.evaluate(() => SKV3.start('human'));
+  await p2.waitForFunction(() => window.SKV3 && SKV3._t, null, { timeout: 15000 });
+  const SEATS = await p2.evaluate(() => {
+    const out = [];
+    for (let i = 0; i < 8; i++) { SKV3._t.newGame(); out.push(SKV3._t.G().me.i); }
+    return out;
+  });
+  await p2.close();
+  ok(SEATS.length === 8 && SEATS.every(i => i >= 0 && i < 15) &&
+    new Set(SEATS).size >= 2,
+    '非门禁对局每局随机席位：8 次开局出现 ' + new Set(SEATS).size +
+    ' 个不同席位（' + SEATS.join(',') + '）');
 
   section('收尾');
   ok(errors.length === 0, '控制台零报错' + (errors.length ? '：' + errors.join(' | ') : ''));

@@ -38,6 +38,30 @@
   #pick .role b{display:block;font-size:13.5px;font-weight:500;letter-spacing:1px;color:var(--acc)}
   #pick .role span{display:block;font-size:10.5px;color:#7C8798;line-height:1.55;margin-top:2px}
   #pick .role .where{font-size:10px;color:#55606F;white-space:nowrap}
+  #pick .names{border:1px solid #232C39;border-radius:11px;background:rgba(13,18,26,.86)}
+  #pick .names summary{list-style:none;display:flex;align-items:center;gap:8px;padding:9px 12px;
+    cursor:pointer;font-size:11px;letter-spacing:1px;color:#8A94A3}
+  #pick .names summary::-webkit-details-marker{display:none}
+  #pick .names summary b{color:#B9C6D6;font-weight:500}
+  #pick .names summary i{margin-left:auto;font-style:normal;font-size:10px;color:#55606F}
+  #pick .names[open] summary{border-bottom:1px solid #1F2733}
+  #pick .names .nrow{display:flex;align-items:center;gap:10px;padding:9px 12px 5px;
+    font-size:10.5px;color:#7C8798}
+  #pick .names input{background:#0A0F16;border:1px solid #2A3442;border-radius:7px;color:#DDE3EC;
+    font:11px/1.4 inherit;padding:5px 8px;outline:none;min-width:0}
+  #pick .names input:focus{border-color:#F0C674}
+  #pick .names .nrow input{flex:1}
+  #pick .names .ngrid{display:grid;grid-template-columns:1fr 1fr;gap:5px 8px;padding:5px 12px}
+  #pick .names .ngrid label{display:flex;align-items:center;gap:6px;font-size:9.5px;color:#55606F}
+  #pick .names .ngrid label span{flex:0 0 16px;font-variant-numeric:tabular-nums;text-align:right}
+  #pick .names .ngrid input{flex:1}
+  #pick .names .ntip{padding:6px 12px 0;font-size:9.5px;line-height:1.7;color:#55606F}
+  #pick .names .nbtns{display:flex;gap:7px;padding:8px 12px 10px}
+  #pick .names .nbtns button{flex:1;padding:6px 8px;border-radius:7px;border:1px solid #2A3442;
+    background:#141B25;color:#9AA7B7;font:10.5px/1 inherit;cursor:pointer}
+  #pick .names .nbtns button:hover{border-color:#43536B;color:#DDE3EC}
+  /* 名单展开时隐藏底部说明浮层：它是绝对定位，会把「进入舱段」压在下面 */
+  #pick .names[open] ~ .note{display:none !important}
   #pick .cta{display:flex;gap:9px;align-items:center}
   #pick .go{flex:1;padding:clamp(10px,1.4vh,13px) 14px;border-radius:11px;border:1px solid #F0C674;
     background:linear-gradient(180deg,#2A2416,#1B1710);color:#F0C674;
@@ -226,6 +250,17 @@
       </button>
     </div>
 
+    <details class="names" id="home-names">
+      <summary><span>本局名单</span><b id="home-names-count">15 人</b><i>点击编辑</i></summary>
+      <div class="nrow"><label for="home-name-me">你的名字</label>
+        <input id="home-name-me" maxlength="6" autocomplete="off" spellcheck="false"></div>
+      <div class="ngrid" id="home-name-ai"></div>
+      <div class="ntip">AI 名字占另外 14 席；重名或互相包含会自动加席位后缀。新名字存入本机名字库。
+        每局你的席位随机，不再固定 01。</div>
+      <div class="nbtns"><button type="button" id="home-names-random">随机名字</button>
+        <button type="button" id="home-names-reset">恢复默认</button></div>
+    </details>
+
     <div class="cta">
       <button class="go" id="home-go">进 入 舱 段</button>
       <button class="ghost" data-home-info="rules">玩法说明</button>
@@ -287,6 +322,7 @@
 <!-- 加载顺序即依赖顺序：版本 → 数据 → 模板 → 引擎 → 对局 → 入口 → 主页 → 复盘 -->
 <script src="js/config/version.js"></script>
 <script src="js/data/map.js"></script>
+<script src="js/data/names.js"></script>
 <script src="js/data/lines.js"></script>
 <script src="js/ui/templates.js"></script>
 <script src="js/engine/clock.js"></script>

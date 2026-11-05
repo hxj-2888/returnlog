@@ -56,7 +56,8 @@
   function seatIndex(n){
     const G=global.SKV3._t.G();
     const i=(n|0)-1;
-    return i>=1&&i<G.agents.length?i:null;
+    /* 2026-11-05：席位随机后 0 号也可能是 AI，不能再把 1 号排除在外。 */
+    return i>=0&&i<G.agents.length?i:null;
   }
 
   /* 自由文本 → 槽位（提到的人 / 舱室 / 指控 / 投票 / 否认 / 自述位置）。
@@ -71,22 +72,32 @@
     }
     /* 人物按在文本里第一次出现的位置排序，避免「南极被北极杀了」把凶手认成南极 */
     const at={};
-    const put=(i,pos)=>{
-      if(i==null||i===0||at[i]!=null)return;
-      at[i]=pos;
+    const meI=(G&&G.me&&!G.spectMode)?G.me.i:-1;
+    const note=(i,pos)=>{
+      if(i==null||i===meI)return;
+      if(at[i]==null||pos<at[i])at[i]=pos;
     };
-    for(const a of G.agents){
-      if(a.i===0||!a.name)continue;
-      let p1=s.indexOf(a.name),p2=s.indexOf(seatNo(a));
-      if(p1<0)p1=1e9; if(p2<0)p2=1e9;
-      const p=Math.min(p1,p2);
-      if(p<1e9)put(a.i,p);
+    /* 自定义名字可能互相包含（“星”与“星尘”）：先按长度从长到短占位，
+       已被长名字占用的字符区间不再给短名字匹配，避免把“星尘”认成“星”。 */
+    const spans=[];
+    const free=(p,n)=>!spans.some(sp=>p<sp[1]&&p+n>sp[0]);
+    const names=G.agents.filter(a=>a&&a.name&&(G.spectMode||a!==G.me))
+      .slice().sort((x,y)=>y.name.length-x.name.length);
+    for(const a of names){
+      let from=0,hit=-1;
+      while((from=s.indexOf(a.name,from))>=0){
+        if(free(from,a.name.length)){hit=from;break;}
+        from+=1;
+      }
+      if(hit>=0){note(a.i,hit);spans.push([hit,hit+a.name.length]);}
+      const sp=s.indexOf(seatNo(a));
+      if(sp>=0&&free(sp,2)){note(a.i,sp);spans.push([sp,sp+2]);}
     }
     let m;
     const reNum=/(?:第\s*)?0?([1-9]|1[0-5])\s*(?:号|席)/g;
-    while((m=reNum.exec(s))){const i=seatIndex(+m[1]); if(i!=null)put(i,m.index);}
+    while((m=reNum.exec(s))){const i=seatIndex(+m[1]); if(i!=null&&free(m.index,1))note(i,m.index);}
     const reCn=/([一二三四五六七八九十]{1,3})\s*(?:号|席)/g;
-    while((m=reCn.exec(s))){const i=seatIndex(CN_SEAT[m[1]]||0); if(i!=null)put(i,m.index);}
+    while((m=reCn.exec(s))){const i=seatIndex(CN_SEAT[m[1]]||0); if(i!=null&&free(m.index,1))note(i,m.index);}
     out.people=Object.keys(at).map(Number).sort((a,b)=>at[a]-at[b]);
     const has=out.people.length>0;
     const support=has&&/(作证|担保|保他|保她|相信他|相信她|信他|是好人|不是他|不是异形|不是凶手|不是狼|不是内鬼|别投|不要投|投错|无辜|没问题)/.test(s);

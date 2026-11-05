@@ -230,7 +230,7 @@
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
-<div id="tip">点击地面移动 · W 交互（多项开轮盘） · A 出刀 · S 搜尸/查验 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · ESC 暂停/设置 · T 视野 · C 相机</div>
+<div id="tip">点击地面移动（W/A/S/D 不是移动） · W/E 交互 · A/Q 出刀 · S/X 搜尸 · D/G 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · P/ESC 暂停</div>
 <div id="dragtag" class="hide">拖拽中 · 按 G 放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">

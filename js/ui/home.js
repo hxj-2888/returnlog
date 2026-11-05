@@ -24,6 +24,8 @@
 
   var M = global.SKMapData;
   if (!M) return;
+  /* 胜利目标分的唯一真源是 js/ai/sanity.js#SKSanity.WIN.pts（game.js 的 WIN_PTS 同源）。 */
+  var WIN = (global.SKSanity && global.SKSanity.WIN) ? global.SKSanity.WIN.pts : '—';
 
   /* 身份 → 船上的锚点舱室与说明。人类看任务舱；异形看管道口；旁观看会议室。 */
   var ANCHOR = {
@@ -150,7 +152,7 @@
       [M.points.length, '任务点'],
       [hard, '高难'],
       [M.pipes.length, '管道口'],
-      [45, '分返航']
+      [WIN, '分返航']
     ];
     wrap.innerHTML = items.map(function (it) {
       return '<span class="chip"><b>' + it[0] + '</b>' + it[1] + '</span>';
@@ -184,9 +186,13 @@
       var kind = link.getAttribute('data-home-info');
       if (kind === 'rules') {
         note.innerHTML = '<h4>一局怎么玩</h4>昼夜循环：白天<b>会议</b>（发言 → 投票 → 驱逐）' +
-          '→ 夜晚（各自行动）→ 天亮结算维修进度。故障 30 秒没人修好扣 5 分；' +
-          '人类修满 <code>45</code> 分或清出全部异形即胜利。会议不限每晚一次，' +
-          '但报告即开会时尸体会清场。';
+          '→ 夜晚（各自行动）→ 天亮结算维修进度。夜晚<b>点击地面</b>移动，' +
+          '<code>W/E</code> 交互、<code>A</code> 出刀（异形）、<code>S</code> 搜尸、' +
+          '<code>D</code> 收尸；亮舱整间可见，暗舱只有手电锥。' +
+          '故障 30 秒没人修好扣 5 分；人类修满 <code>' + WIN + '</code> 分或清出全部异形即胜利。' +
+          '死亡后变幽灵：穿墙全视，只能做自己剩下的任务（1.6×，最多 2 分）。' +
+          '看不见的动静会以<b>声纹环</b>标出方位（越近越亮，不显示身份）。' +
+          '报告有全局额度，会议不限每晚一次，但报告即开会时尸体会清场。';
       } else if (kind === 'ship') {
         note.innerHTML = '<h4>这块船体是真的</h4>舱室轮廓 / 掩体 / 任务点 / 管道口全部取自 ' +
           '<code>js/data/map.js</code> 的 <code>SKMapData</code>，与对局用的是同一份数据；' +
@@ -195,6 +201,130 @@
       note.classList.add('show');
     });
     bindTorch();
+  }
+
+  /* ---------------- 本局名单（2026-11-05） ----------------
+     玩家名 + 14 个 AI 名；只写 localStorage（sk.roster.v1），不进对局状态。
+     对局侧通过 SKHome.roster() 取一份**已去重、已补位**的名单。
+     新输入的名字会并入本机名字库，供「随机名字」继续抽到。 */
+  var RKEY = 'sk.roster.v1';
+  var DN = (global.SKNames && global.SKNames.DEFAULT) || ['星尘'];
+  var EX = (global.SKNames && global.SKNames.EXTRA) || [];
+  var R = loadRoster();
+
+  function cleanName(s) {
+    return String(s == null ? '' : s)
+      .replace(/[^\u4e00-\u9fa5A-Za-z0-9·_-]/g, '')
+      .slice(0, 6);
+  }
+  function uniq(list) {
+    var out = [];
+    list.forEach(function (n) { if (n && out.indexOf(n) < 0) out.push(n); });
+    return out;
+  }
+  function loadRoster() {
+    var raw = {};
+    try { raw = JSON.parse(localStorage.getItem(RKEY) || '{}') || {}; } catch (e) {}
+    var me = cleanName(raw.me) || DN[0];
+    var ai = Array.isArray(raw.ai) ? raw.ai.slice(0, 14).map(cleanName) : DN.slice(1, 15);
+    while (ai.length < 14) ai.push('');
+    var pool = uniq((Array.isArray(raw.pool) ? raw.pool : []).map(cleanName)
+      .concat(DN, EX, ai, [me]));
+    return { me: me, ai: ai, pool: pool };
+  }
+  function saveRoster() {
+    try { localStorage.setItem(RKEY, JSON.stringify(R)); } catch (e) {}
+  }
+  function addPool(n) {
+    if (!n || R.pool.indexOf(n) >= 0) return;
+    R.pool.push(n);
+    if (R.pool.length > 60) R.pool = R.pool.slice(-60);
+  }
+  function nextName(used) {
+    var i;
+    for (i = 0; i < R.pool.length; i++) if (used.indexOf(R.pool[i]) < 0) return R.pool[i];
+    for (i = 0; i < DN.length; i++) if (used.indexOf(DN[i]) < 0) return DN[i];
+    for (i = 2; i < 99; i++) if (used.indexOf('席位' + i) < 0) return '席位' + i;
+    return '席位';
+  }
+  function fillRosterInputs() {
+    var me = document.getElementById('home-name-me');
+    if (me) me.value = R.me;
+    var grid = document.getElementById('home-name-ai');
+    if (!grid) return;
+    var out = [];
+    R.ai.forEach(function (n, k) {
+      out.push('<label><input data-ai="' + k + '" maxlength="6" autocomplete="off" ' +
+        'spellcheck="false" value="' + esc(n) + '" aria-label="AI ' + (k + 1) + ' 的名字"></label>');
+    });
+    grid.innerHTML = out.join('');
+    var cnt = document.getElementById('home-names-count');
+    if (cnt) cnt.textContent = '你 + 14 AI';
+  }
+  function collectRoster() {
+    var meEl = document.getElementById('home-name-me');
+    var me = cleanName(meEl && meEl.value) || R.me || DN[0];
+    var inputs = [].slice.call(document.querySelectorAll('#home-name-ai input'));
+    var used = [me], ai = [];
+    addPool(me);
+    inputs.forEach(function (el, k) {
+      var n = cleanName(el.value);
+      if (n) addPool(n);
+      if (!n || used.indexOf(n) >= 0) n = nextName(used);
+      used.push(n);
+      ai.push(n);
+    });
+    while (ai.length < 14) { var n2 = nextName(used); used.push(n2); ai.push(n2); }
+    R.me = me; R.ai = ai;
+    saveRoster();
+    fillRosterInputs();
+    return { me: me, ai: ai.slice(0, 14) };
+  }
+  function randomRoster() {
+    var pool = R.pool.slice();
+    for (var i = pool.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    var used = [];
+    var me = pool[0] || DN[0];
+    used.push(me);
+    var ai = [];
+    for (var k = 0; k < 14; k++) {
+      var n = pool[k + 1];
+      if (!n || used.indexOf(n) >= 0) n = nextName(used);
+      used.push(n); ai.push(n);
+    }
+    R.me = me; R.ai = ai;
+    saveRoster(); fillRosterInputs();
+  }
+  function resetRoster() {
+    R.me = DN[0];
+    R.ai = DN.slice(1, 15);
+    saveRoster(); fillRosterInputs();
+  }
+  function bindRoster() {
+    var me = document.getElementById('home-name-me');
+    if (me) me.addEventListener('change', function () {
+      R.me = cleanName(me.value) || R.me;
+      addPool(R.me); saveRoster();
+    });
+    var grid = document.getElementById('home-name-ai');
+    if (grid) grid.addEventListener('change', function (e) {
+      var el = e.target;
+      if (!el || !el.getAttribute) return;
+      var k = +el.getAttribute('data-ai');
+      if (!(k >= 0) || k >= 14) return;
+      var n = cleanName(el.value);
+      if (n) addPool(n);
+      R.ai[k] = n;
+      saveRoster();
+    });
+    var rb = document.getElementById('home-names-random');
+    if (rb) rb.addEventListener('click', randomRoster);
+    var rs = document.getElementById('home-names-reset');
+    if (rs) rs.addEventListener('click', resetRoster);
+    fillRosterInputs();
   }
 
   function buildShip(host, id) {
@@ -209,6 +339,7 @@
     buildShip(host, 'home-ship');
     fillStats();
     bindUI();
+    bindRoster();
     highlight('human');
   }
 
@@ -216,6 +347,8 @@
     /* shipSVG / buildShip：给复盘页复用同一份地图绘制，避免复制房间轮廓 */
     shipSVG: shipSVG,
     buildShip: buildShip,
+    /* 对局入口取名单：返回 { me, ai:[14] }，已去重、已补位；不改对局状态 */
+    roster: function () { return collectRoster(); },
     refresh: function () {
       var host = document.getElementById('home-ship-host');
       if (host) host.innerHTML = '';

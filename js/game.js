@@ -55,9 +55,17 @@
   let shutdown = null;
 
   let ROLE_WANT = 'human';
-  function start(role) {
+  /* 开始页传来的本局名单（玩家名 + 14 个 AI 名）。null = 用默认 15 名。 */
+  let ROLE_ROSTER = null;
+  function start(role, roster) {
     if (booted) return;
     ROLE_WANT = (role === 'alien') ? 'alien' : (role === 'spect' ? 'spect' : 'human');
+    ROLE_ROSTER = (roster && typeof roster === 'object') ? {
+      me: String(roster.me || '').slice(0, 12),
+      ai: Array.isArray(roster.ai)
+        ? roster.ai.slice(0, 14).map(function (n) { return String(n || '').slice(0, 12); })
+        : null
+    } : null;
     var pk=document.getElementById('pick'); if(pk) pk.style.display='none';
     booted = true;
     if (!document.getElementById('v3-style')) {
@@ -98,6 +106,9 @@
     const M=MAP, NIGHT=SKSanity.NIGHT.len;
     let SIM_RUN=false;   /* 批量模拟：跳过渲染/HUD/音效/自动不变量，只跑对局逻辑 */
     const TEST=/[?&]test\b/.test(location.search);
+    /* ?test&randomseat：门禁探针专用 —— 仍跳过开局会议，但**不固定席位**，
+       用来验证"每局随机"这条真实路径。普通 ?test 仍固定 0 号，保证夹具稳定。 */
+    const TEST_SEAT_RANDOM=TEST&&/[?&]randomseat\b/.test(location.search);
     const DEV0=/[?&#]dev\b/.test(location.search+location.hash);
     const STRICT=/[?&]strict\b/.test(location.search);
     
@@ -109,24 +120,68 @@
     } = global.SKGeo;
     
     /* ---------------- 状态 ---------------- */
-    /* 名字用老数据层的 15 个人名（SKData.NAMES 恒 15 项，长度参与 rng 序列，不要自己造） */
-    /* 15 个人名（与旧数据层 SKData.NAMES 一致；新项目不引规则层，故在此内联） */
-    const NAMES=['星尘','银翼','北极','磷火','铁砧','罗盘','苍鹭','玄武岩','游隼','回声','子夜','砂岩','灯塔','青霜','归零'];
+    /* 15 个默认席位名的唯一真源：js/data/names.js#SKNames.DEFAULT。
+       开始页可改玩家名与 14 个 AI 名，但**默认名单只在这里读一次**，不复制副本。 */
+    const NAMES=global.SKNames.DEFAULT;
     let G;
+    /* 门禁探针：只影响**下一次** newGame（席位 / 名单），用完即清，不污染后续夹具。 */
+    let SEAT_FORCE=null, ROSTER_FORCE=null;
     /* 医疗无人机每夜充电次数（每救 1 人扣 1 次）：只在这里改 */
     const MEDBOT_CHARGES=2;
+    /* 15 个席位的名字：玩家名放在 meIdx，其余 14 席填 AI 名；默认名兜底，保证唯一。
+       meIdx < 0 = 旁观局（没有玩家席位），15 席全是 AI。 */
+    function buildSeatNames(roster, meIdx){
+      const meName=String((roster&&roster.me)||NAMES[0]).trim().slice(0,12)||NAMES[0];
+      const ai=[];
+      const add=n=>{
+        n=String(n==null?'':n).trim().slice(0,12);
+        if(n&&n!==meName&&ai.indexOf(n)<0)ai.push(n);
+      };
+      ((roster&&Array.isArray(roster.ai))?roster.ai:NAMES.slice(1)).forEach(add);
+      /* 自定义名不够 14 个时用默认名补齐（add 内部已去重、已排除玩家名）。
+         旁观局需要 15 个 AI 名，默认名正好少一个（玩家名被排除），用备选池补第 15 席。 */
+      NAMES.forEach(n=>{if(n!==meName)add(n);});
+      ((global.SKNames&&global.SKNames.EXTRA)||[]).forEach(add);
+      const out=new Array(NAMES.length);
+      if(meIdx>=0)out[meIdx]=meName;
+      let k=0;
+      for(let i=0;i<out.length;i++){
+        if(i===meIdx)continue;
+        out[i]=ai[k++]||('席位'+(i+1));
+      }
+      return out;
+    }
     function newGame(){
       const keepDev=G?!!G.dev:DEV0;
       clearInterval(meetingTick);
       stopChatter();
       document.getElementById('meet').classList.add('hide');
+      /* 模板选择记忆挂在 DOM 上，会跨局存活；新局必须清掉，否则上一局选中的
+         对象会被当成"本场已选"，占位与「先选对象」保护都失效。 */
+      const tplSel=document.getElementById('m-tpl-target');
+      if(tplSel)tplSel.__meetSeq=-1;
+      /* 席位随机（2026-11-05）：玩家不再固定 01。?test 固定 0，保证门禁夹具稳定；
+         旁观局没有玩家席位，沿用旧口径（0 号不排异形）以保持 1000 局基线可比。 */
+      const roster=ROSTER_FORCE||(TEST?null:ROLE_ROSTER);
+      const meIdx=ROLE_WANT==='spect'?-1:(SEAT_FORCE!=null?SEAT_FORCE:
+        ((TEST&&!TEST_SEAT_RANDOM)?0:Math.floor(Math.random()*NAMES.length)));
+      const seatNames=buildSeatNames(roster,meIdx);
       const aliens=new Set();
-      while(aliens.size<4) aliens.add(1+Math.floor(Math.random()*14));
-      if(ROLE_WANT==='alien'){ const arr=[...aliens]; aliens.delete(arr[0]); aliens.add(0); }
+      if(ROLE_WANT==='alien'&&meIdx>=0)aliens.add(meIdx);
+      if(ROLE_WANT==='spect'){
+        while(aliens.size<4)aliens.add(1+Math.floor(Math.random()*14));
+      }else{
+        const avoid=ROLE_WANT==='human'?meIdx:-1;
+        while(aliens.size<4){
+          const i=Math.floor(Math.random()*NAMES.length);
+          if(i===avoid)continue;
+          aliens.add(i);
+        }
+      }
       const pts=M.points.map((p,i)=>i);
       const hardPts=pts.filter(i=>M.points[i].kind==='hard');
       const normalPts=pts.filter(i=>M.points[i].kind==='normal');
-      const agents=NAMES.map((n,i)=>({
+      const agents=seatNames.map((n,i)=>({
         i,name:n,alien:aliens.has(i),x:0,y:0,path:null,sp:0,
         /* 性格轴（局内固定）：激进更敢出刀/开枪/投票，谨慎更爱弃权，社交更爱辩护跟票，
            好奇更爱搜尸。系数一律走 SKTrait.C，业务代码不写魔法数。
@@ -171,14 +226,16 @@
       for(const a of agents){
         const p=randIn(br); a.x=p[0]; a.y=p[1];
       }
-      const me=agents[0];
+      /* 旁观局没有玩家席位，G.me 只是历史占位（0 号），不参与发言/投票。 */
+      const me=agents[meIdx<0?0:meIdx];
       /* ---- 领袖型玩家（2026-11-01）----
          约 1/4~1/5 的对局里会出现一个"爱指挥"的人：给全队下指令、做总体安排。
          **不预先判定阵营** —— 他可能是人类，也可能是异形在带节奏，这才是好玩的地方。
          只有 soc 轴够高的人才可能被选中，避免"最孤僻的人突然指挥全场"。 */
       let leader=null;
       if(Math.random()<SKSanity.LEADER.chance){
-        const pool=agents.filter(a=>a.i!==0||ROLE_WANT!=='alien')
+        /* 玩家要异形时，不能自己当领袖（其余阵营都可能当，包括人类异形混在人群里） */
+        const pool=agents.filter(a=>a!==me||ROLE_WANT!=='alien')
           .filter(a=>(a.trait.soc||50)>=SKSanity.LEADER.minSoc);
         if(pool.length)leader=pool[Math.floor(Math.random()*pool.length)].i;
       }
@@ -237,6 +294,8 @@
         G.t=NIGHT;
         G.phase=SKClock.newPhase('night',performance.now(),NIGHT*1000);
       }else setTimeout(()=>openMeeting('pre',null,null),60);
+      /* 门禁探针是一次性的：无论正常开局还是探针，下一局都回到默认口径。 */
+      SEAT_FORCE=null; ROSTER_FORCE=null;
     }
     function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
     function randIn(r){
@@ -901,6 +960,11 @@
       if(G.waves.length>52)G.waves.shift();
       G.waves.push({x,y,kind:kind||'step',t:0,dur:0.9+Math.min(0.5,d*0.02),
         str:Math.max(0.22,1-d/18)*(str==null?1:str)});
+      /* N5（2026-11-05）：声纹环第一次出现时教一次，之后不再打扰。 */
+      if(!G.waveHint){
+        G.waveHint=true;
+        toast('声纹环：声音的方位 · 越近越亮 · 不显示身份');
+      }
     }
     function nearPoint(a){
       let best=null,bd=2.6;
@@ -5255,7 +5319,7 @@
     }
     function startChatter(m){
       stopChatter();
-      /* 旁观模式下 0 号星尘是独立 AI，不是"玩家席位"，必须进入发言与投票池 */
+      /* 旁观模式下 0 号是独立 AI，不是"玩家席位"，必须进入发言与投票池 */
       const ai=G.agents.filter(a=>a.alive&&!a.downed&&(a!==G.me||G.spectMode));
       if(!ai.length)return;
       /* 发言权倾斜（P-a，2026-11-01）：不再纯随机打乱 —— 真人局里是「2~3 个人说掉
@@ -5330,7 +5394,7 @@
         if(m.reporter&&(m.reporter!==G.me||G.spectMode)&&m.reporter.alive&&!m.reporter.downed){
           push(()=>say(m.reporter.name,openingLine(m.reporter,m)));
         }else if(vi){
-          /* 报告者是玩家本人时不替玩家编台词：那会在聊天栏里冒出一个"AI 星尘"，
+          /* 报告者是玩家本人时不替玩家编台词：那会在聊天栏里冒出一个"AI 玩家名"，
              说的还是玩家没打过的字。改成系统播报，事实同样来自 victimInfo。
              顺带修掉另一件事——原来这里写死一句"人已经没了/还有呼吸"，
              导致 openingLine 里"先别急着乱投，先救人"那一档永远没有机会说出口。 */
@@ -5832,8 +5896,16 @@
       if(!can)return;
       const sel=document.getElementById('m-tpl-target');
       if(sel){
-        const old=sel.value;
+        /* 同一场会议内保留上次选择；换了一场会议必须回到占位，不能把上一场
+           选中的对象带过来（否则"先选对象"永远不会触发，手快点错还会误指控）。 */
+        const old=(sel.__meetSeq===m.seq)?sel.value:'';
+        sel.__meetSeq=m.seq;
         sel.innerHTML='';
+        /* T6（2026-11-05）：默认必须是"未选择"，不能默认选中第一个活人 ——
+           手快点「怀疑」会凭空指控 02，且玩家往往没注意到选的是谁。 */
+        const none=document.createElement('option');
+        none.value='';none.textContent='— 选择对象 —';
+        sel.appendChild(none);
         for(const a of G.agents){
           if(!a.alive||a===G.me)continue;
           const op=document.createElement('option');
@@ -5841,7 +5913,7 @@
           sel.appendChild(op);
         }
         if(old&&G.agents[+old]&&G.agents[+old].alive&&(+old)!==G.me.i)sel.value=old;
-        else if(sel.options.length)sel.selectedIndex=0;
+        else sel.value='';
       }
       const roomSel=document.getElementById('m-tpl-room');
       if(roomSel){
@@ -9234,8 +9306,10 @@
       }
       const roleEl=document.getElementById('role');
       if(roleEl){
+        /* 席位随机后必须让玩家一眼看到"我是几号"：会议标签、投票名单都用席位号。 */
         const txt=spectator?'旁观者 · 不参与对局':
-          ((G.me.alien?'异形':'人类')+(!G.me.alive?' · 幽灵':(G.me.downed?' · 濒死':
+          (seatNo(G.me)+' '+G.me.name+' · '+(G.me.alien?'异形':'人类')+
+            (!G.me.alive?' · 幽灵':(G.me.downed?' · 濒死':
             (G.me.detained?' · 被擒 '+Math.max(0,Math.ceil(G.me.detainedT||0))+'s':''))));
         if(roleEl.textContent!==txt)roleEl.textContent=txt;
       }
@@ -9257,7 +9331,7 @@
                     ?'你已濒死：等队友 F 施救，或被拖进医疗间 · F2 DEV'
                     :(G.me.detained
                       ?'被保安机器人锁住：'+Math.max(0,Math.ceil(G.me.detainedT||0))+' 秒后自动释放 · 不能移动'
-                      :'点击地面移动 · W 交互 · A 出刀 · S 搜尸 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · ESC 暂停/设置 · T 视野 · C 相机')))))));
+                      :'点击地面移动（W/A/S/D 不是移动） · W/E 交互 · A/Q 出刀 · S/X 搜尸 · D/G 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · P/ESC 暂停')))))));
         if(tip.textContent!==t)tip.textContent=t;
       }
     }
@@ -9267,7 +9341,11 @@
       const b=e.target.closest?e.target.closest('button[data-tpl]'):null;
       if(!b)return;
       const m=G.meet; if(!m||m.phase!=='discuss'||G.spectMode)return;
-      const ti=+(document.getElementById('m-tpl-target').value);
+      /* 空值不能走 + 运算（会变成 0 = 自己）；「我在…」「不是我」本来就不需要对象。 */
+      const rawT=document.getElementById('m-tpl-target').value;
+      const needT=b.dataset.tpl!=='where'&&b.dataset.tpl!=='deny';
+      if(!rawT&&needT){toast('先选对象');return;}
+      const ti=rawT?+rawT:-1;
       const rid=document.getElementById('m-tpl-room').value||
         G.me.nRoom||roomIdAt(G.me.x,G.me.y)||'corridor';
       const text=meetTemplateText(b.dataset.tpl,G.agents[ti],rid);
@@ -9497,6 +9575,16 @@
     global.SKV3._t={
       G:()=>G,
       newGame:()=>newGame(),
+      /* 门禁探针：强制下一局的玩家席位与名单，返回席位/名字/异形分布。
+         只在 ?test 下有意义；普通对局不要调用。 */
+      nextGame:(o)=>{
+        o=o||{};
+        SEAT_FORCE=(o.seat==null?null:Math.max(0,Math.min(NAMES.length-1,o.seat|0)));
+        ROSTER_FORCE=o.roster||null;
+        newGame();
+        return {me:G.me.i,names:G.agents.map(a=>a.name),
+          aliens:G.agents.filter(a=>a.alien).map(a=>a.i)};
+      },
       inv:()=>{const r=runInvariants('api');return r?{checks:r.checks,fails:r.fails,all:G.inv.fails}:null;},
       checkWin:()=>checkWin(),
       winPts:()=>WIN_PTS,
