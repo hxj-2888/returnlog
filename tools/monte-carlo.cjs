@@ -349,7 +349,7 @@ function writeOut(results, finished) {
     '',
     '| 指标 | 每局均值 | 说明 |',
     '|---|---:|---|',
-    '| medbotRevives | ' + s.avg.medbotRevives + ' | 医疗无人机飞过去近身救治的次数（3 秒/次，每夜 2 次电量） |',
+    '| medbotRevives | ' + s.avg.medbotRevives + ' | 医疗无人机飞过去近身救治的次数（7 秒/次，每夜 2 次电量） |',
     '| medkitRevives | ' + s.avg.medkitRevives + ' | 医疗包施救次数（与 revives 同源） |',
     '| ghostTasks | ' + s.avg.ghostTasks + ' | 幽灵完成的维修任务个数（每人额度 2 分） |',
     '| ghostFixes | ' + s.avg.ghostFixes + ' | 幽灵修好的故障次数 |',

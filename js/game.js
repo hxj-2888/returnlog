@@ -36,6 +36,7 @@
         nameOf=SKT2Decision.nameOf, whenWord=SKT2Decision.whenWord,
         seatIndex=SKT2Decision.seatIndex, parseSpeech=SKT2Decision.parseSpeech;
   const ghostTaskPts=SKT2Space.ghostTaskPts, ghostTaskAllowed=SKT2Space.ghostTaskAllowed,
+        GHOST_TASK_CAP=SKT2Space.GHOST_TASK_CAP,
         botDead=SKT2Space.botDead, botHp=SKT2Space.botHp, ready=SKT2Space.ready,
         corridorLampPos=SKT2Space.corridorLampPos, corrJoinsRoom=SKT2Space.corrJoinsRoom,
         pipeTint=SKT2Space.pipeTint, rowForAng=SKT2Space.rowForAng,
@@ -205,7 +206,7 @@
         ghost:false,ghostPts:0,deathCause:null,deathAt:0,deathRoom:null,deathX:null,deathY:null,
         killedBy:null,bodyX:null,bodyY:null,bodyGone:false,bodyMoved:false,
         downX:null,downY:null,downRoom:null,woundCause:null,draggedBy:null,searched:false,
-        drag:null,redT:0,rushT:0,_dragSnd:0,_dragAiT:0,_hideSpot:null,_hideRoom:null,_hideCD:0,_hides:0,
+        drag:null,redT:0,rushT:0,stunT:0,_dragSnd:0,_dragAiT:0,_hideSpot:null,_hideRoom:null,_hideCD:0,_hides:0,
         _lightGo:false,_pipePlan:null,_pipeSeeks:0,_secAvoidT:0,_botCD:0,
         _killBody:null,_killAt:0,_killDecided:true,_reportPlan:null,
         _avoid:{},_fleeT:0,_fleeFrom:null,_pathCD:0,_alienTaskN:0,
@@ -782,7 +783,8 @@
     }
     function camFocus(){ return (G&&G.spectMode&&G.spect)?G.spect:G.me; }
     function stepMove(a,dt,sp){
-      if(a.detained){a.moving=false;return true;}
+      /* stunT：无人机救起后的 3 秒僵直，与保安拘留同样只挡移动 */
+      if(a.detained||(a.stunT||0)>0){a.moving=false;return true;}
       if(!a.path||!a.path.length){a.moving=false;return true;}
       a.moving=true;
       const ox=a.x, oy=a.y;
@@ -2191,13 +2193,13 @@
       else a.moving=false;
     }
     /* 人类 AI 幽灵（2026-11-01 改）：**不再修故障**，全力做剩余任务；
-       任务进度严格受 ghostPts 额度限制（每只幽灵最多 2 分），额度耗尽进入游荡。 */
+       任务进度严格受 ghostPts 额度限制（每只幽灵最多 GHOST_TASK_CAP 分），额度耗尽进入游荡。 */
     function aiGhost(a,dt){
       /* 异形幽灵对任务没有任何帮助，也不应该推进人类进度：直接待机。 */
       if(a.alien){a.moving=false;return;}
       if(a._pathCD>0)a._pathCD-=dt;
       if(a.doing>0){a.doing-=dt;if(a.doing<=0)finishDoing(a);return;}
-      if((a.ghostPts||0)<2&&a.tIdx<a.tasks.length){
+      if((a.ghostPts||0)<GHOST_TASK_CAP&&a.tIdx<a.tasks.length){
         const p=M.points[a.tasks[a.tIdx]];
         if(p){
           if(Math.hypot(p.x-a.x,p.y-a.y)<2.8){
@@ -3934,6 +3936,7 @@
         /* 红身与击杀加速各自独立递减 —— 时长相等只是巧合，不许互相推导 */
         if(a.redT>0)a.redT=Math.max(0,a.redT-dt);
         if(a.rushT>0)a.rushT=Math.max(0,a.rushT-dt);
+        if(a.stunT>0)a.stunT=Math.max(0,a.stunT-dt);
         /* 钻管道冷却：玩家与 AI 同一个计时（以前只有 AI 那条路递减，玩家根本不进这里） */
         if(a._pipeCD>0)a._pipeCD=Math.max(0,a._pipeCD-dt);
         if(!a.act)continue;
@@ -3955,7 +3958,7 @@
       return null;
     }
 
-    /* 开夜封锁剩余秒数（2026-11-02）：>0 时任何阵营都不能出刀 */
+    /* 开夜封锁剩余秒数：>0 时任何阵营都不能出刀（当前 0，规则已移除） */
     function knifeLockLeft(){
       if(!G)return 0;
       /* 暂停（含门禁/DEV 的冻结态）时不计：冻结的是世界，不是规则。
@@ -3978,8 +3981,8 @@
          （与「DEV 免伤也必须先扣子弹」同一口径） */
       killer.knife--;
       if(G.simMode&&G.simStats)G.simStats.knives++;
-      /* 3 秒红身：让目击者一眼认出刚出刀的人（纯表现，不改变判定） */
-      killer.redT=3.0;
+      /* 2 秒红身：让目击者一眼认出刚出刀的人（纯表现，不改变判定） */
+      killer.redT=SKSanity.RED_BODY.dur;
       if(!G.spectMode&&victim===G.me&&G.dev){
         setAct(killer,'stab',0.4,{ang,lunge:0.4});
         G.fx.push({type:'shield',x:victim.x,y:victim.y,t:0.6,dur:0.6});
@@ -4046,7 +4049,7 @@
         method:cause==='bled'?(a.woundCause||'bled'):cause,
         room:a.deathRoom,x:a.deathX,y:a.deathY,gone:!!a.bodyGone});
       a.path=null; a.doing=0; a._doing=null;
-      a.redT=0;
+      a.redT=0; a.stunT=0;
       if(a.drag!=null)releaseDragBy(a,true);
       const dg=draggerOf(a);
       if(dg)releaseDragBy(dg,true);
@@ -4184,13 +4187,13 @@
       }
       const p=M.points[a.tasks[a.tIdx]];
       if(!p)return;
-      const v=p.kind==='hard'?2:1;
-      if(a.ghost&&(a.ghostPts||0)+v>2){
+      const v=ghostTaskPts(p);
+      if(a.ghost&&(a.ghostPts||0)+v>GHOST_TASK_CAP){
         a._doing=null;a.doing=0;
-        if(actor)toast('幽灵最多维修 2 分的剩余任务');
+        if(actor)toast('幽灵最多维修 '+GHOST_TASK_CAP+' 分的剩余任务');
         return;
       }
-      /* ghostPts 是硬上限：AI 幽灵也走同一结算，玩家与 AI 都最多 2 分。 */
+      /* ghostPts 是硬上限：AI 幽灵也走同一结算，玩家与 AI 都最多 GHOST_TASK_CAP 分。 */
       G.prog=Math.min(45,G.prog+v);
       if(a.ghost)a.ghostPts=(a.ghostPts||0)+v;
       a.tIdx++; a.progress+=v;
@@ -4398,7 +4401,8 @@
        · 医疗间里出现濒死者就自己飞过去，悬停到伤员身边（MEDBOT_TOUCH_R）才开始治疗；
        · 近身治疗满 MEDBOT_HEAL_TIME 秒才真正拉起，不再是隔空读条；
        · 救完自动飞回房间正中央等下一个，不再靠巡逻线覆盖判定。 */
-    const MEDBOT_HEAL_TIME=3;      /* 近身治疗时长（秒）：判定、进度环、交互文案共用 */
+    const MEDBOT_HEAL_TIME=7;      /* 近身治疗时长（秒，2026-11-05 用户裁定 3 → 7） */
+    const MEDBOT_REVIVE_STUN=3;    /* 被无人机救起后的禁止移动时间（秒，2026-11-05 新增） */
     const MEDBOT_TOUCH_R=1.15;     /* 悬停到多近算「贴住伤员」 */
     const MEDBOT_FLY_SPEED=4.6;    /* 飞行速度（格/秒）：无人机不是地勤，比巡逻快 */
     /* 覆盖半径只服务对外文案与调试读数：医疗间半对角 ≈10.8 格，取 12 表示整间覆盖。
@@ -4467,6 +4471,8 @@
       G.medbotT=(G.medbotT||0)+dt;
       if(G.medbotT<MEDBOT_HEAL_TIME)return true;
       v.downed=false; v.downAt=0; v.killedBy=null;
+      /* 救起后短时间内站不稳：只禁移动，不禁交互/发言（2026-11-05 用户裁定 3 秒） */
+      v.stunT=MEDBOT_REVIVE_STUN; v.path=null; v.moving=false;
       const dg=draggerOf(v);
       if(dg)releaseDragBy(dg,true);
       v.draggedBy=null;
@@ -4486,7 +4492,7 @@
       aiHear('robot',med.x,med.y,18);
       SND.robot();
       logEvent('revive',{actor:null,victim:v.i,method:'medbot',room:'med',
-        x:+v.x.toFixed(1),y:+v.y.toFixed(1)});
+        stun:MEDBOT_REVIVE_STUN,x:+v.x.toFixed(1),y:+v.y.toFixed(1)});
       if(G.stats)G.stats.medbotRevives=(G.stats.medbotRevives||0)+1;
       if(G.simMode&&G.simStats)G.simStats.medbotRevives++;
       runInvariants('medbot');
@@ -6747,7 +6753,7 @@
         mindReset(a);a.suspect=null;a.accuseWhy=null;a._abstain=false;
         a._reportT=0;a._reportBody=null;a._sawBody=null;a._scanT=0;a._reportMemo={};
         /* 拖拽 / 红身 / 藏尸 / 断电响应 / 管道规划：全部按夜清空 */
-        a.drag=null;a.draggedBy=null;a.redT=0;a.rushT=0;a._dragSnd=0;a._dragAiT=0;
+        a.drag=null;a.draggedBy=null;a.redT=0;a.rushT=0;a.stunT=0;a._dragSnd=0;a._dragAiT=0;
         a._dragAway=false;a._dragMedD0=0;a._dragAwaySeen={};
         a._hideSpot=null;a._hideRoom=null;a._hideCD=0;a._hides=0;
         a._lightGo=false;a._pipePlan=null;a._pipeSeeks=0;a._secAvoidT=0;a._botCD=0;
@@ -6957,7 +6963,7 @@
       me.path=null;me.moving=false;
       if(me.ghost&&me.alien){if(me===G.me&&!G.spectMode)toast('异形幽灵不能执行维修');return false;}
       if(me.ghost&&!ghostTaskAllowed(me,p)){
-        if(me===G.me&&!G.spectMode)toast('幽灵最多维修 2 分的剩余任务');return false;
+        if(me===G.me&&!G.spectMode)toast('幽灵最多维修 '+GHOST_TASK_CAP+' 分的剩余任务');return false;
       }
       /* 记住实际修的任务点：玩家可以乱序修自己的任意剩余任务，
          结算时不能按 tasks[tIdx] 记账（否则会出现“修 C 记 A 完成”） */
@@ -7092,7 +7098,7 @@
         }
         toast(!me.alive?
           (me.tIdx<me.tasks.length&&!ghostTaskAllowed(me,M.points[me.tasks[me.tIdx]])?
-            '幽灵维修额度已用尽（每只幽灵最多 2 分）':'幽灵只能维修任务点或故障'):
+            '幽灵维修额度已用尽（每只幽灵最多 '+GHOST_TASK_CAP+' 分）':'幽灵只能维修任务点或故障'):
           '这里没有你能做的事');
         return;
       }
@@ -7163,10 +7169,10 @@
       if(!me.alive){toast('幽灵无法攻击');return;}
       if(me.downed||me.detained)return;
       if(!me.alien){toast('人类没有刀：按 B 开枪');return;}
-      /* 开夜封锁（2026-11-02 用户裁定）：夜晚开始 5 秒内不许出刀，
-         避免"一进夜就少一个人"的突然感。判定见 SKSanity.KNIFE.lockAtStart。
-         锁在**输入层**（玩家按键 / AI 决策），不在结算层 —— 这样门禁与调试钩子
-         仍能直接驱动一次出刀，而真实对局里没人能在前 5 秒动刀。 */
+      /* 开夜封锁已移除（2026-11-05 用户裁定）：原来 5 秒内不许出刀，
+         现在 KNIFE.lockAtStart = 0，夜晚第一秒即可动手。
+         判定仍留在**输入层**（玩家按键 / AI 决策），将来若要恢复宽限期
+         只改 SKSanity.KNIFE.lockAtStart 一处即可。 */
       const lockLeft=knifeLockLeft();
       if(lockLeft>0){toast('开局封锁：还要 '+lockLeft.toFixed(1)+' 秒才能出刀');return;}
       stab();
@@ -7292,7 +7298,7 @@
       /* 出刀打机器人也留下「刀者红身」与挥砍动作，和打人一刀的表现对齐 */
       if(cause==='knife'){
         const ang=Math.atan2(p.y-attacker.y,p.x-attacker.x);
-        attacker.redT=3.0;
+        attacker.redT=SKSanity.RED_BODY.dur;
         setAct(attacker,'stab',0.5,{ang,lunge:0.55});
         SND.knife(SND.volAt(p.x,p.y,0.90));
       }
@@ -9695,7 +9701,7 @@
       }
       const tip=document.getElementById('tip');
       if(tip){
-        const t=spectator
+        let t=spectator
           ?'旁观者：点击地面飞行（9 格/秒 · 穿墙 · 全知） · C 相机 · T 视野 · ESC 暂停/设置'
           :(G.sabPick
           ?'破坏选择：点击舱室按钮或按 1–8 直达 · ESC 取消 · 每夜一次'
@@ -9706,12 +9712,15 @@
               :(G.sabTarget&&G.me.alien&&!G.me.sabUsed
                 ?'破坏目标：'+roomNameById(G.sabTarget.room)+'「'+G.sabTarget.label+'」· 进入舱室自动下手 · 30 秒内可被修复'
                 :(!G.me.alive
-                  ?'幽灵态：点击穿墙移动 · E 维修任务（1.6×，额度 '+(2-(G.me.ghostPts||0))+' 分）· 不能修故障/报告/投票/搜尸 · 不能破坏 · F2 DEV'
+                  ?'幽灵态：点击穿墙移动 · E 维修任务（1.6×，额度 '+(GHOST_TASK_CAP-(G.me.ghostPts||0))+' 分）· 不能修故障/报告/投票/搜尸 · 不能破坏 · F2 DEV'
                   :(G.me.downed
                     ?'你已濒死：等队友 F 施救，或被拖进医疗间 · F2 DEV'
                     :(G.me.detained
                       ?'被保安机器人锁住：'+Math.max(0,Math.ceil(G.me.detainedT||0))+' 秒后自动释放 · 不能移动'
                       :'点击地面移动（W/A/S/D 不是移动） · W/E 交互 · A/Q 出刀 · S/X 搜尸 · D/G 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · P/ESC 暂停')))))));
+        /* 无人机救起后的僵直优先于其它提示：玩家要能看见为什么点不动 */
+        if(!spectator&&(G.me.stunT||0)>0)
+          t='刚被无人机救起：'+Math.max(0,Math.ceil(G.me.stunT))+' 秒内不能移动 · E 仍可交互';
         if(tip.textContent!==t)tip.textContent=t;
       }
     }
@@ -10058,7 +10067,7 @@
         return {bullet:a.bullet|0,medkit:a.medkit|0,qual:a.qual|0,searched:!!a.searched};},
       /* 门禁隔离用：把某个 AI 的子状态（拖尸/藏尸/管道规划/断电响应）清干净 */
       resetAiState:i=>{const a=G.agents[i];if(!a)return null;
-        a.drag=null;a.draggedBy=null;a.redT=0;a.rushT=0;a._dragSnd=0;a._dragAiT=0;
+        a.drag=null;a.draggedBy=null;a.redT=0;a.rushT=0;a.stunT=0;a._dragSnd=0;a._dragAiT=0;
         a._dragAway=false;a._dragMedD0=0;a._dragAwaySeen={};
         a._hideSpot=null;a._hideRoom=null;a._hideCD=0;a._hides=0;
         a._pipePlan=null;a._pipeSeeks=0;a._secAvoidT=0;a._lightGo=false;a._botCD=0;
@@ -10357,6 +10366,11 @@
          rush/setRush 用来做解耦断言 —— 红身与加速各自归零，谁也不许从对方推导。 */
       speedOf:i=>{const a=G.agents[i];return a?+moveSpeed(a).toFixed(3):null;},
       rushCfg:()=>Object.assign({},SKSanity.RUSH),
+      redBodyCfg:()=>Object.assign({},SKSanity.RED_BODY),
+      ghostCap:()=>GHOST_TASK_CAP,
+      medbotStun:()=>MEDBOT_REVIVE_STUN,
+      stunOf:i=>{const a=G.agents[i];return a?+((a.stunT||0)).toFixed(2):null;},
+      setStun:(i,v)=>{const a=G.agents[i];if(!a)return null;a.stunT=v;return +a.stunT.toFixed(2);},
       sightCfg:()=>Object.assign({},SKSanity.SIGHT),
       /* 终结者时刻：状态只读 + 手动触发一次检查（门禁把 G.night 推到阈值再调它，
          不用真跑十夜）。 */
