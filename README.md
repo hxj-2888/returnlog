@@ -457,7 +457,7 @@ tools/
 3d/                        独立 Godot 4.6 3D 预演子项目（不参与 index.html；见 3d/README.md）
 ```
 
-分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`；`game.js` 现 10,044 行。
+分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：接线 / 放置 / 拉闸杆，`?test` 与模拟不弹）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`；`game.js` 现 10,147 行。
 所有脚本都是有顺序的经典脚本（IIFE + `window.SK*` 命名空间），不使用 ES Module 与构建步骤。
 
 ### 3D 预演（独立子项目）

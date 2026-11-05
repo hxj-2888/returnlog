@@ -19,7 +19,7 @@
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
    禁止在别处动态注入 `<script>`。当前顺序（与 `index.html` 一致）：
-   `config/version → data/map → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → game → main → ui/home → ui/replay`。
+   `config/version → data/map → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
