@@ -363,7 +363,8 @@ function section(t) { console.log('\n== ' + t); }
   await page.keyboard.press('e');
   await page.waitForTimeout(200);
   const GD = await T(() => ({ doing: SKV3._t.G().me.doing, prog: SKV3._t.G().prog }));
-  ok(GD.doing > 18 && GD.doing <= 21, '幽灵维修耗时 1.6×（' + GD.doing.toFixed(1) + 's）');
+  ok(Math.abs(GD.doing - GR.spot.dur * 1.6) < 0.6,
+    '幽灵维修耗时 1.6×（' + GD.doing.toFixed(1) + 's = ' + GR.spot.dur + '×1.6）');
   await T(() => { SKV3._t.G().me.doing = 0.03; });
   await page.waitForTimeout(300);
   const GR2 = await T(() => ({ prog: SKV3._t.G().prog, tIdx: SKV3._t.G().me.tIdx, inv: SKV3._t.inv() }));
@@ -401,7 +402,7 @@ function section(t) { console.log('\n== ' + t); }
     g.me.doing = 0; g.me._doing = null; g.me.path = null;
     const P = t.points()[11];
     t.tp(0, P.x, P.y);
-    return { label: P.label };
+    return { label: P.label, dur: P.dur };
   });
   await page.keyboard.press('e');
   await page.waitForTimeout(180);
@@ -409,8 +410,8 @@ function section(t) { console.log('\n== ' + t); }
     const g = SKV3._t.G();
     return { do: g.me._doing, doing: g.me.doing, pt: g.me._taskPt, tIdx: g.me.tIdx };
   });
-  ok(GO1.do === 'task' && GO1.pt === 11 && GO1.doing > 12.2 && GO1.doing <= 13.4,
-    '幽灵乱序维修：实际点位「' + GO.label + '」，耗时 1.6×');
+  ok(GO1.do === 'task' && GO1.pt === 11 && Math.abs(GO1.doing - GO.dur * 1.6) < 0.6,
+    '幽灵乱序维修：实际点位「' + GO.label + '」，耗时 1.6×（' + GO.dur + '×1.6）');
   await T(() => SKV3._t.finishDoing(0));
   const GO2 = await T(() => {
     const g = SKV3._t.G();
@@ -777,10 +778,16 @@ function section(t) { console.log('\n== ' + t); }
   const DURS = await T(() => SKV3._t.taskDurs());
   const dNorm = DURS.filter(d => d.kind === 'normal');
   const dHard = DURS.filter(d => d.kind === 'hard');
-  ok(DURS.length === 26 && dNorm.length === 18 && dNorm.every(d => d.dur === 8) &&
-    dHard.length === 8 && dHard.filter(d => d.dur === 12).length === 7 &&
-    dHard.filter(d => d.dur === 15).length === 1,
-    '18 个普通任务 ' + dNorm[0].dur + ' 秒 / 7 个高难 12 秒 / 电路维修 15 秒');
+  /* 2026-11-05 用户口径：普通 4~6 秒、高难 7~9 秒、电路维修 10 秒（逐点轮转，不再统一值）。
+     判据从「等于 8 / 12 / 15」改成「落在设计区间 + 三类数量不变」，
+     断言的语义仍是"时长分布符合声明"，不是拿读数凑阈值。 */
+  const dAvg = a => (a.reduce((s, d) => s + d.dur, 0) / a.length).toFixed(1);
+  ok(DURS.length === 26 && dNorm.length === 18 &&
+    dNorm.every(d => d.dur >= 4 && d.dur <= 6) &&
+    dHard.length === 8 && dHard.filter(d => d.dur >= 7 && d.dur <= 9).length === 7 &&
+    dHard.filter(d => d.dur === 10).length === 1,
+    '18 个普通任务均 ' + dAvg(dNorm) + ' 秒（4~6）/ 7 个高难均 ' +
+    dAvg(dHard.filter(d => d.dur < 10)) + ' 秒（7~9）/ 电路维修 10 秒');
   const W0 = await T(() => {
     const t = SKV3._t, g = t.G();
     for (const a of g.agents) if (a !== g.me) { a.path = null; a.x = 28.2; a.y = 44.0; }
@@ -801,7 +808,8 @@ function section(t) { console.log('\n== ' + t); }
     return { doing: g.me.doing, dur: g.me._dur, do: g.me._doing, fx: SKV3._t.fx() };
   });
   ok(W0.room === 'med' && W0.spot && W0.spot.label === '药柜', '维修点：医疗间 / 药柜');
-  ok(W1.do === 'task' && W1.doing > 7.4 && W1.dur === 8, '维修：进入工作态（普通任务 ' + W1.dur + 's 倒计时）');
+  ok(W1.do === 'task' && W1.doing > W0.spot.dur - 0.6 && W1.dur === W0.spot.dur,
+    '维修：进入工作态（普通任务 ' + W1.dur + 's 倒计时，与任务点声明一致）');
   ok(W1.fx.includes('workSpark'), '维修：工具接触点持续冒火花');
   await T(() => { const g = SKV3._t.G(); g.me.doing = 40; g.me._dur = 60; });
   await freezeFx();
@@ -817,15 +825,17 @@ function section(t) { console.log('\n== ' + t); }
   ok(W2.doing === 0 && W2.do === null && W2.tIdx === 0 && W2.msg.indexOf('移动打断') >= 0,
     '任务维修必须站桩：移动立即打断且不计分');
   /* 回到任务点重新开工并完成 */
-  await T(() => {
+  const W2b = await T(() => {
     const t = SKV3._t, g = t.G();
     g.me.path = null; g.me.moving = false; g.me.doing = 0; g.me._doing = null;
     const spot = t.taskSpot(0); t.tp(0, spot.x, spot.y);
+    return { dur: spot.dur };
   });
   await page.keyboard.press('e');
   await page.waitForTimeout(160);
   const W3 = await T(() => { const g = SKV3._t.G(); return { do: g.me._doing, doing: g.me.doing }; });
-  ok(W3.do === 'task' && W3.doing > 7.4, '重新按 E 继续维修（计时从 8 秒重来）');
+  ok(W3.do === 'task' && W3.doing > W2b.dur - 0.6,
+    '重新按 E 继续维修（计时从 ' + W2b.dur + ' 秒重来）');
   await T(() => { SKV3._t.G().me.doing = 0.02; });
   await page.waitForTimeout(240);
   const Q = await T(() => {
@@ -857,7 +867,7 @@ function section(t) { console.log('\n== ' + t); }
     const g = SKV3._t.G();
     return { do: g.me._doing, doing: g.me.doing, dur: g.me._dur, tIdx: g.me.tIdx };
   });
-  ok(Q3.do === 'task' && Q3.dur === 8 && Q3.tIdx === 1,
+  ok(Q3.do === 'task' && Q3.dur === Q2.spot.dur && Q3.tIdx === 1,
     '取消夜修限制：同一夜可以继续开工第二个任务（' + Q2.spot.label + '）');
   await T(() => { SKV3._t.G().me.doing = 0.02; });
   await page.waitForTimeout(240);
@@ -977,8 +987,10 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(AI0.first.do === 'task' && Math.abs(AI0.first.doing - AI0.spot.dur) < 0.05,
     'AI 开工耗时 = 任务时长（' + AI0.spot.dur + 's → ' + AI0.spot.dur.toFixed(1) + 's，无额外倍率）');
-  const AI1 = await T(i => SKV3._t.aiTick(i, 180, 0.05), AI0.i);
-  ok(AI1.doing > 0 && AI1.tIdx === 0, 'AI 开工 9s 仍在同一任务（不再瞬间刷完）');
+  /* 2026-11-05：任务时长缩到 4~6 秒，原来的 9 秒已经超过一个普通任务的全长。
+     改成推进 3 秒（小于最短的 4 秒），语义不变：AI 不是瞬间刷完。 */
+  const AI1 = await T(i => SKV3._t.aiTick(i, 60, 0.05), AI0.i);
+  ok(AI1.doing > 0 && AI1.tIdx === 0, 'AI 开工 3s 仍在同一任务（不再瞬间刷完）');
   const AI2 = await T(i => {
     const a = SKV3._t.G().agents[i];
     const steps = Math.ceil(((a.doing || 1) + 1.2) / 0.05);

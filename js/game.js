@@ -9797,6 +9797,7 @@
       points:()=>M.points.map(p=>{
         const f=nearestFree(p.x,p.y);
         return {x:p.x,y:p.y,room:p.room,label:p.label,kind:p.kind,
+          dur:p.dur,
           d:Math.hypot(f[0]-p.x,f[1]-p.y),free:free(p.x,p.y)};
       }),
       meetCtx:()=>G.meet?{victim:G.meet.ctx.victimInfo,quick:G.meet.ctx.quick||null,

@@ -46,13 +46,15 @@
   .panel-h span{font-size:11px;color:var(--muted)}
   .bar{height:3px;background:rgba(255,255,255,.06)}
   .bar i{display:block;height:100%;width:100%;background:var(--teal);transition:width .1s linear}
-  .stage{flex:1;position:relative;padding:16px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .stage{flex:1;position:relative;padding:16px;display:flex;flex-direction:column;justify-content:center;gap:14px;
+    background-position:center;background-size:cover;background-color:#070E1A}
   .hint{font-size:12px;color:var(--muted);text-align:center;min-height:20px}
   .hint.bad{color:var(--alien)}
   .hint.good{color:var(--teal)}
   .foot{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
   .foot button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 10px;font:inherit;font-size:11px;cursor:pointer}
   .foot button:hover{color:var(--ink);border-color:var(--teal-dim)}
+  .note{font-size:11px;color:var(--muted);margin:-4px 0 16px;text-align:center;letter-spacing:.02em}
 
   /* 接线 */
   .wire{display:flex;justify-content:space-between;align-items:stretch;gap:10px;position:relative}
@@ -121,6 +123,8 @@
   </div>
 </div>
 
+<p class="note">底图：本地 Qwen-Image 2.1 Turbo · 768² · 研究许可（仅内部评估）· 任务时长：普通 4–6s / 高难 7–9s / 电路维修 ~10s</p>
+
 <script>
 (function(){
   'use strict';
@@ -136,6 +140,20 @@
   };
 
   var cur=null, raf=0, t0=0, done=false;
+
+  /* 底图：本地 Qwen-Image 2.1 Turbo 生成（研究许可，仅内部评估用）。
+     来源与复现命令见 CHANGELOG 本批条目；换图只改这里。 */
+  var ART={
+    wire:'../assets/minigame/panel-fix.png',
+    place:'../assets/minigame/panel-fix.png',
+    lever:'../assets/minigame/panel-breaker.png'
+  };
+  function applyArt(t){
+    var url=ART[t];
+    stage.style.backgroundImage=url
+      ? 'linear-gradient(rgba(5,10,20,.62),rgba(5,10,20,.78)),url("'+url+'")'
+      : 'none';
+  }
 
   function clear(){ if(raf)cancelAnimationFrame(raf); raf=0; stage.innerHTML=''; panel.classList.remove('ok','bad'); }
 
@@ -318,7 +336,7 @@
   }
 
   function start(t){
-    cur=t; done=false; clear();
+    cur=t; done=false; clear(); applyArt(t);
     var c=CFG[t]; title.textContent=c.title; foot.textContent=c.foot;
     clock.textContent=c.time.toFixed(1)+'s'; prog.style.width='100%';
     t0=performance.now();
