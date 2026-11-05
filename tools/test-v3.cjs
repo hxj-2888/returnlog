@@ -6938,6 +6938,117 @@ function section(t) { console.log('\n== ' + t); }
   /* ================= 2026-11-05 平衡性调整（用户裁定）=================
      八项参数全部从声明层/探针读真值；新增的「救起后 3 秒禁移动」用真实位移验证。 */
   /* ================= 2026-11-05 推理系统（G1 接线 / G2 去人格 / G3 判断结构）================= */
+  /* ============ 2026-11-06 · 模拟讨论保真 / 通道覆盖 / 假设层 ============ */
+  section('推理系统 · 模拟讨论保真 / 注意力 / 证据通道');
+  await fresh(false);
+  const SIMCH = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    if (g.meet) t.finishMeeting();
+    t.openMeeting('day');
+    return t.simChatterProbe();
+  });
+  ok(SIMCH && !SIMCH.err && SIMCH.discussLines > 0 &&
+    SIMCH.planN === SIMCH.discussLines && SIMCH.talkDelta > 0,
+    '模拟局发言不再被跳过：同步执行 ' + (SIMCH && SIMCH.discussLines) +
+    ' 条、累计台词数 ' + (SIMCH && SIMCH.talkDelta) +
+    '，排期审计 n 与实际执行数一致' + (SIMCH && SIMCH.err ? '（' + SIMCH.err + '）' : ''));
+
+  await fresh(false);
+  const ATT = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true; g.events = [];
+    if (g.meet) t.finishMeeting();
+    const a = g.agents.find(x => !x.alien && x.i !== 0 && x.alive);
+    const w = g.agents.find(x => !x.alien && x.i !== 0 && x.i !== a.i && x.alive);
+    const online = t.attentionOf(a.i);
+    a.doing = 1; const ui = t.attentionOf(a.i); a.doing = 0;
+    a.downed = true; const suspend = t.attentionOf(a.i); a.downed = false;
+    t.openMeeting('day'); const inMeet = t.attentionOf(a.i);
+    /* UI 覆盖的目击者必须被 noticeAction 跳过（遥测 uiWitnessSkip） */
+    w.doing = 1; g.simStats = {};
+    const oldSim = g.simMode; g.simMode = true;   /* uiWitnessSkip 只在模拟局记 */
+    t.notice(a.i, w.x, w.y, 6, 'knife', null);
+    const uiSkip = g.simStats.uiWitnessSkip || 0;
+    g.simMode = oldSim; w.doing = 0;
+    if (g.meet) t.finishMeeting();
+    return { online, ui, suspend, inMeet, uiSkip };
+  });
+  ok(ATT.online === 'online' && ATT.ui === 'ui' && ATT.suspend === 'suspend' &&
+    ATT.inMeet === 'suspend',
+    'G1 注意力三态：online / ui（站桩/遮罩）/ suspend（倒地、开会）');
+  ok(ATT.uiSkip > 0, 'UI 覆盖的目击者不进 noticeAction（uiWitnessSkip=' + ATT.uiSkip + '）');
+
+  await fresh(false);
+  const VCH = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    if (g.meet) t.finishMeeting();
+    t.openMeeting('day');
+    const x = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const tgt = g.agents.find(a => a.i !== 0 && a.i !== x.i && a.alive);
+    const r = t.forceEndorse(x.i, tgt.i);
+    if (g.meet) t.finishMeeting();
+    return Object.assign({ tgt: tgt.i }, r);
+  });
+  ok(VCH.top === VCH.tgt && VCH.vouches === 1 && VCH.heardDelta > 0,
+    'G2 heard_vouch 通道：当众背书既写听众信任事件，也登记到 ctx.vouches（听众 ' +
+    VCH.heardDelta + ' 人）');
+
+  await fresh(false);
+  const CTX = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.events = []; t.setLightState(1);
+    const normal = t.witnessCtxMul(50, 50, 1);
+    const many = t.witnessCtxMul(50, 50, 4);
+    t.setLightState(2); const dark = t.witnessCtxMul(50, 50, 1);
+    t.setLightState(1);
+    return { normal, many, dark };
+  });
+  ok(CTX.normal === 1 && CTX.many < CTX.normal && CTX.dark < CTX.normal,
+    'G2 概率漂移只由可观察情境驱动：人多 ' + CTX.many + '、断电 ' + CTX.dark +
+    '，不读性格/阵营');
+
+  await fresh(false);
+  const ALT = await T(() => {
+    const t = SKV3._t, g = t.G();
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const s = g.agents.find(a => a.i !== w.i && a.alive);
+    w.mind.mem = [{ kind: 'saw_red', subj: s.i, t: 10 },
+      { kind: 'saw_drag_away', subj: s.i, t: 18 }];
+    const e = t.envEstimate(w.i, s.i);
+    return { n: (e.cues || []).length,
+      allAlt: (e.cues || []).every(c => !!c.alt && c.alt.length > 3) };
+  });
+  ok(ALT.n > 0 && ALT.allAlt,
+    'G1 同一线索必须带反解释：' + ALT.n + ' 条 cue 全部有 alt');
+
+  section('推理系统 · 假设层：并列假说与弃权');
+  await fresh(false);
+  const HYP = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    if (g.meet) t.finishMeeting();
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const A = g.agents.find(a => a.i !== 0 && a.i !== w.i && a.alive);
+    const B = g.agents.find(a => a.i !== 0 && a.i !== w.i && a.i !== A.i && a.alive);
+    for (const k in w.mind.sus) delete w.mind.sus[k];
+    w.mind.known = {}; w.mind.almost = { foe: {}, friend: {} };
+    w.suspect = null; w.accuse = null;
+    t.healSus(w.i, A.i, 0.6); t.healSus(w.i, B.i, 0.6); t.refreshHyps(w.i);
+    const hs = t.hypsOf(w.i), sp = t.hypSpreadOf(w.i), lean = t.voteLeanOf(w.i);
+    t.healSus(w.i, A.i, 0.95); t.refreshHyps(w.i);
+    const sp2 = t.hypSpreadOf(w.i);
+    return { hs, sp, lean, sp2, cached: (w.mind.hyps || []).length };
+  });
+  ok(HYP.hs.length === 2 && Math.abs(HYP.hs[0].w - 0.5) < 0.01 &&
+    HYP.cached === 2,
+    '假设层：维护并列假说并归一化权重（' + HYP.hs.map(h => h.i + ':' + h.w).join(' / ') + '）');
+  ok(HYP.sp.competing && HYP.lean.v === -1 && HYP.lean.why === 'competing',
+    '两个假说难分高下 → 弃权（gap=' + HYP.sp.gap + ' ≤ 阈值），不闭眼挑一个');
+  ok(!HYP.sp2.competing && HYP.sp2.gap > 0.12,
+    '新证据拉开差距后假说分出主次（gap=' + HYP.sp2.gap + '），恢复敢投');
+
   section('推理系统 · 主链接线 / 去性格推断 / LENS 运行时');
   await fresh(false);
   const RSN = await T(() => {

@@ -51,7 +51,8 @@
         pubAccusers=SKT2AI.pubAccusers, pubSolidAccusers=SKT2AI.pubSolidAccusers,
         publicHeat=SKT2AI.publicHeat, publicInfluence=SKT2AI.publicInfluence,
         /* 2026-11-05 G3：行为序列 / 证言间关系 */
-        sequenceCue=SKT2AI.sequenceCue, statementRelation=SKT2AI.statementRelation;
+        sequenceCue=SKT2AI.sequenceCue, statementRelation=SKT2AI.statementRelation,
+        hypothesisSpread=SKT2AI.hypothesisSpread, hypotheses=SKT2AI.hypotheses;
 
   const CSS = global.SKUITemplates.CSS;
   const HTML = global.SKUITemplates.HTML;
@@ -5576,7 +5577,16 @@
       const endAt=Math.max(SKSanity.MEET.minPlan*1000,
                            D*1000-SKSanity.MEET.endPad*1000);
       const agenda=[];
-      const push=fn=>agenda.push(fn);
+      /* 2026-11-06：模拟局不再跳过发言。以前 `if(G.simMode)return` 让这里排的
+         三十多个回调在蒙特卡洛里一个都不执行 —— 背书、沉默判据、talkN、
+         证言间关系因此恒 0，推理机制等于没进胜率读数。
+         现在模拟局把 push 改成**按同样顺序立即执行**（不排定时器），
+         真实对局仍然按时间铺开。没有第二套逻辑，不会漂移。 */
+      const push=G.simMode
+        ?(fn)=>{agenda.push(fn);   /* 保留长度，m.plan 的排期审计才不会算出负数 */
+          try{fn();if(G.simStats)
+            G.simStats.discussLines=(G.simStats.discussLines||0)+1;}catch(e){}}
+        :(fn)=>agenda.push(fn);
       /* 会议欺骗要先算：说谎者的投票目标要在大厅指控那一轮之前定下来 */
       const sureAcc=cands.find(a=>!a.alien&&bestKnownTarget(a));
       const deception=planAlienDeception(m,cands,sureAcc);
@@ -5587,9 +5597,6 @@
       const humanDefend=decideHumanDefend(cands);
       if(humanDefend)defenseNote(humanDefend.by,humanDefend.target);
       const alienDoubt=decideAlienDoubt(m,cands);
-      /* 批量模拟：不排真实台词定时器；会议决策/传闻嫌疑已在上面同步完成 */
-      if(G.simMode)return;
-
       if(m.kind==='pre'){
         push(()=>sysSay('第 1 天 · 公开讨论 '+D+' 秒：先认识彼此、报第一站，讨论完直接进入第 1 夜。'));
         for(const a of cands.slice(0,3)) push(()=>say(a.name,alibiLine(a,m)));
@@ -5836,12 +5843,13 @@
          内容提前讲完后用系统提示补空档，避免"开头 7 秒热闹、剩下 50 秒死寂"。 */
       const t0=520;
       const step=Math.min(1600,Math.max(1000,(endAt-t0)/Math.max(1,agenda.length-1)));
-      agenda.forEach((fn,i)=>meetLater(m,t0+i*step+Math.random()*160,fn));
+      if(!G.simMode)agenda.forEach((fn,i)=>meetLater(m,t0+i*step+Math.random()*160,fn));
       const lastAt=t0+step*(agenda.length-1);
       const nudges=[];
       for(let tn=lastAt+4200;tn<endAt-1600;tn+=9000){
         nudges.push(Math.round(tn));
         const seq=nudges.length;
+        if(G.simMode)continue;          /* 模拟局只算审计数值，不排空档台词 */
         if(seq%2===1){
           meetLater(m,tn,()=>sysSay('自由讨论 · 剩余 '+Math.max(0,Math.round(m.t))+' 秒 · 输入框发言可直接追问'));
         }else{
@@ -5861,7 +5869,7 @@
       m.plan={kind:m.kind,discuss:D,t0:Math.round(t0),step:Math.round(step),
         n:agenda.length,lastAt:Math.round(lastAt),endAt:Math.round(endAt),nudges,
         lastScheduled:Math.round(Math.max(lastAt,nudges.length?nudges[nudges.length-1]:0,endAt))};
-      meetLater(m,endAt,()=>{
+      if(!G.simMode)meetLater(m,endAt,()=>{
         /* 讨论里没被说到的证言在这里补发：不改变"最终听到什么"，
            只保证它发生在投票之前（与旧版集合一致） */
         deliverTestimony(m,null);
@@ -6335,6 +6343,11 @@
             听得进话，但不是听谁的话就投谁；
          ④ 先投的是「手里有硬东西」的人；没想好的人可以一直听到投票开始。
        同批裁定：「通胀降判断」不做（`TESTIFY` 权重不动）。 */
+    /* 假设层（2026-11-06）：两个假说难分高下且手里没有硬证据 → 不投。
+       判断依据是 sus **分布结构**，不是随机抖动；确证/准-确证/已公开指控都优先于它。 */
+    function hypothesisCompeting(a){
+      return !a.alien && hypothesisSpread(a).competing;
+    }
     function voteLean(a){
       const kn=bestKnownTarget(a);
       if(kn)return {v:kn.i,s:3,why:'known'};
@@ -6343,6 +6356,7 @@
       const sp=a.suspect;
       if(sp!=null&&G.agents[sp]&&G.agents[sp].alive&&!G.agents[sp].downed&&sp!==a.i)
         return {v:sp,s:2,why:'suspect'};
+      if(hypothesisCompeting(a))return {v:-1,s:0,why:'competing'};
       const bs=bestSusTarget(a,0.55);
       if(bs&&!isPatron(a,bs.i)&&!almostFriendOf(a,bs.i))return {v:bs.i,s:1,why:'sus'};
       return {v:-1,s:0,why:'none'};
@@ -6542,6 +6556,16 @@
         if(a.suspect!=null&&G.agents[a.suspect]&&G.agents[a.suspect].alive&&
           G.agents[a.suspect]!==a&&!patron(a.suspect)&&(!a.alien||!isMate(a,a.suspect))){
           m.votes[a.i]=a.suspect; continue;
+        }
+        /* 2026-11-06 假设层：走到这里说明没有确证 / 公开指控 / 准-确证 / 明确 suspect。
+           若两个假说权重几乎一样，真人会弃权而不是闭眼挑一个。 */
+        if(hypothesisCompeting(a)){
+          m.votes[a.i]=-1;
+          if(G.simStats){
+            G.simStats.hypothesisAbstain=(G.simStats.hypothesisAbstain||0)+1;
+            G.simStats.abstains=(G.simStats.abstains||0)+1;
+          }
+          continue;
         }
         const bs=bestSusTarget(a,0.5);
         if(bs&&(!a.alien||!isMate(a,bs.i))&&!patron(bs.i)){m.votes[a.i]=bs.i;continue;}
@@ -9916,7 +9940,8 @@
           /* 2026-11-02 节奏：报告额度用量 / 每夜会议场次分布 / 因额度或场次被拒的报告 */
           reportsUsed:0,reportDenied:0,nightMeetFull:0,
           earlyVotes:0,voteChanges:0,earlyKept:0,
-          reachImpossible:0,statementDamp:0,
+          reachImpossible:0,statementDamp:0,discussLines:0,vouchHeard:0,
+          hypothesisAbstain:0,
           /* 每个任务点被完成的次数（label → n）：用来观察「电路维修完成率异常低」
              这类分布问题。2026-10-31 起只统计、不改任何 AI 行为。 */
           tasksByPoint:{}};
@@ -10004,6 +10029,8 @@
           earlyVotes:G.simStats.earlyVotes,voteChanges:G.simStats.voteChanges,
           earlyKept:G.simStats.earlyKept,
           reachImpossible:G.simStats.reachImpossible,statementDamp:G.simStats.statementDamp,
+          discussLines:G.simStats.discussLines,vouchHeard:G.simStats.vouchHeard,
+          hypothesisAbstain:G.simStats.hypothesisAbstain,
           tasksByPoint:Object.assign({},G.simStats.tasksByPoint)};
       } finally {
         Math.random=oldRandom; SIM_RUN=oldSim;
@@ -10419,6 +10446,49 @@
       roomCenter:id=>{const r=M.rooms.find(q=>q.id===id);return r&&r.rect?
         [r.rect[0]+r.rect[2]/2,r.rect[1]+r.rect[3]/2]:null;},
       topSusOf:(i,min)=>{const a=G.agents[i];return a?topSus(a,min):null;},
+      hypsOf:i=>{const a=G.agents[i];return a?hypotheses(a,3):null;},
+      hypSpreadOf:i=>{const a=G.agents[i];return a?hypothesisSpread(a):null;},
+      refreshHyps:i=>{const a=G.agents[i];return a?SKT2AI.refreshHyps(a):null;},
+      voteLeanOf:i=>{const a=G.agents[i];return a?voteLean(a):null;},
+      simDiscuss:()=>{const m=G.meet;if(!m)return null;
+        return {lines:(m.lines||[]).length,vouches:(m.ctx&&m.ctx.vouches||[]).length,
+          talkN:G.agents.map(a=>a.talkN||0)};},
+      attentionOf:i=>attention(G.agents[i]),
+      witnessCtxMul:(x,y,n)=>witnessCtxMul(x,y,n),
+      setLightState:v=>{G.lightState=v;return G.lightState;},
+      memKindsOf:i=>{const a=G.agents[i];return a&&a.mind?
+        (a.mind.mem||[]).map(e=>e.kind):[];},
+      /* 门禁专用：在当前会议上，用模拟口径（push 立即执行）跑一遍 startChatter，
+         验证 2026-11-06 的模拟保真度修复。只读计数，跑完恢复 simMode/simStats。 */
+      simChatterProbe:()=>{
+        const m=G.meet;if(!m)return null;
+        const oldMode=G.simMode,oldStats=G.simStats;
+        G.simMode=true;G.simStats={};
+        const lines0=(m.lines||[]).length;
+        const talk0=G.agents.reduce((s,a)=>s+(a.talkN||0),0);
+        stopChatter();
+        try{startChatter(m);}catch(e){G.simMode=oldMode;G.simStats=oldStats;return {err:String(e)};}
+        const out={lines:(m.lines||[]).length-lines0,
+          talkDelta:G.agents.reduce((s,a)=>s+(a.talkN||0),0)-talk0,
+          discussLines:G.simStats.discussLines||0,
+          planN:m.plan?m.plan.n:null,
+          vouches:(m.ctx&&m.ctx.vouches||[]).length,
+          vouchHeard:G.simStats.vouchHeard||0};
+        G.simMode=oldMode;G.simStats=oldStats;
+        return out;},
+      /* 门禁专用：强制一名 AI 当众背书，验证 heard_vouch 通道与 vouches 登记。 */
+      forceEndorse:(by,tgt)=>{
+        const x=G.agents[by],subj=G.agents[tgt];if(!x||!subj)return null;
+        x.mind.cred=x.mind.cred||{};x.mind.cred[tgt]=0.95;
+        const mm=G.meet&&G.meet.ctx;
+        const v0=mm?(mm.vouches||[]).length:0;
+        const h0=G.agents.filter(w=>w!==x&&(w.mind&&w.mind.mem||[])
+          .some(e=>e.kind==='heard_vouch')).length;
+        pushEndorse(fn=>fn(),[x]);
+        return {vouches:(mm?(mm.vouches||[]).length:0)-v0,
+          heardDelta:G.agents.filter(w=>w!==x&&(w.mind&&w.mind.mem||[])
+            .some(e=>e.kind==='heard_vouch')).length-h0,
+          top:topCred(x)?topCred(x).i:null};},
       talkNOf:i=>{const a=G.agents[i];return a?(a.talkN||0):null;},
       setTalkN:(i,v)=>{const a=G.agents[i];if(!a)return null;a.talkN=v;return a.talkN;},
       sequenceCueOf:(w,i)=>sequenceCue(G.agents[w],i),

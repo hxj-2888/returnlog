@@ -51,6 +51,44 @@
       why: (a.mind.why[bi] || []).slice(-4) };
   }
 
+  /* 2026-11-06 G3 · **假设层**：AI 不只盯一个 suspect，而是同时维护
+     最多 3 个并列假说（按嫌疑归一化成权重）。它**不新增任何分数**，
+     只是把已有的 sus 分布显式化，供判断结构使用：
+     两个假说难分高下时，真人的反应是弃权而不是闭眼挑一个。 */
+  function hypotheses(a, maxN) {
+    if (!a || !a.mind) return [];
+    const G = global.SKV3._t.G();
+    const xs = [];
+    let sum = 0;
+    for (const k in a.mind.sus) {
+      const i = +k, v = susOf(a, i, false);
+      if (v <= 0) continue;
+      const t = G && G.agents[i];
+      if (!t || !t.alive || t.downed || t === a) continue;
+      xs.push({ i: i, v: v }); sum += v;
+    }
+    if (!xs.length) return [];
+    xs.sort((x, y) => y.v - x.v || x.i - y.i);
+    return xs.slice(0, maxN || 3).map(x => ({ i: x.i,
+      w: sum ? +(x.v / sum).toFixed(3) : 0, raw: +x.v.toFixed(3) }));
+  }
+  function refreshHyps(a) {
+    if (a && a.mind) a.mind.hyps = hypotheses(a, 3);
+    return a && a.mind ? a.mind.hyps : [];
+  }
+  function hypothesisSpread(a) {
+    /* 每次重算，不用缓存：sus 也会被 susCut / mindReset 直接改，
+       缓存一旧就会拿上一夜的假说决定这一夜的票。 */
+    const h = hypotheses(a, 3);
+    const gap = h.length >= 2 ? h[0].w - h[1].w : 1;
+    const thr = (SK.MIND && SK.MIND.hypGap) || 0.12;
+    /* 还要求「第一名确实像个假说」：五个人各 0.2 分那种谁都不像的局面
+       不该因为"恰好打平"就集体弃权（那是噪声，不是两个并立假说）。 */
+    const topOk = h.length >= 2 && h[0].w >= 0.25;
+    return { hyps: h, gap: +gap.toFixed(3),
+      competing: topOk && gap <= thr };
+  }
+
   /* 2026-11-05 G3 · **行为序列**：单个可疑动作可能看错，
      同一人先后出现两种不同可疑动作才是「一串行为」。只认自己记下的观测，
      且要求两次间隔 ≤ MIND.seqWindowSec；返回一条带反解释的弱线索。 */
@@ -191,7 +229,7 @@
       humanT:keepEmo(oldM.humanT),
       /* ally：软联盟计数（谁替谁说过话，保过几次）—— 跨夜保留但会随回合淡出 */
       ally:Object.assign({},oldM.ally||{}),
-      known:keepKnown,redSeen:{},alibi:{},detainSeen:{},avoidSeen:{},
+      known:keepKnown,redSeen:{},alibi:{},detainSeen:{},avoidSeen:{},hyps:[],
       /* rev：信念版本号（2026-11-05）。每次 susAdd 自增，会议里用来判断
          「我这票投出去之后，是不是又听到了什么」—— 没听到新东西就不跟风改票。 */
       rev:0};
@@ -267,6 +305,7 @@
     /* 信念动过了：会议里「听到发言 → 改票」靠这个计数器判断，
        而不是拿两个随机分支的结果硬比（那会把抖动当成改票理由）。 */
     a.mind.rev=(a.mind.rev|0)+1;
+    refreshHyps(a);
     /* 嫌疑变了就重算准-确证（可能刚好跨线，也可能因为被洗清而降级） */
     evalAlmost(a,i);
   }
@@ -631,6 +670,8 @@
     publicHeat: publicHeat,
     publicInfluence: publicInfluence,
     sequenceCue: sequenceCue,
-    statementRelation: statementRelation
+    statementRelation: statementRelation,
+    hypotheses: hypotheses, refreshHyps: refreshHyps,
+    hypothesisSpread: hypothesisSpread
   });
 })(typeof window !== 'undefined' ? window : globalThis);
