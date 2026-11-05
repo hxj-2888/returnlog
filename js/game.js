@@ -108,6 +108,9 @@
        一个夜大概够做完 2~3 个任务。
        2026-11-03：数值搬到 SKSanity.NIGHT.len（**没改数**），蒙特卡洛报告要从纯模块读配置。 */
     const M=MAP, NIGHT=SKSanity.NIGHT.len;
+    /* ?test / ?test&randomseat：门禁探针模式 —— 小游戏自动解题，不弹遮罩。
+       ?test&mini：跳过开局会议但**保留**小游戏遮罩，用来试玩/验证接入路径。 */
+    const TEST_RUN=/[?&]test\b/.test(location.search)&&!/[?&]mini\b/.test(location.search);
     let SIM_RUN=false;   /* 批量模拟：跳过渲染/HUD/音效/自动不变量，只跑对局逻辑 */
     const TEST=/[?&]test\b/.test(location.search);
     /* ?test&randomseat：门禁探针专用 —— 仍跳过开局会议，但**不固定席位**，
@@ -1159,8 +1162,34 @@
         if(!G.spectMode&&a===G.me)toast('移动打断了'+label);
         return;
       }
+      if(playerMiniGame(a))return;   /* 遮罩接管计时，避免双重递减 */
       a.doing-=dt;
       if(a.doing<=0)finishDoing(a);
+    }
+    /* 小游戏遮罩（2026-11-05 试玩接入）
+       -------------------------------------------------------------
+       站桩动作不再"读秒完成"，而是开遮罩让玩家玩：玩通即结算，失败/中断即作废。
+       `?test` / 旁观 / 批量模拟一律不弹，保持无头断言与 1000 局可跑 —— 这是
+       把 UI 交互从断言里摘出去，不是改判定。 */
+    function playerMiniGame(a){
+      if(a!==G.me||G.spectMode||G.simMode||SIM_RUN||TEST_RUN)return false;
+      if(!global.SKMiniGame||!STAND_ACT[a._doing]||a._doing==='sab')return false;
+      /* 收尾阈值：onDone 把 doing 置成 0.001 交给下一帧 finishDoing，
+         这里必须放行，否则会被当成"新任务"立刻重开一局遮罩。 */
+      if(a.doing<=0.05)return false;
+      if(a._mg)return true;
+      a._mg=true;
+      SKMiniGame.open(a._doing,{
+        title:STAND_ACT[a._doing]||'任务',
+        limit:Math.max(2,a.doing),
+        onDone:function(){ a._mg=false; a.doing=0.001; },
+        onCancel:function(){
+          a._mg=false; a.doing=0; a._standDoing=null;
+          a._doing=null; a._fix=null; a._rv=null; a._sv=null; a._taskPt=null;
+          if(!G.spectMode&&a===G.me)toast('任务中断：进度清零，需要重做');
+        }
+      });
+      return true;
     }
     function dmgTick(dt){
       if(!G.dmg.length)return;
@@ -5999,6 +6028,10 @@
       releaseAllDrags(true);
       closeBodyCard();
       closeCams(true);closePipePick(true);closeSabPick(true);
+      /* 会议盖住小游戏：只收遮罩、不结算任务（会议不打断任务这条不动），
+         会后玩家还在原地，tickDoing 会用剩余时长重新开一局。 */
+      if(global.SKMiniGame&&SKMiniGame.isOpen())SKMiniGame.close();
+      if(G.me)G.me._mg=false;
       closeWheel(true);
       const vp=victim?bodyPos(victim):null;
       const vx=vp?vp[0]:(victim?victim.x:0), vy=vp?vp[1]:(victim?victim.y:0);
@@ -6054,7 +6087,8 @@
       /* 与输入框同源：不能发言时发送按钮也一并禁用（含投票期结束回到讨论的重置） */
       const sndBtn=document.getElementById('m-send');
       if(sndBtn)sndBtn.disabled=!canAct;
-      document.getElementById('m-who').innerHTML='';
+      /* 讨论阶段就把投票按钮放出来（2026-11-05 用户裁定）：可以现在投，也可以边听边改 */
+      renderVoteButtons();
       document.getElementById('m-tally').innerHTML='';
       document.getElementById('m-skip-vote').classList.add('hide');
       document.getElementById('m-say').innerHTML='';
@@ -6093,6 +6127,45 @@
       for(const k in tally){if(tally[k]>bn){bn=tally[k];best=+k;}}
       return bn>=2?best:null;
     }
+    /* 投票区（2026-11-05 用户裁定）：**讨论阶段就可以投，投票结束前都可以改**。
+       以前只有 vote 阶段才生成按钮，玩家必须等讨论走完；现在两处共用同一个渲染器，
+       点谁就覆盖谁，改票次数记进 `stats.voteChanges`（只统计玩家自己的改票）。
+       注意：`m.votes` 从会议开始就存在，closeVote 才结算 —— 因此早投不会提前锁定。 */
+    function renderVoteButtons(){
+      const box=document.getElementById('m-who'); if(!box)return;
+      const m=G.meet;
+      box.innerHTML='';
+      const canAct=!!(m&&G.me.alive&&!G.me.downed&&!G.spectMode);
+      box.classList.toggle('hide',!canAct);
+      if(!canAct)return;
+      const cur=m.votes?m.votes[G.me.i]:null;
+      const paint=(btn,v)=>{ if(cur===v)btn.style.borderColor='#F0C674'; };
+      for(const a of G.agents){
+        if(!a.alive||a===G.me)continue;
+        const btn=document.createElement('button');
+        btn.textContent=tagName(a);
+        paint(btn,a.i);
+        btn.onclick=()=>{
+          const prev=m.votes[G.me.i];
+          if(prev!=null&&prev!==a.i&&G.stats)G.stats.voteChanges=(G.stats.voteChanges||0)+1;
+          m.votes[G.me.i]=a.i;
+          [...box.children].forEach(c=>c.style.borderColor='#313B4B');
+          btn.style.borderColor='#F0C674';
+        };
+        box.appendChild(btn);
+      }
+      const sk=document.createElement('button');
+      sk.textContent='弃权';
+      paint(sk,-1);
+      sk.onclick=()=>{
+        const prev=m.votes[G.me.i];
+        if(prev!=null&&prev!==-1&&G.stats)G.stats.voteChanges=(G.stats.voteChanges||0)+1;
+        m.votes[G.me.i]=-1;
+        [...box.children].forEach(c=>c.style.borderColor='#313B4B');
+        sk.style.borderColor='#F0C674';
+      };
+      box.appendChild(sk);
+    }
     function startVote(){
       const m=G.meet; m.phase='vote'; m.t=m.voteT;
       stopChatter();
@@ -6104,24 +6177,8 @@
       const vinp=document.getElementById('m-text'), vsb=document.getElementById('m-send');
       if(vinp){vinp.disabled=true;vinp.placeholder='投票中…';}
       if(vsb)vsb.disabled=true;
-      const box=document.getElementById('m-who'); box.innerHTML='';
-      if(!G.me.downed&&G.me.alive&&!G.spectMode){
-        for(const a of G.agents){
-          if(!a.alive||a===G.me)continue;
-          const btn=document.createElement('button');
-          btn.textContent=tagName(a);
-          btn.onclick=()=>{ m.votes[G.me.i]=a.i;
-            [...box.children].forEach(c=>c.style.borderColor='#313B4B');
-            btn.style.borderColor='#F0C674'; };
-          box.appendChild(btn);
-        }
-        const sk=document.createElement('button');
-        sk.textContent='弃权';
-        sk.onclick=()=>{ m.votes[G.me.i]=-1;
-          [...box.children].forEach(c=>c.style.borderColor='#313B4B');
-          sk.style.borderColor='#F0C674'; };
-        box.appendChild(sk);
-      }
+      /* 讨论期已经投过的票保留高亮，这里只重绘；投票到 closeVote 才结算 */
+      renderVoteButtons();
       /* 投票等待 15 秒后，给玩家一个“跳过投票”出口：
          只结束剩余投票时间；已经投给谁就保留那一票，没投才记弃权。
          与“跳过讨论”同语义，不改变任何 AI 票。 */
