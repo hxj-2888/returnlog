@@ -7,6 +7,8 @@ tools/screenshots/
 tools/_shot*.png
 tools/_zoom*.png
 tools/_*.cjs
+tools/_mc-*.json
+tools/_mc-*.md
 3d/preview/scripts/_*.gd
 3d/preview/scripts/_*.gd.uid
 

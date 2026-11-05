@@ -40,6 +40,10 @@ const REPORT = path.resolve(DIR, arg('report', 'tools/mc-report.md'));
 const GAME_TIMEOUT = Math.max(1000, parseInt(arg('game-timeout', '20000'), 10) || 20000);
 const VERBOSE = process.env.MC_VERBOSE === '1' || arg('verbose', '0') === '1';
 const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
+/* A/B 归因开关（2026-11-06）：--no-discuss 还原旧模拟口径（讨论发言不执行）；
+   --hypgap 0 关掉「并列假说弃权」。两者都只改本次运行，不改磁盘真源。 */
+const NO_DISCUSS = arg('no-discuss', '0') === '1';
+const HYP_GAP = arg('hypgap', null);
 
 function mean(a, key) {
   const xs = a.map(r => +r[key]).filter(Number.isFinite);
@@ -554,6 +558,13 @@ if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
     try { SKV3.setSfxVolume(0); } catch (e) {}
     const g = SKV3._t.G(); if (g) g.paused = true;
   });
+  if (NO_DISCUSS || HYP_GAP !== null) {
+    const ab = await page.evaluate(o => ({
+      noDiscuss: o.noDiscuss ? SKV3._t.setSimNoDiscuss(true) : false,
+      hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap)
+    }), { noDiscuss: NO_DISCUSS, hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP) });
+    console.log('[A/B] ' + JSON.stringify(ab));
+  }
 
   const results = [];
   const t0 = Date.now();
