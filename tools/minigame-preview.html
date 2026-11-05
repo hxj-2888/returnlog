@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>新返航录 · 小游戏原型（接线 / 放置 / 拉闸合闸）</title>
+<style>
+  :root{
+    --bg:#050A14; --panel:#0B1524; --panel2:#101E31;
+    --teal:#00E5B0; --teal-dim:#0F6E56; --amber:#F0C674; --alien:#E0574F;
+    --ink:#E8F1F5; --muted:#8FA6B2; --line:rgba(0,229,176,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:
+      radial-gradient(900px 600px at 50% 0%, #0A1526 0%, var(--bg) 70%);
+    color:var(--ink);
+    font:14px/1.6 "Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  header{padding:18px 16px 10px;text-align:center}
+  h1{margin:0;font-size:16px;font-weight:500;letter-spacing:.18em;color:var(--amber)}
+  header p{margin:6px 0 0;font-size:12px;color:var(--muted)}
+  .tabs{display:flex;gap:8px;padding:10px 0 14px}
+  .tabs button{
+    background:transparent;color:var(--muted);border:1px solid var(--line);
+    padding:7px 14px;border-radius:999px;font:inherit;font-size:12px;cursor:pointer;
+  }
+  .tabs button[aria-selected="true"]{color:var(--bg);background:var(--teal);border-color:var(--teal);font-weight:500}
+  .wrap{position:relative;width:min(92vw,860px);height:min(62vh,520px);margin-bottom:14px}
+  .world{position:absolute;inset:0;border:1px solid rgba(255,255,255,.06);border-radius:12px;overflow:hidden;background:#070E1A}
+  .world i{position:absolute;display:block;border:1px solid rgba(0,229,176,.16);border-radius:6px}
+  .world b{position:absolute;width:10px;height:10px;border-radius:50%;background:var(--teal);opacity:.28}
+  .cover{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(3,7,14,.60);border-radius:12px;
+  }
+  .panel{
+    width:84%;height:82%;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;box-shadow:0 0 0 1px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.55);
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  .panel-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .panel-h strong{font-size:13px;font-weight:500;color:var(--amber);letter-spacing:.08em}
+  .panel-h span{font-size:11px;color:var(--muted)}
+  .bar{height:3px;background:rgba(255,255,255,.06)}
+  .bar i{display:block;height:100%;width:100%;background:var(--teal);transition:width .1s linear}
+  .stage{flex:1;position:relative;padding:16px;display:flex;flex-direction:column;justify-content:center;gap:14px}
+  .hint{font-size:12px;color:var(--muted);text-align:center;min-height:20px}
+  .hint.bad{color:var(--alien)}
+  .hint.good{color:var(--teal)}
+  .foot{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .foot button{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:4px 10px;font:inherit;font-size:11px;cursor:pointer}
+  .foot button:hover{color:var(--ink);border-color:var(--teal-dim)}
+
+  /* 接线 */
+  .wire{display:flex;justify-content:space-between;align-items:stretch;gap:10px;position:relative}
+  .col{display:flex;flex-direction:column;justify-content:space-around;gap:14px}
+  .port{
+    width:56px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,.18);
+    background:#0A1422;cursor:pointer;position:relative;transition:transform .12s,border-color .12s;
+  }
+  .port:hover{transform:translateY(-1px)}
+  .port.sel{border-color:var(--amber);box-shadow:0 0 0 2px rgba(240,198,116,.25)}
+  .port.done{opacity:.45;cursor:default}
+  .port::after{content:"";position:absolute;inset:9px 14px;border-radius:3px;background:currentColor;opacity:.85}
+  .port[data-c="t"]{color:var(--teal)} .port[data-c="a"]{color:var(--amber)}
+  .port[data-c="r"]{color:var(--alien)} .port[data-c="b"]{color:#73A7FF}
+  .wire svg{position:absolute;inset:0;pointer-events:none}
+  .wire svg path{fill:none;stroke-width:2;stroke-linecap:round;opacity:.85}
+
+  /* 放置 */
+  .place{display:flex;gap:18px;align-items:center;justify-content:center}
+  .grid{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,56px);gap:8px}
+  .slot{border:1px dashed rgba(255,255,255,.22);border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);font-size:18px;cursor:pointer}
+  .slot.filled{border-style:solid;border-color:var(--teal-dim);background:rgba(0,229,176,.08);color:var(--teal)}
+  .tray{display:flex;flex-direction:column;gap:8px}
+  .block{width:64px;height:36px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:#0A1422;color:var(--ink);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .block.sel{border-color:var(--amber);box-shadow:0 0 0 2px rgba(240,198,116,.25)}
+  .block.used{opacity:.25;cursor:default}
+
+  /* 拉闸 */
+  .lever{display:flex;align-items:center;justify-content:center;gap:26px}
+  .rail{width:26px;height:170px;border-radius:13px;background:#0A1422;border:1px solid rgba(255,255,255,.16);position:relative;overflow:hidden}
+  .rail i{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(0,229,176,.9),rgba(0,229,176,.25));height:0%}
+  .lever svg{width:150px;height:170px;overflow:visible}
+  .lever .arm{transition:transform .08s linear;transform-origin:75px 140px}
+  .lever .spark{opacity:0;transition:opacity .12s}
+  .lever.fire .spark{opacity:1}
+  .hold{
+    padding:12px 22px;border-radius:10px;border:1px solid var(--line);background:#0A1422;
+    color:var(--teal);font:inherit;font-size:13px;cursor:pointer;user-select:none;
+  }
+  .hold:active{border-color:var(--amber);color:var(--amber)}
+  .ok .panel{border-color:rgba(0,229,176,.55)}
+  .bad .panel{border-color:rgba(224,87,79,.55)}
+</style>
+</head>
+<body>
+<header>
+  <h1>返 航 录 · 小 游 戏 原 型</h1>
+  <p>三种类型先定手感 · 遮罩覆盖 72% · 中断即进度清零重做</p>
+</header>
+
+<div class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" data-t="wire">接线 · 维修故障</button>
+  <button role="tab" aria-selected="false" data-t="place">放置 · 做任务 / 领物资</button>
+  <button role="tab" aria-selected="false" data-t="lever">拉闸 · 合闸</button>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="world" id="world"><i style="left:6%;top:12%;width:26%;height:40%"></i><i style="left:38%;top:8%;width:22%;height:28%"></i><i style="left:66%;top:18%;width:26%;height:52%"></i><i style="left:14%;top:60%;width:40%;height:26%"></i><b style="left:52%;top:46%"></b><b style="left:80%;top:40%"></b><b style="left:24%;top:30%"></b></div>
+  <div class="cover">
+    <section class="panel" id="panel">
+      <div class="panel-h"><strong id="title">接线</strong><span id="clock">8.0s</span></div>
+      <div class="bar"><i id="prog"></i></div>
+      <div class="stage" id="stage"></div>
+      <div class="foot"><span id="foot">左键先选左端，再选右端；颜色不对整组重来</span><button id="abort">中断（进度清零）</button></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var stage=document.getElementById('stage'), title=document.getElementById('title'),
+      clock=document.getElementById('clock'), prog=document.getElementById('prog'),
+      foot=document.getElementById('foot'), panel=document.getElementById('panel'),
+      wrap=document.getElementById('wrap'), tabs=document.querySelectorAll('.tabs button');
+
+  var CFG={
+    wire:{title:'接线',time:9,foot:'左键先选左端，再选右端；颜色不对整组重来'},
+    place:{title:'放置',time:10,foot:'先点零件，再点形状相符的槽位；放错整组重来'},
+    lever:{title:'拉闸 / 合闸',time:6,foot:'按住不放直到充满；松早了整组重来'}
+  };
+
+  var cur=null, raf=0, t0=0, done=false;
+
+  function clear(){ if(raf)cancelAnimationFrame(raf); raf=0; stage.innerHTML=''; panel.classList.remove('ok','bad'); }
+
+  function setHint(txt,cls){
+    var h=stage.querySelector('.hint');
+    if(!h){ h=document.createElement('div'); h.className='hint'; stage.appendChild(h); }
+    h.textContent=txt; h.className='hint'+(cls?(' '+cls):'');
+  }
+
+  function finish(ok,msg){
+    if(done)return; done=true;
+    panel.classList.add(ok?'ok':'bad');
+    setHint(msg, ok?'good':'bad');
+    if(raf)cancelAnimationFrame(raf); raf=0;
+    var b=document.createElement('button');
+    b.textContent='再来一次'; b.className='hold'; b.style.marginTop='6px';
+    b.onclick=function(){ start(cur); };
+    stage.appendChild(b);
+  }
+
+  function abort(){
+    if(done)return;
+    done=true;
+    setHint('中断 → 进度清零，需要重做','bad');
+    panel.classList.add('bad');
+    if(raf)cancelAnimationFrame(raf); raf=0;
+    var b=document.createElement('button');
+    b.textContent='重做'; b.className='hold'; b.style.marginTop='6px';
+    b.onclick=function(){ start(cur); };
+    stage.appendChild(b);
+  }
+  document.getElementById('abort').onclick=abort;
+
+  function tick(){
+    if(done)return;
+    var left=CFG[cur].time-(performance.now()-t0)/1000;
+    if(left<=0){ finish(false,'超时 → 进度清零，需要重做'); return; }
+    clock.textContent=left.toFixed(1)+'s';
+    prog.style.width=(left/CFG[cur].time*100).toFixed(1)+'%';
+    raf=requestAnimationFrame(tick);
+  }
+
+  /* ---------- 接线 ---------- */
+  function buildWire(){
+    var cols=['t','a','r','b'];
+    var left=cols.slice();
+    var right=cols.slice().sort(function(){ return Math.random()-.5; });
+    var box=document.createElement('div'); box.className='wire';
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('width','100%'); svg.setAttribute('height','100%');
+    svg.setAttribute('style','position:absolute;inset:0;pointer-events:none');
+    var lc=document.createElement('div'); lc.className='col';
+    var rc=document.createElement('div'); rc.className='col';
+    var sel=null, pairs=[], lefts={}, rights={};
+
+    left.forEach(function(c){
+      var p=document.createElement('div'); p.className='port'; p.dataset.c=c;
+      p.onclick=function(){ if(done||p.classList.contains('done'))return;
+        if(sel){ sel.classList.remove('sel'); }
+        sel=p; p.classList.add('sel'); setHint('已选左端，点右端同色',''); };
+      lc.appendChild(p); lefts[c]=p;
+    });
+    right.forEach(function(c){
+      var p=document.createElement('div'); p.className='port'; p.dataset.c=c;
+      p.onclick=function(){
+        if(done||!sel||p.classList.contains('done'))return;
+        if(p.dataset.c!==sel.dataset.c){
+          pairs=[]; svg.innerHTML='';
+          Array.prototype.forEach.call(box.querySelectorAll('.port'),function(x){x.classList.remove('done','sel')});
+          sel=null; setHint('颜色不对 → 整组重来','bad'); return;
+        }
+        var a=sel; a.classList.remove('sel'); a.classList.add('done'); p.classList.add('done');
+        pairs.push([a,p]); sel=null;
+        draw(); setHint('接通 '+pairs.length+' / 4','good');
+        if(pairs.length===4) finish(true,'接线完成 · 任务成功');
+      };
+      rc.appendChild(p); rights[c]=p;
+    });
+    box.appendChild(lc); box.appendChild(rc); box.appendChild(svg);
+    stage.appendChild(box);
+    setHint('左端 → 右端，颜色要对上','');
+
+    function draw(){
+      var bb=box.getBoundingClientRect();
+      svg.innerHTML='';
+      pairs.forEach(function(pr){
+        var A=pr[0].getBoundingClientRect(), B=pr[1].getBoundingClientRect();
+        var x1=A.right-bb.left, y1=A.top-bb.top+A.height/2;
+        var x2=B.left-bb.left, y2=B.top-bb.top+B.height/2;
+        var p=document.createElementNS('http://www.w3.org/2000/svg','path');
+        p.setAttribute('d','M'+x1+' '+y1+' C'+(x1+70)+' '+y1+','+(x2-70)+' '+y2+','+x2+' '+y2);
+        p.setAttribute('stroke',getComputedStyle(pr[0]).color);
+        p.setAttribute('vector-effect','non-scaling-stroke');
+        svg.appendChild(p);
+      });
+    }
+    window.addEventListener('resize',draw);
+  }
+
+  /* ---------- 放置 ---------- */
+  function buildPlace(){
+    var shapes=['▲','●','■','◆'];
+    var need=shapes.slice(0,3).sort(function(){ return Math.random()-.5; });
+    var slots=need.concat([shapes[3]]).sort(function(){ return Math.random()-.5; });
+    var box=document.createElement('div'); box.className='place';
+    var grid=document.createElement('div'); grid.className='grid';
+    var tray=document.createElement('div'); tray.className='tray';
+    var sel=null, placed=0;
+
+    slots.forEach(function(s){
+      var d=document.createElement('div'); d.className='slot'; d.dataset.s=s; d.textContent='';
+      d.onclick=function(){
+        if(done||!sel||d.classList.contains('filled'))return;
+        if(d.dataset.s!==sel.dataset.s){
+          Array.prototype.forEach.call(grid.children,function(x){x.classList.remove('filled');x.textContent='';});
+          Array.prototype.forEach.call(tray.children,function(x){x.classList.remove('used')});
+          placed=0; sel=null; setHint('形状不符 → 整组重来','bad'); return;
+        }
+        d.classList.add('filled'); d.textContent=sel.dataset.s;
+        sel.classList.add('used'); sel.classList.remove('sel'); sel=null;
+        placed++; setHint('已放置 '+placed+' / 3','good');
+        if(placed===3) finish(true,'放置完成 · 任务成功');
+      };
+      grid.appendChild(d);
+    });
+    need.sort(function(){ return Math.random()-.5; }).forEach(function(s){
+      var b=document.createElement('button'); b.className='block'; b.dataset.s=s; b.textContent=s;
+      b.onclick=function(){ if(done||b.classList.contains('used'))return;
+        if(sel)sel.classList.remove('sel');
+        sel=b; b.classList.add('sel'); setHint('已选零件，点形状相符的槽位',''); };
+      tray.appendChild(b);
+    });
+    box.appendChild(grid); box.appendChild(tray); stage.appendChild(box);
+    setHint('零件 → 槽位，形状要对上','');
+  }
+
+  /* ---------- 拉闸 / 合闸 ---------- */
+  function buildLever(){
+    var box=document.createElement('div'); box.className='lever';
+    var rail=document.createElement('div'); rail.className='rail';
+    var fill=document.createElement('i'); rail.appendChild(fill);
+    var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 150 170');
+    svg.innerHTML=
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0" stop-color="#00E5B0" stop-opacity=".9"/>'+
+      '<stop offset="1" stop-color="#00E5B0" stop-opacity=".15"/></linearGradient></defs>'+
+      '<rect x="30" y="140" width="90" height="14" rx="7" fill="#0A1422" stroke="rgba(255,255,255,.18)"/>'+
+      '<g class="arm"><rect x="70" y="40" width="10" height="104" rx="5" fill="#1A2A3C" stroke="rgba(0,229,176,.45)"/>'+
+      '<circle cx="75" cy="42" r="15" fill="#0B1524" stroke="#00E5B0" stroke-width="2"/></g>'+
+      '<g class="spark"><path d="M75 34 L66 54 L78 52 L70 72" fill="none" stroke="#F0C674" stroke-width="2.5" stroke-linecap="round"/>'+
+      '<circle cx="75" cy="42" r="22" fill="none" stroke="#F0C674" stroke-opacity=".35" stroke-width="2"/></g>';
+    var hold=document.createElement('button'); hold.className='hold';
+    hold.textContent='按住不放 · 拉到底';
+    box.appendChild(rail); box.appendChild(svg); box.appendChild(hold);
+    stage.appendChild(box);
+    setHint('按住不放直到充满；松早了整组重来','');
+
+    var charge=0, held=false, last=0, fire=0;
+    var arm=svg.querySelector('.arm'), spark=svg.querySelector('.spark');
+
+    function loop(ts){
+      if(done)return;
+      if(!last)last=ts;
+      var dt=Math.min(.05,(ts-last)/1000); last=ts;
+      if(held&&charge<1) charge=Math.min(1,charge+dt/1.35);
+      if(!held&&charge>0) charge=Math.max(0,charge-dt*2.4);
+      fill.style.height=(charge*100).toFixed(0)+'%';
+      arm.style.transform='rotate('+(-70*charge).toFixed(1)+'deg)';
+      if(fire>0){ fire-=dt; if(fire<=0)svg.classList.remove('fire'); }
+      if(charge>=1){ svg.classList.add('fire'); fire=.5;
+        setTimeout(function(){ finish(true,'电闸已到位 · 全船灯态改变'); },140); return; }
+      raf=requestAnimationFrame(loop);
+    }
+    hold.addEventListener('pointerdown',function(e){ e.preventDefault(); held=true; if(!last)raf=requestAnimationFrame(loop); });
+    ['pointerup','pointerleave','pointercancel'].forEach(function(ev){
+      hold.addEventListener(ev,function(){ held=false; });
+    });
+    raf=requestAnimationFrame(loop);
+  }
+
+  function start(t){
+    cur=t; done=false; clear();
+    var c=CFG[t]; title.textContent=c.title; foot.textContent=c.foot;
+    clock.textContent=c.time.toFixed(1)+'s'; prog.style.width='100%';
+    t0=performance.now();
+    if(t==='wire')buildWire(); else if(t==='place')buildPlace(); else buildLever();
+    if(t!=='lever')raf=requestAnimationFrame(tick);
+  }
+
+  tabs.forEach(function(b){
+    b.onclick=function(){
+      tabs.forEach(function(x){x.setAttribute('aria-selected','false')});
+      b.setAttribute('aria-selected','true');
+      start(b.dataset.t);
+    };
+  });
+
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape')abort(); });
+  start('wire');
+})();
+</script>
+</body>
+</html>
