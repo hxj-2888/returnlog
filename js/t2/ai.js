@@ -140,7 +140,10 @@
       humanT:keepEmo(oldM.humanT),
       /* ally：软联盟计数（谁替谁说过话，保过几次）—— 跨夜保留但会随回合淡出 */
       ally:Object.assign({},oldM.ally||{}),
-      known:keepKnown,redSeen:{},alibi:{},detainSeen:{},avoidSeen:{}};
+      known:keepKnown,redSeen:{},alibi:{},detainSeen:{},avoidSeen:{},
+      /* rev：信念版本号（2026-11-05）。每次 susAdd 自增，会议里用来判断
+         「我这票投出去之后，是不是又听到了什么」—— 没听到新东西就不跟风改票。 */
+      rev:0};
     /* 跨夜留下的嫌疑要重新评估准-确证（可能已跌破门槛 → 降级） */
     for(const k in a.mind.sus)evalAlmost(a,+k);
     /* 遥测：跨夜保留下来的嫌疑总量（验改动 A 的实际力度） */
@@ -210,6 +213,9 @@
       t:ev?ev.t:evNow(),x:ev&&ev.x!=null?ev.x:null,y:ev&&ev.y!=null?ev.y:null,
       room:ev?ev.room:null});
     if(arr.length>8)arr.shift();
+    /* 信念动过了：会议里「听到发言 → 改票」靠这个计数器判断，
+       而不是拿两个随机分支的结果硬比（那会把抖动当成改票理由）。 */
+    a.mind.rev=(a.mind.rev|0)+1;
     /* 嫌疑变了就重算准-确证（可能刚好跨线，也可能因为被洗清而降级） */
     evalAlmost(a,i);
   }

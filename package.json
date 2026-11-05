@@ -19,7 +19,11 @@
     "sim": "node tools/monte-carlo.cjs",
     "ship": "node tools/ship.cjs",
     "ship:fast": "node tools/ship.cjs --fast",
-    "ship:web": "node tools/ship.cjs --only=web,portfolio"
+    "ship:web": "node tools/ship.cjs --only=web,portfolio",
+    "plate:build": "node tools/plate/build.cjs",
+    "3d:assets": "node 3d/tools/validate-assets.cjs",
+    "3d:sync:models": "node 3d/tools/sync-models.cjs",
+    "3d:import:check": "node 3d/tools/check-godot-import.cjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

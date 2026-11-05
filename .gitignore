@@ -3,6 +3,12 @@ node_modules/
 tools/screenshots/
 *.log
 *.err
+# 本轮调试截图 / 一次性诊断脚本（保留在磁盘上，不入库）
+tools/_shot*.png
+tools/_zoom*.png
+tools/_*.cjs
+3d/preview/scripts/_*.gd
+3d/preview/scripts/_*.gd.uid
 
 # 系统垃圾文件
 .DS_Store

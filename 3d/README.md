@@ -78,20 +78,42 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 
 ```
 3d/
-  README.md                 本文件
+  README.md                 本文件（垂直切片说明）
+  HANDOFF.md                ★ 2026-11-05 资产工程化交接文档，接手先读
   ARCHITECTURE.md           引擎/分层/数据/资产管线
   DECISIONS.md              ADR（为什么这样选）
   ASSETS.md                 素材来源、许可、哈希
-  tools/export-map.cjs      map.js → map.json（唯一跨项目数据入口）
+  CHANGELOG.md              子项目变更记录
+  spec/
+    conventions.md          单位/命名/预算/边界的硬约定
+    asset.schema.json       清单 schema
+    assets.manifest.json    ★ 资产清单，唯一真源（28 项）
+    godot-import.cfg        Godot 4.6 glTF 导入参数口径
+  assets/
+    models/                 .blend 源文件
+    export/                 .glb 导出物
+    textures/               _basecolor / _normal / _orm
+  tools/
+    export-map.cjs          map.js → map.json（唯一跨项目数据入口）
+    validate-assets.cjs     清单校验（npm run 3d:assets）
+    check-godot-import.cjs  导入参数核对（npm run 3d:import:check）
+    blender-export.py       Blender 导出预设
+    smoke-test.py           无真资产的导出自检
+    sync-models.cjs         .glb → preview（npm run 3d:sync:models）
   preview/
     project.godot           Godot 4.6 工程
     scenes/main.tscn        唯一入口场景
     scripts/main.gd         场景装配 / HUD / 截图 / 自测
     scripts/player.gd       WASD + 鼠标视角 + 手电
     scripts/map_builder.gd  地图升维 / 碰撞 / 灯光
+    scripts/probe_gi.gd     GI 枚举 / 导入结果探针
     data/map.json           由 export-map.cjs 生成
+    assets/import-probe/     探针 GLB + 引擎真实生成的 .glb.import
     assets/                 复制的贴图、角色图、许可证
 ```
+
+> 分支口径：正式建模在独立副分支 **`启航路3D版`**；`3d/` 工程骨架与文档在 `main`。
+> 3D **不替换** 2.5D，两套并行，详见 `HANDOFF.md` §1。
 
 ## 6. 已知限制
 
