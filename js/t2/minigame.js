@@ -13,8 +13,10 @@
    玩法原型与 tools/minigame-preview.html 同源（那边是设计台，这里是运行时）。
    设计约束（用户 2026-11-05 裁定）：
      · UI 遮罩盖住大半屏幕 → 做任务时看不见有人走近（attention='ui'）
-     · 中断 / 失败 / 超时 → 进度清零，必须重做
+     · **没有限时**：计时只是「保底」——到点自动算完成，不是"完不成就清零"
+     · 中断（Esc / 点中断）→ 进度清零，必须重做
      · 样式令牌与 js/ui/templates.js 一致（#12161E / #2A3240 / #DDE3EC / #F0C674）
+     · 目标时长（普通玩家）：普通 4~6s、高难 8~10s、电路维修 9~12s
    本文件不读对局状态、不写任何分数；完成/中断通过回调交回 game.js。 */
 (function (global) {
   'use strict';
@@ -52,7 +54,10 @@
   };
 
   const CSS = `
-  #mg{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  /* z-index 必须高于 #v3-root（9999），否则遮罩被画在画布下面 ——
+     DOM 里 open=true、元素也 visible，但玩家一个字都看不见（2026-11-05 实测）。
+     仍低于设置面板（10010）与复盘（10005）：那两层是模态，该压住小游戏。 */
+  #mg{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;
     background:rgba(3,6,11,.62);font-family:system-ui,"Microsoft YaHei",sans-serif}
   #mg.on{display:flex}
   #mg .card{width:min(84vw,760px);height:min(82vh,540px);background:#12161E;border:1px solid #2A3240;
@@ -61,6 +66,8 @@
   #mg .hd{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;
     border-bottom:1px solid #2A3240;font-size:13px;font-weight:600;color:#F0C674}
   #mg .hd span{font-size:11px;font-weight:400;color:#8FA6C0;font-variant-numeric:tabular-nums}
+  #mg .hd strong{flex:1 1 auto}
+  #mg .hd #mg-s{color:#F0C674;margin-right:10px}
   #mg .bar{height:3px;background:#222833}
   #mg .bar i{display:block;height:100%;background:#F0C674;width:100%}
   #mg .bd{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:14px;overflow:hidden}
@@ -79,6 +86,12 @@
   #mg .port.sel{border-color:#F0C674}#mg .port.done{opacity:.4;cursor:default}
   #mg .port[data-c="t"]{color:#00E5B0}#mg .port[data-c="a"]{color:#F0C674}
   #mg .port[data-c="r"]{color:#E0574F}#mg .port[data-c="b"]{color:#73A7FF}
+  #mg .port[data-c="g"]{color:#B07CFF}#mg .port[data-c="v"]{color:#5AD1C0}
+  /* 当前该操作的东西给一圈呼吸光：玩家一眼看到「下一步点哪」 */
+  #mg .port.hint,#mg .blk.hint,#mg .slot.hint,#mg .cd.hint{
+    box-shadow:0 0 0 2px rgba(240,198,116,.55);animation:mgpulse 1.1s ease-in-out infinite}
+  @keyframes mgpulse{0%,100%{box-shadow:0 0 0 2px rgba(240,198,116,.35)}
+    50%{box-shadow:0 0 0 3px rgba(240,198,116,.75)}}
   #mg svg.ln{position:absolute;inset:0;pointer-events:none}
   #mg .grid{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,46px);gap:7px}
   #mg .slot{border:1px dashed #3A4454;border-radius:7px;display:flex;align-items:center;
@@ -153,7 +166,8 @@
     node = document.createElement('div');
     node.id = 'mg';
     node.innerHTML =
-      '<div class="card"><div class="hd"><strong id="mg-t">小游戏</strong><span id="mg-c">—</span></div>' +
+      '<div class="card"><div class="hd"><strong id="mg-t">小游戏</strong>' +
+      '<span id="mg-s">—</span><span id="mg-c">—</span></div>' +
       '<div class="bar"><i id="mg-p"></i></div><div class="bd" id="mg-b"></div>' +
       '<div class="ft"><span id="mg-f">—</span><button id="mg-a">中断（进度清零）</button></div></div>';
     document.body.appendChild(node);
@@ -213,29 +227,54 @@
     setTimeout(function () { if (api === mine) close(); fire(); }, 700);
   }
 
+  /* 没有限时：这里只是**保底**。到点自动算完成，绝不清零 ——
+     玩家慢慢做也做得完，快的人靠解谜提前结束。 */
   function tick() {
     if (!api || api.done) return;
-    const left = api.limit - (performance.now() - api.t0) / 1000;
-    if (left <= 0) { settle(false, '超时 → 进度清零，需要重做'); return; }
-    node.querySelector('#mg-c').textContent = left.toFixed(1) + 's';
-    node.querySelector('#mg-p').style.width = (left / api.limit * 100).toFixed(1) + '%';
+    const el2 = (performance.now() - api.t0) / 1000;
+    const left = api.limit - el2;
+    if (left <= 0) { settle(true, '保底时间到 · 任务自动完成'); return; }
+    node.querySelector('#mg-c').textContent = '保底 ' + Math.ceil(left) + 's';
+    node.querySelector('#mg-p').style.width = Math.min(100, el2 / api.limit * 100).toFixed(1) + '%';
     api.raf = requestAnimationFrame(tick);
+  }
+  /* 步骤进度：让玩家随时知道「还差几步」。total 由各玩法自己定。 */
+  function setProg(done, total, msg) {
+    if (!api) return;
+    api.have = done; api.need = total;
+    const s = node && node.querySelector('#mg-s');
+    if (s) s.textContent = total ? (Math.min(done, total) + ' / ' + total) : '—';
+    if (msg) tip(msg);
+  }
+  /* 难度档：normal / hard / circuit（电路维修单独一档） */
+  function tierN(normal, hard, circuit) {
+    const t = api && api.tier;
+    return t === 'circuit' ? (circuit == null ? hard : circuit) : t === 'hard' ? hard : normal;
+  }
+  /* 给「下一步该动的东西」加高亮；传 null 清空 */
+  function hintEl(e, on) {
+    if (!e) return;
+    if (on) e.classList.add('hint'); else e.classList.remove('hint');
   }
 
   /* ---------- 接线 ---------- */
   function buildWire(bd) {
-    const cols = ['t', 'a', 'r', 'b'];
+    /* 条数按档位：普通 4 / 高难 5 / 电路维修 6 —— 电路维修就是"线最多"的那一档 */
+    const ALL = ['t', 'a', 'r', 'b', 'g', 'v'];
+    const cols = ALL.slice(0, tierN(4, 5, 6));
     const box = el('div', 'wire');
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('class', 'ln');
     const lc = el('div', 'col'), rc = el('div', 'col');
     let sel = null, pairs = [];
+    setProg(0, cols.length, '共 ' + cols.length + ' 条线：先点左端，再点右边同色的那一端');
     cols.forEach(function (c) {
       const p = el('div', 'port'); p.dataset.c = c;
       p.onclick = function () {
         if (api.done || p.classList.contains('done')) return;
-        if (sel) sel.classList.remove('sel');
-        sel = p; p.classList.add('sel'); tip('已选左端，点右端同色');
+        if (sel) hintEl(sel, false);
+        sel = p; p.classList.add('sel'); hintEl(p, true);
+        tip('已选左端（' + (pairs.length + 1) + ' / ' + cols.length + '）：点右边同色的端口');
       };
       lc.appendChild(p);
     });
@@ -245,12 +284,17 @@
         if (api.done || !sel || p.classList.contains('done')) return;
         if (p.dataset.c !== sel.dataset.c) {
           pairs = []; svg.innerHTML = '';
-          Array.prototype.forEach.call(box.querySelectorAll('.port'), function (x) { x.classList.remove('done', 'sel'); });
-          sel = null; tip('颜色不对 → 整组重来', true); return;
+          Array.prototype.forEach.call(box.querySelectorAll('.port'), function (x) {
+            x.classList.remove('done', 'sel', 'hint');
+          });
+          sel = null; setProg(0, cols.length, '颜色不对 → 整组重来，从中断处重新接线'); return;
         }
-        const a = sel; a.classList.remove('sel'); a.classList.add('done'); p.classList.add('done');
+        const a = sel; a.classList.remove('sel'); a.classList.remove('hint');
+        a.classList.add('done'); p.classList.add('done');
         pairs.push([a, p]); sel = null; draw();
-        if (pairs.length === 4) settle(true, '接线完成 · 任务成功');
+        setProg(pairs.length, cols.length,
+          pairs.length === cols.length ? '全部接通' : '已接 ' + pairs.length + ' / ' + cols.length + ' 条，继续');
+        if (pairs.length === cols.length) settle(true, '接线完成 · 任务成功');
       };
       rc.appendChild(p);
     });
@@ -275,25 +319,29 @@
 
   /* ---------- 放置 ---------- */
   function buildPlace(bd) {
-    const shapes = ['▲', '●', '■', '◆'];
-    const need = shuffled(shapes.slice(0, 3));
-    const slots = shuffled(need.concat([shapes[3]]));
+    /* 零件数按档位：普通 4 / 高难 5；槽位永远多一个诱饵 */
+    const shapes = ['▲', '●', '■', '◆', '✦', '✚'];
+    const N = tierN(4, 5, 5);
+    const need = shuffled(shapes.slice(0, N));
+    const decoy = shapes.filter(function (s) { return need.indexOf(s) < 0; })[0];
+    const slots = shuffled(need.concat([decoy]));
     const wrap = el('div', null);
     const grid = el('div', 'grid'), tray = el('div', 'tray');
     let sel = null, placed = 0;
+    setProg(0, N, '共 ' + N + ' 个零件：先点下方零件，再点形状相符的槽位（有一个槽是诱饵）');
     slots.forEach(function (s) {
       const d = el('div', 'slot'); d.dataset.s = s;
       d.onclick = function () {
         if (api.done || !sel || d.classList.contains('filled')) return;
         if (d.dataset.s !== sel.dataset.s) {
           Array.prototype.forEach.call(grid.children, function (x) { x.classList.remove('filled'); x.textContent = ''; });
-          Array.prototype.forEach.call(tray.children, function (x) { x.classList.remove('used'); });
-          placed = 0; sel = null; tip('形状不符 → 整组重来', true); return;
+          Array.prototype.forEach.call(tray.children, function (x) { x.classList.remove('used', 'sel', 'hint'); });
+          placed = 0; sel = null; setProg(0, N, '形状不符 → 整组重来，每个零件只认一个槽'); return;
         }
         d.classList.add('filled'); d.textContent = sel.dataset.s;
-        sel.classList.add('used'); sel.classList.remove('sel'); sel = null; placed++;
-        tip('已放置 ' + placed + ' / 3');
-        if (placed === 3) settle(true, '放置完成 · 任务成功');
+        sel.classList.add('used'); sel.classList.remove('sel', 'hint'); sel = null; placed++;
+        setProg(placed, N, placed === N ? '全部归位' : '已放置 ' + placed + ' / ' + N + '，继续');
+        if (placed === N) settle(true, '放置完成 · 任务成功');
       };
       grid.appendChild(d);
     });
@@ -301,8 +349,9 @@
       const b = el('button', 'blk', s); b.dataset.s = s;
       b.onclick = function () {
         if (api.done || b.classList.contains('used')) return;
-        if (sel) sel.classList.remove('sel');
-        sel = b; b.classList.add('sel'); tip('已选零件，点形状相符的槽位');
+        if (sel) hintEl(sel, false);
+        sel = b; b.classList.add('sel'); hintEl(b, true);
+        tip('已选零件「' + s + '」：点形状相符的槽位');
       };
       tray.appendChild(b);
     });
@@ -324,6 +373,7 @@
     const hold = el('button', null, '按住不放 · 拉到底');
     row.appendChild(rail); row.appendChild(svg); row.appendChild(hold);
     bd.appendChild(row);
+    setProg(0, 1, '按住按钮不放，直到拉杆转到底');
     let charge = 0, held = false, last = 0, fire = 0;
     const arm = svg.querySelector('.arm');
     hold.addEventListener('pointerdown', function (e) { e.preventDefault(); held = true; });
@@ -366,6 +416,7 @@
       r.appendChild(lab); r.appendChild(tr); rows.appendChild(r);
     }
     bd.appendChild(rows);
+    setProg(0, 3, '三条通道各自调进亮带，并同时保持 0.6 秒');
     let hold = 0, last = 0;
     function loop(ts) {
       if (!api || api.done) return;
@@ -396,6 +447,7 @@
     const hold = el('button', null, '按住注液 · 松开确认');
     bin.appendChild(vessel); bin.appendChild(ticks);
     bd.appendChild(bin); bd.appendChild(hold);
+    setProg(0, 1, '按住注液，落在 52~68 之间再松手');
     let v = 0, held = false, last = 0;
     hold.addEventListener('pointerdown', function (e) { e.preventDefault(); held = true; });
     hold.addEventListener('pointerup', function () {
@@ -443,6 +495,7 @@
     });
     box.appendChild(sock); box.appendChild(tray);
     bd.appendChild(box);
+    setProg(0, 2, '第一步：点「旧芯」把它取出来');
   }
 
   /* ---------- 三点对准 ---------- */
@@ -461,6 +514,7 @@
       board.appendChild(p); probes.push(p);
     }
     bd.appendChild(board);
+    setProg(0, 3, '把三个金色探针拖进虚线圆圈，三个都进才算过');
     let drag = null;
     function pos(e) {
       const bb = board.getBoundingClientRect();
@@ -481,10 +535,12 @@
     board.addEventListener('pointerup', function () { drag = null; });
     board.addEventListener('pointercancel', function () { drag = null; });
     function check() {
-      const all = probes.every(function (p, k) {
+      const near = probes.map(function (p, k) {
         return Math.hypot(parseFloat(p.style.left) - tgts[k].x, parseFloat(p.style.top) - tgts[k].y) < 2.6;
       });
-      if (all) settle(true, '三点评定通过 · 任务成功');
+      const got = near.filter(Boolean).length;
+      setProg(got, 3, '对准 ' + got + ' / 3 —— 拖到虚线圆圈里');
+      if (near.every(Boolean)) settle(true, '三点评定通过 · 任务成功');
     }
   }
 
@@ -493,6 +549,7 @@
     const rng = el('div', 'range'), zone = el('div', 'zone'), mk = el('div', 'mk');
     rng.appendChild(zone); rng.appendChild(mk);
     bd.appendChild(rng);
+    setProg(0, 3, '准星进亮带时点击，连中 3 次');
     let hits = 0, dir = 1, x = 0, last = 0;
     function loop(ts) {
       if (!api || api.done) return;
@@ -507,19 +564,23 @@
     rng.onclick = function () {
       if (!api || api.done) return;
       if (x >= 46 && x <= 54) {
-        hits++; tip('命中 ' + hits + ' / 3', 'good');
+        hits++; setProg(hits, 3, '命中 ' + hits + ' / 3');
         if (hits >= 3) settle(true, '靶道校准完成 · 任务成功');
-      } else { hits = 0; tip('脱靶 → 计数清零', true); }
+      } else { hits = 0; setProg(0, 3, '脱靶 → 计数清零，等准星进带再点'); }
     };
     api.anim = requestAnimationFrame(loop);
   }
 
   /* ---------- 图标配对 ---------- */
   function buildMatch(bd) {
-    const icons = ['◈', '◇', '▣', '▤'];
-    const deck = shuffled(icons.concat(icons));
+    /* 配对数按档位：普通 4 对 / 高难 5 对 */
+    const icons = ['◈', '◇', '▣', '▤', '◐', '◑'];
+    const N = tierN(4, 5, 5);
+    const pool = icons.slice(0, N);
+    const deck = shuffled(pool.concat(pool));
     const grid = el('div', 'cards');
     let open = [], lock = false, pairs = 0, miss = 0;
+    setProg(0, N, '共 ' + N + ' 对：翻两张，图案相同即配对（错 3 次整组重来）');
     deck.forEach(function (ic) {
       const c = el('div', 'cd', '·');
       c.dataset.ic = ic;
@@ -530,8 +591,8 @@
         const a = open[0], b = open[1];
         if (a.dataset.ic === b.dataset.ic) {
           a.classList.add('done'); b.classList.add('done'); open = []; pairs++;
-          tip('已配对 ' + pairs + ' / 4');
-          if (pairs === 4) settle(true, '全部接通 · 任务成功');
+          setProg(pairs, N, pairs === N ? '全部匹配' : '已配对 ' + pairs + ' / ' + N + '，继续');
+          if (pairs === N) settle(true, '全部接通 · 任务成功');
         } else {
           lock = true; miss++;
           setTimeout(function () {
@@ -540,6 +601,7 @@
             a.textContent = '·'; b.textContent = '·';
             open = []; lock = false;
             if (miss >= 3) settle(false, '错配 3 次 → 整组重来');
+            else tip('配错了（' + miss + ' / 3）—— 记一下位置重来', true);
           }, 420);
         }
       };
@@ -554,12 +616,13 @@
     const target = 42;
     line.style.top = target + '%';
     shelf.appendChild(line);
-    const bars = [], base = [20, 34, 58, 72];
+    const bars = [], base = tierN(4, 5, 5) === 5 ? [14, 30, 48, 66, 84] : [20, 34, 58, 72];
     base.forEach(function (v, i) {
       const b = el('div', 'lv'), g = el('i', null, 'L' + (i + 1));
       b.style.top = v + '%'; b.appendChild(g); shelf.appendChild(b); bars.push(b);
     });
     bd.appendChild(shelf);
+    setProg(0, bars.length, '把 ' + bars.length + ' 层货架拖到同一条虚线（±3%）');
     let drag = null;
     function pct(e) {
       const bb = shelf.getBoundingClientRect();
@@ -578,8 +641,10 @@
     shelf.addEventListener('pointerup', function () { drag = null; });
     shelf.addEventListener('pointercancel', function () { drag = null; });
     function check() {
-      const all = bars.every(function (b) { return Math.abs(parseFloat(b.style.top) - target) <= 3; });
-      if (all) settle(true, '四层齐平 · 任务成功');
+      const ok = bars.map(function (b) { return Math.abs(parseFloat(b.style.top) - target) <= 3; });
+      const got = ok.filter(Boolean).length;
+      setProg(got, bars.length, '齐平 ' + got + ' / ' + bars.length + ' 层 —— 拖到同一条虚线');
+      if (ok.every(Boolean)) settle(true, bars.length + ' 层齐平 · 任务成功');
     }
   }
 
@@ -593,20 +658,28 @@
     return ARCH[action] || 'place';
   }
 
+  /* 保底时长（秒）：到点自动完成，**不是**限时。
+     按任务类别给：普通 10、高难 16、电路维修 20。
+     目标解谜时间由玩法步数控制（普通 4~6s / 高难 8~10s / 电路 9~12s），
+     保底留了约 2 倍的余量，手慢的人也做得完。 */
+  const FALLBACK = { normal: 10, hard: 16, circuit: 20 };
+
   function open(action, opts) {
     ensure();
     close();
     opts = opts || {};
     const kind = kindOf(action, opts.label);
+    const tier = opts.tier || 'normal';
     api = {
-      done: false, raf: 0, anim: 0, kind: kind,
-      limit: Math.max(2, opts.limit ? opts.limit : 6),
+      done: false, raf: 0, anim: 0, kind: kind, tier: tier,
+      limit: Math.max(3, opts.fallback || FALLBACK[tier] || FALLBACK.normal),
       t0: performance.now(), onDone: opts.onDone, onCancel: opts.onCancel
     };
     node.querySelector('#mg-t').textContent = opts.title || '任务';
     node.querySelector('#mg-f').textContent = HINT[kind];
-    node.querySelector('#mg-c').textContent = api.limit.toFixed(0) + 's';
-    node.querySelector('#mg-p').style.width = '100%';
+    node.querySelector('#mg-s').textContent = '—';
+    node.querySelector('#mg-c').textContent = '保底 ' + api.limit + 's';
+    node.querySelector('#mg-p').style.width = '0%';
     const bd = node.querySelector('#mg-b');
     bd.innerHTML = '';
     node.classList.add('on');

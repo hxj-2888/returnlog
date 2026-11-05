@@ -283,27 +283,32 @@
      作用：抬高指控门槛、投票回避、给证言加权 —— 也就是"洗白"。 */
   const CRED = {
     /* 2026-11-05 二组（用户裁定「推理层全量推进」）：
-       **这张表按 LENS.lr 的基准序重排**，不再各写各的。
+       **真做的那几项按 LENS.lr 的基准序重排**，不再各写各的。
        LENS.lr = human/alien：fixDone 10 > revive 6 = dragToMed 6 > breakerOn 3
-       = taskDone 3 > fakeWork/fakeRepair 1.2。
-       改之前：revive 0.20 最高（可它当时最不可验证）、dragToMed 0.10 垫底
-       （可它是唯一稳定的强信号）—— 两侧口径互相打架。
+       = taskDone 3。改之前：revive 0.20 最高（可它当时最不可验证）、
+       dragToMed 0.10 垫底（可它是唯一稳定的强信号）—— 两侧口径互相打架。
        现在只保证**单调同序**，不写 `w = f(lr)`：数值仍是人定的档位，不是公式输出。
-       ⚠ `valueMul = gains[这件事] / gains.fakeWork` 会跟着变，异形挑演出的优先级
-       因此从「假装修理最划算」变成「真修 > 救人/拖人 > 合闸/做任务 > 假装」。 */
+       ⚠ 假的**不在这条序上**：2026-11-05 用户裁定「真假同价」，
+       fakeWork = taskDone、fakeRepair = fixDone（理由见下方那段注释）。
+       LENS 里 fake 的 alien 似然仍然高（2.5）—— 那说的是"异形更爱做这件事"，
+       不是"目击者能看出这件事是假的"，两条轴不能混。
+       ⚠ `valueMul = gains[这件事] / gains.fakeWork` 会跟着变：真假同价之后
+       这两项归 1，异形演出的性价比回到"和真做一样"。 */
     gains: {
       taskDone: 0.12,     /* lr 3  —— 看见别人把任务做完 */
       fixDone: 0.20,      /* lr 10 —— 看见别人修好破坏（最像人，也最贵） */
       breakerOn: 0.12,    /* lr 3  —— 看见别人合上电闸 */
       dragToMed: 0.16,    /* lr 6  —— 拖行降速、暴露位置，唯一稳定的强信号 */
       revive: 0.16,       /* lr 6  —— 消耗医疗包 + 5 秒站桩 */
-      /* 异形伪装专用：目击者分不出"真做"和"假做"，所以也要给分，
-         但略低于真做 —— 演出总有破绽（动作衔接、进度条走法）。
-         2026-11-03 拆成**两种**（假装修理 / 假装做任务）：`ALMOST.friendKinds=2`
-         要求观察者看到"两种不同的正经事"，而旧版两种假动作都写同一个 kind，
-         异形手上只剩 1 种 ⇒ almost.friend 对异形是**结构性不可达**。 */
-      fakeWork: 0.08,     /* lr 1.2 */
-      fakeRepair: 0.08,   /* lr 1.2 */
+      /* 异形伪装专用（2026-11-05 用户裁定：**真假同价**）。
+         以前 fake 略低于真做（0.08 vs 0.12/0.20），理由是"演出总有破绽"。
+         但那是**引擎替目击者做判断** —— 目击者看到的动作完全一样，凭什么分得出来？
+         现在 fakeWork = taskDone、fakeRepair = fixDone：同一种行为只值一个价，
+         不因做的人是谁、真的假的而变化。连带效果是 `valueMul` 对这两项归 1，
+         异形演出的性价比回到"和真做一样"，不再被公式系统性压低。
+         （护住"演出会露馅"的不是分值，是行为侧：时长、位置、有没有真把故障修好。） */
+      fakeWork: 0.12,     /* = taskDone */
+      fakeRepair: 0.20,   /* = fixDone */
     },
     decay: 0.92,          /* 每夜 ×0.92，慢衰减：洗白是长期投资 */
     cap: 1.2,
@@ -429,7 +434,7 @@
       breakerOn:  { human: 3, alien: 1.0, kind: 'breakerOn',
         cost: '主动放弃全群的暗视野（异形做这事是真亏）' },
       taskDone:   { human: 3, alien: 1.0, kind: 'task',
-        cost: '8/12/15 秒站桩 + 推进人类胜利' },
+        cost: '4~10 秒站桩（普通 4~6 / 高难 7~9 / 电路 10）+ 推进人类胜利' },
       fakeWork:   { human: 3, alien: 2.5, kind: 'fakeWork',
         cost: '4~8 秒站桩，可能被人看出破绽' },
       fakeRepair: { human: 3, alien: 2.5, kind: 'fakeRepair',
