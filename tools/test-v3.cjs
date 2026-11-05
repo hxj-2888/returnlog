@@ -2063,11 +2063,16 @@ function section(t) { console.log('\n== ' + t); }
     const st = (t.mind(listener.i).sus || {})[target.i] || 0;
     const line = t.meetLines().slice(-1)[0];
     t.finishMeeting();
-    return { s0, st, text: line ? line.text : '', target: target.i, listener: listener.i };
+    return { s0, st, text: line ? line.text : '', target: target.i, listener: listener.i,
+      why: ((t.mind(listener.i).why || {})[target.i] || []).map(x => x.reason) };
   });
-  ok(TPL3.s0 >= 0.2 && TPL3.st < 0.1,
+  /* 2026-11-05 二组：异形自述口供纳入对质后，目标可能被**另一条独立线索**扣分
+     （它自己谎报的舱室与听众记忆对不上）。判据不变，改成看"玩家这句假话有没有
+     被记成目标证据"——即 why 里不得出现 heard_claim。 */
+  ok(TPL3.s0 >= 0.2 && TPL3.why.indexOf('heard_claim') < 0,
     '玩家构陷与听众时间线冲突：反过来怀疑玩家（' + TPL3.s0.toFixed(2) +
-    '），不把构陷当成目标证据（目标仅 ' + TPL3.st.toFixed(2) + '，来自空口指控）');
+    '），玩家的假话不计入目标证据（目标 sus ' + TPL3.st.toFixed(2) +
+    '，来源 ' + (TPL3.why.join('|') || '无') + '）');
 
   await fresh(false);
   const IMPOSSIBLE = await T(() => {
@@ -4396,9 +4401,11 @@ function section(t) { console.log('\n== ' + t); }
   ok(FAKET.again,
     '冷却结束后同一夜还能再演（旧版 _fakeTaskN 每夜 1 次把伪装掐死在主闸上；' +
     '本次 aud=' + FAKET.pre.aud + ' sc=' + FAKET.pre.sc + ' cd=' + FAKET.pre.cd + '）');
-  /* 2026-11-05 二组：CRED.gains 按 LENS.lr 重排后 fakeWork 从 0.10 降到 0.08。
-     断言改成「不低于声明值」——测的仍是"走同一条兑现口"，不再钉死某个数。 */
-  ok(FAKET.first.cred >= FAKET.gain - 0.005,
+  /* 2026-11-05 二组：CRED.gains 按 LENS.lr 重排后 fakeWork 从 0.10 降到 0.08，
+     随后「真假同价」裁定又把它抬回 = taskDone；同时证据侧加了**情境抽样**
+     （witnessConfMul 下界 0.72）。断言改成「落在抽样带内」——
+     测的仍是"走同一条兑现口、按同一张表兑现"，不钉死某个数，也不假定 1.0 倍。 */
+  ok(FAKET.first.cred >= FAKET.gain * 0.70 - 0.005,
     '演完的 cred 走同一条兑现口：目击者给它 +信誉（fakeWork，' + FAKET.first.cred + '）');
   ok(FAKET.inv.fails.length === 0, '异形假装做任务后不变量全过' +
     (FAKET.inv.fails.length ? '（失败项：' + FAKET.inv.fails.slice(0, 4).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));

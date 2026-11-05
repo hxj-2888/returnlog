@@ -218,10 +218,11 @@
 
   function tick(){
     if(done||limit<=0)return;
-    var left=limit-(performance.now()-t0)/1000;
-    if(left<=0){ A.fail('超时 → 进度清零，需要重做'); return; }
-    clock.textContent=left.toFixed(1)+'s';
-    prog.style.width=(left/limit*100).toFixed(1)+'%';
+    var used=(performance.now()-t0)/1000, left=limit-used;
+    /* 没有限时：到点只是**保底**，自动算完成 */
+    if(left<=0){ A.ok('保底时间到 · 任务自动完成'); return; }
+    clock.textContent='保底 '+Math.ceil(left)+'s';
+    prog.style.width=Math.min(100,used/limit*100).toFixed(1)+'%';
     raf=requestAnimationFrame(tick);
   }
 
@@ -517,8 +518,8 @@
     stage.style.backgroundImage=c?('linear-gradient(rgba(10,13,19,.72),rgba(10,13,19,.86)),url("'+c+'")'):'none';
     title.textContent=t.room+' · '+t.name+(t.kind==='hard'?'（高难）':'');
     foot.textContent='玩法 '+t.arch+' · 时限 '+t.dur+'s · 中断或失败即重做';
-    limit=t.dur; t0=performance.now();
-    clock.textContent=t.dur.toFixed(1)+'s'; prog.style.width='100%';
+    limit=(t.tier==='circuit'?20:(t.tier==='hard'?16:10)); t0=performance.now();
+    clock.textContent='保底 '+limit+'s'; prog.style.width='0%';
     Array.prototype.forEach.call(side.children,function(x){
       if(x.dataset&&x.dataset.i!=null)x.setAttribute('aria-current', String(+x.dataset.i===i));
     });

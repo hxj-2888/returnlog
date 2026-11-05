@@ -1171,6 +1171,11 @@
        站桩动作不再"读秒完成"，而是开遮罩让玩家玩：玩通即结算，失败/中断即作废。
        `?test` / 旁观 / 批量模拟一律不弹，保持无头断言与 1000 局可跑 —— 这是
        把 UI 交互从断言里摘出去，不是改判定。 */
+    /* 此刻这个客户端会不会弹遮罩（提示文案与 playerMiniGame 共用同一套短路，
+       避免"说玩通即完成、实际没弹"这种两套口径）。 */
+    function miniGameOn(){
+      return !!(global.SKMiniGame&&!G.simMode&&!SIM_RUN&&!TEST_RUN&&!G.spectMode);
+    }
     function playerMiniGame(a){
       if(a!==G.me||G.spectMode||G.simMode||SIM_RUN||TEST_RUN)return false;
       if(!global.SKMiniGame||!STAND_ACT[a._doing]||a._doing==='sab')return false;
@@ -1179,12 +1184,15 @@
       if(a.doing<=0.05)return false;
       if(a._mg)return true;
       a._mg=true;
-      /* 按任务点选玩法：高难 8 个各占一型，普通按舱室与名称归类（表在 minigame.js） */
+      /* 按任务点选玩法：高难 8 个各占一型，普通按舱室与名称归类（表在 minigame.js）。
+         2026-11-05：小游戏不再是限时关卡 —— 时长只是**保底**（到点自动完成），
+         所以这里传 tier（决定步数与保底档），不再把 a.doing 当倒计时。 */
       const pt=(a._doing==='task'&&a._taskPt!=null)?M.points[a._taskPt]:null;
+      const tier=pt?(pt.label==='电路维修'?'circuit':(pt.kind==='hard'?'hard':'normal')):'normal';
       SKMiniGame.open(a._doing,{
         title:pt?pt.label:(STAND_ACT[a._doing]||'任务'),
         label:pt?pt.label:null,
-        limit:Math.max(2,a.doing),
+        tier:tier,
         onDone:function(){ a._mg=false; a.doing=0.001; },
         onCancel:function(){
           a._mg=false; a.doing=0; a._standDoing=null;
@@ -1558,19 +1566,75 @@
         def.mind.ally[tgt.i]=Math.min(cap,(def.mind.ally[tgt.i]||0)+1);
       }
     }
+    /* 目击强度的**情境抽样**（2026-11-05 二组）
+       同一个动作，不同目击者记住的确定程度本来就不一样；但差别只能由
+       **当时可观察的情境**决定，不能由性格、阵营或"谁更信谁"决定：
+         · 当时有几个人在场 —— 人越多，每个人的注意力越被摊薄
+         · 是否断电 —— 只剩轮廓和声音，细节记不实
+         · 附近是否刚出过事 —— 注意力被现场拉走，事后回忆是残的
+       返回夹在 [0.72, 1.10]：它是**证据强度**的修正，不是新的判定层，
+       不会把任何人推过或拉下 `ALMOST.foeSus` 的门槛（门槛判定仍看累积与种类）。
+       末尾那点抖动是「当时恰好注意到哪一部分」的抽样，不是硬加噪声：
+       幅度 ±6%，量级由上面三条情境决定，不由随机数决定。 */
+    function witnessCtxMul(x,y,nSeen){
+      let m=1;
+      const n=Math.max(1,nSeen|0);
+      if(n>1)m-=Math.min(0.16,(n-1)*0.04);
+      if(G.lightState===2)m-=0.14;
+      const now=evNow(), L=SKSanity.NIGHT.len, arr=G.events||[];
+      let near=0;
+      /* 事件流是**按时间追加**的：从尾部往前扫，超过 8 秒就停，
+         不再每次广播都把上万个事件走一遍（1000 局会因此慢 50%）。 */
+      for(let k=arr.length-1;k>=0;k--){
+        const e=arr[k];
+        if(!e)continue;
+        if(e.night!==G.night){ if(e.night<G.night)break; else continue; }
+        if(e.t==null)continue;
+        const at=L-e.t;
+        if(at>now)continue;
+        if(now-at>8)break;
+        if(e.x==null||e.y==null)continue;
+        if(e.kind!=='knife'&&e.kind!=='bot_hit'&&e.kind!=='bot_down'&&
+          e.kind!=='breaker'&&e.kind!=='sabotage')continue;
+        if(Math.hypot(e.x-x,e.y-y)>8)continue;
+        near++;
+      }
+      if(near)m-=Math.min(0.12,near*0.04);
+      return m;
+    }
+    function witnessConfMul(x,y,nSeen){
+      const base=witnessCtxMul(x,y,nSeen);
+      return Math.max(0.72,Math.min(1.10,base*(0.94+Math.random()*0.12)));
+    }
     /* 把一次"正经行为"广播给所有**真的看得见**的活人（异形也会看见，但它不用）。
        radius 用行为发生点的真实目击半径，亮房远处的人也算数。 */
     function credBroadcast(actor,kind,x,y){
       const w0=SKSanity.CRED.gains[kind];
       if(!w0||!actor)return;
       const R=Math.max(6,Math.min(14,sightRangeAt(x,y)));
+      const seen=[],foes=[];
       for(const w of G.agents){
         if(w===actor||!w.alive||w.downed||w.detained||!w.mind)continue;
         if(Math.hypot(w.x-x,w.y-y)>R)continue;
         if(!aiCanSee(w,x,y,R))continue;
-        /* 异形看人类干活不加分（它不需要），人类看谁都加 —— 包括看异形演 */
-        if(w.alien)continue;
-        credAdd(w,actor.i,w0,kind);
+        /* 一体两面（2026-11-05 用户裁定）：同一个动作 —— 人类目击者加**信任分**，
+           异形目击者加**同等数值的敌对分**。分值必须一样，否则"换个视角看同一件事"
+           就是两套账。已经认出的队友除外：异形知道自己人，这不算读心。 */
+        if(w.alien){ if(!isMate(w,actor.i))foes.push(w); continue; }
+        seen.push(w);
+      }
+      const nAll=seen.length+foes.length;
+      /* 2026-11-05 二组：以前这一圈人都拿**完全相同**的 w0。
+         现在按当时的可见情境**各自抽样** —— 同一场演出，站在近处没被挡的人记得更实，
+         断电时旁边又刚出过事的人只记得"他好像干了点什么"。
+         情境因子每场算一次，抽样每人各自一次（只有抽样是随机的，量级由情境定）。 */
+      const base=witnessCtxMul(x,y,nAll);
+      const jit=function(){return Math.max(0.72,Math.min(1.10,base*(0.94+Math.random()*0.12)));};
+      for(const w of seen)credAdd(w,actor.i,w0*jit(),kind);
+      for(const w of foes){
+        const ev={kind:kind,x:x,y:y,room:roomIdAt(x,y),t:evNow(),
+          conf:0.6,src:'sight',subj:actor.i};
+        susAdd(w,actor.i,w0*jit(),'seen_work',ev);
       }
     }
     /* ---- 准-确证评估（2026-11-01）----
@@ -4662,19 +4726,32 @@
       for(const w of G.agents){
         if(w.alien||!w.alive||w.downed||!w.mind)continue;
         for(const a of G.agents){
-          if(a===w||a.alien||!a.alive||a.downed)continue;
+          /* 2026-11-05 二组：**去掉这里的 `a.alien` 短路**。
+             以前人类的口供会被听众拿案发 ±8 秒的时间线核对，异形那句
+             「我昨晚在监控室」却完全不进这条判据 —— 同类口供两套判据，
+             等于给谎报位置发了一张免死牌。现在同一条 checkAlibi 量词对所有人，
+             异形谎报的舱室从来没在别人的 saw_agent 里出现过，一对就穿。 */
+          if(a===w||!a.alive||a.downed)continue;
           const ab=alibiOf(a);
           const r=checkAlibi(w,a.i,ab.roomId,cw?cw.t0:null,cw?cw.t1:null,cw?cw.tRef:null);
           /* 诊断口径（只统计不改行为）：旧量词这一次会不会定罪 */
           if(G.simStats&&oldQuantifierWouldFire(w,a.i,ab.roomId))
             G.simStats.contradictionOld=(G.simStats.contradictionOld||0)+1;
           if(r.checked===0||r.match)continue;
+          /* 2026-11-05：只有**案发舱室**的目击才算「对不上」。
+             被看见在食堂并不否定「我当时在配电室」—— 他可能只是路过；
+             但被看见在死者所在的舱室、而他说自己在别处，那才是真矛盾。
+             这条对人类和异形是同一把尺子（以前异形根本不进这段）。 */
+          if(cw&&vi&&r.evidence.room!==vi.roomId)continue;
           /* 同一场会议里，**同一个人**只吃一次口供矛盾（2026-11-02）。
              原来 n 个目击者各记 0.28，一个人被三个人看见就叠 0.84 ——
              「拆谎太准」的一半其实是重复计账。现在按目标去重，权重不降、次数不刷。 */
           if(contraHit.has(a.i))continue;
           contraHit.add(a.i);
           susAddContradiction(w,a.i,0.28,'contradiction',r.evidence);
+          /* 留一对「谁戳穿了谁」给会议排期用（非模拟局会说出口，模拟局只记分）。
+             只留第一对：真人会议上也不会全场轮流复读同一句质疑。 */
+          if(!ctx.contra)ctx.contra={w:w,a:a,seen:roomNameById(r.evidence.room),age:r.age};
         }
       }
       /* 反向洗清：如果目击者在案发时间附近在另一个舱室看见某人，
@@ -4713,11 +4790,26 @@
         a.accuse=null;a.accuseWhy=null;a._abstain=false;
         if(a.alien&&a.alive&&!a.downed&&(a!==G.me||G.spectMode)){
           // 异形 AI：整场会议只用一个假口供，避免前后矛盾；玩家异形不参与自动指控
-          const rooms=M.rooms.filter(r=>!used.has(r.id)&&r.id!=='bridge');
-          const r=rooms.length?rooms[Math.floor(Math.random()*rooms.length)]:M.rooms[0];
-          used.add(r.id);
-          const pts=M.points.filter(p=>roomIdAt(p.x,p.y)===r.id);
-          a._lie={room:r.name,roomId:r.id,task:pts.length?pts[Math.floor(Math.random()*pts.length)].label:'配电盘'};
+          /* 假口供要**站得住**（2026-11-05）：优先说「我现在待的这间」——它真的在这，
+             别人也见过它在这，时间线对得上；撑不住时才随口编一间没去过的。
+             以前永远随机挑一间没去过的房间，等于每次会议都在赌没人看见自己，
+             一旦自述进对质就必然穿帮（1000 局里异形被逐 +0.46/局）。 */
+          /* 只有**本夜真的动过手**才需要编口供（2026-11-05）。
+             没杀人的那夜它说真话：_lie=null，alibiOf 回落到它真实所在的舱室。
+             这才是"同类口供一套判据"能成立的前提 —— 判据一样，但**行为分布**不一样：
+             真人没做亏心事时不撒谎，异形也只有作案那夜才需要编。
+             以前是每场会议都编一间没去过的房，等于每次都在赌没人看见自己。 */
+          if(a._killAt>0){
+            const rooms=M.rooms.filter(r=>!used.has(r.id)&&r.id!=='bridge');
+            const here=(a.nRoom&&!used.has(a.nRoom))?M.rooms.find(x=>x.id===a.nRoom):null;
+            const r=(here&&Math.random()<0.65)?here
+              :(rooms.length?rooms[Math.floor(Math.random()*rooms.length)]:M.rooms[0]);
+            used.add(r.id);
+            const pts=M.points.filter(p=>roomIdAt(p.x,p.y)===r.id);
+            a._lie={room:r.name,roomId:r.id,task:pts.length?pts[Math.floor(Math.random()*pts.length)].label:'配电盘'};
+          }else{
+            a._lie=null;
+          }
           /* 只用自己目击推断出的队友（a.mates）做保护，不读取系统队友表；
              未识别的目标仍然可能被指控/投票，保持“同类也会被攻击”的规则。 */
           const allPool=G.agents.filter(x=>x!==a&&x.alive&&!x.downed&&!isMate(a,x.i));
@@ -5315,9 +5407,18 @@
       }
       /* 传闻嫌疑：没有确证的听众只加很少的 heard_frame；
          抓到假口供的听众反过来怀疑说谎者。真目击者（有 known）不受影响。 */
+      const hearers=[];
       for(const w of G.agents){
         if(w===liar||w===tgt||w===sureAcc||!w.alive||w.downed||!w.mind)continue;
         if(bestKnownTarget(w))continue;
+        hearers.push(w);
+      }
+      /* 2026-11-05 二组：传闻证据侧以前也是所有人同一增量（0.26）。
+         现在按「当时几个人在场 / 是否断电 / 附近是否刚出事」各自抽样：
+         一屋子人听同一句话，记住的强度本来就不一样。 */
+      const hbase=witnessCtxMul(liar.x,liar.y,hearers.length);
+      const hjit=function(){return Math.max(0.72,Math.min(1.10,hbase*(0.94+Math.random()*0.12)));};
+      for(const w of hearers){
         if(frame.caught&&frame.caught.i===w.i){
           susAddContradiction(w,liar.i,0.24,'contradiction_lie',frame.caught.e);
         }else{
@@ -5328,11 +5429,11 @@
              0.26 时"三个人被同一套话术打动"就能凑出一次冤案 —— 这正是真人局最常见的误判。
              仍然远低于任何硬证据（saw_knife 0.75），而且有 `known` 的听众根本不进入这一段；
              它**也不会**凑成 almost.foe（传闻被排除在"证据种类"之外）。 */
-          susAdd(w,tgt.i,0.26,'heard_frame',ev);
+          susAdd(w,tgt.i,0.26*hjit(),'heard_frame',ev);
           if(ally){
             const ev2={kind:'heard_frame',x:0,y:0,room:null,conf:0.3,src:'speech',subj:tgt.i,ally:1};
             evPush(w,ev2);
-            susAdd(w,tgt.i,0.08,'heard_frame_ally',ev2);
+            susAdd(w,tgt.i,0.08*hjit(),'heard_frame_ally',ev2);
           }
         }
       }
@@ -5504,6 +5605,20 @@
         for(const a of speakers){
           m.ctx.claims.push({a,room:alibiOf(a).room});
           push(()=>say(a.name,alibiLine(a,m)));
+        }
+        /* ---- 口供对质（2026-11-05 二组）：把 buildMeetCtx 已经判出来的那一对说出口 ----
+           以前只有「伪造别人」的假口供会当场被戳穿，自述位置对不上时只是静默扣分，
+           玩家看不到。这里让戳穿的人与被戳穿的人各说一句；台词全走现有语料池
+           （doubt_room / alien_dodge / defenseClause），不新增模板、不产生新分数。 */
+        const con=m.ctx.contra;
+        if(con&&con.w&&con.a&&con.w!==G.me&&con.a!==G.me&&
+          con.w.alive&&con.a.alive&&!con.a.downed){
+          const tw=SKSanity.alibiTimeWord(con.age);
+          push(()=>say(con.w.name,'我'+tw+'在'+con.seen+'看见'+con.a.name+'了。'+
+            '你说你在'+alibiOf(con.a).room+'？对不上。'));
+          push(()=>say(con.a.name,con.a.alien
+            ?pickLine(con.a,'alien_dodge',0,{u:(m.ctx.victimInfo?m.ctx.victimInfo.name:'那件事'),when:whenWord()})
+            :defenseClause(con.a,m)));
         }
         /* ---- 跨会议口供（F6，2026-11-01）：**只记不判** ----
            真人记得「你上次说你在引擎室」。这里只允许把它说出来，
@@ -5805,13 +5920,16 @@
         }
         const weight={saw_pipe:0.26,saw_red:0.24,saw_knife:0.30,
           saw_sabotage:0.22,saw_bot:0.20,saw_breaker:0.12}[sl.claim.kind]||0.2;
-        for(const w of cands){
-          if(w===t||!w.mind||bestKnownTarget(w))continue;
+        /* 2026-11-05 二组：玩家当众说的证词也按「当时几人听见」抽样，
+           不再是全场同一个增量。 */
+        const hearers=cands.filter(w=>w!==t&&w.mind&&!bestKnownTarget(w));
+        const cbase=witnessCtxMul(t.x,t.y,hearers.length);
+        for(const w of hearers){
           const ev={kind:'heard_claim',claimKind:sl.claim.kind,x:0,y:0,
             room:sl.claim.room||null,conf:0.5,src:'speech',subj:t.i,
             by:(G.me?G.me.i:null)};
           evPush(w,ev);
-          susAdd(w,t.i,weight,'heard_claim',ev);
+          susAdd(w,t.i,weight*Math.max(0.72,Math.min(1.10,cbase*(0.94+Math.random()*0.12))),'heard_claim',ev);
         }
         const follower=cands.find(w=>w!==t&&!w.alien&&w.mind&&w.accuse==null&&
           w.mind.alert>=0.25);
@@ -6682,7 +6800,8 @@
       me.path=null;me.moving=false;
       const dur=sp.item==='ammo'?SUPPLY_AMMO_TIME:SUPPLY_MED_TIME;
       me.doing=dur;me._dur=dur;me._doing=sp.item==='ammo'?'ammo':'med';
-      toast('消耗 1 张物资申请单领取'+(sp.item==='ammo'?'子弹 '+dur+'s':'医疗包 '+dur+'s')+' · 站桩，移动会打断');
+      toast('消耗 1 张物资申请单领取'+(sp.item==='ammo'?'子弹 '+dur+'s':'医疗包 '+dur+'s')+
+        (miniGameOn()?' · 玩通即完成，中途退出要重做':' · 站桩，移动会打断'));
       SND.interact();
       return true;
     }
@@ -6697,7 +6816,8 @@
       me._taskPt=M.points.indexOf(p);
       me.doing=ghost?p.dur*1.6:p.dur; me._dur=me.doing; me._doing='task';
       if(ghost){if(me===G.me&&!G.spectMode)toast('幽灵维修「'+p.label+'」 '+me.doing.toFixed(1)+'s');}
-      else toast('开始维修「'+p.label+'」 '+me.doing+'s · 站桩，移动会打断');
+      else toast('开始维修「'+p.label+'」 '+me.doing+'s'+
+        (miniGameOn()?' · 玩通即完成，中途退出要重做':' · 站桩，移动会打断'));
     }
     function collectInteractions(me){
       const out=[],ghost=!me.alive,ml=me.tasks.slice(me.tIdx);
