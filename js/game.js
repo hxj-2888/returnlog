@@ -957,7 +957,9 @@
       if(!silent)toast('已离开监控台');
     }
     function hear(x,y,kind,str){
-      if(!G||G.over||G.meet||G.camView)return;
+      /* A 批（2026-11-05）：**听觉不受 UI 遮罩影响** —— 只有 suspend 才断。
+         以前这里写死 `G.camView` 直接 return，等于"看监控就聋了"，与三态口径冲突。 */
+      if(!G||attention(G.me)==='suspend')return;
       if(!G.me||!G.me.alive)return;
       const d=Math.hypot(x-G.me.x,y-G.me.y);
       if(d>18)return;
@@ -1580,6 +1582,24 @@
     const HUMAN_DARK_R=SGT.humanDarkR;               /* 人类近身圆视野 */
     const ALIEN_DARK_R=SGT.alienDarkR;               /* 异形近身圆视野（唯一调参点） */
     const AI_SEE_CAP=SGT.aiCapR;                     /* AI 视距上限：只封暗处，亮区见 aiCanSee 第一条规则 */
+    /* ================= 注意力三态（2026-11-05 · A 批前置）=================
+       用户裁定：小游戏替代站桩，**正在做小游戏的人视觉被 UI 遮住**，听觉保留。
+       attention(actor) 是所有「t 时刻看见 X」的前置条件，只有三态：
+         'suspend' 会议 / 结算 / 死亡 / 倒地 / 拘留 —— 不产生任何新感知
+         'ui'      小游戏 / 监控 / 破坏选舱 / 管道选点 —— **视觉归零，听觉保留**
+         'online'  正常
+       口径：它只回答「此刻能不能**看见**」，不回答「听见了什么」，也不持有任何分数。
+       禁止写成第二个 sus：三态是闸门，不是权重。 */
+    function attention(a){
+      if(!a)return 'suspend';
+      if(!a.alive||a.downed||a.detained)return 'suspend';
+      if(!G||G.over||G.meet)return 'suspend';
+      /* 玩家侧的全屏遮罩类交互 */
+      if(a===G.me&&(G.camView||G.inspect||G.sabPick||G.pipePick))return 'ui';
+      /* 站桩动作（B 批会换成小游戏，状态口径不变） */
+      if(a.doing>0)return 'ui';
+      return 'online';
+    }
     function aiCanSee(a,x,y,maxD){
       if(!a)return false;
       /* ---- 亮区整片可见：与玩家 visibleAt **同一条规则**（2026-11-03 用户裁定放开）----
@@ -1655,6 +1675,12 @@
       for(const w of G.agents){
         if(w===actor||!w.alive||w.downed||w.detained)continue;
         if(w.alien)continue;
+        /* A 批（2026-11-05）：正在做小游戏的人视觉被 UI 遮住，不写任何 saw_* 目击。
+           这是「异形可以从背后接近做任务的人」的唯一实现点，别在别处再放一条旁路。 */
+        if(attention(w)!=='online'){
+          if(G.simMode&&G.simStats)G.simStats.uiWitnessSkip=(G.simStats.uiWitnessSkip||0)+1;
+          continue;
+        }
         const dw=Math.hypot(w.x-x,w.y-y);
         if(dw>rad)continue;
         if(!aiCanSee(w,x,y,rad))continue;
@@ -2861,6 +2887,8 @@
       const R=Math.max(rad||0,sightRangeAt(x,y));
       for(const w of G.agents){
         if(w===a||w===except||!w.alive||w.downed||w.detained)continue;
+        /* A 批（2026-11-05）：做小游戏 / 开遮罩的人看不见，不计入观众表 */
+        if(attention(w)!=='online')continue;
         if(Math.hypot(w.x-x,w.y-y)>R)continue;
         if(!aiCanSee(w,x,y,R))continue;
         out.push(w);
@@ -2894,6 +2922,8 @@
       let n=0,weight=0,idle=0,sus=0,inf=0;
       for(const w of G.agents){
         if(w===a||!w.alive||w.downed||w.detained||isMate(a,w.i))continue;
+        /* A 批（2026-11-05）：做小游戏的人看不见，不算观众、也不算"闲着看我" */
+        if(attention(w)!=='online')continue;
         const d=Math.hypot(w.x-a.x,w.y-a.y);
         /* 关键是"**他看得见我**"，不是"我看得见他"：信誉兑现走的是目击者的视野
            （credBroadcast 用 aiCanSee(w,x,y)），两处口径必须一致 ——
@@ -9799,6 +9829,8 @@
          返回 {score, conf, whyKind, cues}；cues 里每条都带 alt（同一线索的另一种解释）。 */
       envEstimate:(w,i)=>envEstimate(G.agents[w],i),
       audSusEstimate:(w,other)=>audSusEstimate(G.agents[w],G.agents[other]),
+      /* 注意力三态：A 批（2026-11-05）所有「看见 X」的前置条件 */
+      attention:w=>attention(G.agents[w]),
       pubAccusers:i=>pubAccusers(i).slice(),
       publicHeat:i=>publicHeat(i),
       reliaOf:(w,i)=>reliaOf(G.agents[w],i),
