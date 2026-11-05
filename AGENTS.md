@@ -10,7 +10,7 @@
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
 > **权威口径（2026-11-04 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-03T11:50:27Z ·
 > seed 20261030 · 1000 局 · 人类 **57.6% / 异形 42.4% / 超时 0**，Wilson 54.51~60.63）。§六 是它的摘录；
-> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **720 通过 / 0 失败**（2026-11-05 复跑）。
+> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **728 通过 / 0 失败**（2026-11-05 复跑）。
 > 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
 ## 一、红线（违反即回退）
@@ -19,7 +19,7 @@
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
    禁止在别处动态注入 `<script>`。当前顺序（与 `index.html` 一致）：
-   `config/version → data/map → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → game → main → ui/home → ui/replay`。
+   `config/version → data/map → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
@@ -149,6 +149,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `index.html` | 入口 | 开始页 + 唯一的脚本加载清单；主页 / 设置 / **复盘页 `#replay`** 都是页面壳（游戏内 `#v3-root` 覆盖层仍只在 `templates.js`） |
 | `js/config/version.js` | 配置 | **版本单一真源**（返航录V3）与仓库地址 |
 | `js/data/map.js` | 数据 | 地图静态数据（房间/走廊/家具/任务点/管道/设施/墙体） |
+| `js/data/names.js` | 数据 | 15 个默认席位名 + 备选名字池（`SKNames`），主页改名与对局建号的唯一真源 |
 | `js/ui/templates.js` | 视图数据 | `#v3-root` 的 CSS 与 HTML 模板 |
 | `js/ui/home.js` | 视图 | 主页：用 `SKMapData` 生成整船 SVG、手电遮罩、身份锚亮（只读地图，不含业务动作） |
 | `js/ui/replay.js` | 视图 | 对局复盘：事件时间轴 + 0.5 秒位置帧播放 + 回放 JSON 导出/载入（只读回放数据） |
@@ -162,7 +163,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
-| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（712 条；2026-11-04 复跑 712 通过 / 0 失败） |
+| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（728 条；2026-11-05 复跑 728 通过 / 0 失败） |
 | `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现；报告含**配置快照 / 机制触达率 / 分桶胜率 / 结束原因×胜者交叉表**） |
 | `js/data/lines.js` | 数据 | 会议台词语料库（58 类 × hot/cold + 组合式模板 + 证据短语子池 WHY），唯一台词真源 |
 | `tools/lines-audit.cjs` | 门禁 | 语料体检：禁词 / 长度 / 槽位 / 骨架撞车 + 复现 `pickLine` 抽样口径模拟十局疲劳（`--strict` 有 FAIL 退出码 1） |
@@ -806,7 +807,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 ## 六、当前基线（返航录V3）
 
-- 门禁：`node tools/test-v3.cjs` —— **720 条断言，720 通过 / 0 失败**（2026-11-05 复跑，Edge headless，依赖已收回本仓）。
+- 门禁：`node tools/test-v3.cjs` —— **728 条断言，728 通过 / 0 失败**（2026-11-05 复跑，Edge headless，依赖已收回本仓）。
   语料体检：`node tools/lines-audit.cjs --strict` —— **1400 通过 / 0 失败**（退出码 0）。
   **当前数值基线 = F 轮（亮区整片可见放开之后）**：人类 **57.6% / 异形 42.4% / 超时 0**
   （95% Wilson 54.51~60.63），夜 5.682、进度 34.245、刀 10.04、会议 11.35、破坏 10.101；

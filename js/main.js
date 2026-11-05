@@ -141,7 +141,10 @@
 
   function startRole(role) {
     playBgm();
-    if (window.SKV3) window.SKV3.start(role);
+    /* 名单由开始页收集（玩家名 + 14 个 AI 名）；对局侧会再兜一次去重补位。
+       ?test 门禁页会忽略这份名单，保证断言里的默认名字稳定。 */
+    var roster = (window.SKHome && window.SKHome.roster) ? window.SKHome.roster() : null;
+    if (window.SKV3) window.SKV3.start(role, roster);
     setTimeout(function () { apply(); syncSettings(); }, 0);
   }
 
