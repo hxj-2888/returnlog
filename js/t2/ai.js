@@ -32,13 +32,64 @@
 
   function topSus(a, min, forNight) {
     if (!a || !a.mind) return null;
-    let best = null, bi = null;
+    let best = null, bi = null, bestEnv = -1;
+    /* 2026-11-05 G1：envEstimate 正式接进主推理链。
+       只在**嫌疑分几乎打平**时用它破平局（差 ≤ MIND.envTieEps）：
+       环境读数（自己记着的目击 / 当众指认 / 看得见的红光或拖尸）不另立一套权重，
+       因此不会变成「按环境分数定罪」，也仍然不读任何人的私有 mind。 */
+    const eps = (SK.MIND && SK.MIND.envTieEps) || 0.06;
     for (const k in a.mind.sus) {
       const i = +k, s = susOf(a, i, forNight);
       if (s < (min == null ? 0.5 : min)) continue;
-      if (best == null || s > best) { best = s; bi = i; }
+      const e = envEstimate(a, i);
+      const env = e.score * e.conf;
+      if (best == null || s > best + eps || (Math.abs(s - best) <= eps && env > bestEnv)) {
+        best = s; bi = i; bestEnv = env;
+      }
     }
-    return bi == null ? null : { i: bi, score: best, why: (a.mind.why[bi] || []).slice(-4) };
+    return bi == null ? null : { i: bi, score: best, env: +bestEnv.toFixed(3),
+      why: (a.mind.why[bi] || []).slice(-4) };
+  }
+
+  /* 2026-11-05 G3 · **行为序列**：单个可疑动作可能看错，
+     同一人先后出现两种不同可疑动作才是「一串行为」。只认自己记下的观测，
+     且要求两次间隔 ≤ MIND.seqWindowSec；返回一条带反解释的弱线索。 */
+  function sequenceCue(a, i) {
+    const mem = (a && a.mind && a.mind.mem) || [];
+    const HOSTILE = { saw_red: 1, saw_drag_away: 1, saw_body_moved: 1, saw_avoid: 1 };
+    const win = (SK.MIND && SK.MIND.seqWindowSec) || 25;
+    let first = null;
+    const kinds = {};
+    for (let k = 0; k < mem.length; k++) {
+      const e = mem[k];
+      if (!e || e.subj !== i || !HOSTILE[String(e.kind)]) continue;
+      if (first && (e.t || 0) - (first.t || 0) > win) { first = e; kinds[e.kind] = 1; continue; }
+      if (!first) first = e;
+      kinds[e.kind] = 1;
+      if (Object.keys(kinds).length >= 2) {
+        return { kind: 'sequence', w: 0.30,
+          why: '先后看见他做过两种不一样的可疑动作',
+          alt: '两件事也可能只是恰好发生在同一个人附近' };
+      }
+    }
+    return null;
+  }
+
+  /* 2026-11-05 G3 · **证言间关系**：同一目标既被指控又被背书时，
+     公开声势不该照样滚雪球。只统计「已经说出口」的陈述，按发言人去重；
+     同一人既指控又背书视为自相矛盾，两边都不计。返回压声系数 damp ∈ [0.4, 1]。 */
+  function statementRelation(testimony, vouches, tgt) {
+    const A = new Set(), V = new Set();
+    for (const it of testimony || []) {
+      if (!it || !it.said || it.tgt !== tgt) continue;
+      if (it.reason === 'heard_accuse' || it.reason === 'empty_accuse') A.add(it.by);
+    }
+    for (const v of vouches || []) if (v && v.tgt === tgt) V.add(v.by);
+    let both = 0;
+    for (const by of Array.from(A)) if (V.has(by)) { A.delete(by); V.delete(by); both++; }
+    const nA = A.size, nV = V.size;
+    return { accusers: nA, vouchers: nV, selfConflict: both,
+      damp: (nA && nV) ? Math.max(0.4, nA / (nA + nV)) : 1 };
   }
 
   /* 案发口径的时间窗：死亡（或倒地）时刻 ±8 秒；没有尸体时退回默认回看窗口 */
@@ -493,6 +544,9 @@
       cues.push({ kind: 'public', w: Math.min(0.60, 0.22 + 0.12 * acc.length),
         why: '有 ' + acc.length + ' 个人当众指认他', alt: '公开指认也可能是跟风或构陷' });
     }
+    /* ③b 行为序列：同一种线索反复出现只是重复；两种不同可疑动作连着出现才是序列 */
+    const seq = sequenceCue(a, i);
+    if (seq) cues.push(seq);
     /* ④ 世界状态：红光 / 拖尸是看得见的，但都不指向具体是谁 */
     if (t.redT > 0) {
       cues.push({ kind: 'red', w: 0.55, why: '他身上还带着刚出刀的红光',
@@ -575,6 +629,8 @@
     pubAccusers: pubAccusers,
     pubSolidAccusers: pubSolidAccusers,
     publicHeat: publicHeat,
-    publicInfluence: publicInfluence
+    publicInfluence: publicInfluence,
+    sequenceCue: sequenceCue,
+    statementRelation: statementRelation
   });
 })(typeof window !== 'undefined' ? window : globalThis);
