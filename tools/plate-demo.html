@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>样板 · 断线重接（图内要素）</title>
+<style>
+  :root{--ink:#DDE3EC;--dim:#8FA6C0;--amber:#F0C674;--teal:#00E5B0;--line:#2A3240}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#05080D;color:var(--ink);
+    font-family:system-ui,"Microsoft YaHei",sans-serif;overflow:hidden}
+  .stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  .plate{position:relative;height:min(92vh,92vw);aspect-ratio:1/1;
+    border:1px solid var(--line);border-radius:10px;overflow:hidden;
+    box-shadow:0 24px 70px rgba(0,0,0,.65)}
+  .plate svg{display:block;width:100%;height:100%}
+  .hud{position:fixed;left:22px;top:18px;pointer-events:none}
+  .hud h1{margin:0;font-size:15px;font-weight:600;color:var(--amber);letter-spacing:.5px}
+  .hud p{margin:6px 0 0;font-size:12px;color:var(--dim)}
+  .count{position:fixed;right:24px;top:18px;font-size:13px;color:var(--dim);
+    font-variant-numeric:tabular-nums}
+  .count b{color:var(--teal);font-weight:600}
+  .tip{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    font-size:12.5px;color:var(--dim);white-space:nowrap}
+  .tip b{color:var(--ink);font-weight:500}
+  .badge{position:fixed;right:24px;bottom:24px;font-size:11px;color:#5C6678}
+  @keyframes ember{0%,100%{opacity:.5}50%{opacity:1}}
+  .ember{animation:ember 1.15s ease-in-out infinite}
+  .cut-rect{transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="plate">
+    <svg id="svg" viewBox="0 0 768 768" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <mask id="cutMask">
+          <rect x="0" y="0" width="768" height="768" fill="#fff"/>
+          <g id="cuts"></g>
+        </mask>
+        <radialGradient id="emberGrad">
+          <stop offset="0%" stop-color="#FFC24A" stop-opacity=".95"/>
+          <stop offset="45%" stop-color="#E0574F" stop-opacity=".55"/>
+          <stop offset="100%" stop-color="#E0574F" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 板就是那张千问生成的图：断口靠遮罩挖掉一块，不新增任何一根线 -->
+      <image href="../assets/minigame/panel-fix.png" x="0" y="0" width="768" height="768"
+             mask="url(#cutMask)"/>
+
+      <g id="embers"></g>
+      <g id="pulses"></g>
+    </svg>
+  </div>
+</div>
+
+<div class="hud">
+  <h1>样板 · 断线重接</h1>
+  <p>线是图里的像素；断口 = 把原图中段挖掉 16px</p>
+</div>
+<div class="count" id="count"><b>0</b> / 3</div>
+<div class="tip" id="tip">点断口的一端 → 再点另一端</div>
+<div class="badge">plate: panel-fix.png · 768²</div>
+
+<script>
+/* 标注：路径 + 断口，坐标就是图片像素（0~768）。
+   以后每张板配一份 JSON，代码只读不猜；这三个点是颜色掩膜 + 人工确认出来的。 */
+const WIRES = [
+  { id:'w-blue', color:'#4FA3D8', width:13,
+    path:'M446,483 C430,495 415,505 405,517 C400,530 410,540 415,544 C421,553 405,561 389,566',
+    cut:{x:405,y:517,angle:153} },
+  { id:'w-red', color:'#D8483C', width:13,
+    path:'M488,478 C486,490 478,498 467,500 C456,506 448,512 441,522',
+    cut:{x:467,y:500,angle:152} },
+  { id:'w-amber', color:'#D9A227', width:9,
+    path:'M358,588 C370,589 380,588 384,588 C393,586 400,581 406,576',
+    cut:{x:384,y:588,angle:-8} },
+];
+
+const svg = document.getElementById('svg');
+const cutsG = document.getElementById('cuts');
+const embers = document.getElementById('embers');
+const pulses = document.getElementById('pulses');
+const tipEl = document.getElementById('tip');
+const countEl = document.getElementById('count');
+
+const state = WIRES.map(() => ({ held:false, done:false }));
+let heldAny = -1;
+
+/* 生成遮罩挖孔：沿线的切线方向转一下，窄边对齐线，宽边横切 */
+function buildCuts(){
+  cutsG.innerHTML = '';
+  WIRES.forEach((w, i) => {
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    const W = 16, H = 34;
+    r.setAttribute('x', w.cut.x - W / 2);
+    r.setAttribute('y', w.cut.y - H / 2);
+    r.setAttribute('width', W);
+    r.setAttribute('height', H);
+    r.setAttribute('fill', '#000');
+    r.setAttribute('class', 'cut-rect');
+    r.dataset.angle = w.cut.angle;
+    r.style.transformOrigin = 'center';
+    r.style.transformBox = 'fill-box';
+    r.style.transform = `rotate(${w.cut.angle}deg)`;
+    cutsG.appendChild(r);
+  });
+}
+
+function emberPoints(w){
+  const a = w.cut.angle * Math.PI / 180;
+  const dx = Math.cos(a), dy = Math.sin(a), d = 10;
+  return [[w.cut.x - dx*d, w.cut.y - dy*d], [w.cut.x + dx*d, w.cut.y + dy*d]];
+}
+
+function buildEmbers(){
+  embers.innerHTML = '';
+  WIRES.forEach((w, i) => {
+    if (state[i].done) return;
+    const [p0, p1] = emberPoints(w);
+    [p0, p1].forEach((p, k) => {
+      const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]);
+      c.setAttribute('r', 12);
+      c.setAttribute('fill', 'url(#emberGrad)');
+      c.setAttribute('class', 'ember');
+      c.style.cursor = 'pointer'; c.style.pointerEvents = 'auto';
+      c.addEventListener('click', (e) => { e.stopPropagation(); onEnd(i); });
+      embers.appendChild(c);
+    });
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    hit.setAttribute('cx', w.cut.x); hit.setAttribute('cy', w.cut.y);
+    hit.setAttribute('r', 24); hit.setAttribute('fill', 'transparent');
+    hit.style.cursor = 'pointer'; hit.style.pointerEvents = 'auto';
+    hit.addEventListener('click', (e) => { e.stopPropagation(); onEnd(i); });
+    embers.appendChild(hit);
+  });
+}
+
+function onEnd(i){
+  if (state[i].done) return;
+  if (state[i].held){ repair(i); return; }
+  if (heldAny >= 0 && heldAny !== i){ tipEl.textContent = '先接完这一根'; return; }
+  state[i].held = true; heldAny = i;
+  tipEl.textContent = '已捏住线头 · 点另一端接上';
+}
+
+function repair(i){
+  const w = WIRES[i];
+  const rect = cutsG.children[i];
+  state[i].done = true; state[i].held = false; heldAny = -1;
+
+  /* 合拢：把挖孔沿切线压成 0，原图像素自然露出来 */
+  rect.style.transform = `rotate(${w.cut.angle}deg) scaleX(0)`;
+
+  /* 电流脉冲：一条临时高亮沿同一路径跑过去（特效，不是线本身） */
+  const pulse = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  pulse.setAttribute('d', w.path);
+  pulse.setAttribute('fill', 'none');
+  pulse.setAttribute('stroke', '#BFF7E6');
+  pulse.setAttribute('stroke-width', 3.2);
+  pulse.setAttribute('stroke-linecap', 'round');
+  pulse.style.filter = 'drop-shadow(0 0 6px #7DFFE0)';
+  pulse.style.strokeDasharray = '32 480';
+  pulse.style.strokeDashoffset = '480';
+  pulses.appendChild(pulse);
+  pulse.animate(
+    [{ strokeDashoffset: 480, opacity: .95 }, { strokeDashoffset: -40, opacity: 0 }],
+    { duration: 600, easing: 'cubic-bezier(.2,.7,.2,1)' }
+  ).onfinish = () => pulse.remove();
+
+  setTimeout(buildEmbers, 50);
+  const done = state.filter(s => s.done).length;
+  countEl.innerHTML = '<b>' + done + '</b> / 3';
+  tipEl.textContent = done === 3 ? '全部接通 · 这块板就做完了' : '接上了 · 继续下一根';
+}
+
+buildCuts();
+buildEmbers();
+</script>
+</body>
+</html>
