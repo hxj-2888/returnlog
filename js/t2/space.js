@@ -29,8 +29,16 @@
   };
 
   /* ---- 角色 / 任务数值 ---- */
+  /* 幽灵维修额度（2026-11-05 用户裁定 2 → 1 分）。
+     注意：这只限制**幽灵能贡献多少分**；任务点本身的分值 ghostTaskPts()
+     （hard=2 / normal=1）对所有人生效，不随之改变。
+     抽成常量是为了让 game.js 的判定、HUD 文案、门禁探针共用一个真源。 */
+  const GHOST_TASK_CAP = 1;
   function ghostTaskPts(p){return p&&p.kind==='hard'?2:1;}
-  function ghostTaskAllowed(a,p){return !a||!a.ghost||((a.ghostPts||0)+ghostTaskPts(p)<=2);}
+  function ghostTaskCap(){return GHOST_TASK_CAP;}
+  function ghostTaskAllowed(a,p){
+    return !a||!a.ghost||((a.ghostPts||0)+ghostTaskPts(p)<=GHOST_TASK_CAP);
+  }
   function botDead(kind){
     const G=global.SKV3._t.G();
     return kind==='secbot'?!!G.secbotDead:!!G.medbotDead;
@@ -95,6 +103,7 @@
     /* 第一批：运行常量（数值与拆分前 game.js 完全一致） */
     MOVE_SPEED: 4.2,
     DRAG_SPEED: 2.7,
+    GHOST_TASK_CAP: GHOST_TASK_CAP,
     SPECT_SPEED: 9,
     DOOR_OPEN_R: 3.0,
     DOOR_CLOSE_R: 3.6,
@@ -105,6 +114,7 @@
     ROW: ROW, PIPE_TINT: PIPE_TINT,
     /* 第四批：几何 / 数值纯函数 */
     ghostTaskPts: ghostTaskPts, ghostTaskAllowed: ghostTaskAllowed,
+    ghostTaskCap: ghostTaskCap,
     botDead: botDead, botHp: botHp,
     corridorLampPos: corridorLampPos, corrJoinsRoom: corrJoinsRoom,
     ready: ready, rowForAng: rowForAng, dirAng: dirAng, workStyle: workStyle,
