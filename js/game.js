@@ -44,7 +44,11 @@
         sayStreakOK=SKT2Decision.sayStreakOK;
   const evNow=SKT2AI.evNow, keepSusNight=SKT2AI.keepSusNight, keepCredWhy=SKT2AI.keepCredWhy, keepRelia=SKT2AI.keepRelia, credOf=SKT2AI.credOf, mindReset=SKT2AI.mindReset, evPush=SKT2AI.evPush, susAdd=SKT2AI.susAdd,
         evalAlmost=SKT2AI.evalAlmost, susCut=SKT2AI.susCut, checkAlibi=SKT2AI.checkAlibi, claimWindow=SKT2AI.claimWindow, susAddContradiction=SKT2AI.susAddContradiction, oldQuantifierWouldFire=SKT2AI.oldQuantifierWouldFire, knownOverride=SKT2AI.knownOverride, liveTarget=SKT2AI.liveTarget,
-        bestSusTarget=SKT2AI.bestSusTarget, almostFoeOf=SKT2AI.almostFoeOf, almostFriendOf=SKT2AI.almostFriendOf, bestAlmostTarget=SKT2AI.bestAlmostTarget, bestKnownTarget=SKT2AI.bestKnownTarget, evidenceReason=SKT2AI.evidenceReason, affordableAlmostShot=SKT2AI.affordableAlmostShot;
+        bestSusTarget=SKT2AI.bestSusTarget, almostFoeOf=SKT2AI.almostFoeOf, almostFriendOf=SKT2AI.almostFriendOf, bestAlmostTarget=SKT2AI.bestAlmostTarget, bestKnownTarget=SKT2AI.bestKnownTarget, evidenceReason=SKT2AI.evidenceReason, affordableAlmostShot=SKT2AI.affordableAlmostShot,
+        /* 感知入口（2026-11-05 · 一组读心清零）：只读自己的记忆 / 世界状态 / 公开事件 */
+        envEstimate=SKT2AI.envEstimate, audSusEstimate=SKT2AI.audSusEstimate,
+        pubAccusers=SKT2AI.pubAccusers, pubSolidAccusers=SKT2AI.pubSolidAccusers,
+        publicHeat=SKT2AI.publicHeat, publicInfluence=SKT2AI.publicInfluence;
 
   const CSS = global.SKUITemplates.CSS;
   const HTML = global.SKUITemplates.HTML;
@@ -1663,6 +1667,8 @@
           victim:victim?victim.i:null,conf:near?0.95:0.6,src:'sight'};
         if(!near)ev.far=1;
         /* 如果目击者自己已经确证被害者是异形，这枪是处决，不是凶手证据 */
+        /* 边界（2026-11-05）：这里问的是「**这个目击者自己**会不会觉得这枪是处决」，
+           属于引擎代他推演他自己的信念，不是某个 AI 去读别人的脑子 —— 仍读 w.mind.known。 */
         const justified=kind==='shot'&&victim&&w.mind.known&&w.mind.known[victim.i];
         if(justified)ev.justified=1;
         evPush(w,ev);
@@ -2038,8 +2044,10 @@
         if(!tg&&!a.ghost){
           let hater=null,hs=0.45;
           for(const w of G.agents){
-            if(w===a||!w.alive||w.downed||!w.mind)continue;
-            const s=(w.mind.sus&&w.mind.sus[a.i])||0;
+            if(w===a||!w.alive||w.downed)continue;
+            /* 读心清零（2026-11-05）：不再读 w.mind.sus[a.i]。
+               只用「他当众指认过我 / 他刚看见我在现场 / 我还带着红光」来估。 */
+            const s=audSusEstimate(a,w).score;
             if(s>hs){hs=s;hater=w;}
           }
           if(hater){
@@ -2266,20 +2274,13 @@
       let hot=0,clean=0,selfSus=0;
       for(const w of G.agents){
         if(w===a||!w.alive||w.downed||w.alien)continue;
-        let mx=0;
-        for(const o of G.agents){
-          if(!o.mind||!o.mind.sus)continue;
-          const s=o.mind.sus[w.i]||0;
-          if(s>mx)mx=s;
-        }
+        /* 读心清零（2026-11-05）：原来扫所有人 mind.sus 取最大值＝读心。
+           现在只看**公开指认**：有几个人当众点过他。 */
+        const mx=publicHeat(w.i);
         if(mx>=F.hotSus)hot++; else if(mx<=0.12)clean++;
       }
-      /* ② 自己的牵连风险：别人越怀疑我，我出现在案发现场越危险 */
-      for(const o of G.agents){
-        if(!o.mind||!o.mind.sus)continue;
-        const s=o.mind.sus[a.i]||0;
-        if(s>selfSus)selfSus=s;
-      }
+      /* ② 自己的牵连风险：当众指认我的人越多，我出现在案发现场越危险 */
+      selfSus=publicHeat(a.i);
       /* ③ 暴露风险：旁边有非队友活人看着时，报告等于把自己放到现场 */
       const wit=watchersAt(a,v.x,v.y,7,a.i).filter(w=>!isMate(a,w.i)).length;
       const risk=wit>=2?F.riskWatch2:(wit===1?F.riskWatch1:1);
@@ -2900,8 +2901,10 @@
         if(d>=rad||!aiCanSee(w,a.x,a.y,rad))continue;
         n++;
         let v=1;
-        if(susOf(w,a.i,true)>=D.susMin){v+=D.audSus;sus++;}
-        if((w.trait&&w.trait.soc>=D.socMin)||G.leader===w.i){v+=D.audInf;inf++;}
+        /* 读心清零（2026-11-05）：不再读 w 的 sus / 性格轴。
+           改用「a 自己估的 w 对我的怀疑」与「公开影响力（谁的话有人跟）」。 */
+        if(audSusEstimate(a,w).score>=D.susMin){v+=D.audSus;sus++;}
+        if(G.leader===w.i||publicInfluence(w)>=0.34){v+=D.audInf;inf++;}
         if(!(w.doing>0))idle++;
         weight+=v;
       }
@@ -4775,7 +4778,8 @@
             const relia=SKSanity.reliaMul(reliaOf(w,a.i));
             const wgt=(solid?0.020:0.006)*SKSanity.credTestimony(trust)*dirty*coMul*relia;
             const ev={kind:'heard_accuse',x:0,y:0,
-              room:a.accuseWhy?a.accuseWhy.room:null,conf:0.6,src:'speech',subj:a.accuse};
+              room:a.accuseWhy?a.accuseWhy.room:null,conf:0.6,src:'speech',subj:a.accuse,
+              by:a.i};
             susAdd(w,a.accuse,wgt,'heard_accuse',ev);
           }
         }
@@ -5196,7 +5200,7 @@
       const frame={by:liar.i,target:tgt.i,kind:kind,room:room,ownRoom:own.room,
         sureKind:sureKind,text:rebut,reaffirm:null,response:null,caught:null,
         ally:ally?ally.i:null,allyText:null};
-      if(ally&&!(ally.mind&&ally.mind.known&&ally.mind.known[liar.i])){
+      if(ally&&ally.accuse!==liar.i){
         /* 同上：确证过说谎者的人不会反过来替他背书 */
         frame.allyText='我'+whenWord()+'在'+alibiOf(ally).room+'，我也看见了：'+tgt.name+
           (kind==='saw_pipe'?'钻进了管道':'身上带着刚出刀的红光')+'。'+liar.name+'没撒谎。';
@@ -5242,7 +5246,7 @@
         if(frame.caught&&frame.caught.i===w.i){
           susAddContradiction(w,liar.i,0.24,'contradiction_lie',frame.caught.e);
         }else{
-          const ev={kind:'heard_frame',x:0,y:0,room:null,conf:0.32,src:'speech',subj:tgt.i};
+          const ev={kind:'heard_frame',x:0,y:0,room:null,conf:0.32,src:'speech',subj:tgt.i,by:liar.i};
           evPush(w,ev);
           /* 0.14 → 0.18 → 0.26（2026-11-02）：构陷要能真的带出票。
              实测 0.18 还不足以把被构陷者推过指控门槛（0.50），异形的"自信表演"基本空转；
@@ -5701,7 +5705,9 @@
         m.ctx.playerAccuse=t.i;
         const kindName={saw_pipe:'钻管道',saw_red:'身上带着红光',saw_knife:'出刀',
           saw_sabotage:'破坏设备',saw_bot:'停摆机器人',saw_breaker:'拉闸'}[sl.claim.kind]||'动手';
-        const knownW=cands.find(w=>w!==t&&!w.alien&&w.mind&&w.mind.known&&w.mind.known[t.i]);
+        /* 读心清零（2026-11-05）：挑「当众硬指认过 t 的人」，不再翻 w.mind.known。 */
+        const solidAcc=pubSolidAccusers(t.i);
+        const knownW=cands.find(w=>w!==t&&!w.alien&&solidAcc.indexOf(w.i)>=0);
         /* 同一个量词错误（2026-11-01 一并修）：旧写法取第一条不匹配的记录，
            就可能用 30 秒前的旧位置否定玩家现在提供的证据。 */
         let caught=null;
@@ -5727,7 +5733,8 @@
         for(const w of cands){
           if(w===t||!w.mind||bestKnownTarget(w))continue;
           const ev={kind:'heard_claim',claimKind:sl.claim.kind,x:0,y:0,
-            room:sl.claim.room||null,conf:0.5,src:'speech',subj:t.i,by:0};
+            room:sl.claim.room||null,conf:0.5,src:'speech',subj:t.i,
+            by:(G.me?G.me.i:null)};
           evPush(w,ev);
           susAdd(w,t.i,weight,'heard_claim',ev);
         }
@@ -5739,7 +5746,7 @@
             pickLine(follower,'follow_accuse',0,{t:t.name,u:G.me.name,when:whenWord()})));
         }
         if(knownW){
-          const k=knownW.mind.known[t.i], rm=k.room?roomNameById(k.room):'现场';
+          const k=knownW.accuseWhy, rm=evRoomName(k);
           const act=k.kind==='saw_pipe'?'钻管道':(k.kind==='saw_knife'?'出刀':
             (k.kind==='saw_red'?'身上带着红光':'破坏了设备'));
           meetLater(m,600+Math.random()*400,()=>say(knownW.name,
@@ -5755,8 +5762,9 @@
         const t=G.agents[sl.support];
         if(!t||!t.alive||t.downed)return;
         m.ctx.playerSupport=t.i;
-        const skeptic=cands.find(w=>w!==t&&!w.alien&&w.mind&&
-          ((w.mind.sus[t.i])||0)>=0.3);
+        /* 读心清零（2026-11-05）：谁最可能追问，由**他自己**从可见线索估出来的分数决定，
+           不再读他的私有 sus。 */
+        const skeptic=cands.find(w=>w!==t&&!w.alien&&w.alive&&envEstimate(w,t.i).score>=0.3);
         if(skeptic){
           meetLater(m,600+Math.random()*400,()=>say(skeptic.name,
             pickLine(skeptic,'skeptic_ask',0,{u:G.me.name,t:t.name,
@@ -5772,10 +5780,11 @@
       if(sl.accuse!=null){
         const t=G.agents[sl.accuse];
         if(!t||!t.alive||t.downed)return;
-        const sameKnown=cands.find(w=>w!==t&&!w.alien&&w.mind&&w.mind.known&&w.mind.known[t.i]);
+        const solidSame=pubSolidAccusers(t.i);
+        const sameKnown=cands.find(w=>w!==t&&!w.alien&&solidSame.indexOf(w.i)>=0);
         if(sameKnown){
-          const k=sameKnown.mind.known[t.i];
-          const rm=k.room?roomNameById(k.room):'现场';
+          const k=sameKnown.accuseWhy;
+          const rm=evRoomName(k);
           const act=k.kind==='saw_pipe'?'钻了管道':(k.kind==='saw_knife'?'出刀':
             (k.kind==='saw_red'?'身上带着刚出刀的红光':'破坏了设备'));
           meetLater(m,600+Math.random()*500,()=>say(sameKnown.name,
@@ -5785,7 +5794,7 @@
         /* 辩护走语料池（2026-11-01）：按性格选 hot/cold，房间名由 alibiOf 注入 */
         meetLater(m,650+Math.random()*450,()=>say(t.name,
           flavor(t,'defend',{t:G.me.name,r:alibiOf(t).room,k:alibiOf(t).task||'任务'})));
-        const bw=cands.find(w=>w!==t&&!w.alien&&((w.mind&&w.mind.sus[t.i])||0)>=0.4);
+        const bw=cands.find(w=>w!==t&&!w.alien&&w.alive&&envEstimate(w,t.i).score>=0.4);
         if(bw)meetLater(m,1500,()=>say(bw.name,flavor(bw,'call',{t:t.name})));
         return;
       }
@@ -5826,7 +5835,7 @@
 
       /* 5) 玩家否认：有人会接受，有人会追问 */
       if(sl.deny){
-        const press=cands.find(w=>w.alien||((w.mind&&w.mind.sus[0])||0)>=0.3);
+        const press=cands.find(w=>w.alien||(G.me&&envEstimate(w,G.me.i).score>=0.3));
         if(press){
           const where=vi?vi.room:'案发那会儿';
           meetLater(m,600+Math.random()*500,()=>say(press.name,pickLine(press,
@@ -9786,6 +9795,12 @@
       checkAlibi:(w,subj,claim,t0,t1,tRef)=>checkAlibi(w==null?null:G.agents[w],subj,claim,t0,t1,tRef),
       /* 推理引擎规范化（2026-11-01）：跨夜嫌疑 / 证言可信度 / 准-确证 / 熵 */
       susOf:(w,i,forNight)=>susOf(G.agents[w],i,forNight),
+      /* 感知入口探针（2026-11-05 · 一组读心清零）：只读自己的记忆 / 世界状态 / 公开事件。
+         返回 {score, conf, whyKind, cues}；cues 里每条都带 alt（同一线索的另一种解释）。 */
+      envEstimate:(w,i)=>envEstimate(G.agents[w],i),
+      audSusEstimate:(w,other)=>audSusEstimate(G.agents[w],G.agents[other]),
+      pubAccusers:i=>pubAccusers(i).slice(),
+      publicHeat:i=>publicHeat(i),
       reliaOf:(w,i)=>reliaOf(G.agents[w],i),
       almostOf:i=>{const a=G.agents[i];return a&&a.mind?
         JSON.parse(JSON.stringify(a.mind.almost||{foe:{},friend:{}})):null;},

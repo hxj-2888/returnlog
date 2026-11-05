@@ -4417,7 +4417,12 @@ function section(t) { console.log('\n== ' + t); }
     const old = Math.random; Math.random = () => 0;   /* 站桩时长钉在区间下限，分数可复现 */
     const d0 = t.disguise(k.i);                        /* 观众 = 一个路人 */
     t.healSus(w.i, k.i, 0.9);
-    const d1 = t.disguise(k.i);                        /* 观众 = 已经怀疑我的人 */
+    /* 2026-11-05（一组读心清零）：旧夹具只往 w 的**私有 sus** 里灌 0.9，
+       等于让异形读别人的脑子。新语义下「他已经怀疑我」只有**当众说出口**才可被知道，
+       所以补一条公开指认；私有 sus 保留，w 自己的判断照旧成立。
+       断言的含义不变（演给已怀疑我的人更值），变的只是可被观察的通道。 */
+    g.agents[w.i].accuse = k.i;
+    const d1 = t.disguise(k.i);                        /* 观众 = 已经当众指认我的人 */
     k.redT = 3;
     const d2 = t.disguise(k.i);                        /* 刚出刀、身上还热 */
     k.redT = 0;
@@ -4469,7 +4474,7 @@ function section(t) { console.log('\n== ' + t); }
       '（aud=' + DIS.d0.aud + ' sc=' + DIS.d0.sc + ' ≥ minScore=' + DIS.d0.minScore + '）');
     ok(DIS.d1.weight > DIS.d0.weight && DIS.d1.sc > DIS.d0.sc &&
       DIS.d1.susAud === DIS.d0.susAud + 1,
-      '演给"已经怀疑我的人"比演给路人更值：观众加权 ' + DIS.d0.weight + ' → ' +
+      '演给"已经当众指认我的人"比演给路人更值：观众加权 ' + DIS.d0.weight + ' → ' +
       DIS.d1.weight + '，收益分 ' + DIS.d0.sc + ' → ' + DIS.d1.sc);
     ok(DIS.d2.risk > DIS.d1.risk && DIS.d2.sc < DIS.d1.sc,
       '刚出刀身上还热 → 识破风险 ' + DIS.d1.risk + ' → ' + DIS.d2.risk +
