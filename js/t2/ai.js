@@ -396,6 +396,149 @@
     return v>=thr*0.85?{i:af.i,score:v,why:(a.mind.why[af.i]||[]).slice(-4)}:null;
   }
 
+  /* ================= 感知入口（2026-11-05 · 一组读心清零）=================
+     用户裁定：AI 只能**通过环境**判断，不能读别人的实际数据。
+     允许的四类输入：
+       ① 自己的记忆 a.mind.mem / a.mind.known / a.mind.seenBy
+       ② 自己的性格 a.trait（只影响怎么解读，不做性格推断）
+       ③ 世界状态（位置、灯、断电、倒地、拖尸、红身、公开领袖）
+       ④ 公开事件（**已经说出口**的指控 accuse / accuseWhy、投票、报告）
+     禁止：w.mind.sus / w.mind.known / w.mind.cred / w.mind.almost / w.trait.*
+
+     返回 { score, conf, whyKind, cues }：
+       score  0~1「他像异形」的估计值，**允许错**
+       conf   0~1 置信度，线索越间接越低
+       whyKind 'seen' | 'heard' | 'public' | 'inferred' | 'none'
+       cues   [{kind, w, why, alt}] —— why 是那条可见线索，alt 是同一线索的另一种解释
+     ⚠ 验收反例：把 sus 改个名 estimatedSus 仍然返回确定值 ⇒ 换皮读心，不合格。 */
+  const SEEN_WORD = {
+    saw_knife: '出刀', saw_pipe: '钻管道', saw_sabotage: '破坏设备',
+    saw_breaker: '拉闸断电', saw_bot: '停摆机器人', saw_red: '身上带着红光',
+    saw_drag: '拖尸体', saw_detain: '被保安拘留', saw_agent: '出现在那里'
+  };
+
+  /* 公开指认：只看"有没有当众说过"，不看是谁、也不看听众心里怎么想 */
+  function pubAccusers(i) {
+    const G = global.SKV3._t.G(), out = [];
+    if (!G || i == null) return out;
+    for (const w of (G.agents || [])) {
+      if (!w || w.i === i) continue;
+      if (w.alive && !w.downed && w.accuse === i) out.push(w.i);
+    }
+    return out;
+  }
+  function pubSolidAccusers(i) {
+    const G = global.SKV3._t.G();
+    return pubAccusers(i).filter(k => {
+      const w = G && G.agents[k];
+      return !!(w && w.accuseWhy && w.accuseWhy.solid);
+    });
+  }
+  /* 公开热度：几个活人当众指认过他。刻度是读数刻度，不是平衡数值。 */
+  function publicHeat(i) {
+    const n = pubAccusers(i).length;
+    return n ? Math.min(1, 0.30 + 0.16 * (n - 1)) : 0;
+  }
+  /* 公开影响力：不看性格轴，只看"他说的话有没有人跟"（公开事件）。 */
+  function publicInfluence(w) {
+    const G = global.SKV3._t.G();
+    if (!w || !G) return 0;
+    if (G.leader === w.i) return 1;
+    let follow = 0;
+    for (const o of (G.agents || [])) {
+      if (!o || o === w || !o.alive || o.downed) continue;
+      if (o.accuse != null && o.accuse === w.accuse) follow++;
+    }
+    return Math.min(1, follow * 0.34);
+  }
+
+  /* a 估「i 有多像异形」。只读 a 自己的记忆 + 公开事件 + 世界状态。 */
+  function envEstimate(a, i, ctx) {
+    const G = global.SKV3._t.G(), empty = { score: 0, conf: 0, whyKind: 'none', cues: [] };
+    if (!a || !G || i == null || i === a.i) return empty;
+    const t = G.agents[i];
+    if (!t) return empty;
+    const cues = [];
+    /* ① 自己的确证：最硬，但仍写清"可能看错人" */
+    const own = a.mind && a.mind.known && a.mind.known[i];
+    if (own) {
+      return { score: 1, conf: 1, whyKind: 'seen', cues: [{ kind: own.kind || 'known', w: 1,
+        why: '我亲眼看见他' + (SEEN_WORD[own.kind] || '动手'),
+        alt: '也可能是我把同舱室的另一个人看成了他' }] };
+    }
+    /* ② 自己记着的目击 / 听来的指认 */
+    const mem = (a.mind && a.mind.mem) || [];
+    for (let k = mem.length - 1; k >= 0 && cues.length < 6; k--) {
+      const e = mem[k];
+      if (!e || e.subj !== i) continue;
+      const kd = String(e.kind || '');
+      if (kd.indexOf('saw_') === 0 && !e.far) {
+        cues.push({ kind: kd, w: 0.72,
+          why: '我在' + (e.room || '现场') + '看见他' + (SEEN_WORD[kd] || '动手'),
+          alt: '近距离看见的也可能是同舱室的另一个人' });
+      } else if (kd === 'heard_accuse' || kd === 'heard_claim') {
+        cues.push({ kind: 'heard', w: 0.28, why: '我听见有人当众指认他',
+          alt: '指认他的人也可能在构陷' });
+      }
+    }
+    /* ③ 公开事件 */
+    const acc = pubAccusers(i);
+    if (acc.length) {
+      cues.push({ kind: 'public', w: Math.min(0.60, 0.22 + 0.12 * acc.length),
+        why: '有 ' + acc.length + ' 个人当众指认他', alt: '公开指认也可能是跟风或构陷' });
+    }
+    /* ④ 世界状态：红光 / 拖尸是看得见的，但都不指向具体是谁 */
+    if (t.redT > 0) {
+      cues.push({ kind: 'red', w: 0.55, why: '他身上还带着刚出刀的红光',
+        alt: '红光只说明他刚动过刀，不说明刀的是谁' });
+    }
+    if (t.drag != null) {
+      cues.push({ kind: 'drag', w: 0.32, why: '他正在拖尸体',
+        alt: '拖尸体也可能是想把伤者送进医疗间' });
+    }
+    /* 合并：取最强的一条，再做"多类线索"的小幅上浮；不写连续权重公式 */
+    const kindSet = {};
+    let score = 0, best = null;
+    for (const c of cues) {
+      kindSet[c.kind] = 1;
+      if (c.w > score) { score = c.w; best = c; }
+    }
+    const nk = Object.keys(kindSet).length;
+    if (nk >= 2) score = Math.min(1, score + 0.12);
+    const conf = !cues.length ? 0 : Math.min(1, 0.35 + 0.18 * nk);
+    const whyKind = !best ? 'none'
+      : (best.kind === 'heard' ? 'heard' : (best.kind === 'public' ? 'public' : 'seen'));
+    return { score: score, conf: conf, whyKind: whyKind, cues: cues };
+  }
+
+  /* a 估「w 现在有多怀疑我」——只用 a 自己知道的：我干过什么、当时谁在场、
+     w 有没有当众指认我。绝不读 w.mind.sus。 */
+  function audSusEstimate(a, w) {
+    const G = global.SKV3._t.G();
+    if (!a || !w || !G) return { score: 0, conf: 0, why: '' };
+    let score = 0, why = '';
+    if (w.accuse === a.i) { score = 0.85; why = '他当众指认过我'; }
+    /* 会开完 `accuse` 会被清空，夜里就只剩「我自己记着的那一句」：
+       `heard_accuse` / `heard_frame` / `heard_claim` 的 `by` 就是说这句话的人。
+       这是**公开事件 + 自己的记忆**，不是读别人的脑子。 */
+    if (score < 0.7) {
+      const mem = (a.mind && a.mind.mem) || [];
+      for (let k = mem.length - 1; k >= 0; k--) {
+        const e = mem[k];
+        if (!e || e.by !== w.i || e.subj !== a.i) continue;
+        if (e.kind !== 'heard_accuse' && e.kind !== 'heard_frame' && e.kind !== 'heard_claim') continue;
+        score = 0.7; why = '我听见他当众点过我'; break;
+      }
+    }
+    const seen = a.mind && a.mind.seenBy && a.mind.seenBy[w.i];
+    if (seen) {
+      const age = evNow() - (seen.t || 0);
+      if (age < 20 && score < 0.55) { score = 0.55; why = why || '他刚才看见我在现场附近'; }
+    }
+    if (a.redT > 0 && score < 0.45) { score = 0.45; why = why || '我身上还带着红光'; }
+    return { score: score, conf: score > 0 ? 0.7 : 0.15, why: why };
+  }
+
   global.SKT2AI = Object.freeze({
     susOf: susOf, topSus: topSus, crimeWindow: crimeWindow,
     evNow: evNow,
@@ -420,6 +563,12 @@
     bestAlmostTarget: bestAlmostTarget,
     bestKnownTarget: bestKnownTarget,
     evidenceReason: evidenceReason,
-    affordableAlmostShot: affordableAlmostShot
+    affordableAlmostShot: affordableAlmostShot,
+    envEstimate: envEstimate,
+    audSusEstimate: audSusEstimate,
+    pubAccusers: pubAccusers,
+    pubSolidAccusers: pubSolidAccusers,
+    publicHeat: publicHeat,
+    publicInfluence: publicInfluence
   });
 })(typeof window !== 'undefined' ? window : globalThis);
