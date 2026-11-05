@@ -49,7 +49,9 @@
         /* 感知入口（2026-11-05 · 一组读心清零）：只读自己的记忆 / 世界状态 / 公开事件 */
         envEstimate=SKT2AI.envEstimate, audSusEstimate=SKT2AI.audSusEstimate,
         pubAccusers=SKT2AI.pubAccusers, pubSolidAccusers=SKT2AI.pubSolidAccusers,
-        publicHeat=SKT2AI.publicHeat, publicInfluence=SKT2AI.publicInfluence;
+        publicHeat=SKT2AI.publicHeat, publicInfluence=SKT2AI.publicInfluence,
+        /* 2026-11-05 G3：行为序列 / 证言间关系 */
+        sequenceCue=SKT2AI.sequenceCue, statementRelation=SKT2AI.statementRelation;
 
   const CSS = global.SKUITemplates.CSS;
   const HTML = global.SKUITemplates.HTML;
@@ -203,6 +205,8 @@
         tIdx:0,doing:0,progress:0,qual:0,qualPending:0,_q3:false,_q5:false,bullet:0,medkit:0,
         knife:1,think:0,target:null,
         /* 幽灵 / 尸体 / 拖拽 / 搜查 */
+        /* talkN：实际说出口的台词数（可观察的行为史，不是性格轴） */
+        talkN:0,
         ghost:false,ghostPts:0,deathCause:null,deathAt:0,deathRoom:null,deathX:null,deathY:null,
         killedBy:null,bodyX:null,bodyY:null,bodyGone:false,bodyMoved:false,
         downX:null,downY:null,downRoom:null,woundCause:null,draggedBy:null,searched:false,
@@ -3137,8 +3141,16 @@
       if(pick5)push({kind:'fakeTask',x:pick5.f[0],y:pick5.f[1],
         dur:D.dur.fakeTask[0]+Math.random()*D.dur.fakeTask[1],pt:pick5.i,
         key:'pt:'+pick5.i,done:!(hotFresh||fresh),dist:pick5.dd,room:pick5.room});
-      /* 常客排前面：同分候选里"今晚见过人的舱室"优先（真实的一手是演给会来的人看） */
-      out.sort((x,y)=>(y.hot||0)-(x.hot||0));
+      /* 常客排前面：同分候选里"今晚见过人的舱室"优先（真实的一手是演给会来的人看）。
+         2026-11-05 G2：常客打平后再按 LENS.lr 排序 —— lr 只决定**先后顺序**，
+         不参与 disguiseScore 的任何权重（用户裁定 order only, no w=f(lr)）。 */
+      const LENS=SKSanity.LENS;
+      out.sort((x,y)=>{
+        const hot=(y.hot||0)-(x.hot||0); if(hot)return hot;
+        const lx=LENS.lr(x.credKey), ly=LENS.lr(y.credKey);
+        if(!Number.isFinite(lx)||!Number.isFinite(ly)||lx===ly)return 0;
+        return ly-lx;
+      });
       return out;
     }
     /* 把"这一下会不会被识破 / 会不会真亏"翻译成 SKSanity.disguiseRisk 的输入 */
@@ -4644,6 +4656,12 @@
     function say(who,text,kind){
       const raw=String(text).slice(0,140);
       if(!sayStreakOK(who,kind))return;   /* 让位：这句当作没说（不进事件流、不进复盘） */
+      /* 2026-11-05 G2：把「健谈」变成可观察量 —— 只记真正说出口的台词。
+         sayStreakOK 挡掉的句子不算（等于没说）。系统行不计入任何人。 */
+      if(G&&G.agents&&kind!=='sys'){
+        const sp=G.agents.find(a=>a.name===who);
+        if(sp)sp.talkN=(sp.talkN||0)+1;
+      }
       /* 会议发言也进事件流（复盘要看“为什么投他”）；模拟局不记，避免 1000 局刷爆内存 */
       if(!SIM_RUN&&G){
         const seat=G.agents.findIndex(a=>a.name===who);
@@ -4699,6 +4717,16 @@
         dead:!victim.alive,
         cause:bodyWound(victim).replace(' · 仍在渗血','')};
     }
+  /* 舱室中心点的直线距离 / 基础移速 = 反事实所需时间。
+     走廊与门会绕路，alibiReach 里留了 2 秒余量；房间 id 查不到时返回 null（不加强）。 */
+  function counterfactualReach(fromRoom,toRoom,dtSec){
+    if(!fromRoom||!toRoom||fromRoom===toRoom)return null;
+    const A=M.rooms.find(r=>r.id===fromRoom),B=M.rooms.find(r=>r.id===toRoom);
+    if(!A||!B||!A.rect||!B.rect)return null;
+    const ax=A.rect[0]+A.rect[2]/2,ay=A.rect[1]+A.rect[3]/2;
+    const bx=B.rect[0]+B.rect[2]/2,by=B.rect[1]+B.rect[3]/2;
+    return SKSanity.alibiReach(Math.hypot(bx-ax,by-ay),dtSec,MOVE_SPEED);
+  }
     function buildMeetCtx(kind,reporter,victim){
       const vi=victimInfo(victim);
       const ctx={kind,reporter,victim,victimInfo:vi,claims:[],playerSays:[],
@@ -4710,6 +4738,8 @@
            现在只排队；谁开口（say）就发谁的；讨论结束前没说的统一补发，
            保证最终信念与旧版逐条一致，变的只是**时间点**。 */
         testimony:[],
+        /* vouches：已经说出口的公开背书（与 testimony 的指控构成「证言间关系」） */
+        vouches:[],
         /* lead[目标席位] = 第一个公开指控他的席位（追责机制要用"谁带的节奏"） */
         lead:{}};
       /* 尸体还热就有人来报：见过这具尸体的 AI 会想"你怎么这么快就到现场"。
@@ -4760,7 +4790,13 @@
              「拆谎太准」的一半其实是重复计账。现在按目标去重，权重不降、次数不刷。 */
           if(contraHit.has(a.i))continue;
           contraHit.add(a.i);
-          susAddContradiction(w,a.i,0.28,'contradiction',r.evidence);
+          /* 2026-11-05 G3 · 可达性反事实：被看见在 A 舱却说在 B 舱，
+             还要问「这点时间走得到吗」。走不到才把矛盾当强证据；
+             走得到就只是「可能路过」，权重维持原值。 */
+          const reach=counterfactualReach(r.evidence.room,ab.roomId,r.age);
+          const hardReach=reach&&!reach.possible;
+          if(hardReach&&G.simStats)G.simStats.reachImpossible=(G.simStats.reachImpossible||0)+1;
+          susAddContradiction(w,a.i,hardReach?0.32:0.28,'contradiction',r.evidence);
           /* 留一对「谁戳穿了谁」给会议排期用（非模拟局会说出口，模拟局只记分）。
              只留第一对：真人会议上也不会全场轮流复读同一句质疑。 */
           if(!ctx.contra)ctx.contra={w:w,a:a,seen:roomNameById(r.evidence.room),age:r.age};
@@ -4989,17 +5025,17 @@
       /* ---- 沉默也是线索（F5，2026-11-01）----
          真人局里"他整场一句话没说"本身就是线索。边界：
          · 上限 0.10，且**永远不够格升级成准-确证**（silent 在 evalAlmost 里被排除）；
-         · 只有健谈的人（soc 高）沉默才可疑，本来就内向的不该被罚；
+         · 只有**平时真说过话**的人沉默才可疑（talkN 可观察，不读性格轴）；
          · 玩家席位不算（玩家不打字不等于沉默）。 */
       for(const a of G.agents){
         if(a.alien||!a.alive||a.downed||!a.mind)continue;
         if(a===G.me&&!G.spectMode)continue;
         if(a.accuse!=null||a.accuseWhy)continue;
         if(G.agents.some(x=>x.alive&&x.accuse===a.i))continue;
-        const soc=(a.trait&&a.trait.soc)||50;
-        if(soc<SKSanity.MIND.silentSocMin)continue;
+        const talkN=a.talkN||0;
+        if(talkN<SKSanity.MIND.silentTalkMin)continue;
         const wgt=SKSanity.MIND.silentSus*
-          (1+SKSanity.MIND.silentSocMul*SKTrait.b(a,'soc'));
+          (1+SKSanity.MIND.silentTalkMul*Math.min(1,talkN/SKSanity.MIND.silentTalkN));
         for(const w of G.agents){
           if(w===a||w.alien||!w.alive||w.downed||!w.mind)continue;
           /* 2026-11-02：从"只对白纸生效"放宽到"最多一条旧疑点"。
@@ -5165,6 +5201,8 @@
             evPush(wv,{kind:'heard_vouch',x:0,y:0,room:null,conf:0.45,
               src:'speech',subj:subj.i,by:x.i});
           }
+          const mm=G.meet&&G.meet.ctx;
+          if(mm)(mm.vouches=mm.vouches||[]).push({by:x.i,tgt:subj.i});
           if(G.simStats)G.simStats.vouchHeard=(G.simStats.vouchHeard||0)+1;
         });
         if(G.simMode&&G.simStats)G.simStats.endorses=(G.simStats.endorses||0)+1;
@@ -5517,7 +5555,7 @@
       /* 发言权倾斜（P-a，2026-11-01）：不再纯随机打乱 —— 真人局里是「2~3 个人说掉
          大半的话，其余人一两句」。排序分 = 手上有多少东西要说（确证/准-确证/指控/
          目击记录）+ soc 性格 + 一点随机。有料的人先开口，安静的人自然落到后面，
-         再配 F5 的「沉默也是线索」才闭环。 */
+         再配 F5 的「沉默也是线索」才闭环。soc 性格轴已于 2026-11-05 换成实际台词数。 */
       const talkScore=a=>{
         let s=Math.random();
         if(a.mind){
@@ -5527,7 +5565,7 @@
           if(a.accuse!=null)s+=1.0;
           const why=Object.keys(a.mind.why||{}).length;s+=Math.min(1.0,why*0.12);
         }
-        s+=0.6*SKTrait.b(a,'soc');
+        s+=0.6*Math.min(1,(a.talkN||0)/SKSanity.MIND.talkScoreN);
         return s;
       };
       const cands=ai.slice().sort((x,y)=>talkScore(y)-talkScore(x));
@@ -6354,7 +6392,11 @@
         if(!it.said||it.reason!=='heard_accuse'||it.tgt!==tgt)continue;
         p+=0.10*Math.max(0.5,Math.min(1,credOf(a,it.by)));
       }
-      return Math.min(0.30,p);
+      /* 2026-11-05 G3：同一目标既被指控又被背书 → 证言之间有冲突，
+         公开声势不该照样滚雪球。只压声势，不动自己的 sus。 */
+      const rel=statementRelation(q,(G.meet&&G.meet.ctx&&G.meet.ctx.vouches)||[],tgt);
+      if(rel.damp<1&&G.simStats)G.simStats.statementDamp=(G.simStats.statementDamp||0)+1;
+      return Math.min(0.30,p*rel.damp);
     }
     /* 改票时的目标选择：自己的 sus + 已经说出口的公开指控分量。
        与 voteLean 的分工：voteLean 决定"会前先投谁"（只有信念，没有声势），
@@ -9874,6 +9916,7 @@
           /* 2026-11-02 节奏：报告额度用量 / 每夜会议场次分布 / 因额度或场次被拒的报告 */
           reportsUsed:0,reportDenied:0,nightMeetFull:0,
           earlyVotes:0,voteChanges:0,earlyKept:0,
+          reachImpossible:0,statementDamp:0,
           /* 每个任务点被完成的次数（label → n）：用来观察「电路维修完成率异常低」
              这类分布问题。2026-10-31 起只统计、不改任何 AI 行为。 */
           tasksByPoint:{}};
@@ -9960,6 +10003,7 @@
           /* 2026-11-05 会议中改票：sim 里也要能读到，否则报表恒 0 会误判成机制没生效 */
           earlyVotes:G.simStats.earlyVotes,voteChanges:G.simStats.voteChanges,
           earlyKept:G.simStats.earlyKept,
+          reachImpossible:G.simStats.reachImpossible,statementDamp:G.simStats.statementDamp,
           tasksByPoint:Object.assign({},G.simStats.tasksByPoint)};
       } finally {
         Math.random=oldRandom; SIM_RUN=oldSim;
@@ -10367,6 +10411,24 @@
       speedOf:i=>{const a=G.agents[i];return a?+moveSpeed(a).toFixed(3):null;},
       rushCfg:()=>Object.assign({},SKSanity.RUSH),
       redBodyCfg:()=>Object.assign({},SKSanity.RED_BODY),
+      lensCalls:()=>SKSanity.LENS._calls||0,
+      lensRank:keys=>SKSanity.LENS.rankedLr(keys),
+      lensOrder:keys=>SKSanity.LENS.order(keys),
+      alibiReach:(d,dt,v)=>SKSanity.alibiReach(d,dt,v),
+      counterfactualReach:(a,b,dt)=>counterfactualReach(a,b,dt),
+      roomCenter:id=>{const r=M.rooms.find(q=>q.id===id);return r&&r.rect?
+        [r.rect[0]+r.rect[2]/2,r.rect[1]+r.rect[3]/2]:null;},
+      topSusOf:(i,min)=>{const a=G.agents[i];return a?topSus(a,min):null;},
+      talkNOf:i=>{const a=G.agents[i];return a?(a.talkN||0):null;},
+      setTalkN:(i,v)=>{const a=G.agents[i];if(!a)return null;a.talkN=v;return a.talkN;},
+      sequenceCueOf:(w,i)=>sequenceCue(G.agents[w],i),
+      statementRelationOf:tgt=>statementRelation(
+        (G.meet&&G.meet.ctx&&G.meet.ctx.testimony)||[],
+        (G.meet&&G.meet.ctx&&G.meet.ctx.vouches)||[],tgt),
+      vouches:()=>G.meet&&G.meet.ctx?(G.meet.ctx.vouches||[]).slice():[],
+      disguiseOrder:i=>{const a=G.agents[i];if(!a)return null;
+        const L=SKSanity.LENS;
+        return disguiseOptions(a).map(o=>({credKey:o.credKey,hot:o.hot||0,lr:L.lr(o.credKey)}));},
       ghostCap:()=>GHOST_TASK_CAP,
       medbotStun:()=>MEDBOT_REVIVE_STUN,
       stunOf:i=>{const a=G.agents[i];return a?+((a.stunT||0)).toFixed(2):null;},

@@ -462,10 +462,24 @@
     },
     floor: 0.25,        /* 档位下界：避免除零，同时让"异形绝不可能做"停在最高 lr */
     lr(key) {
+      /* 运行时接线计数（只读遥测）：证明 lr 真的被决策链调用，
+         而不只是躺在声明层或 DEV 探针里。不参与任何数值。 */
+      this._calls = (this._calls || 0) + 1;
       const r = this.rows[key];
       if (!r) return 1;
       if (r.knownOnly) return Infinity;         /* 硬线：不是"像人"，是"是他" */
       return r.human / Math.max(this.floor, r.alien);
+    },
+    /* 2026-11-05 G2：把 lr 接进**运行时**，但只决定候选的顺序，
+       绝不把 lr 写成权重公式（用户裁定 "order only, no w=f(lr)"）。
+       Infinity（knownOnly 硬线）排最前；未知 key 按 lr=1 稳定留在原位。 */
+    order(keys) {
+      return (keys || []).map((k, i) => ({ k: k, i: i, lr: this.lr(k) }))
+        .sort((x, y) => (y.lr - x.lr) || (x.i - y.i))
+        .map(o => o.k);
+    },
+    rankedLr(keys) {
+      return this.order(keys).map(k => ({ key: k, lr: this.lr(k) }));
     },
     /* 贵信号：异形做这些"最像人"（human 高、alien 低）且代价真实 ——
        异形侧挑演出/挑善行用它，观察侧的分数仍只从 CRED.gains 走。 */
@@ -813,8 +827,14 @@
     hedgeBias: -0.30,     /* 犹豫时台词取 cold 档 */
     sureBias: 0.20,
     silentSus: 0.10,      /* 沉默嫌疑上限 */
-    silentSocMin: 55,     /* 只有健谈的人沉默才可疑 */
-    silentSocMul: 0.6,
+    /* 2026-11-05 G2：不再读性格轴 soc —— 「健谈」必须由**实际说过的话**证明。
+       say() 给发言者累计 talkN；沉默只在 talkN ≥ silentTalkMin 时才算反常。 */
+    silentTalkMin: 2,
+    silentTalkMul: 0.6,
+    silentTalkN: 6,       /* 说满 6 句视为健谈，权重加成在此封顶 */
+    talkScoreN: 6,        /* 发言权倾斜同样按实际台词数，而不是性格 */
+    envTieEps: 0.06,      /* 嫌疑分差在此以内 → 用 envEstimate 的环境读数破平局 */
+    seqWindowSec: 25,     /* 行为序列：两个可疑动作的间隔上限 */
   };
   /* 信念熵：把 sus 归一化成分布后求 H = -Σ p ln p（空分布返回 0） */
   function beliefEntropy(sus, skip) {
@@ -841,6 +861,20 @@
     return 1 + clamp((cred || 0) * CRED.testimony, 0, 0.6);
   }
 
+  /* 2026-11-05 G3 · 不在场证明的**可达性反事实**：
+     被看见在 A 舱、却说自己在 B 舱，光比舱室 id 不够 —— 还要问
+     「从 A 走到 B 在 Δt 秒内 physically 来得及吗」。
+     来不及 ⇒ 口供不可能成立；来得及 ⇒ 只能算弱矛盾，不能当成铁证。
+     这里只做纯几何（直线距离 / 移速），墙与门的绕行由调用方留 2 秒余量吸收。 */
+  function alibiReach(dist, dtSec, speed) {
+    const v = speed > 0 ? speed : 4.2;
+    const need = (dist || 0) / v;
+    const dt = dtSec == null ? Infinity : dtSec;
+    const possible = need <= dt + 2;
+    return { possible: possible, needSec: +need.toFixed(2),
+      shortfall: +(Math.max(0, need - dt)).toFixed(2) };
+  }
+
   global.SKSanity = {
     TRAIT_GAIN,
     clamp, witnessWeight, escapeCost, exposure,
@@ -850,6 +884,6 @@
     CARRY, ALMOST, RELIA, MIND, reliaMul, beliefEntropy,
     CONFIRM, META, AVOID, MEET, MISLEAD, TERMINATOR,
     NIGHT, WIN, STAND, REACH, SHOT, PIPE,
-    disguiseScore, disguiseRisk, credVoteShield, credTestimony,
+    disguiseScore, disguiseRisk, credVoteShield, credTestimony, alibiReach,
   };
 })(window);

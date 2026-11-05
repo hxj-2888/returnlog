@@ -5090,7 +5090,8 @@ function section(t) { console.log('\n== ' + t); }
     /* 夜晚长度改成 90s 后不能再写死 120：案发时刻要用**真实夜长**算 */
     const deathEv = t.nightLen() - Math.max(0, v.alive ? v.downAt : v.deathAt);
     /* 沉默线索只在「健谈的人」身上触发，这里把所有人压成内向，避免干扰本用例 */
-    for (const x of g.agents) x.trait = { aggr: 50, caut: 50, soc: 28, cur: 50 };
+    /* 沉默嫌疑已改成按实际台词数判定，压性格轴不再有效 */
+    for (const x of g.agents) { x.talkN = 0; x.trait = { aggr: 50, caut: 50, soc: 28, cur: 50 }; }
     a.nRoom = 'engine';
     w.mind.sus[a.i] = 0.5;
     w.mind.mem.push({ kind: 'saw_agent', subj: a.i, room: 'engine',
@@ -6936,6 +6937,123 @@ function section(t) { console.log('\n== ' + t); }
 
   /* ================= 2026-11-05 平衡性调整（用户裁定）=================
      八项参数全部从声明层/探针读真值；新增的「救起后 3 秒禁移动」用真实位移验证。 */
+  /* ================= 2026-11-05 推理系统（G1 接线 / G2 去人格 / G3 判断结构）================= */
+  section('推理系统 · 主链接线 / 去性格推断 / LENS 运行时');
+  await fresh(false);
+  const RSN = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    if (g.meet) t.finishMeeting();
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const X = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== w);
+    const Y = g.agents.find(a => !a.alien && a.i !== 0 && a.alive && a !== w && a !== X);
+    for (const k in w.mind.sus) delete w.mind.sus[k];
+    w.mind.mem = []; w.mind.known = {};   /* 排除旧记忆，确保中性局面真的打平 */
+    t.healSus(w.i, X.i, 0.6); t.healSus(w.i, Y.i, 0.6);
+    const neutral = t.topSusOf(w.i, 0.5);
+    let n = 0;
+    for (const a of g.agents) {
+      if (a === w || a === Y || !a.alive || n >= 3) continue;
+      a.accuse = Y.i; n++;
+    }
+    const withPublic = t.topSusOf(w.i, 0.5);
+    const envY = t.envEstimate(w.i, Y.i);
+    for (const a of g.agents) a.accuse = null;
+    return { X: X.i, Y: Y.i, n, neutral: neutral && neutral.i,
+      withPublic: withPublic && withPublic.i,
+      envY: +(envY.score * envY.conf).toFixed(3),
+      socGone: SKSanity.MIND.silentSocMin === undefined,
+      talkMin: SKSanity.MIND.silentTalkMin };
+  });
+  ok(RSN.socGone && RSN.talkMin > 0,
+    'G2 去性格推断：沉默嫌疑不再读 soc 轴，改由实际台词数 talkN 判定');
+  ok(RSN.n === 3 && RSN.neutral === RSN.X && RSN.withPublic === RSN.Y && RSN.envY > 0,
+    'G1 envEstimate 接进主链：嫌疑打平时，有 3 人当众指认的一方被 topSus 选中' +
+    '（' + RSN.X + ' → ' + RSN.Y + '，环境读数 ' + RSN.envY + '）');
+
+  await fresh(false);
+  const LRS = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    const order = t.lensOrder(['fakeWork', 'fixDone', 'taskDone']);
+    const k = g.agents.find(a => a.alien && a.i !== 0 && a.alive);
+    const p = t.points().find(q => t.free(q.x, q.y));
+    t.tp(k.i, p.x, p.y);
+    g.dmg = [{ room: p.room, x: p.x + 0.5, y: p.y, label: '测试故障',
+      left: 60, dur: 60, by: 0 }];
+    const before = t.lensCalls();
+    const opts = t.disguiseOrder(k.i);
+    const after = t.lensCalls();
+    return { order, before, after, opts };
+  });
+  ok(LRS.order.join(',') === 'fixDone,taskDone,fakeWork',
+    'LENS.lr 的排序方向：真修故障 > 完成任务 > 假装做事（' + LRS.order.join(' > ') + '）');
+  ok(LRS.after > LRS.before && LRS.opts.length >= 2,
+    'G2 lr 真的被运行时调用（' + (LRS.after - LRS.before) +
+    ' 次），且只用于候选顺序、不写进任何权重');
+  ok(LRS.opts.every((o, i) => i === 0 || LRS.opts[i - 1].hot > o.hot ||
+    LRS.opts[i - 1].lr >= o.lr - 1e-9),
+    '伪装候选：常客优先，常客打平时按 lr 降序（候选 ' + LRS.opts.length + ' 个）');
+
+  section('推理系统 · 行为序列 / 证言间关系 / 可达性反事实');
+  await fresh(false);
+  const SEQ = await T(() => {
+    const t = SKV3._t, g = t.G();
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const s = g.agents.find(a => a.i !== w.i && a.alive);
+    w.mind.mem = [{ kind: 'saw_red', subj: s.i, t: 10 },
+      { kind: 'saw_drag_away', subj: s.i, t: 18 }];
+    const cue = t.sequenceCueOf(w.i, s.i);
+    const env = t.envEstimate(w.i, s.i);
+    w.mind.mem = [{ kind: 'saw_red', subj: s.i, t: 10 }];
+    const one = t.sequenceCueOf(w.i, s.i);
+    w.mind.mem = [{ kind: 'saw_red', subj: s.i, t: 10 },
+      { kind: 'saw_drag_away', subj: s.i, t: 99 }];
+    const far = t.sequenceCueOf(w.i, s.i);
+    return { cue, one, far, envCues: (env.cues || []).map(c => c.kind) };
+  });
+  ok(SEQ.cue && SEQ.cue.kind === 'sequence' && SEQ.one === null && SEQ.far === null &&
+    SEQ.envCues.indexOf('sequence') >= 0,
+    'G3 行为序列：两种不同可疑动作在 25 秒内连着出现才算序列，并进入 envEstimate 线索');
+
+  await fresh(false);
+  const REL = await T(() => {
+    const t = SKV3._t, g = t.G();
+    g.noReport = true; g.paused = true;
+    const w = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    const Y = g.agents.find(a => a.i !== 0 && a.i !== w.i && a.alive);
+    const bys = g.agents.filter(a => a.i !== 0 && a.i !== w.i && a.i !== Y.i && a.alive)
+      .slice(0, 3).map(a => a.i);
+    if (g.meet) t.finishMeeting();        /* 关掉开局讨论，再开一场干净的会 */
+    t.openMeeting('day');
+    const ctx = g.meet && g.meet.ctx;
+    ctx.testimony.push({ li: w.i, by: bys[0], tgt: Y.i, wgt: 0.2,
+      reason: 'heard_accuse', said: 1 });
+    ctx.testimony.push({ li: w.i, by: bys[1], tgt: Y.i, wgt: 0.2,
+      reason: 'heard_accuse', said: 1 });
+    const plain = t.statementRelationOf(Y.i);
+    ctx.vouches.push({ by: bys[2], tgt: Y.i });
+    const conflict = t.statementRelationOf(Y.i);
+    const vouches = t.vouches().length;
+    if (g.meet) t.finishMeeting();
+    return { plain, conflict, vouches };
+  });
+  ok(REL.plain.damp === 1 && REL.conflict.accusers === 2 &&
+    REL.conflict.vouchers === 1 && REL.conflict.damp < 1 && REL.vouches === 1,
+    'G3 证言间关系：2 人指控 + 1 人背书 → 公开声势被压低（damp=' +
+    REL.conflict.damp.toFixed(2) + '），单独指控不压');
+
+  const RCH = await T(() => {
+    const t = SKV3._t;
+    return { far: t.alibiReach(100, 2), near: t.alibiReach(4, 10),
+      rooms: t.counterfactualReach('bridge', 'med', 2),
+      same: t.counterfactualReach('bridge', 'bridge', 2) };
+  });
+  ok(RCH.far.possible === false && RCH.near.possible === true &&
+    RCH.rooms && RCH.rooms.possible === false && RCH.same === null,
+    'G3 可达性反事实：100 格 / 2 秒走不到（需 ' + RCH.far.needSec +
+    's），4 格 / 10 秒走得到；跨舱室口供据此判强证据');
+
   section('平衡性 · 2026-11-05 八项参数与救起僵直');
   await fresh(false);
   const BAL = await T(() => {
