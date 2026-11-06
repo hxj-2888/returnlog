@@ -41,9 +41,12 @@ const GAME_TIMEOUT = Math.max(1000, parseInt(arg('game-timeout', '20000'), 10) |
 const VERBOSE = process.env.MC_VERBOSE === '1' || arg('verbose', '0') === '1';
 const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
 /* A/B 归因开关（2026-11-06）：--no-discuss 还原旧模拟口径（讨论发言不执行）；
-   --hypgap 0 关掉「并列假说弃权」。两者都只改本次运行，不改磁盘真源。 */
+   --hypgap 调整并列弃权的权重差阈值（-1 彻底关闭）；
+   --hypmode loose 还原 2026-11-06 之前的宽松判据。
+   全部只作用于本次运行（模块级变量 / SKSanity 表），不改磁盘真源。 */
 const NO_DISCUSS = arg('no-discuss', '0') === '1';
 const HYP_GAP = arg('hypgap', null);
+const HYP_MODE = arg('hypmode', null);
 
 function mean(a, key) {
   const xs = a.map(r => +r[key]).filter(Number.isFinite);
@@ -630,11 +633,13 @@ if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
     try { SKV3.setSfxVolume(0); } catch (e) {}
     const g = SKV3._t.G(); if (g) g.paused = true;
   });
-  if (NO_DISCUSS || HYP_GAP !== null) {
+  if (NO_DISCUSS || HYP_GAP !== null || HYP_MODE) {
     const ab = await page.evaluate(o => ({
       noDiscuss: o.noDiscuss ? SKV3._t.setSimNoDiscuss(true) : false,
+      hypMode: o.hypMode ? SKV3._t.setHypMode(o.hypMode) : null,
       hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap)
-    }), { noDiscuss: NO_DISCUSS, hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP) });
+    }), { noDiscuss: NO_DISCUSS, hypMode: HYP_MODE,
+      hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP) });
     console.log('[A/B] ' + JSON.stringify(ab));
   }
 

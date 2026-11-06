@@ -76,17 +76,62 @@
     if (a && a.mind) a.mind.hyps = hypotheses(a, 3);
     return a && a.mind ? a.mind.hyps : [];
   }
+  /* 2026-11-06 · 一条假说背后有没有**实证**。
+     mind.why[i] 记着每笔嫌疑的来源：heard_* 是听来的，empty_accuse / silent /
+     doubt 是会议语料，都不算「我手里有东西」；saw_* / seen_* / env_* /
+     search_* / impossible_* / contradiction 这类带现场坐标的才算。
+     纯数值相等的平局若两边都没有实证，就是机械平局，不该弃权。 */
+  function hypothesisEvidence(a, i) {
+    const why = (a && a.mind && a.mind.why && a.mind.why[i]) || [];
+    const kinds = {}, nights = {};
+    let n = 0, direct = 0;
+    for (const r of why) {
+      if (!r) continue;
+      const k = String(r.kind || '');
+      if (!k || k.indexOf('heard_') === 0 ||
+          k === 'empty_accuse' || k === 'silent' || k === 'doubt') continue;
+      n++;
+      kinds[k] = 1;
+      if (r.night != null) nights[r.night] = 1;
+      /* 会议事件常写 x=0,y=0 占位，不算现场坐标 */
+      if (r.x != null && r.y != null && Math.hypot(r.x, r.y) > 0.01) direct++;
+    }
+    return { n: n, kinds: Object.keys(kinds), nights: Object.keys(nights),
+      direct: direct };
+  }
   function hypothesisSpread(a) {
     /* 每次重算，不用缓存：sus 也会被 susCut / mindReset 直接改，
        缓存一旧就会拿上一夜的假说决定这一夜的票。 */
     const h = hypotheses(a, 3);
     const gap = h.length >= 2 ? h[0].w - h[1].w : 1;
-    const thr = (SK.MIND && SK.MIND.hypGap) || 0.12;
-    /* 还要求「第一名确实像个假说」：五个人各 0.2 分那种谁都不像的局面
-       不该因为"恰好打平"就集体弃权（那是噪声，不是两个并立假说）。 */
-    const topOk = h.length >= 2 && h[0].w >= 0.25;
+    /* 修 2026-11-06 发现的 fallback bug：原来 `(SK.MIND.hypGap)||0.12`
+       会把 0 当成 falsy 退回 0.12，所以 A/B 的 `--hypgap 0` 根本没生效。 */
+    const M = SK.MIND || {};
+    const pick = (k, d) => (M[k] == null ? d : M[k]);
+    const thr = pick('hypGap', 0.08);
+    const minTop = pick('hypMinTop', 0.34);
+    const minEv = pick('hypMinEvidence', 2);
+    const needDirect = !!pick('hypRequireDirect', 1);
+    const needIndep = !!pick('hypRequireIndependent', 1);
+    const e0 = h.length >= 2 ? hypothesisEvidence(a, h[0].i) : null;
+    const e1 = h.length >= 2 ? hypothesisEvidence(a, h[1].i) : null;
+    /* 两条假说的证据种类不能完全一样：至少一方有对方没有的种类。
+       同一次公开指认给所有人加同样的分，不该被当成「两条独立假说」。 */
+    let independent = true;
+    if (needIndep && e0 && e1) {
+      const only = e0.kinds.filter(k => e1.kinds.indexOf(k) < 0)
+        .concat(e1.kinds.filter(k => e0.kinds.indexOf(k) < 0));
+      independent = only.length > 0;
+    }
+    const evidenceOk = !!(e0 && e1 &&
+      e0.n >= minEv && e1.n >= minEv &&
+      (!needDirect || (e0.direct >= 1 && e1.direct >= 1)) && independent);
+    const topOk = h.length >= 2 && h[0].w >= minTop;
     return { hyps: h, gap: +gap.toFixed(3),
-      competing: topOk && gap <= thr };
+      evidence: e0 && e1 ? { a: e0, b: e1, independent: independent,
+        ok: evidenceOk } : null,
+      thr: thr, minTop: minTop, minEvidence: minEv,
+      competing: topOk && gap <= thr && evidenceOk };
   }
 
   /* 2026-11-05 G3 · **行为序列**：单个可疑动作可能看错，
@@ -672,6 +717,6 @@
     sequenceCue: sequenceCue,
     statementRelation: statementRelation,
     hypotheses: hypotheses, refreshHyps: refreshHyps,
-    hypothesisSpread: hypothesisSpread
+    hypothesisSpread: hypothesisSpread, hypothesisEvidence: hypothesisEvidence
   });
 })(typeof window !== 'undefined' ? window : globalThis);
