@@ -28,8 +28,8 @@
     build: '2026-11-01',
     license: 'MIT',
     repos: Object.freeze({
-      github: 'https://github.com/hxj-2888/space-kill-web',
-      gitee: 'https://gitee.com/hxj-2888/space-kill-web',
+      github: 'https://github.com/hxj-2888/returnlog',
+      gitee: 'https://gitee.com/hxj-2888/returnlog',
     }),
   });
 })(typeof window !== 'undefined' ? window : globalThis);
