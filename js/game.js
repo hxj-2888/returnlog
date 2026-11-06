@@ -10460,6 +10460,21 @@
       attentionOf:i=>attention(G.agents[i]),
       setSimNoDiscuss:v=>{SIM_NO_DISCUSS=!!v;return SIM_NO_DISCUSS;},
       setHypGap:v=>{SKSanity.MIND.hypGap=+v;return SKSanity.MIND.hypGap;},
+      hypEvidenceOf:(w,i)=>SKT2AI.hypothesisEvidence(G.agents[w],i),
+      /* A/B 归因：loose 还原 2026-11-06 之前的宽松判据，off 彻底关闭弃权。
+         只作用于本次运行（改 SKSanity 表），不写回磁盘真源。 */
+      setHypMode:m=>{
+        const M=SKSanity.MIND;
+        if(m==='loose'){
+          M.hypGap=0.12;M.hypMinTop=0.25;M.hypMinEvidence=0;
+          M.hypRequireDirect=0;M.hypRequireIndependent=0;
+        }else if(m==='tight'){
+          M.hypGap=0.08;M.hypMinTop=0.34;M.hypMinEvidence=2;
+          M.hypRequireDirect=1;M.hypRequireIndependent=1;
+        }else if(m==='off'){M.hypGap=-1;}
+        return {mode:m,gap:M.hypGap,minTop:M.hypMinTop,
+          minEvidence:M.hypMinEvidence,direct:M.hypRequireDirect,
+          independent:M.hypRequireIndependent};},
       witnessCtxMul:(x,y,n)=>witnessCtxMul(x,y,n),
       setLightState:v=>{G.lightState=v;return G.lightState;},
       memKindsOf:i=>{const a=G.agents[i];return a&&a.mind?

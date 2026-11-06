@@ -7023,7 +7023,8 @@ function section(t) { console.log('\n== ' + t); }
   ok(ALT.n > 0 && ALT.allAlt,
     'G1 同一线索必须带反解释：' + ALT.n + ' 条 cue 全部有 alt');
 
-  section('推理系统 · 假设层：并列假说与弃权');
+  /* 2026-11-06 收紧：并列假说必须各自有独立实证，机械平局不再弃权。 */
+  section('推理系统 · 假设层：并列假说需独立实证才弃权');
   await fresh(false);
   const HYP = await T(() => {
     const t = SKV3._t, g = t.G();
@@ -7033,20 +7034,59 @@ function section(t) { console.log('\n== ' + t); }
     const A = g.agents.find(a => a.i !== 0 && a.i !== w.i && a.alive);
     const B = g.agents.find(a => a.i !== 0 && a.i !== w.i && a.i !== A.i && a.alive);
     for (const k in w.mind.sus) delete w.mind.sus[k];
-    w.mind.known = {}; w.mind.almost = { foe: {}, friend: {} };
+    for (const k in w.mind.why) delete w.mind.why[k];
+    w.mind.mem = []; w.mind.known = {}; w.mind.almost = { foe: {}, friend: {} };
     w.suspect = null; w.accuse = null;
+    for (const x of g.agents) x.accuse = null;
+    const cfg = Object.assign({}, SKSanity.MIND);
     t.healSus(w.i, A.i, 0.6); t.healSus(w.i, B.i, 0.6); t.refreshHyps(w.i);
-    const hs = t.hypsOf(w.i), sp = t.hypSpreadOf(w.i), lean = t.voteLeanOf(w.i);
+    const hs = t.hypsOf(w.i);
+    const bare = t.hypSpreadOf(w.i), bareLean = t.voteLeanOf(w.i);
+    /* A/B 还原旧判据：无实证也应弃权 —— 证明开关真的能复现旧行为 */
+    t.setHypMode('loose');
+    const looseBare = t.hypSpreadOf(w.i);
+    t.setHypMode('tight');
+    /* 两条假说各补 2 条独立实证（不同 kind + 现场坐标） */
+    const ev = (kind, x, y) => ({ w: 0.2, reason: kind, kind: kind,
+      night: g.night, t: 10, x: x, y: y, room: 'bridge' });
+    w.mind.why[A.i] = [ev('saw_red', 12, 34), ev('saw_avoid', 13, 35)];
+    w.mind.why[B.i] = [ev('saw_drag_away', 22, 44), ev('search_body_moved', 23, 45)];
+    const withEv = t.hypSpreadOf(w.i), withLean = t.voteLeanOf(w.i);
+    /* 同源：两边塞一模一样的两种 kind → 只是同一次公开事件给两人加了分 */
+    w.mind.why[B.i] = [ev('saw_red', 22, 44), ev('saw_avoid', 23, 45)];
+    const sameSrc = t.hypSpreadOf(w.i);
+    w.mind.why[B.i] = [ev('saw_drag_away', 22, 44), ev('search_body_moved', 23, 45)];
+    /* fallback bug 回归：hypGap=0 现在真的生效（精确并列仍可弃权），-1 才彻底关 */
+    t.setHypGap(0); const gap0 = t.hypSpreadOf(w.i);
+    t.setHypGap(-1); const gapOff = t.hypSpreadOf(w.i);
+    t.setHypGap(cfg.hypGap);
     t.healSus(w.i, A.i, 0.95); t.refreshHyps(w.i);
     const sp2 = t.hypSpreadOf(w.i);
-    return { hs, sp, lean, sp2, cached: (w.mind.hyps || []).length };
+    return { hs, bare, bareLean, looseBare, withEv, withLean, sameSrc,
+      gap0, gapOff, sp2, cfg, cached: (w.mind.hyps || []).length };
   });
   ok(HYP.hs.length === 2 && Math.abs(HYP.hs[0].w - 0.5) < 0.01 &&
     HYP.cached === 2,
     '假设层：维护并列假说并归一化权重（' + HYP.hs.map(h => h.i + ':' + h.w).join(' / ') + '）');
-  ok(HYP.sp.competing && HYP.lean.v === -1 && HYP.lean.why === 'competing',
-    '两个假说难分高下 → 弃权（gap=' + HYP.sp.gap + ' ≤ 阈值），不闭眼挑一个');
-  ok(!HYP.sp2.competing && HYP.sp2.gap > 0.12,
+  ok(HYP.cfg.hypGap === 0.08 && HYP.cfg.hypMinTop === 0.34 &&
+    HYP.cfg.hypMinEvidence === 2 && HYP.cfg.hypRequireDirect === 1 &&
+    HYP.cfg.hypRequireIndependent === 1,
+    '门槛收紧且单一真源：gap 0.12→0.08、最低权重 0.25→0.34、每条需 2 条实证');
+  ok(!HYP.bare.competing && HYP.bare.evidence &&
+    HYP.bare.evidence.a.n === 0 && HYP.bare.evidence.b.n === 0 &&
+    HYP.bareLean.v >= 0 && HYP.bareLean.why !== 'competing',
+    '收紧核心：两个 sus 机械相等但零实证 → 不再弃权，敢投（' + HYP.bareLean.why + '）');
+  ok(HYP.looseBare.competing,
+    'A/B 开关 --hypmode loose 能还原旧判据（无实证也弃权），归因可复现');
+  ok(HYP.withEv.competing && HYP.withEv.evidence.independent &&
+    HYP.withEv.evidence.ok && HYP.withLean.v === -1 &&
+    HYP.withLean.why === 'competing',
+    '两条假说各有独立现场实证 → 仍会犹豫弃权（保留真人手感）');
+  ok(!HYP.sameSrc.competing && HYP.sameSrc.evidence.independent === false,
+    '证据同源（两边一模一样的两种 kind）不算两条独立假说，不弃权');
+  ok(HYP.gap0.competing && !HYP.gapOff.competing,
+    'fallback bug 已修：--hypgap 0 真的生效（精确并列仍可弃权），-1 才彻底关闭');
+  ok(!HYP.sp2.competing && HYP.sp2.gap > HYP.cfg.hypGap,
     '新证据拉开差距后假说分出主次（gap=' + HYP.sp2.gap + '），恢复敢投');
 
   section('推理系统 · 主链接线 / 去性格推断 / LENS 运行时');
