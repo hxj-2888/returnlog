@@ -1,6 +1,6 @@
 # 新返航录 · 蒙特卡洛对抗报告
 
-> 生成：2026-11-05T22:17:06.219Z · 局数：1000 / 1000 · seed：20261030 · dt：0.1 · 上限：15 夜
+> 生成：2026-11-06T00:07:41.785Z · 局数：1000 / 1000 · seed：20261030 · dt：0.1 · 上限：15 夜
 
 ## 胜率
 
@@ -44,157 +44,157 @@
 
 ## 每局均值 / 中位数
 
-| 指标 | 均值 | 中位数 |
+| 指标（中文 / 代码键） | 均值 | 中位数 |
 |---|---:|---:|
-| nights | 5.676 | 5 |
-| prog | 30.784 | 32 |
-| steps | 4176.852 | 3750 |
-| meetings | 11.275 | 11 |
-| knives | 9.352 | 9 |
-| shots | 2.492 | 2 |
-| sabotages | 9.22 | 9 |
-| exiles | 3.501 | 3 |
-| humanExiles | 1.558 | 1 |
-| alienExiles | 1.943 | 2 |
-| searches | 6.337 | 6 |
-| loots | 4.128 | 4 |
-| bulletsLooted | 0.847 | 0 |
-| medkitsLooted | 1.292 | 1 |
-| qualsLooted | 2.58 | 2 |
-| humanLoots | 3.222 | 3 |
-| alienLoots | 3.115 | 3 |
-| humanShots | 0.641 | 0 |
-| alienShots | 1.851 | 2 |
-| fakeRepairs | 1.236 | 1 |
-| fakeTasks | 5.529 | 5 |
-| fakeBreaker | 0 | 0 |
-| rushKills | 11.203 | 11 |
-| alienTasks | 0.829 | 1 |
-| revives | 0.913 | 1 |
-| alienPipes | 9.493 | 9 |
-| alienPipePlans | 14.72 | 14 |
-| humans | 3.481 | 3 |
-| aliens | 0.83 | 1 |
-| downed | 0.215 | 0 |
-| terminatorGames | 0.049 | 0 |
-| terminatorArms | 0.113 | 0 |
-| orders | 2.105 | 0 |
-| orderObey | 0.061 | 0 |
-| orderRefuse | 0.61 | 0 |
-| endorses | 2.891 | 2 |
-| credFollow | 0.338 | 0 |
-| realFixes | 0 | 0 |
-| realRevives | 0.014 | 0 |
-| credShieldVotes | 0.722 | 0 |
-| abstains | 36.03 | 36 |
-| streakCuts | 1.406 | 1 |
-| lineDups | 83.716 | 80 |
-| mutualFrames | 1.438 | 1 |
-| medbotRevives | 3.525 | 3 |
-| medkitRevives | 0.913 | 1 |
-| ghostTasks | 3.903 | 4 |
-| ghostFixes | 0 | 0 |
-| humanDefends | 9.223 | 9 |
-| reportDoubts | 1.157 | 1 |
-| sabHits | 1.593 | 1 |
-| sabFixed | 7.198 | 7 |
-| sabFixSec | 19.652 | 19.6 |
-| sabFixedByGhost | 0 | 0 |
-| contradictions | 36.246 | 36 |
-| falseContradictions | 20.382 | 19 |
-| contradictionOld | 227.111 | 223 |
-| knownWrites | 4.422 | 4 |
-| knownVotes | 2.078 | 2 |
-| ejectByKnown | 1.517 | 1 |
-| detainWitness | 0.08 | 0 |
-| detainEvictions | 0.022 | 0 |
-| susCarry | 37.377 | 36.695 |
-| almostCount | 7.602 | 7 |
-| almostFriendCount | 0.599 | 0 |
-| almostEject | 1.261 | 1 |
-| almostVotes | 5.798 | 5 |
-| overriddenFriends | 0.001 | 0 |
-| reliaWrites | 97.458 | 96 |
-| reliaSpread | 0.458 | 0.473 |
-| hedgeAgents | 63.219 | 63 |
-| sureAgents | 18.336 | 18 |
-| silentSus | 25.586 | 25 |
-| presenceDeny | 2.049 | 1 |
-| claimRecall | 19.53 | 19 |
-| retractCount | 1.282 | 1 |
-| avoidCount | 35.011 | 0 |
-| farSight | 1.736 | 1 |
-| allyRevealed | 1.242 | 1 |
-| friendShield | 0.018 | 0 |
-| avoidSus | 0.311 | 0 |
-| reportsUsed | 6.436 | 6 |
-| nightMeetFull | 0 | 0 |
-| earlyVotes | 13.063 | 12 |
-| voteChanges | 0.928 | 0 |
-| earlyKept | 1.216 | 1 |
-| reachImpossible | 2.527 | 2 |
-| statementDamp | 0.437 | 0 |
-| discussLines | 224.769 | 221 |
-| vouchHeard | 2.891 | 2 |
-| hypothesisAbstain | 20.858 | 20 |
+| 夜数（nights） | 5.676 | 5 |
+| 维修进度分（prog） | 30.784 | 32 |
+| 模拟步数（steps） | 4176.852 | 3750 |
+| 会议次数（meetings） | 11.275 | 11 |
+| 出刀次数（knives） | 9.352 | 9 |
+| 开枪次数（shots） | 2.492 | 2 |
+| 破坏次数（sabotages） | 9.22 | 9 |
+| 驱逐总人数（exiles） | 3.501 | 3 |
+| 被逐人类数（humanExiles） | 1.558 | 1 |
+| 被逐异形数（alienExiles） | 1.943 | 2 |
+| 搜尸次数（searches） | 6.337 | 6 |
+| 拾取次数（loots） | 4.128 | 4 |
+| 捡到子弹数（bulletsLooted） | 0.847 | 0 |
+| 捡到医疗包数（medkitsLooted） | 1.292 | 1 |
+| 捡到申请单数（qualsLooted） | 2.58 | 2 |
+| 人类拾取次数（humanLoots） | 3.222 | 3 |
+| 异形拾取次数（alienLoots） | 3.115 | 3 |
+| 人类开枪次数（humanShots） | 0.641 | 0 |
+| 异形开枪次数（alienShots） | 1.851 | 2 |
+| 假装修理次数（fakeRepairs） | 1.236 | 1 |
+| 假装做任务次数（fakeTasks） | 5.529 | 5 |
+| 假装合闸次数（fakeBreaker） | 0 | 0 |
+| 放倒后加速次数（rushKills） | 11.203 | 11 |
+| 异形真做任务次数（alienTasks） | 0.829 | 1 |
+| 救起次数（revives） | 0.913 | 1 |
+| 钻管道次数（alienPipes） | 9.493 | 9 |
+| 钻管道计划次数（alienPipePlans） | 14.72 | 14 |
+| 局末存活人类数（humans） | 3.481 | 3 |
+| 局末存活异形数（aliens） | 0.83 | 1 |
+| 濒死人数（downed） | 0.215 | 0 |
+| 打到终结者夜的局数（terminatorGames） | 0.049 | 0 |
+| 终结者补枪次数（terminatorArms） | 0.113 | 0 |
+| 领袖指令次数（orders） | 2.105 | 0 |
+| 照办指令次数（orderObey） | 0.061 | 0 |
+| 拒绝指令次数（orderRefuse） | 0.61 | 0 |
+| 当众背书次数（endorses） | 2.891 | 2 |
+| 跟着背书次数（credFollow） | 0.338 | 0 |
+| 异形真修故障次数（realFixes） | 0 | 0 |
+| 异形真救人次数（realRevives） | 0.014 | 0 |
+| 信任挡票数（credShieldVotes） | 0.722 | 0 |
+| 弃权票数（abstains） | 36.03 | 36 |
+| 连说让位次数（streakCuts） | 1.406 | 1 |
+| 台词重复次数（lineDups） | 83.716 | 80 |
+| 互相构陷次数（mutualFrames） | 1.438 | 1 |
+| 无人机救起次数（medbotRevives） | 3.525 | 3 |
+| 医疗包救起次数（medkitRevives） | 0.913 | 1 |
+| 幽灵做任务个数（ghostTasks） | 3.903 | 4 |
+| 幽灵修故障次数（ghostFixes） | 0 | 0 |
+| 人类替人辩护次数（humanDefends） | 9.223 | 9 |
+| 质疑报案太快次数（reportDoubts） | 1.157 | 1 |
+| 破坏命中次数（sabHits） | 1.593 | 1 |
+| 破坏被修次数（sabFixed） | 7.198 | 7 |
+| 破坏修复耗时（秒）（sabFixSec） | 19.652 | 19.6 |
+| 幽灵抢修次数（sabFixedByGhost） | 0 | 0 |
+| 口供矛盾次数（contradictions） | 36.246 | 36 |
+| 旧量词会冤枉人的次数（falseContradictions） | 20.382 | 19 |
+| 旧量词诊断次数（contradictionOld） | 227.111 | 223 |
+| 确证写入次数（knownWrites） | 4.422 | 4 |
+| 确证票数（knownVotes） | 2.078 | 2 |
+| 确证驱逐次数（ejectByKnown） | 1.517 | 1 |
+| 拘留被目击次数（detainWitness） | 0.08 | 0 |
+| 被拘留者最终被逐次数（detainEvictions） | 0.022 | 0 |
+| 跨夜嫌疑存量（susCarry） | 37.377 | 36.695 |
+| 准-确证·敌次数（almostCount） | 7.602 | 7 |
+| 准-确证·友次数（almostFriendCount） | 0.599 | 0 |
+| 准-确证驱逐次数（almostEject） | 1.261 | 1 |
+| 准-确证票数（almostVotes） | 5.798 | 5 |
+| 确证覆盖好友次数（overriddenFriends） | 0.001 | 0 |
+| 证言可信度写入次数（reliaWrites） | 97.458 | 96 |
+| 局末可信度极差（reliaSpread） | 0.458 | 0.473 |
+| 犹豫不点名席次数（hedgeAgents） | 63.219 | 63 |
+| 敢点名席次数（sureAgents） | 18.336 | 18 |
+| 沉默线索次数（silentSus） | 25.586 | 25 |
+| 在场反驳次数（presenceDeny） | 2.049 | 1 |
+| 跨夜口供被指出次数（claimRecall） | 19.53 | 19 |
+| 认错次数（retractCount） | 1.282 | 1 |
+| 夜里躲开咬人者次数（avoidCount） | 35.011 | 0 |
+| 远距离目击次数（farSight） | 1.736 | 1 |
+| 软联盟连坐次数（allyRevealed） | 1.242 | 1 |
+| 好友挡票数（friendShield） | 0.018 | 0 |
+| 绕开行为记为弱证据次数（avoidSus） | 0.311 | 0 |
+| 报告额度用量（reportsUsed） | 6.436 | 6 |
+| 会议满被拒次数（nightMeetFull） | 0 | 0 |
+| 早投票数（earlyVotes） | 13.063 | 12 |
+| 听到发言后改票次数（voteChanges） | 0.928 | 0 |
+| 早投保留到终局票数（earlyKept） | 1.216 | 1 |
+| 不在场口供「走不到」次数（reachImpossible） | 2.527 | 2 |
+| 指控与背书冲突压声次数（statementDamp） | 0.437 | 0 |
+| 模拟讨论发言条数（discussLines） | 224.769 | 221 |
+| 听众收到背书次数（vouchHeard） | 2.891 | 2 |
+| 并列假说难分而弃权票数（hypothesisAbstain） | 20.858 | 20 |
 
 ## 本轮新增统计（2026-10-31）
 
-| 指标 | 每局均值 | 说明 |
+| 指标（中文 / 代码键） | 每局均值 | 说明 |
 |---|---:|---|
-| medbotRevives | 3.525 | 医疗无人机飞过去近身救治的次数（7 秒/次，每夜 2 次电量） |
-| medkitRevives | 0.913 | 医疗包施救次数（与 revives 同源） |
-| ghostTasks | 3.903 | 幽灵完成的维修任务个数（每人额度 2 分） |
-| ghostFixes | 0 | 幽灵修好的故障次数 |
-| humanDefends | 9.223 | 人类 AI 公开替人辩护的次数（新行为） |
-| reportDoubts | 1.157 | 异形质疑「尸体还热就报案」的次数（新行为） |
+| 无人机救起次数（medbotRevives） | 3.525 | 医疗无人机飞过去近身救治的次数（7 秒/次，每夜 2 次电量） |
+| 医疗包救起次数（medkitRevives） | 0.913 | 医疗包施救次数（与 revives 同源） |
+| 幽灵做任务个数（ghostTasks） | 3.903 | 幽灵完成的维修任务个数（每人额度 2 分） |
+| 幽灵修故障次数（ghostFixes） | 0 | 幽灵修好的故障次数 |
+| 人类替人辩护次数（humanDefends） | 9.223 | 人类 AI 公开替人辩护的次数（新行为） |
+| 质疑报案太快次数（reportDoubts） | 1.157 | 异形质疑「尸体还热就报案」的次数（新行为） |
 
 ## 推理质量（2026-11-01：时间线拆谎量词 / 拘留证据 / 确证链路）
 
-| 指标 | 每局均值 | 说明 |
+| 指标（中文 / 代码键） | 每局均值 | 说明 |
 |---|---:|---|
-| contradictions | 36.246 | 口供对不上触发次数（修量词后应显著下降） |
-| contradictionOld | 227.111 | 同一份记忆下**旧量词**会成立多少次（诊断口径，只统计不改行为） |
-| falseContradictions | 20.382 | 窗口内其实有匹配记录、旧量词会冤枉人的次数 |
-| knownWrites | 4.422 | 确证写入次数（出刀/管道/破坏/停摆/红身/拉闸） |
-| knownVotes | 2.078 | 由确证驱动的票数 |
-| ejectByKnown | 1.517 | 至少一票来自确证的驱逐次数 |
-| detainWitness | 0.08 | 保安拘留被看见的次数 |
-| detainEvictions | 0.022 | 被拘留过的人最终被驱逐的次数 |
+| 口供矛盾次数（contradictions） | 36.246 | 口供对不上触发次数（修量词后应显著下降） |
+| 旧量词诊断次数（contradictionOld） | 227.111 | 同一份记忆下**旧量词**会成立多少次（诊断口径，只统计不改行为） |
+| 旧量词会冤枉人的次数（falseContradictions） | 20.382 | 窗口内其实有匹配记录、旧量词会冤枉人的次数 |
+| 确证写入次数（knownWrites） | 4.422 | 确证写入次数（出刀/管道/破坏/停摆/红身/拉闸） |
+| 确证票数（knownVotes） | 2.078 | 由确证驱动的票数 |
+| 确证驱逐次数（ejectByKnown） | 1.517 | 至少一票来自确证的驱逐次数 |
+| 拘留被目击次数（detainWitness） | 0.08 | 保安拘留被看见的次数 |
+| 被拘留者最终被逐次数（detainEvictions） | 0.022 | 被拘留过的人最终被驱逐的次数 |
 
 ## 推理引擎规范化（2026-11-01：跨夜痕迹 / 准-确证 / 可信度 / 熵沉默）
 
-| 指标 | 每局均值 | 说明 |
+| 指标（中文 / 代码键） | 每局均值 | 说明 |
 |---|---:|---|
-| susCarry | 37.377 | 跨夜保留下来的嫌疑总量（验改动 A） |
-| almostCount | 7.602 | almost.foe 产生次数（准-确证 · 敌） |
-| almostFriendCount | 0.599 | almost.friend 产生次数（准-确证 · 友，异形伪装的兑现口） |
-| almostEject | 1.261 | 至少一票由准-确证驱动（≠确证）的驱逐次数 |
-| almostVotes | 5.798 | 投给 almost.foe 的票数 |
-| overriddenFriends | 0.001 | known 硬覆盖掉 almost.friend 的次数（friend 本身只有 0.26 次/局，所以这条接近 0；门禁里有专门用例） |
-| reliaWrites | 97.458 | 证言可信度写入次数（追责回写） |
-| reliaSpread | 0.458 | 局末可信度极差（0=谁说话都一样值钱） |
-| hedgeAgents | 63.219 | 高熵（谁都像）→ 犹豫不点名的席次数 |
-| sureAgents | 18.336 | 低熵（一人独高）→ 敢点名的席次数 |
-| silentSus | 25.586 | 沉默线索触发次数（上限 0.10，不升级） |
-| presenceDeny | 2.049 | 在场反驳「我当时就在那儿」次数 |
-| claimRecall | 19.53 | 跨夜口供被指出不一致的次数（**纯台词侧**：sim 不排台词，所以恒为 0；真实对局才有） |
-| retractCount | 1.282 | 「我上次看走眼了」次数 |
-| avoidCount | 35.011 | 夜里主动躲开「咬我最狠的人」次数（行为回流） |
-| farSight | 1.736 | 远距离目击（>4.5 格）次数——这些**只加嫌疑、不写确证**（证据分级） |
-| allyRevealed | 1.242 | 反复替翻车者辩护被连坐的次数（软联盟） |
-| friendShield | 0.018 | 「基本是好人」挡下来的票数（伪装兑现口） |
-| avoidSus | 0.311 | 「他刚才绕开了我」被记成弱证据的次数 |
-| reportsUsed | 6.436 | 夜晚报告实际用掉几次（额度 2 次/人） |
-| nightMeetFull | 0 | 因「本夜会议已开满」被拒的报告次数 |
-| earlyVotes | 13.063 | 讨论一开始就压上桌的票数（手里有确证/准-确证/明确怀疑） |
-| voteChanges | 0.928 | 讨论中因「听到某句话」而改票的次数（known 不参与） |
-| earlyKept | 1.216 | 早投票到终局没被改掉的次数 |
-| reachImpossible | 2.527 | 不在场口供被「这点时间走不到」判为不可能的次数（可达性反事实） |
-| statementDamp | 0.437 | 同一目标同时被指控与被背书、公开声势被压低的次数（证言间关系） |
-| discussLines | 224.769 | 模拟局同步执行的讨论发言条数（2026-11-06 起不再是 0） |
-| vouchHeard | 2.891 | 听众收到 heard_vouch 的次数 |
-| hypothesisAbstain | 20.858 | 两个假说难分高下而弃权的票数（假设层） |
+| 跨夜嫌疑存量（susCarry） | 37.377 | 跨夜保留下来的嫌疑总量（验改动 A） |
+| 准-确证·敌次数（almostCount） | 7.602 | almost.foe 产生次数（准-确证 · 敌） |
+| 准-确证·友次数（almostFriendCount） | 0.599 | almost.friend 产生次数（准-确证 · 友，异形伪装的兑现口） |
+| 准-确证驱逐次数（almostEject） | 1.261 | 至少一票由准-确证驱动（≠确证）的驱逐次数 |
+| 准-确证票数（almostVotes） | 5.798 | 投给 almost.foe 的票数 |
+| 确证覆盖好友次数（overriddenFriends） | 0.001 | known 硬覆盖掉 almost.friend 的次数（friend 本身只有 0.26 次/局，所以这条接近 0；门禁里有专门用例） |
+| 证言可信度写入次数（reliaWrites） | 97.458 | 证言可信度写入次数（追责回写） |
+| 局末可信度极差（reliaSpread） | 0.458 | 局末可信度极差（0=谁说话都一样值钱） |
+| 犹豫不点名席次数（hedgeAgents） | 63.219 | 高熵（谁都像）→ 犹豫不点名的席次数 |
+| 敢点名席次数（sureAgents） | 18.336 | 低熵（一人独高）→ 敢点名的席次数 |
+| 沉默线索次数（silentSus） | 25.586 | 沉默线索触发次数（上限 0.10，不升级） |
+| 在场反驳次数（presenceDeny） | 2.049 | 在场反驳「我当时就在那儿」次数 |
+| 跨夜口供被指出次数（claimRecall） | 19.53 | 跨夜口供被指出不一致的次数（**纯台词侧**：sim 不排台词，所以恒为 0；真实对局才有） |
+| 认错次数（retractCount） | 1.282 | 「我上次看走眼了」次数 |
+| 夜里躲开咬人者次数（avoidCount） | 35.011 | 夜里主动躲开「咬我最狠的人」次数（行为回流） |
+| 远距离目击次数（farSight） | 1.736 | 远距离目击（>4.5 格）次数——这些**只加嫌疑、不写确证**（证据分级） |
+| 软联盟连坐次数（allyRevealed） | 1.242 | 反复替翻车者辩护被连坐的次数（软联盟） |
+| 好友挡票数（friendShield） | 0.018 | 「基本是好人」挡下来的票数（伪装兑现口） |
+| 绕开行为记为弱证据次数（avoidSus） | 0.311 | 「他刚才绕开了我」被记成弱证据的次数 |
+| 报告额度用量（reportsUsed） | 6.436 | 夜晚报告实际用掉几次（额度 2 次/人） |
+| 会议满被拒次数（nightMeetFull） | 0 | 因「本夜会议已开满」被拒的报告次数 |
+| 早投票数（earlyVotes） | 13.063 | 讨论一开始就压上桌的票数（手里有确证/准-确证/明确怀疑） |
+| 听到发言后改票次数（voteChanges） | 0.928 | 讨论中因「听到某句话」而改票的次数（known 不参与） |
+| 早投保留到终局票数（earlyKept） | 1.216 | 早投票到终局没被改掉的次数 |
+| 不在场口供「走不到」次数（reachImpossible） | 2.527 | 不在场口供被「这点时间走不到」判为不可能的次数（可达性反事实） |
+| 指控与背书冲突压声次数（statementDamp） | 0.437 | 同一目标同时被指控与被背书、公开声势被压低的次数（证言间关系） |
+| 模拟讨论发言条数（discussLines） | 224.769 | 模拟局同步执行的讨论发言条数（2026-11-06 起不再是 0） |
+| 听众收到背书次数（vouchHeard） | 2.891 | 听众收到 heard_vouch 的次数 |
+| 并列假说难分而弃权票数（hypothesisAbstain） | 20.858 | 两个假说难分高下而弃权的票数（假设层） |
 
 ## 破坏技能探查（2026-11-01）
 
@@ -211,51 +211,51 @@
 > `任何一局发生过的比例` 才是"机制是否落地"的判据；均值 0.05 可能是"每局一点点"，
 > 也可能是"20 局里 1 局爆发"，两者要的处理完全不同。`命中局均值` 只在发生过时统计。
 
-| 指标 | 触达率(≥1 次的局) | ≥2 次的局 | 全局均值 | 命中局均值 | 单局最大 |
+| 指标（中文 / 代码键） | 触达率(≥1 次的局) | ≥2 次的局 | 全局均值 | 命中局均值 | 单局最大 |
 |---|---:|---:|---:|---:|---:|
-| terminatorGames | 4.9% | 0% | 0.049 | 1 | 1 |
-| orders | 20.3% | 19.4% | 2.105 | 10.37 | 27 |
-| orderObey | 4.7% | 1% | 0.061 | 1.3 | 4 |
-| orderRefuse | 19.1% | 15.7% | 0.61 | 3.19 | 8 |
-| endorses | 74.2% | 59.7% | 2.891 | 3.9 | 16 |
-| credFollow | 9.1% | 6% | 0.338 | 3.71 | 28 |
-| realFixes | 0% | 0% | 0 | 0 | 0 |
-| realRevives | 1.4% | 0% | 0.014 | 1 | 1 |
-| credShieldVotes | 44.9% | 18.2% | 0.722 | 1.61 | 7 |
-| fakeRepairs | 68.9% | 33.8% | 1.236 | 1.79 | 6 |
-| fakeTasks | 99.4% | 97.2% | 5.529 | 5.56 | 15 |
-| fakeBreaker | 0% | 0% | 0 | 0 | 0 |
-| rushKills | 100% | 100% | 11.203 | 11.2 | 25 |
-| alienTasks | 59.7% | 20.4% | 0.829 | 1.39 | 4 |
-| alienPipes | 100% | 99.1% | 9.493 | 9.49 | 28 |
-| almostFriendCount | 37.9% | 14% | 0.599 | 1.58 | 6 |
-| friendShield | 1.6% | 0.2% | 0.018 | 1.13 | 2 |
-| almostCount | 98.4% | 94.4% | 7.602 | 7.73 | 31 |
-| almostEject | 74.2% | 35.9% | 1.261 | 1.7 | 5 |
-| presenceDeny | 59% | 42.4% | 2.049 | 3.47 | 23 |
-| avoidSus | 15.5% | 7.7% | 0.311 | 2.01 | 13 |
-| retractCount | 77.8% | 37.9% | 1.282 | 1.65 | 5 |
-| allyRevealed | 77.2% | 36.7% | 1.242 | 1.61 | 5 |
-| humanDefends | 100% | 99.9% | 9.223 | 9.22 | 19 |
-| reportDoubts | 69% | 32.4% | 1.157 | 1.68 | 6 |
-| medbotRevives | 96.2% | 85.8% | 3.525 | 3.66 | 12 |
-| medkitRevives | 53.8% | 24.4% | 0.913 | 1.7 | 8 |
-| ghostTasks | 94.9% | 84.1% | 3.903 | 4.11 | 10 |
-| ghostFixes | 0% | 0% | 0 | 0 | 0 |
-| detainWitness | 4.9% | 2% | 0.08 | 1.63 | 4 |
-| sabHits | 64.5% | 40.6% | 1.593 | 2.47 | 10 |
-| loots | 92.6% | 83.8% | 4.128 | 4.46 | 13 |
-| humanShots | 40.5% | 15.1% | 0.641 | 1.58 | 6 |
-| alienShots | 74.9% | 52% | 1.851 | 2.47 | 9 |
-| revives | 53.8% | 24.4% | 0.913 | 1.7 | 8 |
-| earlyVotes | 99.5% | 98.1% | 13.063 | 13.13 | 52 |
-| voteChanges | 43.5% | 22.7% | 0.928 | 2.13 | 14 |
-| earlyKept | 53.9% | 31% | 1.216 | 2.26 | 14 |
-| reachImpossible | 87.8% | 65.3% | 2.527 | 2.88 | 12 |
-| statementDamp | 11.3% | 9.8% | 0.437 | 3.87 | 15 |
-| discussLines | 100% | 100% | 224.769 | 224.77 | 484 |
-| vouchHeard | 74.2% | 59.7% | 2.891 | 3.9 | 16 |
-| hypothesisAbstain | 100% | 100% | 20.858 | 20.86 | 53 |
+| 打到终结者夜的局数（terminatorGames） | 4.9% | 0% | 0.049 | 1 | 1 |
+| 领袖指令次数（orders） | 20.3% | 19.4% | 2.105 | 10.37 | 27 |
+| 照办指令次数（orderObey） | 4.7% | 1% | 0.061 | 1.3 | 4 |
+| 拒绝指令次数（orderRefuse） | 19.1% | 15.7% | 0.61 | 3.19 | 8 |
+| 当众背书次数（endorses） | 74.2% | 59.7% | 2.891 | 3.9 | 16 |
+| 跟着背书次数（credFollow） | 9.1% | 6% | 0.338 | 3.71 | 28 |
+| 异形真修故障次数（realFixes） | 0% | 0% | 0 | 0 | 0 |
+| 异形真救人次数（realRevives） | 1.4% | 0% | 0.014 | 1 | 1 |
+| 信任挡票数（credShieldVotes） | 44.9% | 18.2% | 0.722 | 1.61 | 7 |
+| 假装修理次数（fakeRepairs） | 68.9% | 33.8% | 1.236 | 1.79 | 6 |
+| 假装做任务次数（fakeTasks） | 99.4% | 97.2% | 5.529 | 5.56 | 15 |
+| 假装合闸次数（fakeBreaker） | 0% | 0% | 0 | 0 | 0 |
+| 放倒后加速次数（rushKills） | 100% | 100% | 11.203 | 11.2 | 25 |
+| 异形真做任务次数（alienTasks） | 59.7% | 20.4% | 0.829 | 1.39 | 4 |
+| 钻管道次数（alienPipes） | 100% | 99.1% | 9.493 | 9.49 | 28 |
+| 准-确证·友次数（almostFriendCount） | 37.9% | 14% | 0.599 | 1.58 | 6 |
+| 好友挡票数（friendShield） | 1.6% | 0.2% | 0.018 | 1.13 | 2 |
+| 准-确证·敌次数（almostCount） | 98.4% | 94.4% | 7.602 | 7.73 | 31 |
+| 准-确证驱逐次数（almostEject） | 74.2% | 35.9% | 1.261 | 1.7 | 5 |
+| 在场反驳次数（presenceDeny） | 59% | 42.4% | 2.049 | 3.47 | 23 |
+| 绕开行为记为弱证据次数（avoidSus） | 15.5% | 7.7% | 0.311 | 2.01 | 13 |
+| 认错次数（retractCount） | 77.8% | 37.9% | 1.282 | 1.65 | 5 |
+| 软联盟连坐次数（allyRevealed） | 77.2% | 36.7% | 1.242 | 1.61 | 5 |
+| 人类替人辩护次数（humanDefends） | 100% | 99.9% | 9.223 | 9.22 | 19 |
+| 质疑报案太快次数（reportDoubts） | 69% | 32.4% | 1.157 | 1.68 | 6 |
+| 无人机救起次数（medbotRevives） | 96.2% | 85.8% | 3.525 | 3.66 | 12 |
+| 医疗包救起次数（medkitRevives） | 53.8% | 24.4% | 0.913 | 1.7 | 8 |
+| 幽灵做任务个数（ghostTasks） | 94.9% | 84.1% | 3.903 | 4.11 | 10 |
+| 幽灵修故障次数（ghostFixes） | 0% | 0% | 0 | 0 | 0 |
+| 拘留被目击次数（detainWitness） | 4.9% | 2% | 0.08 | 1.63 | 4 |
+| 破坏命中次数（sabHits） | 64.5% | 40.6% | 1.593 | 2.47 | 10 |
+| 拾取次数（loots） | 92.6% | 83.8% | 4.128 | 4.46 | 13 |
+| 人类开枪次数（humanShots） | 40.5% | 15.1% | 0.641 | 1.58 | 6 |
+| 异形开枪次数（alienShots） | 74.9% | 52% | 1.851 | 2.47 | 9 |
+| 救起次数（revives） | 53.8% | 24.4% | 0.913 | 1.7 | 8 |
+| 早投票数（earlyVotes） | 99.5% | 98.1% | 13.063 | 13.13 | 52 |
+| 听到发言后改票次数（voteChanges） | 43.5% | 22.7% | 0.928 | 2.13 | 14 |
+| 早投保留到终局票数（earlyKept） | 53.9% | 31% | 1.216 | 2.26 | 14 |
+| 不在场口供「走不到」次数（reachImpossible） | 87.8% | 65.3% | 2.527 | 2.88 | 12 |
+| 指控与背书冲突压声次数（statementDamp） | 11.3% | 9.8% | 0.437 | 3.87 | 15 |
+| 模拟讨论发言条数（discussLines） | 100% | 100% | 224.769 | 224.77 | 484 |
+| 听众收到背书次数（vouchHeard） | 74.2% | 59.7% | 2.891 | 3.9 | 16 |
+| 并列假说难分而弃权票数（hypothesisAbstain） | 100% | 100% | 20.858 | 20.86 | 53 |
 
 ## 刀数分桶胜率（清场线断崖在哪）
 
@@ -321,22 +321,22 @@
 
 ## 关键变量分布（P10 / P50 / P90 · 均值会抹平长尾）
 
-| 指标 | P10 | P50 | P90 | 均值 |
+| 指标（中文 / 代码键） | P10 | P50 | P90 | 均值 |
 |---|---:|---:|---:|---:|
-| nights | 3 | 5 | 8 | 5.676 |
-| prog | 14 | 32 | 45 | 30.784 |
-| knives | 5 | 9 | 13 | 9.352 |
-| meetings | 7 | 11 | 16 | 11.275 |
-| exiles | 2 | 3 | 5 | 3.501 |
-| humans | 0 | 3 | 8 | 3.481 |
-| aliens | 0 | 1 | 2 | 0.83 |
-| sabotages | 5 | 9 | 14 | 9.22 |
-| shots | 0 | 2 | 5 | 2.492 |
-| searches | 3 | 6 | 10 | 6.337 |
-| fakeRepairs | 0 | 1 | 3 | 1.236 |
-| fakeTasks | 3 | 5 | 9 | 5.529 |
-| knownWrites | 2 | 4 | 8 | 4.422 |
-| contradictions | 24 | 36 | 49 | 36.246 |
+| 夜数（nights） | 3 | 5 | 8 | 5.676 |
+| 维修进度分（prog） | 14 | 32 | 45 | 30.784 |
+| 出刀次数（knives） | 5 | 9 | 13 | 9.352 |
+| 会议次数（meetings） | 7 | 11 | 16 | 11.275 |
+| 驱逐总人数（exiles） | 2 | 3 | 5 | 3.501 |
+| 局末存活人类数（humans） | 0 | 3 | 8 | 3.481 |
+| 局末存活异形数（aliens） | 0 | 1 | 2 | 0.83 |
+| 破坏次数（sabotages） | 5 | 9 | 14 | 9.22 |
+| 开枪次数（shots） | 0 | 2 | 5 | 2.492 |
+| 搜尸次数（searches） | 3 | 6 | 10 | 6.337 |
+| 假装修理次数（fakeRepairs） | 0 | 1 | 3 | 1.236 |
+| 假装做任务次数（fakeTasks） | 3 | 5 | 9 | 5.529 |
+| 确证写入次数（knownWrites） | 2 | 4 | 8 | 4.422 |
+| 口供矛盾次数（contradictions） | 24 | 36 | 49 | 36.246 |
 
 ## 每夜速率（调 NIGHT / WIN_PTS 之前先看这两条）
 
@@ -392,6 +392,141 @@
 | 电路维修 | 1.25 |
 | 氧气循环 | 1.322 |
 | 手术台校准 | 1.33 |
+
+## 附录 · 中文别名表（按含义分组）
+
+> 上面各表的「指标」列已直接显示中文；这里留一份完整速查，方便对照代码里的计数器名。
+
+### 一局有多长 / 胜负
+
+| 中文 | 代码键 |
+|---|---|
+| 夜数 | `nights` |
+| 维修进度分 | `prog` |
+| 模拟步数 | `steps` |
+| 会议次数 | `meetings` |
+| 打到终结者夜的局数 | `terminatorGames` |
+| 终结者补枪次数 | `terminatorArms` |
+| 局末存活人类数 | `humans` |
+| 局末存活异形数 | `aliens` |
+| 濒死人数 | `downed` |
+
+### 打斗与物资
+
+| 中文 | 代码键 |
+|---|---|
+| 出刀次数 | `knives` |
+| 开枪次数 | `shots` |
+| 破坏次数 | `sabotages` |
+| 驱逐总人数 | `exiles` |
+| 被逐人类数 | `humanExiles` |
+| 被逐异形数 | `alienExiles` |
+| 搜尸次数 | `searches` |
+| 拾取次数 | `loots` |
+| 捡到子弹数 | `bulletsLooted` |
+| 捡到医疗包数 | `medkitsLooted` |
+| 捡到申请单数 | `qualsLooted` |
+| 人类拾取次数 | `humanLoots` |
+| 异形拾取次数 | `alienLoots` |
+| 人类开枪次数 | `humanShots` |
+| 异形开枪次数 | `alienShots` |
+| 破坏命中次数 | `sabHits` |
+| 破坏被修次数 | `sabFixed` |
+| 破坏修复耗时（秒） | `sabFixSec` |
+| 幽灵抢修次数 | `sabFixedByGhost` |
+
+### 异形行动 / 伪装
+
+| 中文 | 代码键 |
+|---|---|
+| 假装修理次数 | `fakeRepairs` |
+| 假装做任务次数 | `fakeTasks` |
+| 假装合闸次数 | `fakeBreaker` |
+| 异形真修故障次数 | `realFixes` |
+| 异形真救人次数 | `realRevives` |
+| 异形真做任务次数 | `alienTasks` |
+| 钻管道次数 | `alienPipes` |
+| 钻管道计划次数 | `alienPipePlans` |
+| 放倒后加速次数 | `rushKills` |
+| 救起次数 | `revives` |
+| 无人机救起次数 | `medbotRevives` |
+| 医疗包救起次数 | `medkitRevives` |
+| 幽灵做任务个数 | `ghostTasks` |
+| 幽灵修故障次数 | `ghostFixes` |
+
+### 会议与发言
+
+| 中文 | 代码键 |
+|---|---|
+| 领袖指令次数 | `orders` |
+| 照办指令次数 | `orderObey` |
+| 拒绝指令次数 | `orderRefuse` |
+| 当众背书次数 | `endorses` |
+| 跟着背书次数 | `credFollow` |
+| 信任挡票数 | `credShieldVotes` |
+| 弃权票数 | `abstains` |
+| 连说让位次数 | `streakCuts` |
+| 台词重复次数 | `lineDups` |
+| 互相构陷次数 | `mutualFrames` |
+| 人类替人辩护次数 | `humanDefends` |
+| 质疑报案太快次数 | `reportDoubts` |
+| 模拟讨论发言条数 | `discussLines` |
+| 听众收到背书次数 | `vouchHeard` |
+
+### 推理 · 确证与准-确证
+
+| 中文 | 代码键 |
+|---|---|
+| 确证写入次数 | `knownWrites` |
+| 确证票数 | `knownVotes` |
+| 确证驱逐次数 | `ejectByKnown` |
+| 拘留被目击次数 | `detainWitness` |
+| 被拘留者最终被逐次数 | `detainEvictions` |
+| 准-确证·敌次数 | `almostCount` |
+| 准-确证·友次数 | `almostFriendCount` |
+| 准-确证驱逐次数 | `almostEject` |
+| 准-确证票数 | `almostVotes` |
+| 确证覆盖好友次数 | `overriddenFriends` |
+| 跨夜嫌疑存量 | `susCarry` |
+
+### 推理 · 口供与可信度
+
+| 中文 | 代码键 |
+|---|---|
+| 口供矛盾次数 | `contradictions` |
+| 旧量词会冤枉人的次数 | `falseContradictions` |
+| 旧量词诊断次数 | `contradictionOld` |
+| 证言可信度写入次数 | `reliaWrites` |
+| 局末可信度极差 | `reliaSpread` |
+| 犹豫不点名席次数 | `hedgeAgents` |
+| 敢点名席次数 | `sureAgents` |
+| 沉默线索次数 | `silentSus` |
+| 在场反驳次数 | `presenceDeny` |
+| 跨夜口供被指出次数 | `claimRecall` |
+| 认错次数 | `retractCount` |
+
+### 推理 · 行为线索
+
+| 中文 | 代码键 |
+|---|---|
+| 夜里躲开咬人者次数 | `avoidCount` |
+| 远距离目击次数 | `farSight` |
+| 软联盟连坐次数 | `allyRevealed` |
+| 好友挡票数 | `friendShield` |
+| 绕开行为记为弱证据次数 | `avoidSus` |
+| 报告额度用量 | `reportsUsed` |
+| 会议满被拒次数 | `nightMeetFull` |
+
+### 推理 · 投票与判断结构
+
+| 中文 | 代码键 |
+|---|---|
+| 早投票数 | `earlyVotes` |
+| 听到发言后改票次数 | `voteChanges` |
+| 早投保留到终局票数 | `earlyKept` |
+| 不在场口供「走不到」次数 | `reachImpossible` |
+| 指控与背书冲突压声次数 | `statementDamp` |
+| 并列假说难分而弃权票数 | `hypothesisAbstain` |
 
 ## 方法说明
 
