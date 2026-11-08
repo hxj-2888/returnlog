@@ -248,6 +248,12 @@
     };
     const sus=keepSus();
     a.mind={mem:[],sus:sus,why:keepWhy(sus),susNight:keepSusNight(sus,oldM.susNight),alert:0,
+      /* heard：注意力窗口（2026-11-08 用户裁定，同日修订）。
+         长度上限 `ATTN.heardMax`（10）的**滑动窗口**：整局累积、不跨夜清零，
+         满了由新证词顶掉最旧的一条（不是丢弃新证词）。
+         ⚠ 试过"每场重置 10 条"：1000 局里 0 次触发 —— 每场实际证词不到 10 条，
+         窗口从不填满，机制空转。所以只能是整局口径。 */
+      heard:(oldM.heard||[]).slice(),
       noise:null,seenBy:{},seenT:{},
       lastBody:null,tone:(a.i||0)%3,
       trust:keepEmo(oldM.trust),grudge:keepEmo(oldM.grudge),
@@ -372,23 +378,33 @@
       fk[w.kind]=1;
       if(w.night!=null&&w.night>=freshNight)ff[w.kind]=1;
     }
-    const foeOk=!known&&sus>=A.foeSus&&
-      Object.keys(fk).length>=A.foeKinds&&Object.keys(ff).length>=1;
+    /* 证据种类（2026-11-06 用户裁定）：传闻可以**补一个种类**，但不能单独定罪。
+       弱线索（沉默 / 空口指控 / 领袖点名 / 快速报案 / 错告 / 背书）仍然一律不算。
+       约束：`real`（自己看见 / 查到的）至少 1 条；`heard` 最多补 A.heardKinds 个。 */
+    const WEAK={silent:1,empty_accuse:1,leader_order:1,impossible_claim:1,
+      quick_report:1,wrong_accuse:1};
+    const kinds=Object.keys(fk);
+    const real=kinds.filter(k=>k.indexOf('heard_')!==0&&!WEAK[k]);
+    /* heard_vouch 是**正向**背书，方向不对，不进敌性证据的种类 */
+    const heard=kinds.filter(k=>k.indexOf('heard_')===0&&k!=='heard_vouch');
+    const heardUse=Math.min(heard.length,Math.max(0,A.heardKinds|0));
+    const counted=real.length+heardUse;
+    const foeOk=!known&&sus>=A.foeSus&&real.length>=1&&
+      counted>=A.foeKinds&&Object.keys(ff).length>=1;
     if(foeOk){
-      /* 构陷与弱线索刷不出 foe：传闻（heard_*）、沉默（silent）、空口指控
-         （empty_accuse）都不算"不同种类的证据" —— 否则「被三个人说可疑」＋「他话少」
-         就能凑成准-确证，那和 `empty_accuse` 的惩罚直接打架。 */
-      const WEAK={silent:1,empty_accuse:1,leader_order:1,heard_frame:1,heard_claim:1,
-        impossible_claim:1,quick_report:1,wrong_accuse:1};
-      const real=Object.keys(fk).filter(k=>k.indexOf('heard_')!==0&&!WEAK[k]);
-      if(real.length<A.foeKinds){grid.foe&&delete grid.foe[i];}
-      else{
-        const had=grid.foe&&grid.foe[i];
-        grid.foe[i]={t:evNow(),sus:+sus.toFixed(3),kinds:Object.keys(fk),
-          since:had&&had.since!=null?had.since:G.night,conf:A.foeConf};
-        if(!had&&G.simStats)G.simStats.almostCount=(G.simStats.almostCount||0)+1;
-        grid.friend&&delete grid.friend[i];
+      const had=grid.foe&&grid.foe[i];
+      grid.foe[i]={t:evNow(),sus:+sus.toFixed(3),kinds:kinds,
+        heardUsed:heardUse,
+        since:had&&had.since!=null?had.since:G.night,conf:A.foeConf};
+      if(!had&&G.simStats){
+        G.simStats.almostCount=(G.simStats.almostCount||0)+1;
+        const tgt=G.agents&&G.agents[i];
+        if(tgt&&tgt.alien)G.simStats.almostAlien=(G.simStats.almostAlien||0)+1;
+        else G.simStats.almostHuman=(G.simStats.almostHuman||0)+1;
+        /* 只统计"没有这条传闻就凑不够"的次数：这才是本批真正改掉的那部分 */
+        if(real.length<A.foeKinds)G.simStats.almostHeard=(G.simStats.almostHeard||0)+1;
       }
+      grid.friend&&delete grid.friend[i];
     }else if(grid.foe&&grid.foe[i])delete grid.foe[i];
     /* --- friend --- */
     const cred=credOf(a,i);

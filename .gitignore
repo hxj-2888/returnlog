@@ -48,3 +48,5 @@ tools/mc-results-E.json
 # 只排除敏感信息：.env（上）、android/release.keystore（上）、
 # android/assets/www/（APK 打包副本，上）等既有条目保持有效。
 # 入库前须复核：不写 API key / token / 口令 / 私钥 / 凭据明文。
+# Blender 自动备份（同目录 .blend1），不入库
+*.blend1

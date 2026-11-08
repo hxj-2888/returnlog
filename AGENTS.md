@@ -8,9 +8,13 @@
 > **当前版本**：返航录V3.6（2026-11-03）· `package.json` 3.6.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
-> **权威口径（2026-11-04 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-03T11:50:27Z ·
-> seed 20261030 · 1000 局 · 人类 **57.6% / 异形 42.4% / 超时 0**，Wilson 54.51~60.63）。§六 是它的摘录；
-> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **728 通过 / 0 失败**（2026-11-05 复跑）。
+> **权威口径（2026-11-06 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-06T11:29Z ·
+> seed 20261030 · 1000 局 · 人类 **74.8% / 异形 25.2% / 超时 0**，Wilson 72.02~77.39）。§六 是它的摘录；
+> **2026-11-08 语言批（完整证言 + 语言对称）只改台词，未改判定**；门禁已到 899/0，平衡基线仍待单独重跑。
+> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **838 通过 / 0 失败**（2026-11-06 实跑）。
+> ⚠ 2026-11-07 目击认错（`MISID.chance=0.2`）把基线从 78.8% 拉到 **74.8%**（−4.0pp，同批 A/B 实测）。
+> 之前从 74.3% 跳到 78.8% 里只有 **+1.1pp** 是机制（1000 局同 seed A/B），
+> 其余是「关掉零概率随机调用」造成的**随机路径位移** —— 跨批只比同批 A/B 两臂，不要直接相减。
 > 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
 ## 一、红线（违反即回退）
@@ -19,7 +23,7 @@
    以及任何需要本地服务器才能加载的资源。所有脚本按顺序用经典 `<script>` 加载。
 2. **`index.html` 是唯一加载清单。** 新增模块必须按依赖顺序插入，并同步更新 README 的「项目结构」；
    禁止在别处动态注入 `<script>`。当前顺序（与 `index.html` 一致）：
-   `config/version → data/map → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
+   `config/version → data/map → data/plates → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
@@ -42,8 +46,15 @@
      （旧写法停车 30,32），改停暗舱后 0/20。
 6. **素材署名不可删。** `assets/scene/cozy`、`assets/scene/rooms` 为 CC-BY 4.0，
    `audio/` 为 CC0；对应的 `LICENSE.txt` / `CREDITS.md` 必须保留，二次分发同样适用。
+   `assets/minigame/panel-*.png` 为 Qwen-Image 2.1 生成（Research License **非商用**）。
+   **2026-11-07 用户裁定：解除「后续 3D 美图素材一律 SDXL / 千问本地生图暂停」的限制，
+   允许使用千问模型生图**（SDXL 与千问均可作为 3D 美术素材来源；出图仍须本地生成、
+   不调用线上生图）。项目仍为非商用试玩版、不发行，Qwen-Image 2.1 的 Research License
+   边界不变 —— 未来发行/商用须换成 Apache-2.0 的 Qwen 1.0 / SDXL 产物或取得商用授权。
+   历次裁定见 `assets/minigame/CREDITS.md`；千问出图入口见 §三工具表。
 7. **模块边界不许穿透。** 地图数据只放 `js/data/map.js`；几何/寻路只放 `js/engine/geo.js`；
-   界面模板只放 `js/ui/templates.js`。不要在 `game.js` 里复制粘贴这些内容，也不要反向依赖对局状态。
+   界面模板只放 `js/ui/templates.js`；图内要素板（小游戏任务面板）只放 `js/data/plates.js`。
+   不要在 `game.js` 里复制粘贴这些内容，也不要反向依赖对局状态。
 8. **不引运行时第三方依赖。** 游戏必须是 0 依赖静态页面；Node 只用于本地服务器与测试工具。
 9. **DOM id 双处同步。** 模板里的 id 在 `js/ui/templates.js` 与 `js/game.js` 都有引用；
    改名必须同批改两处并跑门禁。
@@ -61,6 +72,14 @@
 | 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；汇总 `tools/mc-report.md` **入库**；原始局 `tools/mc-results.json` 是本地工作文件，入库形态为 `tools/mc-results.json.gz`） |
 | 调试模式 | `index.html?test`（跳过开局会议）/ `?dev`（DEV 面板）/ `&strict` |
 
+### PowerShell 7（强制）
+
+- **只在需要调用命令行时使用**：能用专用工具、API 或直接编辑完成的操作，直接用对应工具，不要为了用命令行而用命令行。
+- 需要调用命令行时，统一用 **PowerShell 7**：`pwsh` / `pwsh.exe`；**不要用 Windows PowerShell 5.1**（`powershell.exe`）。
+- 默认不用 Git Bash / `cmd.exe`；仅当项目脚本明确依赖 POSIX 工具且无法用 PowerShell 等价实现时，先说明原因再使用。
+- 多行脚本写成临时 `.ps1`，用 `pwsh -NoProfile -File` 调用；环境变量用 `$env:VAR='...'`，路径含空格时加引号。
+- 校验：`pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'` 应输出 7.x（本机 7.6.5），不是 5.1。
+
 ### 本机环境（后续 Agent 直接照这个用，**不要再说"Blender 没装"**）
 
 | 工具 | 绝对路径 / 说明 |
@@ -71,6 +90,7 @@
 | Python | `C:\Python314\python.exe`（3.14.5，装了 torch 2.11+cu128 / diffusers 0.42 / transformers） |
 | Playwright | 本仓 `node_modules/playwright-core`（devDependency `^1.64.1`；`node_modules/` 不入库，`npm i` 复现，驱动系统 Edge）。2026-11-04 前曾寄生在 `~\.workbuddy-ai\binaries\node\workspace\`，已收回本仓 |
 | GPU | RTX 5060 Laptop **8GB**。SDXL 768² 一张 8~9 分钟、640² 约 4 分钟；出图前会 `VRAM free 0.00`，属正常 |
+| 本地 MCP 工具链 | **`F:\AI-MCP\`**（2026-11-06 用户裁定「装在 F 盘」）：uv 0.13.7 / mcp-for-blender 2.2.7 / `@coding-solo/godot-mcp` 0.1.1，缓存与 Python 也全在 F 盘；客户端配置 `~\.workbuddy-ai\mcp.json`（唯一 C 盘例外）。GUI 启动：`pwsh -NoProfile -File F:\AI-MCP\scripts\Start-BlenderMCP.ps1`。详见 `F:\AI-MCP\README.md` 与 `docs/调研报告_Blender_Godot_AI_MCP插件_20261106.md` |
 
 > Blender **不在 PATH 上**，也不在 `C:\Program Files` 下 —— 它在 E 盘 Steam 库里。
 > 搜索时务必带上 `E:\SteamLibrary\steamapps\common\`，否则会误判"未安装"。
@@ -148,7 +168,8 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 |---|---|---|
 | `index.html` | 入口 | 开始页 + 唯一的脚本加载清单；主页 / 设置 / **复盘页 `#replay`** 都是页面壳（游戏内 `#v3-root` 覆盖层仍只在 `templates.js`） |
 | `js/config/version.js` | 配置 | **版本单一真源**（返航录V3）与仓库地址 |
-| `js/data/map.js` | 数据 | 地图静态数据（房间/走廊/家具/任务点/管道/设施/墙体） |
+| `js/data/map.js` | 数据 | 地图静态数据（房间/走廊/家具/任务点/管道/设施/墙体）；**2026-11-06 掩体重构 v2：127 件掩体（带 zone/tier）、设施 4 处随新布局微调** |
+| `tools/sync-map-v2-cover.cjs` | 工具 | 2.5D 换表：`3d/preview/data/map_v2.json` 的 cover → `js/data/map.js`；设施避让写在 `FIXES`/`SECBOT`；`--check` 只校验不写盘 |
 | `js/data/names.js` | 数据 | 15 个默认席位名 + 备选名字池（`SKNames`），主页改名与对局建号的唯一真源 |
 | `js/ui/templates.js` | 视图数据 | `#v3-root` 的 CSS 与 HTML 模板 |
 | `js/ui/home.js` | 视图 | 主页：用 `SKMapData` 生成整船 SVG、手电遮罩、身份锚亮（只读地图，不含业务动作） |
@@ -163,18 +184,19 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `js/game.js` | 编排 | 状态、AI、动作结算、会议/投票、渲染、输入（`window.SKV3`） |
 | `js/main.js` | 入口 | 开始页按钮绑定 + `[data-version]` 填充 |
 | `tools/serve.cjs` | 工具 | 零依赖静态服务器 |
-| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（728 条；2026-11-05 复跑 728 通过 / 0 失败） |
+| `tools/test-v3.cjs` | 门禁 | Playwright 浏览器断言（838 条；2026-11-06 复跑 838 通过 / 0 失败） |
 | `tools/monte-carlo.cjs` | 工具 | 无渲染 AI 对 AI 批量模拟（`_t.simGame`，1000 局基线，seed 可复现；报告含**配置快照 / 机制触达率 / 分桶胜率 / 结束原因×胜者交叉表**） |
 | `js/data/lines.js` | 数据 | 会议台词语料库（58 类 × hot/cold + 组合式模板 + 证据短语子池 WHY），唯一台词真源 |
 | `tools/lines-audit.cjs` | 门禁 | 语料体检：禁词 / 长度 / 槽位 / 骨架撞车 + 复现 `pickLine` 抽样口径模拟十局疲劳（`--strict` 有 FAIL 退出码 1） |
 | `tools/lines-report.md` | 数据 | `lines-audit` 生成的语料体检报告（工具产出，勿手改） |
 | `tools/ship.cjs` | 发布 | **一键发布**：门禁（含出仓素材校验，仅警告）→ APK → CF Pages → 本仓提交推送 → 作品集。推送里 GitHub 是致命目标、Gitee 是尽力镜像（失败仅警告），两条通道互为兜底（先用 `push --dry-run` 探测，不通就跳，不硬撞 20s）。`npm run ship`；`--fast` 跳门禁、`--only=web,portfolio` 跳 APK |
-| `tools/mc-report.md` | 数据 | **当前权威基线**：F 轮 · 生成 2026-11-03T11:50Z · 人类 57.6% / 异形 42.4%（原始局入库形态 `tools/mc-results.json.gz`，工具生成勿手改） |
+| `tools/mc-report.md` | 数据 | **当前权威基线**：2026-11-07 目击认错批 · 人类 74.8% / 异形 25.2%（讨论 60/35、投票 5、公布 3；H 先验条件化 + 仅 cred + h²；承诺机制经 A/B 移除，见 §六） |
 | `tools/mc-results-E.json.gz` · `tools/mc-report-E.md` | 数据 | **对照基线**（E 轮 · AI/玩家数值一致化）：`--out tools/mc-results-E.json --report tools/mc-report-E.md` 产出，压缩档由发布前自动生成；跨批对比先读它 |
 | `tools/blender-ship.py` | 美术工具 | 2.5D 底图烘焙（需 Blender，读 `js/data/map.js`；内置 5.2 版本守卫） |
 | `tools/check-blender.ps1` | 门禁 | 校验权威 Blender（路径 / 版本 / build hash / Python 载荷），不通过退出码 1 |
 | `tools/logs/` | 日志 | 渲染日志统一落点，命名 `<脚本>-<YYYYMMDD-HHmmss>.log`；`logs/legacy-4.5.9/` 为已归档的 4.5.9 旧日志 |
-| `tools/gen-materials.py` | 美术工具 | 家具/掩体表面材质生成（本地 SDXL 流式上卡；`--mode reuse` 为无显卡兜底） |
+| `tools/gen-materials.py` | 美术工具 | 家具/掩体表面材质生成（本地 SDXL 流式上卡；`--mode reuse` 为无显卡兜底）。高清重出用 `--size 768 --out-size 1536 --steps 28`：prompt / seed / NEG / grade / TINT / 四向镜像拼贴全部锁死，只取消老管线 1024² BOX 回缩；8GB 显存下 896² / 1024² 会打满显存换页，不要上调采样边长 |
+| `tools/check-tex-style.py` | 门禁 | 高清重出后的风格一致性量测：老图备份 vs 新图，统一缩到 256² 后比亮度 / 对比 / 饱和度 / 冷调 / 直方图距离，超出容差退出码 2 |
 | `tools/sfx-audit.py` | 音频工具 | 音效量化体检：峰值 / 短窗 RMS / 动态 / 起始静音；`--check` 只查游戏内引用到的音效，静音或削顶则退出码 1 |
 | `tools/master-sfx.py` | 音频工具 | 用 `tools/_sfx/` 里的公共 CC0 素材分层混音 + 软限幅归一，产出 `audio/sfx-*.ogg`（出刀 / 报告音） |
 | `tools/sfx-report.md` | 数据 | `python tools/sfx-audit.py` 生成的全量音效电平表 |
@@ -183,6 +205,24 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 | `tools/ux-audit.cjs` | 工具 | **游玩体验量测**（只量测不断言）：真实 DOM 输入下点击起移延迟、A* 规划耗时、HUD/会议 rect 与命中区、迷雾四态画面亮度、会议三段墙钟、代打墙钟占比、手机档几何、FPS；需先起 `tools/serve.cjs`（`file://` 下画布跨域 taint，读不了像素） |
 | `tools/ux-report.md` · `tools/ux-results.json` | 数据 | `ux-audit` 生成的读数表与原始数据（工具产出，勿手改） |
 | `assets/` · `audio/` | 素材 | 许可与署名见各子目录 `LICENSE*` 与 `audio/CREDITS.md` |
+| `3d/tools/covers_lib.py` | 工具 | **掩体本体建模共享库**：材质 / 图元 / 归一化 / 逐类导出 / 检查板排版；每个舱只写 `BUILDERS`；**面数预算 2800、倒角 2 段 16mm**；另有 `shell_pass()` 外壳化、`depth_ext()` 进深补齐、`sight_extend()` 视线遮挡补高（`SIGHT_MIN_H=1.70`，眼高 1.62 以上）三道通用工序；`mat()` 默认接 PBR 贴图（`COVERS_PBR=0` 回退），预算 6000 tris / 倒角 3 段 20mm；
+地板口径统一到 `3d/preview/data/floor_spec.json`（单一真源，禁抄第二份）（2026-11-07） |
+| `3d/tools/build-covers-<room>.py` | 工具 | 逐舱掩体建模脚本（`ecosys` 8 / `warehouse` 6 / `med` 7 / `armory` 6；余下 6 舱 34 类在 `build-covers-rest.py`，按舱跑）；**按真实尺寸建模**，改完要重跑 `measure-cover-refs.py` |
+| `3d/tools/build-covers-rest.py` | 工具 | 余下 6 舱（驾驶舱/监控/引擎/娱乐/配电/餐厅）共 34 类，按舱跑 `-- <room>` |
+| `3d/tools/cover-shot.py` | 工具 | 单件掩体特写（18° 前视 + 78° 近俯视），排查「检查板上看不清」的那一件 |
+| `3d/tools/gen-pbr-textures.py` | 工具 | 程序化生成 10 套 tileable PBR 贴图（albedo+normal，256² JPEG）；**SDXL 概念图不能当 albedo 直接贴** |
+| `3d/tools/build-medbot.py` | 工具 | 医疗无人机高细节 GLB（67 件 / 5610 tris），不走 `L.run()` 以免补落地背板 |
+| `3d/tools/export-floor-spec.cjs` | 工具 | 导出**地板口径单一真源** `3d/preview/data/floor_spec.json`（贴图/重复尺度/染色）；`blender-ship.py` 与 `map_builder.gd` 都读它，`--check` 只校验 |
+| `3d/tools/check-floor-spec.cjs` | 工具 | 地板口径对账：与真源一致 / 贴图存在 / **无第二份地板表** |
+| `3d/tools/sync-cover-height.cjs` | 工具 | 按 GLB 实测高度同步 `map_builder.gd` 的 COVER_HEIGHT v2 段；**必须先跑 `measure-cover-refs.py` 再跑它**，`--check` 只校验 |
+| `3d/tools/check-cover-scale.cjs` | 工具 | **掩体缩放审查**：建模尺寸 vs 地图占地 vs Godot 高度表，标出 >1.35× 的拉伸与纵向失配；改完模型必跑 |
+| `3d/tools/gen-cover-refs.py` | 工具 | 本地 SDXL 按舱出参考图（10 舱 JOBS，固定 seed）；一次加载模型可连续出多张，产物 `3d/assets/refs/<room>.{png,json}` |
+| `3d/tools/gen-art-refs.ps1` | 美术工具 | 千问本地模型（Qwen-Image 2.1 Turbo）出 10 舱 / 26 任务参考图（768² / 8 步）；`npm run 3d:refs:cabin` / `3d:refs:tasks`，**必须 pwsh 7**；2026-11-07 解禁 |
+| `3d/tools/gen-qwen-room-skins.ps1` | 美术工具 | 2026-11-07 晚间：千问本地出 6 个**非铁板舱**的墙面 / 地板原图（6×2=12 张 768²）；脚本内硬守卫拒绝 `power/engine/armory/warehouse`；**必须 pwsh 7**、本地生成、Qwen Research License 非商用 |
+| `3d/tools/bake-qwen-room-skins.py` | 美术工具 | 把上述千问图裁中心 88% + 项目 grade + 四向镜像拼贴成 1536² 无缝贴图，并以老图为参考做色调对齐；按舱切换 `cabin/` / `floor_spec.json` / `panels.json` / `WALL_SKIN` 四处引用，铁板 4 舱不动；幂等，重跑生成器后再跑一次即可恢复 |
+| `3d/tools/measure-cover-refs.py` | 工具 | 导入每个 GLB 实测包围盒 → `3d/preview/data/cover_refs.json`；Godot 靠它把「地图尺寸 / 建模尺寸」换算成缩放 |
+| `3d/tools/patch-tex-vram.py` | 工具 | 3D 贴图导入改 **VRAM 压缩 BPTC/BC7 + 生成 mipmap**（`compress/mode=2` + `compress/high_quality=true` + `mipmaps/generate=true` + `detect_3d/compress_to=0`）；实测 1536² 单张 9.4 MB → 3.0 MB，`RENDER_TEXTURE_MEM_USED` 885 → 486 MB；**`compress/mode=3` 在 4.6 不是 VRAM 压缩**（实测仍输出 1536²×4 未压缩并置 `vram_texture:false`，勿用）；幂等 |
+| `3d/preview/data/cover_refs.json` | 数据 | 61 个掩体 kind 的建模尺寸 `[宽,进深,高]`（Blender 口径，Godot 读时换轴） |
 | `3d/` | 子项目 | **Godot 4.6 3D 预演**（独立工程，不参与 `index.html` 加载；地图由 `3d/tools/export-map.cjs` 从 `js/data/map.js` 导出）。入口见 `3d/README.md`，架构见 `3d/ARCHITECTURE.md`，决策见 `3d/DECISIONS.md` |
 
 > 3D 子项目边界：**不继承**主项目的 `file://` / 经典 `<script>` 红线；
@@ -239,6 +279,12 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
     写成 600 就等于"这局做过一次就永久是破绽"，会把刚修好的触发率再掐回去。
   · 量纲：收益分是"一次被目击的正经动作 ≈ 1 分"；只读探针 `SKV3._t.disguise(i)` 重算一遍
     观众/风险/收益供门禁做方向断言。
+- **当众合闸的小概率通道（2026-11-06 用户裁定）**：断电、有观众、闸在 `spotR` 内、且没有更强计划时，
+  每只异形**每夜掷一次骰**（`SKSanity.DISGUISE.breakerChance = 0.10`）；
+  命中后锁 `a._breakerGoal` 最多 25 秒，保证走到闸前（否则 0.5 秒重算会把演出覆盖掉）。
+  它仍然走 `kind:'breakerOn'` 的 disguise 计划：真的合闸、灯真的亮、吃 `breakerLoss`；
+  完成后 `fakeBreaker++`。2026-11-06 实测：54.5% 的局掷过骰、7% 的局选中计划、4.2% 的局完成。
+  **不是**新的收益表，也不是免费 +cred；贴脸有猎物时立即解锁。
 - **正向信任（`mind.cred`）**：第三条通道，和 `trust`（他帮过我）/ `grudge`（他咬过我）分开 ——
   `cred` 是"他干的是正经事"，来源全部是可被目击的正经行为（`CRED.gains`：做任务 / 修故障 /
   合闸 / 拖伤员进医疗间 / 施救 / 伪装干活）。写入只走 `credBroadcast(actor,kind,x,y)`，
@@ -280,12 +326,30 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   `checkTerminator()` 一次性触发：**全场身份公开**（`G.revealAll`，标签走 `omniscient` 之外的
   公开分支，不借用 DEV/旁观的全知画法）+ **每人补子弹到 `bullets`（1）**（只补到 1，不叠加）。
   残局（1 异形 vs 2 人类）此前 energy-neutral 会拖到十几夜，这条给一个必然的收束点。
-- **会议三段时长（`SKSanity.MEET`）**：白天与**开局**讨论 `discussDay/discussPre = 50`
-  （用户裁定 60→50，且明确"涵盖开局讨论"）、夜会 `discussNight = 25`（原值）；
-  投票等待 `voteDay/voteNight = 15`（2026-11-03 晚 5→15）；结果公布 `reveal = 5`（原 6）。
+- **会议三段时长（`SKSanity.MEET`，2026-11-06 用户裁定）**：白天讨论 **60**、**开局讨论 `discussPre` 保持 50**
+  （本次 +10 明确不含开局）、夜会讨论 **35**；投票等待 `voteDay/voteNight = 5`；结果公布 `reveal = 3`。
   **只在表里改，不要在 `openMeeting` 里写数字**；门禁按运行时值断言（`_t.meetCfg()`），不写死秒数。
   投票阶段的「跳过投票」按钮 = **结束剩余投票时间**：已经投给谁就保留那一票，没投才记弃权；
   走 `closeVote()`，不强制改票，也不是第二种票。它只对活着的玩家显示，幽灵/旁观者不可用。
+- **驱逐门槛（2026-11-06 用户裁定）**：`voteThreshold()` 是唯一入口 ——
+  **可投票人数（活着且未濒死）>7 → 4 票；≤7 → 3 票**，数值只在 `SKSanity.VOTE`
+  （`need:4 / lateNeed:3 / lateAt:7`）。`closeVote()`、`m.tally.need/voters`、
+  计票文案与门禁探针 `_t.voteThreshold()` 同源。濒死者不能投票，所以不要用“存活人数”算门槛
+  （残局会把门槛抬到凑不齐）；平票仍然无人出局。
+- **异形的社交顺势（`SKSanity.SOCIAL`，2026-11-06 · AI 拟人化 · **默认关闭**）**：
+  异形在会议里「先听场上谁被咬，再决定踩谁」（`alienSocialPick`），编假口供也优先泼向场上的靶子
+  （`alienFrameTarget`）。只读**公开指控**（`accuse`）与已认出的队友（`a.mates`），
+  不读任何人的私有 `sus / known / cred`，不读系统阵营表；队友永远排除。
+  **300 局 A/B 实测方向相反**（关 75.00% → 开 81.33%）：这个引擎里人类公开怀疑约 **78%** 准，
+  「跟票」等于跟着人类咬自己人（`alienExiles 2.34 → 2.54`）。所以 `pileOn / frameFollow` 保持 **0**；
+  要复评用 `_t.setSocial(pile,frame)` 或 `node tools/monte-carlo.cjs --social 0` 做对照，
+  **不要**把默认值改回非 0 —— 除非人类侧判断的准确率先降下来（见 CHANGELOG 同日条目的下一批立项）。
+- **传闻可以凑成「基本确定」（`SKSanity.ALMOST.heardKinds`，2026-11-06 用户裁定）**：
+  `heard_*` 最多补 **1 个**证据种类，但**至少要有 1 条自己看见 / 查到的实证**（`real` 非空），
+  且传闻只补种类、不加任何 sus 分值；纯传闻仍然定不了罪。弱线索（沉默 / 空口指控 / 领袖点名 /
+  快速报案 / 错告 / 背书）仍然一律不算。
+  追责照旧、且门禁专门钉住：凭它投错人 → 投票者掉 `cred`、带头的吃 `wrong_accuse` + `relia` 下降。
+  **不要**为了"让传闻更有效"绕过 `settleAccountability`。1000 局 A/B：关 77.7% → 开 78.8%（+1.1pp，噪声内）。
 - **对局骨架数值外提（2026-11-03，**数值一个没改**）**：`SKSanity.NIGHT.len` / `WIN.pts` /
   `WIN.faultPenalty` / `STAND.*`（站桩秒数与故障窗口）/ `REACH.*`（近身判定距离）/ `SHOT.*`（开枪与追击距离）
   是 `game.js` 顶部那些 `const NIGHT=75`、`WIN_PTS=45`、`a.doing=5` 的**唯一真源**。
@@ -358,9 +422,12 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   玩家发言（`playerTalk` 里指控/投票记仇、点名"不是异形/别投他"记恩）。
   读取：`startVote` 里 `grudge≥0.6` 优先砸票（激进更狠）、`isPatron()` 恩人不过票。
   **不要**把情绪写进 `sus`（嫌疑分）——情绪是另一条通道，混进去会让证据链失去可审计性。
-- **输入映射**：移动只有「点击地面」；`W/A/S/D` 是主操作键（交互 / 出刀 / 搜尸 / 收尸），
-  `E/Q/X/G` 保留为别名。新增按键必须同时更新 `#tip` 与 README 的操作表，
-  否则玩家只能靠试键位——这一轮已经把「尸体操作」全部收进 `W/E` 的交互轮盘。
+- **输入映射（2026-11-06 简化）**：移动只有「点击地面」；一个动作只留一个键：
+  `W` 交互（多项时按 `1-9` / 点击选择）、`A` 出刀、`S` 搜尸/查看、`D` 收尸、
+  `F` 施救、`R` 报告、`B` 开枪、`H` 破坏、`V` 监控、`T` 视野、`C` 相机、`M` 音效、
+  `ESC` 暂停/设置。**旧别名 `E / Q / X / G` 与 `P` 已移除**，不要再加回；
+  尸体操作全部收进 `W` 的交互轮盘。新增按键必须同时更新 `#tip` 与 README 的操作表，
+  否则玩家只能靠试键位。
 - **搜尸 = 取证 + 取物资**：尸体保留生前的 `bullet / medkit / qual`，`lootBody()` 按背包容量转移，
   取不完的留在尸体上（`bodyHasLoot()` 允许二次搜尸）；`searched` 只标记「已取证」。
   **AI 也必须会搜尸**：人类取证件、任何 AI 看到自己缺的物资都会停下来搜（`aiWantsLoot()`），
@@ -378,27 +445,31 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   ⚠ 两件事不算不对称、不要顺手一起"统一"：① `SHOT.chaseKnown/chaseSus` 是 AI"愿意走多远去开枪"的
   **决策**参数（玩家没有这个概念）；② 冷却/计时的**递减入口只能有一处** —— 冷却以前在 AI 循环里减一次、
   `tickActs` 又减一次 = 一帧双倍速；写在 AI 循环里"顺手也减一下玩家"更糟（4 只异形 ⇒ 玩家 4 倍速）。
-- **视野半径（2026-11-03 起唯一真源是 `SKSanity.SIGHT`）**：`humanLightR = 7`（手电锥 60°）、
-  `humanDarkR = 2.8`（人类近身圆）、`alienDarkR = 3.5`（异形近身圆，**用户裁定的直接数值**）、
-  `aiCapR = 8`（**暗处**的 AI 视距上限）、`corrR = 12` / `litRoomMul = 1.15`。
-  旧版把异形写成 `ALIEN_INNATE_MUL = 10/9`（⇒ ≈3.11），改一次要反推乘法 —— 现在直接给数值。
-  ⚠ `aiCapR` **只管暗处**：亮区（同亮舱整间 / 同亮走廊整条）不受它约束，见下条。
-  改这几个数会同时影响 `aiCanSee`、`visibleAt`、`drawFog`、`sightRangeAt`（AI 的暴露度口径）
-  与门禁里的视野断言（断言用 2/3/4 格实测点）。
-- **亮区整片可见对 AI 同样成立（2026-11-03 用户裁定，推翻旧的"AI 8 格上限"）**：
-  `aiCanSee` 先看 `litZoneAt` —— **观察者与目标在同一亮舱 ⇒ 整间可见**（中央会议室对角 42 格），
-  同一亮走廊 ⇒ 整条可见，从亮舱看进相连走廊 ⇒ 可见但要 `losNow`；这三条**都不看距离**。
-  理由很直白：玩家异形在亮房里本来就能看见里面所有人，AI 却被 8 格卡住 ⇒
-  **AI 比它自己扮演的角色还弱**，而且伪装/暴露度那套"亮房整间都算观众"的口径只对了一半。
-  配套的第三处一致化：`watchersAt` 的半径改成 `max(调用方 rad, sightRangeAt(x,y))` ——
-  以前刀口那条固定 6 格，等于让异形当着满屋子人出刀还自以为没人看见（AGENTS 早就骂过"按 6 格数人头"，
-  但 `exposureAt` 改了、`watchersAt` 没改）。**别把这两处再改回固定半径。**
-  仍然受 `aiCapR` 约束的是：暗舱、以及**站在舱外看进亮舱**（不会全船看进亮房）。
-  实测代价（F 轮 vs E 轮，同 seed 1000 局，详见 CHANGELOG §十七）：**人类 60.2% → 57.6%**（约 1.2σ，噪声边缘），
-  `knownWrites` 7.52 → 7.01、`exiles` 3.28 → 3.12（**远处的观众只加嫌疑、不写确证**，这是 `CONFIRM.nearR` 的设计），
-  伪装演出 `fakeTasks` 8.19 → 9.28、回避 `avoidCount` 42 → 47（观众变多，演出的账面收益变高，异形更早绕开人）。
-  驱逐准确率几乎没动（51.94% → 52.07%）。**这是一次真实的平衡位移，不是纯拟人化**——要收回只能动
-  `NIGHT` / `WIN_PTS` / `aiCapR`，不要偷偷把亮区规则改回去。
+- **视野唯一判据（2026-11-06 用户裁定，AI 与玩家完全一致）**：`js/game.js` 的
+  `observerVisionAt()` 是唯一判据，玩家 `visibleAt` 与 AI `aiCanSee` 都走它：
+  ① 同亮舱整间 / 同亮走廊整条 → 可见（不看距离、不看朝向）；
+  ② 亮舱看相连走廊 → 可见但要 `losNow`；
+  ③ 近身圆（人类 `humanDarkR=2.3` / 异形 `alienDarkR=3.5`）→ 可见，要 LOS；
+  ④ 手电锥 `humanLightR=7`、60°（半角 30°）→ 可见，要 LOS。
+  AI 的“鼠标朝向”由 `agentAimAng()` 提供（动作 > 目标 > 路径 > 上次移动方向）。
+  **AI 不再有暗处 8 格全向、从舱外看进亮房、`lightState===1` 全亮无视朝向、`a.alien?8:5.5` 扫描半径。**
+  `SKSanity.SIGHT.aiCapR` 已退役，只保留给旧报告对照；不要再接回 `aiCanSee`。
+  做小游戏 / 开全屏遮罩时，玩家和 AI 的视觉都由 `attention()` 归零；`trackNight` 也必须先过它。
+  改这些数会同时影响 `observerVisionAt` / `visibleAt` / `drawFog` / `sightRangeAt` / `watchersAt` / `exposureAt`
+  与门禁的 2/3/4 格实测点，不要只改一处。
+- **目击范围与证据门槛是两件事**：`noticeAction` / `noticeTaskAbandon` / `watchersAt` / `exposureAt`
+  的预筛上界用 `max(rad, HUMAN_LIGHT_R, sightRangeAt(...))`，真正能不能看见由 `aiCanSee()` 决定；
+  4.5 格 `CONFIRM.nearR` 只决定“写不写 known”，不决定“看不看得见”。
+  远处目击仍然按 `farSusMul` 加嫌疑；当前 `farSusMul=1.0`，所以亮房整间可见会把远处目击全额喂进
+  `almost.foe`（`foeSus=0.35` + 2 类证据）。**这是 2026-11-06 实测 87% 人类胜率的主因之一；
+  要回调先动“远处证据的票权/权重”，不要再改视野或 `known`。**
+- **实测（2026-11-06 视野统一后，1000 局 seed 20261030）**：人类 **87.0% / 异形 13.0%**；
+  夜 3.928、驱逐 4.021（人类 1.078 / 异形 2.943）、误逐 26.8%、`farSight 9.295`、
+  `knownWritesAlien 2.879` / `knownWritesHuman 0`、`almostEjectAlien 1.663` / `almostEjectHuman 0.659`。
+  人类胜局 796 靠投光异形 / 74 靠维修；异形 130 靠人类全灭。**视野一致没有降低人类胜率，反而 +2pp**；
+  继续改视野不是解法。A/B：把 AI 目击人为退回 6 格是 57.6%（比玩家看得少，违规）；
+  在一致视野下把远处证据降级（不进 almost、不设 suspect、`farSusMul 0.35`）是 71.6%（500 局）。
+  剩余差距主要是 **4 次驱逐 vs 11 次击杀** 的胜负结构。
 - **迷雾只是表现层（2026-11-03 用户裁定）**：`SIGHT.fog = {roomMask .87, corridorMask .50}` ——
   用户原话是「除了船的房间的其他地方要能看见（前提是没有拉闸）」，所以**压淡的是走廊与船体背景**，
   未进舱室的暗度维持原值。**判定一点没动**：单位/尸体在画进迷雾之前就被 `canSee()`/`visibleAt` 裁掉，
@@ -438,6 +509,10 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 - **正常对局外观一致**：异形与人类共用同一角色贴图、名字标签和状态；`drawWeapon()` 只在真实
   `stab` / `shoot` 动作（或持枪）时画刀/枪，**空闲时不能给异形亮刀**。DEV / 旁观的红色身份标签
   是全知模式专用，不得在正常对局出现。
+- **出刀表现（2026-11-06）**：`drawWeapon()` 必须叠加 `actOffset()`，刀随角色突进/后坐，
+  不能再画在原点；动作 0.34 秒、短促前送 + 小摆臂（±0.22 rad），DEV 0.32 秒。
+  异形玩家（`a.alien && knife>0`）显示 `REACH.knife` 红色虚线圆，计数 `G.gfx.knifeRings`；
+  人类玩家不画。空闲异形仍然不亮刀。
 - **设置**：`#settings` 在 `index.html`（z-index 10010，高于 `#v3-root`），由 `js/main.js` 的
   `window.SKSettings` 托管，只写 `localStorage('sk.settings.v1')`；游戏侧只暴露
   `SKV3.setSfxVolume / getSfxVolume / togglePauseGame / isPaused / playSfx`。
@@ -447,8 +522,9 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 - **坐标系**：1 格 ≈ 56px 底图；`geo.js` 以 0.6 格烘焙可行走网格；家具 / 掩体是**硬阻挡**，不能穿越。
 - **渲染与模拟**：`game.js` 内 `update(dt)` 驱动模拟，`draw(dt)` 负责渲染；
   会议、搜尸、暂停时模拟冻结，但特效/动画按真实时间收尾（门禁有对应断言）。
-- **不变量**：15 席 / 4 异形 / 11 人类恒定；尸体必留坐标（驱逐除外）；拖拽双向互指且 ≤ 3.2 格；
-  投票对账一致。改动模拟逻辑后必须让 `SKInvariants` 零失败。
+- **不变量（2026-11-06 用户裁定：游戏内不再自动断言）**：15 席 / 4 异形 / 11 人类恒定；尸体必留坐标（驱逐除外）；拖拽双向互指且 ≤ 3.2 格；
+  投票对账一致。**运行时不再调用 `runInvariants` / 每秒 tick 检查**（`G.invT` 已删除），
+  只在门禁探针 `_t.inv()` 显式校验；改动模拟逻辑后仍须让该探针零失败。
 - **医疗无人机（2026-10-31 取代巡逻医疗机器人）**：**不再巡逻**，坞位就是医疗间正中央
   （`M.facility.medbot` 的 x/y，`resetBots()` 里 `home` 单航点）；`medbotTick()` 每帧：
   房间内有人濒死 → 飞到 `MEDBOT_TOUCH_R`（1.15 格）内悬停 → `G.medbotT` 累计满
@@ -467,11 +543,11 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   拖拽尸体 `DRAG_SPEED = 2.7` 格/秒（玩家与 AI 共用 `moveSpeed(a)`）、玩家幽灵 6.5 格/秒是显式例外。
   新增移动入口必须走 `moveSpeed(a)`，不要手写常量，否则 AI 会出现“拖着尸体满速跑”。
   `moveSpeed(a)` 的**优先级次序固定：拖尸 > 击杀加速 > 基础**（2026-11-03），改这条等于改逃逸动力学。
-- **击杀加速 ≠ 红身（2026-11-03 用户裁定）**：异形把人**放倒**（不是致死 —— 本作的死常在天亮失血/驱逐，
-  绑致死等于没有这个机制）后获得 3 秒 ×1.5 移速。状态是独立字段 `a.rushT`，
-  数值只在 `SKSanity.RUSH = { dur:3, mul:1.5, alienOnly:true }`，
+- **击杀加速 ≠ 红身（2026-11-03 用户裁定，2026-11-06 回调）**：异形把人**放倒**（不是致死 —— 本作的死常在天亮失血/驱逐，
+  绑致死等于没有这个机制）后获得 **2 秒 ×1.5** 移速（2026-11-06 用户裁定 70% → **50%**）。状态是独立字段 `a.rushT`，
+  数值只在 `SKSanity.RUSH = { dur:2, mul:1.5, alienOnly:true }`，
   授予只有 `killRushStart(a)` 一个入口，由 `knife()` 与 `fireShot()` 的致 down 分支调用。
-  **绝不允许从 `redT` 推导位移**：两个计时器都取 3 秒纯属巧合，红身管"别人看不看得见我"、
+  **绝不允许从 `redT` 推导位移**：两个计时器时长不同（红身 1.5 秒 / 加速 2 秒），
   rush 管"我跑得快不快"，一旦耦合，以后想把红身拉长 1 秒给目击者反应时间就会顺手 buff 凶手逃逸。
   只给异形（人类有无人机与同伴救援，不需要逃逸加速，给了还会把误伤同伴变成 buff）；
   拖尸期间不加速；幽灵 6.5 / 追捕 7.5 是显式例外，不走这条路。门禁有**双向解耦断言**守住它。
@@ -486,7 +562,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 - **AI 异形藏尸避人**：`hideRoomFor()` 排除医疗间/会议室/当前房间，按「远离医疗间 − 拖尸距离 − 人群风险」
   评分，只在**没有活人**的候选舱室里随机取前 3（不再固定仓库）；拖尸途中任何非队友活人 6.5 格内可视
   就松手（`_hideCD=8`），开始藏尸前也要求尸体旁没有非队友目击者。改藏尸逻辑时不要退回“始终仓库”。
-- **刀者红身**：`knife()` 命中后给出手者 `redT = 3.0`，在 `tickActs()` 里按 dt 递减，
+- **刀者红身**：`knife()` 命中后给出手者 `redT = SKSanity.RED_BODY.dur`（现值 **1.5 秒**），在 `tickActs()` 里按 dt 递减，
   绘制端用 `tintedSheet()` 缓存的红色染色图叠加。
   **2026-11-03 改述（旧表述与代码不符，已经误导过后续修改）**：红身**不是纯表现层**，
   它也不是体力状态 —— 它是**目击证据**：`trackNight` 看见 `redT>0` 会写 `known`/`mates`（身份级），
@@ -498,7 +574,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   只允许在无掩体的空地分支上增长，门禁据此回归。改底图烘焙尺寸/对齐会同时影响这个取样框。
 - **AI 规则利用**：AI 与玩家共用结算入口——救人走 `fireShot/finishDoing('revive')`、
   拖尸走 `startDrag`、合闸走 `pullBreaker`、钻管道走 `witnessAlienAction + aiHear('pipe')`；
-  出刀 / 破坏前用 `secbotWouldSee(x,y)`（与 `botTick` 同源：**10.5 格** + 180° 扇形 + `losWalls`）预判。
+  出刀 / 破坏前用 `secbotWouldSee(x,y)`（与 `botTick` 同源：**6 格** + 180° 扇形 + `losWalls`）预判。
   新增 AI 能力必须复用这些入口，否则会出现“AI 有特权、玩家没有”的失衡。
 - **AI 异形避目击（2026-10-30 改版）**：出手前用 `watchersAt(a,x,y,6,except)` 统计**非队友**活人：
   1 个非队友时 55% 直接冒险出刀；2 个以上非队友时**直接放弃目标**，写入 `_avoid[目标]=now+12`，
@@ -520,12 +596,15 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   只在没刀没弹、缺申请单且人类进度 <38 时小概率发生，避免异形替人类推 45 分胜利。
   假装维修仍只在故障旁有人看时发生，不修好、不加进度。
 - **管道口供只能落在有管道口的舱室**：`pipeRoomIds()`（来自 `M.pipes`：引擎室 / 监控室 /
-  军械库 / 仓库 / 食堂 / 医疗间，共 **6** 个）是唯一真源。AI 的 `planAlienDeception()` 反咬“钻管道”时
+  军械库 / 仓库 / 食堂 / 医疗间 / **生态舱 / 娱乐室**，共 **8** 个；除中央会议室与配电室外每舱一个）
+  是唯一真源。AI 的 `planAlienDeception()` 反咬“钻管道”时
   必须把目标自述舱室换成真实管道房；`meetTemplateText('pipe',…)` 在选中无管道舱室时省略地点；
   玩家硬说“在配电室钻管道”会走 `impossible_claim`，AI 反过来怀疑发言者而不是记目标的证据。
-  改地图管道时同步这 6 个房间与门禁，不能再生成“在别的房间钻管道”的台词。
-  **管道绘制配色跟随舱室**：`PIPE_TINT[room]`（与 Blender 的 `ROOM_THEME[].mark` 同色），
-  形状语言（菱形格栅 + 呼吸环）全船统一，不要给单个舱室改形状。
+  改地图管道时同步这 8 个房间与门禁，不能再生成“在别的房间钻管道”的台词。
+  **管道绘制配色跟随舱室**：`PIPE_TINT[room]`（与 Blender 的 `ROOM_THEME[].mark` 同色）是唯一色源；
+  2.5D 用 Blender 渲染的 `assets/scene/v4/facility/pipe-port-<room>.png`（SDXL 管道贴图 + 8 舱配色），
+  3D 用 `prop_pipe_port.glb` + 同色边圈；旧菱形格栅只作图片未加载时的 fallback。
+  不要给单个舱室改形状语言。
 - **AI 异形管道机动**：`alienPipeMove(a,dt,tgt,td)` 必须在“没刀游荡”之前调用，否则刀用完的异形
   永远走不到管道口（2026-10-30 修复）。目标 >15 格、`_pipeCD<=0` 时先规划到能显著缩短距离的入口，
   站在口上直接钻到离目标最近的出口；每夜最多 2 次、20 秒冷却。补给/伪装优先于管道，但管道优先于
@@ -547,6 +626,18 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   `heard_frame` 传闻嫌疑（0.14），**绝不写 `mind.known`**，真目击者仍由 `bestKnownTarget()`
   锁定指控与投票。听众若用 `saw_agent` 记忆抓到说谎者假口供与自己的时间线冲突，
   会写 `contradiction_lie` 反向怀疑说谎者。不要为了“让谎话生效”去改 known 或伪造证据事件。
+- **异形偶尔指控队友洗白（2026-11-06 用户裁定）**：`planMateBus()` 每个会议按
+  `SKSanity.MISLEAD.busChance = 0.06` 掷一次；只从 `a.mates`（亲眼认出的队友）里选目标，
+  公开指控队友“钻管道/带红光”，只写 `heard_frame`，**不写 known**；指控者会把票投给队友
+  （`_busTarget` 放行 mate 过滤）。若队友被逐且翻出是异形，现有 `settleAccountability`
+  给投票者 +cred，这就是洗白的兑现口。没有认出的队友就不做，不读系统队友表。
+- **异形伙同投票（2026-11-06 用户裁定）**：`startVote()` 先选一个 `packLead` ——
+  第一个有有效指控、且不是洗白指控（`_busTarget`）的异形。其他异形若通过 `isMate`
+  **认出**这个队友，就按 `mateFollowChance()` 跟票：
+  被 lead 当众保过（`mind.trust[lead]≥0.25`）**必跟**；只是认出队友则按性格
+  `followChance` 概率跟（0.45~0.90）。目标如果是自己认出的队友或恩人就不跟；
+  只读 `a.mates` / `mind.trust`，不读系统阵营表。遥测 `mateFollowVotes`。
+  这不是“异形全知串通”：没认出 lead 的异形仍各投各的；已认出的队友仍受 `isMate` 保护。
 - **会议模板与玩家直接证据**：`#m-tpl-btns` 的 8 个模板由 `meetTemplateText()` 生成标准句，
   必须与 `parseSpeech()` 保持同步；玩家直接证据走 `m.ctx.playerClaims` + `heard_claim`
   （按类型 0.12–0.30 嫌疑，**绝不写 `known`**），有确证的听众公开站队；
@@ -563,6 +654,36 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   新增「异形专属」判定必须同时确认人类无法执行，否则会把人类误判成异形。
   `known` **跨夜保留**（`mindReset()` 里 `mem` 仍每夜清空，`sus` 按 `SKSanity.CARRY` **衰减保留**），
   因此后续每一场会议都能继续锁定同一个确证目标。
+- **证据集中审计（2026-11-06）**：硬确证只接受“异形专属行为 + 4.5 格内目击”，实测
+  `knownWritesAlien 4.408 / knownWritesHuman 0`、`knownVotesAlien 2.234 / knownVotesHuman 0`、
+  `ejectByKnownAlien 1.726 / ejectByKnownHuman 0` —— **100% 命中异形**；
+  软通道 `almost` 反而约 **72% 指向人类**（`almostAlien 2.019 / almostHuman 5.247`，
+  `almostEjectAlien 0.449 / almostEjectHuman 0.793`）。
+  结论：准确率来自 `known`，误逐噪声主要来自 `almost`/传闻/行为线索；
+  详见 `docs/审计_证据集中到异形_20261106.md`。**不要为了“多抓几个”放宽 `CONFIRM.nearR` 或往 `known` 加人类也能做的行为。**
+- **身份轴（2026-11-06 用户裁定）**：`h = P(目标是人类 | 先验+证据)`，`id = h−0.5 ∈ [−0.5,+0.5]`；
+  人类 AI 敌对 `1−h`、信任 `h`；异形 AI 敌对 `h`、信任 `1−h`。同一个轴，两种导出；
+  不要为人类/异形各写一套事件规则。`identityPrior()` 动态先验：异形看 11/14、人类看 10/14，
+  公开出局按真实阵营扣减，未公开夜杀按比例分摊（不读尸体阵营）。
+  准-确证两个门槛现值 **0.35 / 0.40**（2026-11-06 用户裁定「回调怀疑数值」，从 0.5 回退）；
+  **v2 先验条件化**：异形从分母扣掉已认出的队友（`a.mates`）、人类扣掉已确证的异形（`mind.known`），
+  只读这两张表；已知异形的死亡不再按未知分摊。公开出局/未知夜杀的分摊逻辑不变。
+  准-确证两个门槛现值 **0.35 / 0.40**（2026-11-06 用户裁定「回调怀疑数值」，从 0.5 回退）；
+  `known/almost` 命中仍走**原判定**并封顶（almost 端点 0.95/0.05），概率曲线只作用于未攒满区间。
+  **v2 证据分层**：`H` 只吃 `cred`（真任务/真修/救人/合闸），普通 `sus` 不进身份轴；
+  `almost.foe` 只有 `kinds` 含异形专属证据（刀/管道/破坏/停摆/红身/拉闸断电）时才封顶 0.05，
+  否则继续驱动投票但不改 H。**v2 行为**：夜间目标 `base × (1.25 − 0.75h)`（乘整段风险分，不只是距离）；
+  异形指控/随机投票权重 `0.08 + h²`；人类侧权重仍线性。
+  **目标承诺 8~12 秒曾实现、已移除**：300 局 A/B 显示它让异形少杀、人类 79→76；不要在没有新 A/B 的情况下加回来。
+  v2 实测 **74.2 / 25.8**（异形仅 +0.5pp vs 74.7/25.3）——H 不是 50/50 的足够杠杆，
+  下一步动“救援次数/胜负结构”或异形构陷目标；**不要再继续抬 almost**。
+  ⚠ 历史上那条 `almostTargetAllowed` 真实阵营分流**已不存在于代码**；
+  CHANGELOG/README/审计文档里“85% 由它造成”的归因是**错的**，不要再按它调参。
+- **26 任务小游戏定制（2026-11-06 用户裁定）**：`js/t2/minigame.js` 的 `TASKS` 为 26 个任务点
+  各自提供独立 `kind / n / 符号 / 颜色 / 规则参数 / hint`；新增 `sequence / sort / valve / code`
+  四型交互，共 14 型。任务映射由 `BY_LABEL` 派生，`data.tasks` 经 `export-minigames.cjs`
+  进入 3D；3D 的新四型先映射到 match/place/lever/sync。新增普通任务时先补 `TASKS`，
+  不要再把普通任务按舱室塞回同一个默认玩法。
 - **电闸的两种操作语义相反（2026-11-01 用户裁定）**：`noticeAction(…,'breaker')` 用 `G.lightState` 区分
   （`pullBreaker` 先更新状态再广播）：**拉闸断电**（`lightState===2`）是身份级证据，人类目击写 `known`、
   异形目击 `markMate`；**合闸复电**（`!==2`）**不确证人类**——人类目击只涨 `cred`（`credBroadcast`），
@@ -717,7 +838,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   **异形幽灵不执行任何维修/任务**（`aiGhost` 直接待机、`startTask/startFix` 拒绝），
   因为推进人类进度对异形没有收益。不能报告、搜尸、拖尸、施救、破坏或使用补给。
 - **站桩动作**：`tickDoing()` 对所有 `_doing` 一移动就打断；开始任务 / 维修 / 领取时必须清空 `path` 与 `moving`。
-- **保安识别与押送（2026-10-30 改版）**：`SEC_RANGE = 10.5`、`SEC_ARC = π/2`（180° 前方半圆），行凶/攻击点必须在半径内、
+- **保安识别与押送（2026-10-30 改版，2026-11-06 再削）**：`SEC_RANGE = 6`（10.5 → 6，用户裁定）、`SEC_ARC = π/2`（180° 前方半圆），行凶/攻击点必须在半径内、
   `losWalls` 无遮挡且在朝向扇形内；**拘留 `30` 秒**、每夜最多 `SEC_USES_MAX = 2` 次。
   看到危险行为后**不再瞬移锁角落**：`secCatchStart()` 起一段 `G.secCatch` 状态机
   （`chase` 以 `SEC_CATCH_SPEED=7.5` 近身追捕 → `press` 压制 0.9 秒 → `escort` 1.2 秒押送到 `secJail()`），
@@ -807,16 +928,26 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 ## 六、当前基线（返航录V3）
 
-- 门禁：`node tools/test-v3.cjs` —— **728 条断言，728 通过 / 0 失败**（2026-11-05 复跑，Edge headless，依赖已收回本仓）。
+- 门禁：`node tools/test-v3.cjs` —— **899 条断言，899 通过 / 0 失败**（2026-11-08 实跑，Edge headless，依赖已收回本仓；首跑 1 条已知抖动的“质疑者发言行”失败，连跑两次 899/0）。
   语料体检：`node tools/lines-audit.cjs --strict` —— **1400 通过 / 0 失败**（退出码 0）。
-  **当前数值基线 = F 轮（亮区整片可见放开之后）**：人类 **57.6% / 异形 42.4% / 超时 0**
-  （95% Wilson 54.51~60.63），夜 5.682、进度 34.245、刀 10.04、会议 11.35、破坏 10.101；
-  **驱逐准确率 52.07%**（人类赢的局 64.3% 准 / 异形赢的局 34.8% 准）。
-  上一轮 E 轮（AI/玩家数值一致化）是 60.2/39.8、51.94% ⇒ **放开的代价 ≈ −2.6pp 朝异形，约 1.2σ**，
-  不能当作已定位移；真正变化的是 **`knownWrites` 7.52 → 7.01、`exiles` 3.28 → 3.12**（远处观众只加嫌疑），
-  以及伪装演出与回避变多（`fakeTasks` 8.19 → 9.28、`avoidCount` 42 → 47）。
-  两个原始包并排保留（入库为压缩档）：`tools/mc-results.json.gz`（F）与 `tools/mc-results-E.json.gz`（E，放眼前的对照基线）。
-  D 轮（一致化之前）是 58.5/41.5、52.25%。
+  **当前数值基线 = 2026-11-08 · 1000 局（seed 20261030）人类 49.9% / 异形 50.1% / 超时 0**，
+  Wilson 46.81~52.99；11-06 的 74.8/25.2 是更早批次的旧数值，禁止跨批混比：
+  人类 **74.8% / 异形 25.2% / 超时 0**（95% Wilson 72.02~77.39），夜 **4.502**、进度 30.6、刀 8.4、
+  会议 10.282、驱逐 **2.908**（人类 **0.577** / 异形 **2.331**）、**误逐占比 19.84%**；
+  `almostEjectAlien` 1.355 / `almostEjectHuman` **0.272**、`knownWritesAlien` 3.451、
+  `mateFollowVotes` 1.452、`rushKills` 10.293。
+  人类胜局 625 靠投光异形 / 117 靠维修；异形 258 靠人类全灭。
+  **异形仅 +0.5pp（vs 上一批 74.7/25.3），H 增强不是 50/50 的足够杠杆**：
+  中途“目标承诺”开启时 1000 局是 79.1/20.9，300 局 A/B 证伪后移除（少杀约 0.5 人/局、人类 +3pp）。
+  剩余差距是结构性的：医疗救援 **3.3 次/局**、人类只需 **4 次驱逐** vs 异形要 **11 次击杀**。
+  下一批优先动“救援次数/胜负结构”，或让异形构陷优先选“已有公开嫌疑的人类”；**不要再抬 almost 或改视野**。
+  上一批（回调 almost / 4 票 / 红身 1.5）是 74.7/25.3；更早（身份轴）是 87.3/12.7；
+  更早（伙同投票）是 82.2/17.8；更早（视野统一）是 87/13；
+  更早（almost 阵营分流 / 实际视野 / 队友洗白）是 85/15；
+  更早（RUSH 1.5 / 保安 6 格 / 当众合闸 / 8 管道）是 59.5/40.5，审计结论见
+  `docs/审计_证据集中到异形_20261106.md`；更早的改动前 1000 局是 57.5/42.5。
+  更早的 F 轮（亮区整片可见放开之后）才是 57.6/42.4（夜 5.682、进度 34.245、刀 10.04、会议 11.35），
+  两个原始包并排保留（入库为压缩档）：`tools/mc-results.json.gz`（F）与 `tools/mc-results-E.json.gz`（E）。
   夜长是**变动值**（120 → 100 → 90 → 75）：门禁里**不要写死 80 / 120** 之类的秒数，
   用 `_t.nightLen()` 取运行时真值（`暂停面板「重开本局」` 那条已经改掉）。
   本轮（拟人批次一）新增：击杀加速与红身解耦、终结者时刻、报告绑定"那一次倒下"、
@@ -833,7 +964,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   证言可信度双向回写、`almost.foe`（两类证据）与 `almost.friend`（两类正经行为）、
   `known` 硬覆盖（删 friend + 清 cred + 写 foe + 遥测）、在场反驳、信念熵高低档、
   沉默只对白纸、口供史按夜累积、人类辩护不看阵营。
-  `3 秒后红身自动结束` / `开枪特效…自动收尾` 两条已从**固定 sleep** 改成 `waitForFunction` 等条件
+  `1.5 秒后红身自动结束` / `开枪特效…自动收尾` 两条已从**固定 sleep** 改成 `waitForFunction` 等条件
   （红身与特效按模拟时间衰减，`dt` 钳在 0.05，机器一忙就会落后墙钟 → 未改动的基线上也会随机失败）。
   **新增实时动画断言一律用「等条件 + 超时」，不要写死 `waitForTimeout` 再断言归零。**
   2026-11-01 本轮新增：时间线拆谎量词（有匹配记录→不定罪 / 全部不匹配→成立 / 走廊不算舱室 /
@@ -929,7 +1060,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   结束时人类存活 2.34/11、异形 1.23/4，平均进度 38.9/45（中位数 41）。
   异形真做任务 0.41 次/局、假装做任务 1.01、假装维修 0.14、钻管道 **5.62 次**（规划 10.18）；
   搜尸 6.31 次/局、双方取到物资 4.05 次、复活 0.59 次。
-  原始局当时在 `tools/mc-results.json`（现入库形态为 `.json.gz`），汇总在 `tools/mc-report.md`。**「当前基线」只对该 2026-10-31 批次成立**；现行基线见 §六（F 轮 57.6% / 42.4%）。
+  原始局当时在 `tools/mc-results.json`（现入库形态为 `.json.gz`），汇总在 `tools/mc-report.md`。**「当前基线」只对该 2026-10-31 批次成立**；现行基线见 §六（2026-11-06 规则批 85% / 15%）。
   **要调回五五开**（该批次当时的方向）：往人类偏把 `NIGHT` 从 120 加到 ~130，或把 `WIN_PTS` 从 45 降 1~2 分；
   往异形偏则把 `MEDBOT_CHARGES` 调回 1 或降 `NIGHT`。**报告规则是承重墙，不要动。**（这条与批次无关，仍然有效）
   **会议数 14.8 次**是“每具尸体都能报告一次 + 跑图变长”的直接结果；调平衡优先动 NIGHT/WIN_PTS，
@@ -943,18 +1074,18 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   注意**会议总量与胜率强相关只是「局越长、刀越多」的伴随现象**：控制刀数后，8~9 刀时会议多的一半
   胜率 93.2%→73.9%（真伤害），但 10~11 刀时反而 30.6%→40.7%（局更长、人类总时间更多）。
   想动平衡：往人类偏就加 `NIGHT` 或降 45 分；往异形偏就加会议扣夜时长。**报告规则是承重墙，不要动。**
-- 门禁覆盖：地图全连通 / 6 管道口 / **26 任务点（8 高难 + 18 普通；仓库 504 格 / 配电室 148 格 / 引擎 216 格）**、
+- 门禁覆盖：地图全连通 / 8 管道口 / **26 任务点（8 高难 + 18 普通；仓库 504 格 / 配电室 148 格 / 引擎 216 格）**、
   22 扇自动门开合与视线/移动阻挡、机器人 4 点巡逻与运行时判定、
   AI 夜间能力（拉闸 / 停摆机器人 / 破坏舱室 / 钻管道 / 开枪 / 救人 / 补给）、
   破坏技选舱 / 30 秒故障 / -5 进度 / 连续 10 秒维修 / 幽灵不可破坏、暗处不可隔空开枪、
   异形互不知道身份 / AI 不读取队友信息 / 互刀 / 投票可投队友、统一移速、
-  保安 10.5 格 180° 弧形 / 追捕押送 / 30 秒 / 每夜 2 次、机器人受击与摧毁、医疗机器人 2 次电量 / 每次 5 秒施救、站桩维修移动打断、
+  保安 6 格 180° 弧形 / 追捕押送 / 30 秒 / 每夜 2 次、机器人受击与摧毁、医疗机器人 2 次电量 / 每次 5 秒施救、站桩维修移动打断、
   物资申请单待领 → 圆桌领取 → 军械/医疗专用补给点、硬掩体阻挡/绕行 + coverAudit 零夹缝零死路、
   AI 拖尸送医疗间复活（扣电量/留 bodyMoved/不变量）、AI 异形藏尸与藏尸点选择、
   AI 避开保安 180° 扇形（正对不出刀、转开即补刀）、AI 断电合闸、AI 主动寻管道口（含刀用完后）、
-  管道口供只落在 6 个有管道口的舱室、
+  管道口供只落在 8 个有管道口的舱室、
   AI 出刀砍机器人扣刀且按装甲 HP 结算（不偷用破坏技、留红身与危险行为记录）、
-  DEV 免伤仍扣刀、刀者 3 秒红身与衰减、任务点改为掩体本体闪烁且无黄色虚线框、
+  DEV 免伤仍扣刀、刀者 1.5 秒红身与衰减、任务点改为掩体本体闪烁且无黄色虚线框、
   零证据人类 AI 全部弃权（跟票需自身有动静）、
   确证链路（钻管道/红身/拉闸断电 → known、指控与投票锁定、开枪与拘留与合闸不确证）、
   **时间线拆谎量词与时间窗（有匹配就不定罪 / 走廊不算舱室 / 窗口外不算）**、
@@ -972,7 +1103,8 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   亮房整间可见 / 暗房视野受限、**亮走廊整条可见（12 格同廊、断电后失效）**、断电后全门扫描 2 秒（含会议室三门、离开重新上锁、恢复供电解除）、
   旁观者跳过讨论与 0 号星尘独立 AI（发言/投票/DEV 标注）、**AI 完成 3 分后自然回圆桌领取申请单、反常拖尸嫌疑、藏尸避人/随机目的地、59 件真实掩体零夹缝**、**事件流与回放（出刀/击杀归因/拖尸/任务/维修/管道/拉闸/搜尸/会议投票/回放页与回放包）**、故障修好立即松手、地图外 A* 安全返回、蒙特卡洛 1000 局基线、
   WASD 主操作 / 尸体交互轮盘 / 设置面板音量与暂停 / 门顶面视角 / 异形同款手电锥 + 近身视野 ×4/3 / 旁观者模式、
-  E/H 交互轮盘多项选择、人类管道禁用、AI 拐角寻路不卡死、异形投票目标不统一、
+  W 交互轮盘多项选择 / H 破坏、人类管道禁用、AI 拐角寻路不卡死、异形投票无队友识别时分散、认出并信任 lead 时伙同跟票、
   任务乱序维修按实际点位结算、幽灵乱序任务/故障维修/2 分额度、AI 认知/证据链/搜尸/伤口状态/报告上限/异形自报/证据投票/
   Q 出刀 / B 开枪分离、**12 类 CC0 音效采样（枪/刀/命中/交互/维修/胜负分离）**。
 - 浏览器冒烟：开始页版本号「返航录V3」→ 人类开局 15 席 / 300+ 项不变量全过 / 22 扇自动门 / 控制台零报错（2026-10-30）。
+

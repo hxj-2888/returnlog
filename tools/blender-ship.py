@@ -115,8 +115,17 @@ scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
 scene.render.image_settings.color_mode = 'RGBA'
 scene.render.image_settings.compression = 55
-scene.render.filepath = os.path.join(ROOT, 'assets', 'scene', 'v4',
-                                     '_preview.png' if TEST else 'base-lit.png')
+# 出图路径：默认写生产路径；--out <路径> 可改写到别处（试渲染用）。
+# 底图是**入库资产**，重烘必须是显式动作。
+_OUT = None
+for _i, _a in enumerate(ARGS):
+    if _a == '--out' and _i + 1 < len(ARGS):
+        _OUT = ARGS[_i + 1]
+if _OUT:
+    scene.render.filepath = os.path.abspath(_OUT)
+else:
+    scene.render.filepath = os.path.join(ROOT, 'assets', 'scene', 'v4',
+                                         '_preview.png' if TEST else 'base-lit.png')
 try:
     scene.view_settings.view_transform = 'AgX'
     scene.view_settings.look = 'AgX - Medium High Contrast'
@@ -154,10 +163,27 @@ else:
 _IMGS = {}
 
 
+_PREVIEW_TEX = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures')
+
+
+def tex_path(tex):
+    """贴图路径解析：默认 2.5D 自己的 assets/scene/v4/tex/。
+
+    floor_spec.json 是 2.5D 与 3D 共用的单一真源，2026-11-07 千问覆盖后 6 舱地板值
+    写成 3D 侧的 `qwen/<rid>/floor.png`；底图重烘必须能顺着同一个值找到图，
+    否则会静默退回纯色（6 舱地板全丢）。这里按「先 2.5D 后 3D」顺序解析。
+    """
+    p = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex', tex)
+    if os.path.exists(p):
+        return p
+    q = os.path.join(_PREVIEW_TEX, tex)
+    return q if os.path.exists(q) else p
+
+
 def load_tex(tex):
     """同一张贴图只上一次显存：变体材质会反复引用同一个 image 数据块。"""
     if tex not in _IMGS:
-        _IMGS[tex] = bpy.data.images.load(os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex', tex))
+        _IMGS[tex] = bpy.data.images.load(tex_path(tex))
     return _IMGS[tex]
 
 
@@ -175,7 +201,7 @@ def sock(node, names, value):
 def mat_tex(name, tex, scale=(1 / 4.2, 1 / 4.2, 1.0), metallic=0.55, rough=0.42,
             emit_mul=0.0, tint=None, fallback=None):
     """贴图材质；素材缺失（没跑 SDXL 工具）时退回纯色，保证烘图流程不中断。"""
-    path = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex', tex)
+    path = tex_path(tex)
     if not os.path.exists(path):
         print('[ship] 缺贴图 %s，退回纯色材质' % tex)
         c, m, r = fallback or ((0.25, 0.28, 0.32), 0.5, 0.5)
@@ -214,7 +240,7 @@ def mat_tex(name, tex, scale=(1 / 4.2, 1 / 4.2, 1.0), metallic=0.55, rough=0.42,
 
 def mat_shadow(name, tex, strength=0.55, z_bias=0.008):
     """接地软阴影：只用 alpha 贴图压暗地面，本身不参与投影。"""
-    path = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex', tex)
+    path = tex_path(tex)
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     nt = m.node_tree
@@ -263,24 +289,27 @@ def mat_plain(name, color, metallic=0.4, rough=0.5, emit=None, strength=0.0, alp
     return m
 
 
-TEX = {
-    'bridge': 'floor-carpet.png', 'cam': 'floor-monitor.png', 'ecosys': 'floor-eco.png',
-    'power': 'floor-power.png', 'transit': 'cafeteria-floor.png', 'fun': 'floor-lounge.png',
-    'engine': 'floor-engine.png', 'med': 'floor-lab.png', 'armory': 'floor-hazard.png',
-    'warehouse': 'warehouse-floor.png',
-}
-FLOOR_SCALE = {'bridge': 1 / 7.5, 'armory': 1 / 3.2, 'med': 1 / 3.0,
-               'cam': 1 / 3.0, 'engine': 1 / 3.0, 'warehouse': 1 / 3.2}
-FLOOR_TINT = {'armory': (0.72, 0.72, 0.72), 'bridge': (0.46, 0.48, 0.54),
-              'cam': (0.86, 0.92, 1.04), 'fun': (0.92, 0.88, 0.98)}
+# 地板口径（贴图 / 重复尺度 / 染色）—— **单一真源在 3d/preview/data/floor_spec.json**。
+# 2026-11-07：以前这张表只在这里，3D 预览另抄了一份（全局 UV_WORLD_SCALE=4.0 + 统一 tint），
+# 结果两边地板看起来不是同一张：底图 med 是 3.0m 一循环的大瓷砖，3D 是 4.0m 的密格 + 青灯条。
+# 抄两份表必然漂移，所以现在改为读同一个 JSON（由 3d/tools/export-floor-spec.cjs 生成）。
+_FLOOR_SPEC_PATH = os.path.join(ROOT, '3d', 'preview', 'data', 'floor_spec.json')
+with open(_FLOOR_SPEC_PATH, encoding='utf-8') as _f:
+    _FSPEC = json.load(_f)
+TEX = {rid: spec['tex'] for rid, spec in _FSPEC['rooms'].items()}
+FLOOR_SCALE = {rid: 1.0 / spec['repeat_m'] for rid, spec in _FSPEC['rooms'].items()}
+FLOOR_TINT = {rid: tuple(spec['tint']) for rid, spec in _FSPEC['rooms'].items()
+               if spec.get('tint')}
+_CORR = _FSPEC['corridor']
 FLOOR_MATS = {}
 for rid, tex in TEX.items():
-    sc = FLOOR_SCALE.get(rid, 1 / 2.8)
+    sc = FLOOR_SCALE[rid]
     FLOOR_MATS[rid] = mat_tex('floor_' + rid, tex, scale=(sc, sc, 1), metallic=0.22, rough=0.62,
                               tint=FLOOR_TINT.get(rid))
-FLOOR_MATS['corridor'] = mat_tex('floor_corridor', 'floor-grate.png', scale=(1 / 2.6, 1 / 2.6, 1),
+FLOOR_MATS['corridor'] = mat_tex('floor_corridor', _CORR['tex'],
+                                 scale=(1 / _CORR['repeat_m'], 1 / _CORR['repeat_m'], 1),
                                  metallic=0.42, rough=0.5, emit_mul=0.14,
-                                 tint=(0.72, 0.78, 0.9))
+                                 tint=tuple(_CORR['tint']))
 # ---------------- 舱室主题 ----------------
 # 12° 俯角下，墙面只剩"顶面一条框 + 南侧 0.24 格立面粉片"，所以墙的身份主要靠
 # 顶面色（框）与地面标识色（mark）传达；mark 给每间房的地面喷涂/导引线用。
@@ -1387,5 +1416,15 @@ bpy.ops.object.transform_apply(location=True, rotation=True, scale=True, propert
 print('[ship] rooms=%d walls=%d cover=%d res=%dx%d engine=%s' % (
     len(M['rooms']), wall_i, len(M['cover']), scene.render.resolution_x,
     scene.render.resolution_y, scene.render.engine))
-bpy.ops.render.render(write_still=True)
-print('[ship] wrote ' + scene.render.filepath)
+
+# --dry：只建场景与材质，**不渲染、不写文件**。
+# 2026-11-07 教训：这个脚本没有 dry 开关，误以为 '--dry' 能跳过渲染，
+# 结果真的把生产用的 assets/scene/v4/base-lit.png 重烘覆盖了
+# （当前工作区 map.js 的 cover 已改，底图跟着重排，16.6% 像素变了）。
+# 底图是入库资产，重烘必须是**有意的**动作，不能靠「以为有开关」。
+DRY = '--dry' in ARGS
+if DRY:
+    print('[ship] --dry：场景与材质已建好，未渲染、未写文件')
+else:
+    bpy.ops.render.render(write_still=True)
+    print('[ship] wrote ' + scene.render.filepath)

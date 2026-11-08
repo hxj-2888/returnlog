@@ -1,0 +1,140 @@
+{
+  "model": "Qwen-Image 2.1 Turbo Q4_K_M / Qwen3-VL-8B-Instruct UD-Q4_K_XL",
+  "runner": "sdcpp Vulkan sd-cli.exe",
+  "script": "3d/tools/gen-qwen-room-skins.ps1",
+  "pwsh_only": true,
+  "license": "Qwen Research License - NON-COMMERCIAL; 2026-11-07 user decision allows use in this non-commercial in-house build; commercial release requires replacement or separate licence.",
+  "generated": "2026-11-07 18:57:40",
+  "set": "room-skins",
+  "size": 768,
+  "seed_base": 20261107,
+  "steps": 8,
+  "cfg": 1.0,
+  "included_rooms": [
+    "bridge",
+    "cam",
+    "ecosys",
+    "transit",
+    "fun"
+  ],
+  "excluded_iron_plate_rooms": [
+    "power",
+    "engine",
+    "armory",
+    "warehouse"
+  ],
+  "count": 10,
+  "ok_count": 10,
+  "items": [
+    {
+      "slug": "bridge-wall",
+      "room": "bridge",
+      "kind": "wall",
+      "seed": 20261107,
+      "size": 768,
+      "ok": true,
+      "sec": 99.8,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\bridge-wall_768.png",
+      "prompt": "large formal conference hall wall panel, dark charcoal acoustic panels with fine woven fabric inserts, warm amber accent light strips along the top edge, brushed aluminium trim rails, subtle wood-composite inlay bands, clean minimal wear, dignified and central. accent colour #F29E38, bright lit room, flat material swatch, orthographic front view of a wall surface, sci-fi spaceship interior panel, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, weathered but maintained"
+    },
+    {
+      "slug": "bridge-floor",
+      "room": "bridge",
+      "kind": "floor",
+      "seed": 20261108,
+      "size": 768,
+      "ok": true,
+      "sec": 99.2,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\bridge-floor_768.png",
+      "prompt": "formal conference hall deck flooring, dark charcoal woven carpet tiles with fine warm amber geometric inlay borders and subtle foot wear, low sheen, tidy and dignified. accent colour #F29E38, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, no perspective"
+    },
+    {
+      "slug": "cam-wall",
+      "room": "cam",
+      "kind": "wall",
+      "seed": 20261109,
+      "size": 768,
+      "ok": true,
+      "sec": 99.5,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\cam-wall_768.png",
+      "prompt": "technical equipment room wall panel, perforated steel mesh sections, cool cyan LED glow bleeding through the vent holes, dark navy composite panels, cable routing channels with clamps, anti-static coating sheen, precise and clinical. accent colour #29B8F2, bright lit room, flat material swatch, orthographic front view of a wall surface, sci-fi spaceship interior panel, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, weathered but maintained"
+    },
+    {
+      "slug": "cam-floor",
+      "room": "cam",
+      "kind": "floor",
+      "seed": 20261110,
+      "size": 768,
+      "ok": true,
+      "sec": 97.8,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\cam-floor_768.png",
+      "prompt": "technical equipment room deck flooring, dark navy anti-static tile panels with thin cyan inlay seams and small perforated vent grids, clean and slightly reflective. accent colour #29B8F2, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, no perspective"
+    },
+    {
+      "slug": "ecosys-wall",
+      "room": "ecosys",
+      "kind": "wall",
+      "seed": 20261111,
+      "size": 768,
+      "ok": true,
+      "sec": 99.8,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\ecosys-wall_768.png",
+      "prompt": "bio-laboratory wall panel, moisture-stained white composite, condensation droplets and running water marks, algae-green residue streaks along the seams, translucent nutrient tubing clips, speckled anti-slip surface, green grow-light glow reflected, organic grime in crevices. accent colour #3DD96B, bright lit room, flat material swatch, orthographic front view of a wall surface, sci-fi spaceship interior panel, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, weathered but maintained"
+    },
+    {
+      "slug": "ecosys-floor",
+      "room": "ecosys",
+      "kind": "floor",
+      "seed": 20261112,
+      "size": 768,
+      "ok": true,
+      "sec": 99.2,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\ecosys-floor_768.png",
+      "prompt": "bio-laboratory deck flooring, moisture-stained pale composite panels with algae-green residue in the seams, speckled anti-slip surface and faint condensation sheen. accent colour #3DD96B, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, no perspective"
+    },
+    {
+      "slug": "transit-wall",
+      "room": "transit",
+      "kind": "wall",
+      "seed": 20261113,
+      "size": 768,
+      "ok": true,
+      "sec": 102.0,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\transit-wall_768.png",
+      "prompt": "galley and cafeteria wall panel, food-service stainless steel with splash-back sheen, soft warm overhead glow, ceramic tile band, rounded hygienic coving at the corner, water spots and cleaning-cloth streaks, light scratches, cheerful utilitarian. accent colour #FAC26B, bright lit room, flat material swatch, orthographic front view of a wall surface, sci-fi spaceship interior panel, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, weathered but maintained"
+    },
+    {
+      "slug": "transit-floor",
+      "room": "transit",
+      "kind": "floor",
+      "seed": 20261114,
+      "size": 768,
+      "ok": true,
+      "sec": 100.0,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\transit-floor_768.png",
+      "prompt": "galley deck flooring, warm charcoal terrazzo with fine steel flecks and subtle amber inlay lines, worn but clean, soft warm overhead light. accent colour #FAC26B, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, no perspective"
+    },
+    {
+      "slug": "fun-wall",
+      "room": "fun",
+      "kind": "wall",
+      "seed": 20261115,
+      "size": 768,
+      "ok": true,
+      "sec": 106.6,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\fun-wall_768.png",
+      "prompt": "lounge wall panel, dark violet-accented acoustic padding panels, neon magenta strip glow, worn fabric upholstery inserts, scuffed gloss black trim, fingerprint smudges on shiny surfaces, retro-futurist leisure club mood. accent colour #DB47C7, bright lit room, flat material swatch, orthographic front view of a wall surface, sci-fi spaceship interior panel, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, weathered but maintained"
+    },
+    {
+      "slug": "fun-floor",
+      "room": "fun",
+      "kind": "floor",
+      "seed": 20261116,
+      "size": 768,
+      "ok": true,
+      "sec": 101.2,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\fun-floor_768.png",
+      "prompt": "lounge deck flooring, deep slate carpet tiles with warm amber geometric inlay accents and subtle foot wear patterns, cozy low sheen. accent colour #DB47C7, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, evenly lit, fine surface detail, seamless tiling look, no perspective"
+    }
+  ]
+}

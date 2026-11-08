@@ -1,0 +1,12 @@
+{
+  "room": "warehouse",
+  "seed": 300103,
+  "steps": 18,
+  "size": [
+    768,
+    512
+  ],
+  "sec": 96.0,
+  "prompt": "game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate warehouse pieces: tall industrial pallet racking with crates and barrels, a logistics terminal desk with two screens, a pallet stack, a packing bench with pegboard, a roller conveyor receiving station with scan arch; amber and hazard-yellow accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text",
+  "negative": "text, watermark, signature, blurry, low contrast, people, characters, clutter, fisheye, extreme perspective, oversaturated, cartoon, pixel art"
+}

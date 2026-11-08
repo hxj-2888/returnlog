@@ -13,14 +13,68 @@
 4. 真正的 **WASD + 鼠标视角** 在这个尺度下是否顺手？
 5. 2.5D 的 `game.js` 代码能不能直接搬？答案：**不能直接搬，只能搬数据与规则口径**。
 
+## 1.5 同源口径（2026-11-08 用户裁定）
+
+**2.5D 与 3D 只允许三处差异：维度（3D 场景 / 相机 / 碰撞 / A* / LOS）、美术、
+玩家输入映射（键鼠点击 vs WASD+鼠标）。AI 推理、发言、判定规则、语料、数值全部同源。**
+
+- `data/rules.json`：从 `js/ai/sanity.js` / `js/ai/traits.js` / `js/t2/ai.js` /
+  `js/t2/decision.js` / `js/game.js` 导出的 **48 张规则表 + 70 个纯函数源码指纹 +
+  pickLine/startChatter/sayStreakOK 调度系数**；GDScript 里不再写死推理/发言阈值。
+- `data/lines.json`：62 类台词、词表、parseSpeech 正则（逐字校验，见 `npm run 3d:lines:check`）。
+- `spec/parity-map.json`：70 个 2.5D 纯函数逐项对账，**38 synced / 7 adapter / 25 pending**，
+  覆盖 100%；pending 是构陷编排、白天/开局会议、RUSH 等尚未迁完的模块，不伪装成完成。
+- `npm run 3d:parity:check`：改了任一 `js/` 真源没重导 → FAIL；`lines.json#rules` 与
+  `rules.json` 出现第二套数值 → FAIL；3D 脚本出现自造阈值 → WARN。
+- 详见 `MIGRATION.md` §10。
+
 ## 2. 已实现
 
 - `js/data/map.js` → `3d/preview/data/map.json`（10 舱室 / 11 走廊 / 110 墙体线段 / 59 掩体 / 26 任务点）。
+- **26 个任务点 + 电闸**已落成 3D 设备（27 个交互点，10 种玩法全覆盖），设备优先用
+  `3d/assets/export/*.glb`，缺失时程序化兜底；按掩体顶面自动抬升，正面朝向舱室中心。
+- **10 型基础交互全部移植**（`scripts/minigame/`）：wire / place / lever / sync / pour /
+  swap / align / aim / match / level；2.5D 的 2026-11-06 **26 任务定制**通过
+  `minigames.json#tasks` 同步到 3D：任务标题 / 提示 / 配色按任务读取；
+  新交互 sequence / sort / valve / code 在 3D 预演里先映射到 match / place / lever / sync。卡片遮罩、保底倒计时、中断清零、失败重来与 2.5D 同口径。
+- `E` 交互 + 相机推近 + 小游戏遮罩 + 完成后自动收回；正对优先、距离次之选设备。
+- 设施（电闸 / 医疗无人机 / 保安机器人 / 补给点 / 监控台）、**8 个管道口**（除中央会议室 / 配电室外每舱一个）、
+  32 个装饰、22 扇门框；管道用 `prop_pipe_port.glb`（Blender + SDXL 舱盖贴图），2.5D 同款精灵由 Blender 渲染。
 - 房间多边形铺地板 + 天花板；走廊按中心线铺 3.2 格宽地面；墙体按线段生成盒体碰撞。
 - 掩体按 `cover` 矩形生成盒体碰撞，高度按 `kind` 映射。
 - `CharacterBody3D` 玩家：**WASD 移动、鼠标视角、Shift 加速、Esc 释放鼠标**；不再点击地面。
 - 手电 `SpotLight3D`、房间 `OmniLight3D`、环境雾、2D 角色 `Sprite3D` billboard。
-- HUD：控制提示、当前舱室、FPS；自动截图模式；无头移动/碰撞自测。
+- HUD：控制提示、当前舱室、FPS、最近设备提示；自动截图模式；无头移动/碰撞/小游戏/设备自测。
+- **模拟核心 B1（2026-11-08）**：`scripts/sim/sim_state.gd` 接「开局 → 任务 → 天亮 → 胜负」主回路，
+  数据来自 `data/sim.json`（`3d/tools/export-sim.cjs`）。HUD 显示夜/倒计时/维修进度/自己的 4 个任务；
+  小游戏玩通写回进度；`--simtest` 26/0。**只搬非发言规则**，AI / 战斗 / 会议仍在后续批次，
+  边界与批次见 [`MIGRATION.md`](MIGRATION.md)。
+- **移植准备（2026-11-08）**：`spec/port-manifest.json` 把 2.5D 的 22 个 js 文件 / 19,765 行
+  逐项登记为 47 个系统（当前 ported 9 / partial 26 / prepared 0 / reference 4 / excluded 8），
+  `npm run 3d:port:check` 校验「无未认领文件 / 行覆盖 100% / target 存在 / 依赖无环 / 契约版本」。
+  发言单列 S 轨，美术整类 excluded。
+- **B2 · 网格 + AI 人类（2026-11-08）**：`grid_nav.gd` 按 `geo.js` 同规则烘焙 0.6m 网格，
+  **walkable=5894（与 2.5D 一致）**；11 个人类 AI 会做任务/领申请单/换补给；
+  `crew_view.gd` 用 crew-01 做 15 个 billboard。`--navtest` 28/0、`--aittest` prog 30/45。
+- **B3 · 异形 + 尸体 + 投票（最小版）**：异形追踪/出刀、破坏 30 秒窗口、玩家/AI 维修、
+  濒死 12 秒、报告尸体、投票、驱逐/公布 alien 布尔。`--meetingtest` ok=true。
+- **B6 · 开始页（2026-11-08）**：`home_view.gd` + `home_ship_map.gd` 把 2.5D 主页
+  （品牌 / 标题 / 三张身份卡 / 统计 chips / 手电光斑 / 整船蓝图）照搬过来；蓝图直接读
+  `map_v2.json`，选身份高亮对应舱室。**选人类 / 异形真的改变开局**（异形总数仍是 4）。
+  无门禁参数时显示，`--role human|alien` 可跳过。`--hometest` 6/0、`--roletest` 4/0。
+- **B4 · 机器人 + 玩家战斗 + 管道 + 搜尸（2026-11-08）**：`bots.gd` 让保安机器人四点巡逻
+  （6m 视野抓现行 → 押送 → 拘留 30 秒 / 每夜 2 次）、医疗无人机飞去救濒死者（每夜 2 次）；
+  玩家左键出刀 / 右键开枪 / `E` 钻管道选出口 / `E` 搜尸；玩家位置每帧同步进 sim。
+  **B3 的「异形不刀玩家」保护已撤销**。`--bottest` 6/0、`--b4test` 8/0。
+- **B5 · 会议三段相位（2026-11-08）**：`discuss(35s，可跳过) → vote(5s) → result(3s)`，
+  秒数读 `sim.json#rules.MEET`；结果页显示身份公布 + 投票矩阵。`--meetshot --meetresult` 实拍。
+- **S 轨 · 发言（2026-11-08）**：`export-lines.cjs` 从 2.5D 四个真源导出 `data/lines.json`
+  （62 类 / 1,201 行台词 / 74 证据短语 / 21 规则表 / 发言解析词表）；`lines_data.gd` +
+  `mind.gd` + `speech.gd` 接模板填充、hot-cold、组合槽、去重、talkScore 排期、证词→嫌疑、
+  玩家自由发言与 AI 质疑；会议 discuss 段显示发言流 + 输入框。`--speechtest` 11/0。
+- **B6′ · 剩余系统（2026-11-08）**：拖尸/藏尸/医疗救起、机器人 HP 与反制、供电合并、
+  改票/报账/讨论超时/天亮/终结者、旁观者第 16 人自由相机、设置与复盘面板、
+  20 条 `.ogg` 事件音效、版本号单一真源。**事件词表 31/31/31 静态全覆盖**。`--b6test` 6/0。
 
 ## 3. 快速运行
 
@@ -33,11 +87,73 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 # 首次导入资源
 "$GODOT" --headless --path 3d/preview --editor --quit
 
-# 正常游玩
+# 正常游玩（先出开始页，选人类/异形再点「进入舱段」）
 "$GODOT" --path 3d/preview --resolution 1280x720
 ```
 
-操作：`WASD` 移动 · `Shift` 加速 · 鼠标视角 · `Esc` 释放鼠标 · 点击窗口重新捕获。
+# 数据契约（2.5D 真源 → 3D JSON，三个导出器全部 fail-loud）
+npm run 3d:export:map        # map.json v2：含 rooms[].theme 与 cover[].v / decor[].v 美术变体
+npm run 3d:export:minigames  # minigames.json（10 型 / 26 任务）
+npm run 3d:export:space      # space.json：门/视野/站桩/电闸/管道/补给 全部数值（含 22 个走廊灯位）
+npm run 3d:export:sim        # sim.json：角色规模/任务分值/夜长/胜负 + 非发言规则表（不导出发言表）
+npm run 3d:port:check        # 移植清单校验：js 全覆盖 / target 存在 / 依赖无环 / 契约版本
+npm run 3d:export:lines      # js/data/lines.js + sanity + traits + decision → data/lines.json
+npm run 3d:lines:check       # 逐字校验语料契约（改了语料没重导直接 FAIL）
+npm run 3d:export:version    # js/config/version.js + package.json → data/version.json
+npm run 3d:export:rules      # ★ 推理/发言全量真源 → data/rules.json（改 js/ 后必跑）
+npm run 3d:parity:check      # ★ 2.5D↔3D 同源校验：真源/双份表/函数对账/3D 硬编码
+npm run 3d:events:check      # 事件词表校验：schema 31 / 2.5D 31 / 3D 31 kind / 信封 pt+t
+npm run 3d:simdump           # 导出 2.5D 同 seed 事件流（可加 -- --seed N）
+
+# 断电 / 交互 / 美术 三组无头自测
+"$GODOT" --headless --path 3d/preview -- --powertest     # 灯 10+22、环境光、补光、门扫描 2s、拉闸 3/6/9/9
+"$GODOT" --headless --path 3d/preview -- --interacttest  # 轮盘共存项、站桩结算、人类管道=0
+"$GODOT" --headless --path 3d/preview -- --arttest       # 主题色 10/10、色调 5 档、设备顶面一致性
+
+# 模拟核心门禁（B1：开局 / 任务分值 / 乱序记账 / 天亮 / 三条胜负分支）
+"$GODOT" --headless --path 3d/preview -- --simtest         # 期望 26/0
+"$GODOT" --headless --path 3d/preview -- --taskflowtest    # 期望 ok=true（E → 解题 → 写回进度）
+
+# B2/B3：网格 / AI 人类 / 异形 / 会议
+"$GODOT" --headless --path 3d/preview -- --navtest         # 期望 28/0，walkable=5894
+"$GODOT" --headless --path 3d/preview -- --aittest         # 300 秒 AI 自跑：prog>0 / 刀 / 会议 / 驱逐
+"$GODOT" --headless --path 3d/preview -- --meetingtest     # 期望 ok=true，14 个投票按钮
+"$GODOT" --headless --path 3d/preview -- --bottest         # 期望 6/0（巡逻/抓捕/拘留/救人）
+"$GODOT" --headless --path 3d/preview -- --b4test          # 期望 8/0（位置/管道/开枪/搜尸/会议）
+"$GODOT" --headless --path 3d/preview -- --hometest        # 期望 6/0（三张卡 + 图元 + 高亮）
+"$GODOT" --headless --path 3d/preview -- --roletest        # 期望 4/0
+"$GODOT" --headless --path 3d/preview -- --speechtest       # 期望 11/0（发言链路）
+"$GODOT" --headless --path 3d/preview -- --b6test           # 期望 6/0（剩余系统）
+"$GODOT" --headless --path 3d/preview -- --sim1000 --games 200  # 3D 批量基线（含败因/驱逐/异形决策遥测）
+"$GODOT" --headless --path 3d/preview -- --simdiff 3d/reports/js-simdump-20261108.json（人类/异形开局）
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --homeshot            # 开始页实拍
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --meetshot            # 讨论页（发言流）实拍
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --meetshot --meetvote # 投票页实拍
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --meetshot --meetresult # 身份公布页
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --shot --wait 30       # 30 秒后的 AI 场景
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --role alien           # 跳过开始页快速开局
+
+# 熄灯对照图（同机位）
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --shot
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --shot --blackout
+
+# 美术素材生成（千问本地模型 · 2026-11-07 解禁，可用于游戏内；须本地生成）
+# ⚠ 必须用 PowerShell 7：脚本含中文注释，Windows PowerShell 5.1 按 GBK 解码 UTF-8 源码会解析失败
+#   （脚本开头有硬守卫，5.1 下直接 FATAL）。项目规则也统一要求 pwsh（AGENTS.md §二）。
+# 房间名/明暗/主题色读 map.json，任务玩法 kind/元素数 n/配色读 minigames.json —— 脚本里不硬编码。
+npm run 3d:refs:cabin        # 10 间舱室表面材质参考，768×768，约 97 s/张
+npm run 3d:refs:tasks        # 26 个任务控制面板参考，同上
+pwsh -File 3d/tools/gen-art-refs.ps1          # 两套一起跑
+pwsh -File 3d/tools/gen-art-refs.ps1 -Limit 2 # 只跑前两张（试跑用）
+pwsh -File 3d/tools/gen-art-refs.ps1 -Size 512 # 草稿档，约 47 s/张
+# 产物 E:\ai-models\qwen-image-2.1\output\{cabin-refs,task-refs}\
+# 留档 docs\qwen21\{cabin-refs,task-refs}\（含 manifest.json：模型/seed/prompt/许可/耗时）
+```
+
+操作：`WASD` 移动 · `Shift` 加速 · `E` 交互（多项时 `1-9` 选轮盘项，ESC 取消）· 鼠标视角 · `Esc` 释放鼠标。
+
+> ⚠ 键位与 2.5D 不一致且**暂无法统一**：2.5D 已把交互并入 `W`，但 3D 的 `W` 是前进键。
+> 这里保留 `E` 交互（FPS 惯例），语义与 2.5D 的轮盘一致，只有键不同。
 
 ### 截图与自测
 
@@ -62,6 +178,39 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 - 截图输出在 `user://preview.png` / `user://preview-corridor.png`，实际路径会打印 `SHOT_PATH=`；
   仓库内留档：`3d/preview/screenshots/bridge.png` / `corridor.png`。
 
+### 10 型小游戏与设备交互（2026-11-06）
+
+```bash
+GODOT="E:/ai-tools/godot/Godot_v4.6-stable_win64_console.exe"
+
+# 数据契约：地图 + 小游戏（2.5D 真源 → 3D JSON）
+npm run 3d:export:map
+npm run 3d:export:minigames
+
+# 10 型小游戏无头自测（期望 10/10 pass）
+"$GODOT" --headless --path 3d/preview -- --mgtest
+
+# 27 个设备 / 10 种玩法 + E 交互开关自测
+"$GODOT" --headless --path 3d/preview -- --devicetest
+
+# 10 型小游戏截图（输出 3d/preview/screenshots/mg-<kind>.png）
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --mgshot all
+
+# 设备特写（0,4,7,8,13,26 = sync/pour/wire/swap/align/lever）
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --devshot 0,4,7,8,13,26
+
+# 管道舱盖特写（输出 screenshots/pipe-port-3d.png）
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --pipeshot
+
+# 真实输入 E2E：走到设备前 → 按 E → 遮罩 → 解题 → 自动收起
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --e2e
+```
+
+实测：`--mgtest` **10/10 pass**（失败路径 `held_open=true closed=true canceled=true`）；
+`--devicetest` **27 devices / 10 kinds**、`open=true closed=true unlocked=true`；
+`--e2e` 打开「备用配电盘」接线并成功收起。
+截图留档：`screenshots/mg-*.png`、`screenshots/device-*.png`、`screenshots/e2e-device-minigame.png`。
+
 ## 4. 资产复用结论
 
 | 资产 | 结论 | 说明 |
@@ -80,6 +229,7 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 3d/
   README.md                 本文件（垂直切片说明）
   HANDOFF.md                ★ 2026-11-05 资产工程化交接文档，接手先读
+  MIGRATION.md              ★ 2026-11-08 迁移施工单（同源 · 仅维度/美术/输入差异 + B1–B6 + §10 同源契约）
   ARCHITECTURE.md           引擎/分层/数据/资产管线
   DECISIONS.md              ADR（为什么这样选）
   ASSETS.md                 素材来源、许可、哈希
@@ -87,27 +237,70 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
   spec/
     conventions.md          单位/命名/预算/边界的硬约定
     asset.schema.json       清单 schema
-    assets.manifest.json    ★ 资产清单，唯一真源（28 项）
+    assets.manifest.json    ★ 资产清单，唯一真源（29 项）
+    port-manifest.json      ★ 移植清单，唯一真源（47 个系统 / 源行段 / 目标 / 状态 / 门禁）
+    events.schema.json      事件信封 + 31 个 kind 词表（与 2.5D logEvent 对齐）
     godot-import.cfg        Godot 4.6 glTF 导入参数口径
   assets/
-    models/                 .blend 源文件
+    models/                 .blend 源文件（2026-11-06 起 11 件设备/道具）
     export/                 .glb 导出物
-    textures/               _basecolor / _normal / _orm
+    textures/               预留：SDXL 设备屏幕贴图（见 CHANGELOG 的内存限制说明）
   tools/
-    export-map.cjs          map.js → map.json（唯一跨项目数据入口）
+    export-map.cjs          map.js → map.json（唯一跨项目地图入口）
+    export-minigames.cjs    minigame.js + plates.js → minigames.json
+    build-3d-assets.py      Blender 5.2.2 程序化设备/道具建模
+    gen-panel-texture.py    SDXL 设备屏幕贴图（768² 高质量路径）
+    grade-screen.py         把 SDXL 小图压成暗色扫描线屏幕（256²→512²）
+    grade-pipe.py           把 SDXL 小图压成暗金属管道舱盖贴图
+    render-pipe-port.py     2.5D 管道精灵（8 舱，Blender 5.2.2 正交渲染）
     validate-assets.cjs     清单校验（npm run 3d:assets）
     check-godot-import.cjs  导入参数核对（npm run 3d:import:check）
+    export-space.cjs        sanity.js + space.js + game.js → space.json（B4 起含 shoot / bot 两段）
+    export-sim.cjs          sanity.js + space.js + names.js → sim.json（非发言规则，B1 起）
+    export-rules.cjs         ★ sanity + traits + t2/ai + t2/decision + game → rules.json
+    check-parity.cjs         ★ 同源校验（真源 SHA / 函数指纹 / 对账表 / 硬编码扫描）
+    export-lines.cjs         lines.js + sanity + traits + decision → lines.json
+    export-version.cjs       version.js + package.json → version.json
+    simdump.cjs              2.5D 同 seed 事件流导出（--simdiff 的上游）
+    check-lines.cjs          语料逐字校验（npm run 3d:lines:check）
+    check-port-manifest.cjs 移植清单校验（npm run 3d:port:check）
+    check-events.cjs        事件词表校验（npm run 3d:events:check；扫 3 个产生事件的脚本）
     blender-export.py       Blender 导出预设
     smoke-test.py           无真资产的导出自检
     sync-models.cjs         .glb → preview（npm run 3d:sync:models）
   preview/
     project.godot           Godot 4.6 工程
     scenes/main.tscn        唯一入口场景
-    scripts/main.gd         场景装配 / HUD / 截图 / 自测
+    scripts/main.gd         场景装配 / HUD / E 交互 / 战斗 / 管道 / 会议 / 自测
+    scripts/home_view.gd    开始页（2.5D 版式照搬）与身份选择
+    scripts/home_ship_map.gd 开始页整船蓝图（读 map_v2.json，自绘）
+    scripts/ui_panels.gd     设置面板 + 复盘时间轴
+    scripts/audio.gd         事件流驱动的 20 条 .ogg 音效
+    scripts/config.gd        版本单一真源（data/version.json）
+    scripts/sim/sim_state.gd 模拟核心：开局/任务/夜/刀/尸体/投票/胜负（纯逻辑）
+    scripts/sim/grid_nav.gd  0.6m 网格 + AStarGrid2D（walkable=5894）
+    scripts/sim/ai_human.gd  人类 AI：任务 / 申请单 / 补给 / 维修 / 报告
+    scripts/sim/ai_alien.gd  异形 AI：追踪 / 出刀 / 每夜一次破坏
+    scripts/sim/bots.gd      保安巡逻 / 抓捕拘留 / 医疗无人机施救
+    scripts/sim/rules_data.gd ★ 推理/发言规则真源读取器（类级缓存）
+    scripts/sim/lines_data.gd 台词语料 / 模板填充 / 玩家发言槽位解析
+    scripts/sim/mind.gd      sus / cred / warm / reliability / heard 窗口
+    scripts/sim/speech.gd    发言排期 / 去重 / 广播 / 玩家自由发言
+    data/lines.json          62 类台词 + 21 规则表（S 轨唯一真源快照）
+    data/rules.json          ★ 48 张规则表 / 70 函数指纹 / 发言调度系数（同源唯一真源）
+    data/version.json        版本号（返航录V3.6 / 3.6.0）
+    scripts/sim/crew_view.gd 15 个 billboard + 名牌（美术下一批）
+    scripts/sim/README.md   sim 模块布局、依赖顺序与接口
     scripts/player.gd       WASD + 鼠标视角 + 手电
     scripts/map_builder.gd  地图升维 / 碰撞 / 灯光
-    scripts/probe_gi.gd     GI 枚举 / 导入结果探针
-    data/map.json           由 export-map.cjs 生成
+    scripts/device.gd       任务点设备（模型 / 朝向 / 镜头落点）
+    scripts/scene_extras.gd 设施 / 管道 / 装饰 / 门框 / 设备清单
+    scripts/minigame/       遮挡层 + 10 型玩法（mg_*.gd）
+    data/map.json           由 export-map.cjs 生成（schema_version=1）
+    data/minigames.json     由 export-minigames.cjs 生成
+    data/sim.json           由 export-sim.cjs 生成（开局/分值/夜长/会议；发言表另见下）
+    assets/models/          Blender GLB 副本 + Godot 导入设置
+    assets/plates/          panel-fix.png（图内要素板，res:// 路径）
     assets/import-probe/     探针 GLB + 引擎真实生成的 .glb.import
     assets/                 复制的贴图、角色图、许可证
 ```
@@ -117,17 +310,41 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 
 ## 6. 已知限制
 
-- 门目前是墙体线段之间的缺口，没有动画门 / 自动门 / 扫描锁。
-- 家具是盒体代理，不是精细模型；`cover` 的旋转信息未使用。
-- 角色是单帧 billboard；没有行走动画、朝向、遮挡裁剪。
-- 没有任务、会议、AI、管道、机器人、战斗、迷雾；这些仍在 2.5D 主项目。
-- 没有导航网格；下一步用 `NavigationRegion3D` + `NavigationAgent3D`。
-- 灯光是预演级；正式 3D 需要重新做曝光、阴影和材质。
+**除美术外的系统都已接入主链路；下面列的是"接了但还没做到 2.5D 那么细"的部分。**
+
+- **S 轨编排层**：构陷编排 `planAlienDeception` / `planMateBus`、领袖型玩家剧本、
+  完整假设层（hypGap / hypMinEvidence）、时间线拆谎未迁；目前发言是"六类说服策略 +
+  证词→嫌疑 + 玩家自由发言"的完整链路，不是 2.5D 那 1,784 行调度逐行照搬。
+- **AI 认知**：sus / cred / warm / reliability / heard 滑动窗口已接，但没有 2.5D 的
+  `envEstimate` 假说竞争与 `MISID` 误认模型。
+- 机器人 HP 与反制已接，但没有"机器人被修好"的回路；BGM 是 `.m4a`，Godot 不支持，未接。
+- 设置面板有音量滑块与本机持久化，音效无 3D 空间衰减；复盘只读 `sim.events`，
+  不载入外部回放 JSON。
+- 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理；角色是单帧 billboard。
+- 事件词表静态 31/31/31 全覆盖，但**同 seed 一局内不一定 31 种都触发**；
+  `--simdiff` 报告会如实列出该局两边的 kind 差与首个分歧点。
+- 灯光是预演级；**SDXL 新贴图只有 256² 低步数版**（内存余量不足），
+  特写级 768² 面板仍需换机器重跑。
+- **1000 局基线**：`--sim1000` 入口已提供（A* 每帧都跑，1000 局约 1 小时）。
+  本轮 `--games 200` 实跑：**人类 36.5% / 异形 61.0% / 超时 5 局（2.5%）**，报告 `preview/reports/3d-simbatch-200.md`。
+  2.5D 同口径 1000 局是 **49.9% / 50.1% / 超时 0**；3D 仍有偏差，
+  原因是会议链（白天/开局会议、紧急按钮、身份公布追责）与异形进攻链
+  （RUSH / 目标承诺 / 管道突袭 / 异形开枪 / 构陷编排）未全迁，见 `MIGRATION.md` §9。
+- **平衡对齐（2026-11-08）**：先前 79.0/17.5 不是"两套实现不可比"，是 9 处真源漂移
+  （驱逐门槛、报告额度、票权层级、发言→票权、KNIFE 理智线、注意力过滤、
+  枪声证人、全 AI 模拟口径、人类 AI 开枪）。逐项修正后 `--sim1000` 增加败因 /
+  驱逐命中率 / 异形决策拦截遥测，详见 `CHANGELOG.md` 与 `MIGRATION.md` §9。
 
 ## 7. 下一里程碑
 
-1. **全船 blockout + 导航网格**：WASD 能走完 10 舱室 / 11 走廊，AI 能寻路。
-2. **交互切片**：射线交互、任务点、尸体、会议圆桌，验证 3D 下的“可读性”。
-3. **角色方案定稿**：billboard 还是低模；如果低模，走 Blender 5.2.2 管线。
-4. **模拟核心分层**：把 `sanity.js` / `lines.js` / 事件 schema 导出为 JSON，3D 端重写确定性模拟。
-5. **会议 UI**：Godot Control 还是内嵌网页；先做只读，不做网络。
+1. **美术优化（用户已点名，下一批）**：2.5D 底图"铁板子太多、圆桌变方桌、会议室地毯没了"；
+   3D 保安机器人太小/被遮挡、15 个 crew 全是同一张 billboard、天花板蓝色条纹。
+   保持 2.5D / 3D 同一帧源（`floor_spec.json`），不拆成两套材质。
+2. **parity-map 的 25 个 pending 补完**：构陷编排 / 白天与开局会议 / 紧急按钮 /
+   身份公布追责 / RUSH / 目标承诺 / 管道突袭 / 异形开枪 / 完整假设层；补完前
+   `--sim1000` 基线不视为最终值。：白天/开局会议与紧急按钮、
+   `settleAccountability` 追责、RUSH 逃逸、目标承诺、管道突袭、异形开枪、构陷编排；
+   补完后启用 2.5D 的"每夜 1 把刀"额度，重跑基线对齐 49.9/50.1。
+3. **S 轨编排层补完**：构陷 / 领袖剧本 / 完整假设层 / 时间线拆谎（与上项同一批）。
+4. **完整 1000 局基线**：在空闲机器上跑 `--sim1000`（不带 `--games`），登记新基线。
+5. **补高质量 SDXL 屏幕贴图**：`3d/tools/gen-panel-texture.py`（768² / 24 步）。

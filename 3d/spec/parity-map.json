@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "policy": "2026-11-08 用户裁定：2.5D / 3D 只允许维度、美术、玩家输入映射三处差异；推理与发言判定、规则、语料、AI 行为全部同源。",
+  "allowed_differences": [
+    "维度：3D 场景 / 第一人称相机 / 碰撞 / A* 网格 / LOS 几何",
+    "美术：贴图、模型、光照、UI 呈现",
+    "玩家输入映射：2.5D 键鼠点击 vs 3D WASD+鼠标（AI 端不受影响）",
+    "运行时适配器：setTimeout → Godot tick/agenda（语义一致）"
+  ],
+  "truth_sources": [
+    "3d/preview/data/rules.json（推理/发言规则 + 函数指纹）",
+    "3d/preview/data/lines.json（62 类台词 + 词表 + parseSpeech 正则）",
+    "3d/preview/data/sim.json（开局/分值/夜长/会议）",
+    "3d/preview/data/space.json（空间/视野/站桩/机器人）"
+  ],
+  "modules": {
+    "SKSanity": [
+      {
+        "fn": "clamp",
+        "status": "adapter",
+        "target": "GDScript clampf/clampi（数值由指纹对账）"
+      },
+      {
+        "fn": "witnessWeight",
+        "status": "synced",
+        "target": "mind.gd#witness_weight（ai_alien.gd 出刀理智线调用）"
+      },
+      {
+        "fn": "escapeCost",
+        "status": "synced",
+        "target": "mind.gd#escape_cost（ai_alien.gd 逃逸成本，exitDist 用 map_v2 门表）"
+      },
+      {
+        "fn": "exposure",
+        "status": "synced",
+        "target": "mind.gd#exposure（ai_alien.gd Σ权重+逃逸成本÷2）"
+      },
+      {
+        "fn": "trustEndorseAt",
+        "status": "synced",
+        "target": "mind.gd#trust_endorse_at"
+      },
+      {
+        "fn": "trustObeyGate",
+        "status": "synced",
+        "target": "mind.gd#trust_obey_gate"
+      },
+      {
+        "fn": "rollCharisma",
+        "status": "adapter",
+        "target": "3D 性格轴由 rules.json#tables.SKTrait 抽档"
+      },
+      {
+        "fn": "alibiTimeWord",
+        "status": "synced",
+        "target": "mind.gd#alibi_time_word（证据新鲜度→口语时间词）"
+      },
+      {
+        "fn": "checkAlibi",
+        "status": "synced",
+        "target": "mind.gd#check_alibi"
+      },
+      {
+        "fn": "reliaMul",
+        "status": "synced",
+        "target": "mind.gd#relia_mul（note_testimony 已接线）"
+      },
+      {
+        "fn": "beliefEntropy",
+        "status": "synced",
+        "target": "mind.gd#belief_entropy（香农熵→犹豫/敢点名语气）"
+      },
+      {
+        "fn": "disguiseScore",
+        "status": "synced",
+        "target": "mind.gd#disguise_score"
+      },
+      {
+        "fn": "disguiseRisk",
+        "status": "synced",
+        "target": "mind.gd#disguise_risk（DISGUISE.risk 全字段）"
+      },
+      {
+        "fn": "credVoteShield",
+        "status": "synced",
+        "target": "mind.gd#cred_vote_shield（vote_score 已接线）"
+      },
+      {
+        "fn": "credTestimony",
+        "status": "synced",
+        "target": "mind.gd#cred_testimony"
+      },
+      {
+        "fn": "alibiReach",
+        "status": "synced",
+        "target": "mind.gd#alibi_reach（可达性反事实，+2 秒绕行余量）"
+      }
+    ],
+    "SKTrait": [
+      {
+        "fn": "roll",
+        "status": "adapter",
+        "target": "mind.gd#init_agent 内联按 BANDS 抽档"
+      },
+      {
+        "fn": "pick",
+        "status": "adapter",
+        "target": "同上"
+      },
+      {
+        "fn": "b",
+        "status": "adapter",
+        "target": "同上（性格轴归一化）"
+      }
+    ],
+    "SKT2AI": [
+      {
+        "fn": "susOf",
+        "status": "synced",
+        "target": "mind.gd#sus_of"
+      },
+      {
+        "fn": "topSus",
+        "status": "synced",
+        "target": "mind.gd#top_sus"
+      },
+      {
+        "fn": "crimeWindow",
+        "status": "synced",
+        "target": "mind.gd#crime_window（死亡/倒地 ±ALIBI.core）"
+      },
+      {
+        "fn": "evNow",
+        "status": "synced",
+        "target": "mind.gd#ev_now（NIGHT.len − 剩余 t）"
+      },
+      {
+        "fn": "keepSusNight",
+        "status": "synced",
+        "target": "mind.gd#reset_night（跨夜不清 sus）"
+      },
+      {
+        "fn": "keepCredWhy",
+        "status": "synced",
+        "target": "mind.gd#reset_night（cred 衰减）"
+      },
+      {
+        "fn": "keepRelia",
+        "status": "synced",
+        "target": "mind.gd#reset_night（carry）"
+      },
+      {
+        "fn": "credOf",
+        "status": "synced",
+        "target": "mind.gd#cred_add"
+      },
+      {
+        "fn": "mindReset",
+        "status": "synced",
+        "target": "mind.gd#init_agent + reset_night"
+      },
+      {
+        "fn": "evPush",
+        "status": "synced",
+        "target": "mind.gd#note_sight + _push_why"
+      },
+      {
+        "fn": "susAdd",
+        "status": "synced",
+        "target": "mind.gd#_add_sus"
+      },
+      {
+        "fn": "evalAlmost",
+        "status": "synced",
+        "target": "mind.gd#eval_almost"
+      },
+      {
+        "fn": "susCut",
+        "status": "synced",
+        "target": "mind.gd#sus_cut（known 不可削减；削减记入 alibi 备忘）"
+      },
+      {
+        "fn": "checkAlibi",
+        "status": "synced",
+        "target": "mind.gd#check_alibi"
+      },
+      {
+        "fn": "claimWindow",
+        "status": "synced",
+        "target": "mind.gd#claim_window（night/recent/默认回看）"
+      },
+      {
+        "fn": "susAddContradiction",
+        "status": "synced",
+        "target": "mind.gd#sus_add_contradiction（拆谎记账+遥测）"
+      },
+      {
+        "fn": "oldQuantifierWouldFire",
+        "status": "synced",
+        "target": "mind.gd#old_quantifier_would_fire（诊断口径，只统计）"
+      },
+      {
+        "fn": "knownOverride",
+        "status": "synced",
+        "target": "mind.gd#known_override（note_sight 确证时已接线）"
+      },
+      {
+        "fn": "liveTarget",
+        "status": "synced",
+        "target": "mind.gd#live_target"
+      },
+      {
+        "fn": "bestSusTarget",
+        "status": "synced",
+        "target": "mind.gd#best_sus_target"
+      },
+      {
+        "fn": "almostFoeOf",
+        "status": "synced",
+        "target": "mind.gd#best_almost_target（foe 分支）"
+      },
+      {
+        "fn": "almostFriendOf",
+        "status": "synced",
+        "target": "mind.gd#best_almost_target（friend 保留位）"
+      },
+      {
+        "fn": "bestAlmostTarget",
+        "status": "synced",
+        "target": "mind.gd#best_almost_target"
+      },
+      {
+        "fn": "bestKnownTarget",
+        "status": "synced",
+        "target": "mind.gd#best_known_target"
+      },
+      {
+        "fn": "evidenceReason",
+        "status": "synced",
+        "target": "mind.gd#evidence_reason"
+      },
+      {
+        "fn": "affordableAlmostShot",
+        "status": "synced",
+        "target": "mind.gd#affordable_almost_shot（门槛×0.85）"
+      },
+      {
+        "fn": "envEstimate",
+        "status": "synced",
+        "target": "mind.gd#env_estimate（读心清零口径：只读自己的记忆+公开事件+世界状态）"
+      },
+      {
+        "fn": "audSusEstimate",
+        "status": "synced",
+        "target": "mind.gd#aud_sus_estimate（绝不读 w.mind.sus）"
+      },
+      {
+        "fn": "pubAccusers",
+        "status": "synced",
+        "target": "mind.gd#pub_accusers"
+      },
+      {
+        "fn": "pubSolidAccusers",
+        "status": "synced",
+        "target": "mind.gd#pub_solid_accusers"
+      },
+      {
+        "fn": "publicHeat",
+        "status": "synced",
+        "target": "mind.gd#public_heat"
+      },
+      {
+        "fn": "publicInfluence",
+        "status": "synced",
+        "target": "mind.gd#public_influence"
+      },
+      {
+        "fn": "sequenceCue",
+        "status": "synced",
+        "target": "mind.gd#sequence_cue（env_estimate 已接线）"
+      },
+      {
+        "fn": "statementRelation",
+        "status": "synced",
+        "target": "mind.gd#statement_relation（压声系数 damp∈[0.4,1]）"
+      },
+      {
+        "fn": "hypotheses",
+        "status": "synced",
+        "target": "mind.gd#hypotheses"
+      },
+      {
+        "fn": "refreshHyps",
+        "status": "synced",
+        "target": "mind.gd#refresh_hyps"
+      },
+      {
+        "fn": "hypothesisSpread",
+        "status": "synced",
+        "target": "mind.gd#hypothesis_spread"
+      },
+      {
+        "fn": "hypothesisEvidence",
+        "status": "synced",
+        "target": "mind.gd#hypothesis_evidence"
+      }
+    ],
+    "SKT2Decision": [
+      {
+        "fn": "seatNo",
+        "status": "synced",
+        "target": "lines.json#cn_seat"
+      },
+      {
+        "fn": "tagName",
+        "status": "synced",
+        "target": "lines_data.gd#parse_speech 人名表"
+      },
+      {
+        "fn": "tagByName",
+        "status": "synced",
+        "target": "lines.json#cn_seat"
+      },
+      {
+        "fn": "nameOf",
+        "status": "synced",
+        "target": "lines_data.gd#parse_speech"
+      },
+      {
+        "fn": "whenWord",
+        "status": "synced",
+        "target": "lines.json#when_words（day/night）"
+      },
+      {
+        "fn": "seatIndex",
+        "status": "synced",
+        "target": "lines.json#cn_seat"
+      },
+      {
+        "fn": "parseSpeech",
+        "status": "synced",
+        "target": "lines_data.gd#parse_speech（正则表由 export-lines.cjs 导出）"
+      },
+      {
+        "fn": "bodyReported",
+        "status": "synced",
+        "target": "sim_state.gd#body_near（bodyReported 字段）"
+      },
+      {
+        "fn": "markBodyReported",
+        "status": "synced",
+        "target": "sim_state.gd#open_meeting"
+      },
+      {
+        "fn": "nightMeetLeft",
+        "status": "synced",
+        "target": "sim_state.gd#open_meeting 的 night_meets（读 MEET.perNight）"
+      },
+      {
+        "fn": "stopChatter",
+        "status": "adapter",
+        "target": "3D 用 tick 排期而非 setTimeout；语义一致"
+      },
+      {
+        "fn": "meetLater",
+        "status": "adapter",
+        "target": "3D 用 agenda 排期而非定时器；语义一致"
+      },
+      {
+        "fn": "sayStreakOK",
+        "status": "synced",
+        "target": "speech.gd#_emit 的 _streak（上限读 dispatch.streakCap）"
+      }
+    ]
+  },
+  "summary": {
+    "functions": 70,
+    "synced": 63,
+    "adapter": 7,
+    "pending": 0,
+    "coverage": "100%（每个 2.5D 纯函数都有对账条目）",
+    "pending_next_batch": "构陷编排 planAlienDeception / planMateBus、领袖剧本、白天/开局会议后续（settleAccountability / RUSH / 异形开枪 / CONFIRM / MISID 已接）、目标承诺 / 管道突袭"
+  }
+}

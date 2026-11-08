@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "name": "新返航录",
+  "version": "返航录V3.6",
+  "build": "2026-11-01",
+  "license": "MIT",
+  "repos": {
+    "github": "https://github.com/hxj-2888/returnlog",
+    "gitee": "https://gitee.com/hxj-2888/returnlog"
+  },
+  "semver": "3.6.0",
+  "sources": {
+    "js/config/version.js": "62b53cefb53c",
+    "package.json": "d1f0fe160ffc"
+  }
+}
