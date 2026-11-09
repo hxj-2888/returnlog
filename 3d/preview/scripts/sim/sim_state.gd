@@ -244,6 +244,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"reportLeft": int((cfg.get("rules", {}) as Dictionary).get("MEET", {}).get("reportsPerAgent", 2)),
 			"drag": -1,
 			"draggedBy": null,
+			"aimAng": 0.0,
 			"hidden": false,
 			"bodyPos": spawn_pos,
 		})
@@ -483,6 +484,13 @@ func tick_agents(dt: float) -> void:
 			continue
 		if bool(a.get("detained", false)):
 			continue
+		# 2.5D agentAimAng：把「下一段路径方向」记成上一次朝向，
+		# path 走完后手电锥仍朝最后的移动方向（js/game.js:1805 _aimAng）。
+		var aim_path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+		if aim_path.size() > 0:
+			var nxt: Vector2 = aim_path[0]
+			var cur: Vector2 = a.get("pos", Vector2.ZERO)
+			a["aimAng"] = atan2(nxt.y - cur.y, nxt.x - cur.x)
 		# 2.5D MEDBOT_REVIVE_STUN：救起后短时间只禁移动，
 		# 不跳过站桩 / 濒死结算（"只禁移动，不禁交互/发言"）。
 		if float(a.get("stunT", 0.0)) > 0.0:
@@ -891,38 +899,86 @@ func sight_range_at(p: Vector2) -> float:
 	return dark_r
 
 
-## AI 视野判据（2.5D observerVisionAt 的同源口径，js/ai/sanity.js#SIGHT 注释）：
-##   · 同亮舱整间可见（双方都在同一间 bright 舱）
-##   · 同亮走廊整条可见（都在走廊，≤corrR）
-##   · 亮舱 ↔ 相连走廊：要 LOS 且 ≤corrR
-##   · 暗舱内 / 断电：只剩近身圆 humanDarkR（2.3）
-##   · 全部要几何 LOS（墙挡住不行）
-## 2.5D 的 7 格 60° 手电锥只作用于"观察者刻意瞄准"的场景；AI 的朝向由
-## agentAimAng 决定，这里按近身圆近似（口径差已注明，见 MIGRATION §10.4）。
-func ai_can_see(wp: Vector2, p: Vector2) -> bool:
+## AI 视野判据 = 2.5D observerVisionAt（js/game.js:1784），玩家与 AI 共用同一套规则：
+##   ① 同亮区（同一亮舱 / 同一亮走廊）整片可见 —— 不看距离、朝向、LOS
+##   ② 亮舱 ↔ **相连**走廊：要 LOS（js/t2/space.js:71 corrJoinsRoom）
+##   ③ 近身圆（人类 humanDarkR 2.3 / 异形 alienDarkR 3.5）→ 要 LOS
+##   ④ 手电锥 humanLightR 7 格、半角 30° → 要 LOS
+## 3D 之前只做近身圆近似，还给所有分支加了全局 LOS，与真源不符（MIGRATION §10.4
+## 记的「口径差」本批按真源消除）。数值全读 sim.json#rules.SIGHT，不在此硬编码。
+## 朝向来自 agentAimAng（js/game.js:1805）：AI 取 path 首点，玩家由 view 层写 aimAng，
+## sim 不读鼠标（3d/ARCHITECTURE.md §3 硬规则 1）。
+func ai_can_see(observer: Dictionary, p: Vector2) -> bool:
+	var wp: Vector2 = observer.get("pos", Vector2.ZERO)
+	var alien := bool(observer.get("alien", false))
+	var aim := agent_aim_ang(observer)
 	var S: Dictionary = (cfg.get("rules", {}) as Dictionary).get("SIGHT", {}) as Dictionary
-	var dark_r := float(S.get("humanDarkR", 2.3))
-	var corr_r := float(S.get("corrR", 12.0))
+	var dark_r: float = float(S.get("alienDarkR", 3.5)) if alien else float(S.get("humanDarkR", 2.3))
+	var light_r := float(S.get("humanLightR", 7.0))
+	var oz := lit_zone_at(wp)
+	if oz != "":
+		var tz := lit_zone_at(p)
+		if tz == oz:
+			return true
+		if oz.begins_with("r:") and tz.begins_with("c:"):
+			var rid := oz.substr(2)
+			var c := corridor_by_id(tz.substr(2))
+			if not c.is_empty() and corr_joins_room(rid, c) \
+					and nav != null and nav.los(wp, p):
+				return true
 	var d := wp.distance_to(p)
-	if nav != null and not nav.los(wp, p):
-		return false
-	if not power_on:
-		return d <= dark_r
-	var wr := room_at(wp)
-	var rp := room_at(p)
-	var wr_bright := wr != "" and String((rooms_by_id.get(wr, {}) as Dictionary).get("light", "")) == "bright"
-	var rp_bright := rp != "" and String((rooms_by_id.get(rp, {}) as Dictionary).get("light", "")) == "bright"
-	# 同亮舱：整间可见
-	if wr_bright and rp_bright and wr == rp:
+	var los_ok: bool = nav != null and nav.los(wp, p)
+	if d <= dark_r and los_ok:
 		return true
-	# 同在走廊（亮走廊整条）
-	if wr == "" and rp == "":
-		return d <= corr_r
-	# 亮舱 ↔ 走廊（门口走廊一段）
-	if (wr_bright and rp == "") or (wr == "" and rp_bright):
-		return d <= corr_r
-	# 其余（暗舱内 / 跨舱）只剩近身圆
-	return d <= dark_r
+	if d > light_r or not los_ok:
+		return false
+	var ang := atan2(p.y - wp.y, p.x - wp.x)
+	var dd := absf(ang - aim)
+	if dd > PI:
+		dd = 2.0 * PI - dd
+	return dd <= PI / 6.0
+
+
+## 2.5D agentAimAng（js/game.js:1805）：动作 > 当前目标 > 下一段路径 > 上一次朝向。
+## 3D sim 层没有 act / target 对象，取 path 首点；path 为空时用 aimAng 兜底
+## （AI 由移动写入、玩家由 view 层写入，退化值与真源一样是 0）。
+func agent_aim_ang(a: Dictionary) -> float:
+	var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+	if path.size() > 0:
+		var p0: Vector2 = path[0]
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		return atan2(p0.y - ap.y, p0.x - ap.x)
+	return float(a.get("aimAng", 0.0))
+
+
+## 2.5D litZoneAt（js/game.js:10644）：亮区标识 r:<room> / c:<corridor>。
+## 3D 用 rooms[].light（静态亮暗）+ power_on（断电走廊全灭，js/game.js:686 G.corrLit），
+## 与 sight_range_at 同一口径，不另造第二套照明状态。
+func lit_zone_at(p: Vector2) -> String:
+	var rid := room_at(p)
+	if rid != "":
+		var r: Dictionary = rooms_by_id.get(rid, {}) as Dictionary
+		if String(r.get("light", "")) == "bright":
+			return "r:" + rid
+		return ""
+	if not power_on or nav == null:
+		return ""
+	var c: Variant = nav.corridor_at(p)
+	if c == null:
+		return ""
+	return "c:" + String((c as Dictionary).get("id", ""))
+
+
+func corridor_by_id(cid: String) -> Dictionary:
+	for c: Dictionary in (map.get("corridors", []) as Array):
+		if String(c.get("id", "")) == cid:
+			return c
+	return {}
+
+
+## 2.5D corrJoinsRoom（js/t2/space.js:71）
+func corr_joins_room(rid: String, c: Dictionary) -> bool:
+	return String(c.get("a", "")) == rid or String(c.get("b", "")) == rid
 
 
 ## 噪音广播（2.5D hear() 的最小实现）：刀声/枪声/破坏写进附近 AI 的 mind.noise，
@@ -976,7 +1032,7 @@ func _witness_action(actor: Dictionary, kind: String, at: Vector2) -> void:
 		if float(w.get("doing", 0.0)) > 0.0:
 			continue
 		var wp: Vector2 = w.get("pos", Vector2.ZERO)
-		if not ai_can_see(wp, at):
+		if not ai_can_see(w, at):
 			continue
 		mind.note_sight(int(w.get("i", -1)), ai, kind, at)
 	# 异形目击者单独走一遍：看到异形专属行为 = 认出队友
@@ -987,7 +1043,7 @@ func _witness_action(actor: Dictionary, kind: String, at: Vector2) -> void:
 			if not bool(w2.get("alive", false)) or bool(w2.get("downed", false)):
 				continue
 			var wp2: Vector2 = w2.get("pos", Vector2.ZERO)
-			if not ai_can_see(wp2, at):
+			if not ai_can_see(w2, at):
 				continue
 			var mates: Dictionary = (w2.get("mates", {}) as Dictionary).duplicate()
 			mates[ai] = {"t": elapsed, "kind": kind}
@@ -1013,7 +1069,7 @@ func _track_pass() -> void:
 			if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
 				continue
 			var wp: Vector2 = w.get("pos", Vector2.ZERO)
-			if not ai_can_see(wp, ap):
+			if not ai_can_see(w, ap):
 				continue
 			# seenBy：w 看见了 a（供 audSusEstimate / HUNT 记忆用）
 			var sb: Dictionary = (w.get("seenBy", {}) as Dictionary).duplicate()

@@ -3410,6 +3410,10 @@ func _sync_player_pos() -> void:
 			or not sim.meeting.is_empty():
 		return
 	me["pos"] = Vector2(player.global_position.x, player.global_position.z)
+	## 2.5D agentAimAng 对玩家取鼠标朝向（js/game.js:1805）；3D 由 view 层把朝向
+	## 写进 sim 作为 intent，sim 自己不读鼠标（3d/ARCHITECTURE.md §3 硬规则 1）。
+	var aim_fwd := -player.global_transform.basis.z
+	me["aimAng"] = atan2(aim_fwd.z, aim_fwd.x)
 
 
 func _sync_bots() -> void:

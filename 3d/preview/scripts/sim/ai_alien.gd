@@ -165,7 +165,7 @@ func tick(dt: float) -> void:
 				var bpx: Vector2 = v.get("bodyPos", Vector2.ZERO)
 				# 5.4 = 2.5D js/game.js:2505/2513 的硬编码尸体发现半径（真源同样没有进
 				# rules.json，此处按行号同源，改动必须两边一起动）。
-				if apx.distance_to(bpx) < 5.4 and sim.ai_can_see(apx, bpx):
+				if apx.distance_to(bpx) < 5.4 and sim.ai_can_see(a, bpx):
 					if int(a.get("_alienReports", 0)) < 1 and sim._rng.randf() < 0.20:
 						a["_alienReports"] = 1
 						a["_reportBody"] = int(v.get("i", -1))
@@ -182,7 +182,7 @@ func tick(dt: float) -> void:
 					var rbp: Vector2 = rb.get("bodyPos", Vector2.ZERO)
 					# 5.8 = 2.5D js/game.js:2489 的远程拉铃半径（同源硬编码，见上一条）
 					if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(rbp) <= 5.8 \
-							and sim.ai_can_see(a.get("pos", Vector2.ZERO), rbp):
+							and sim.ai_can_see(a, rbp):
 						sim.open_meeting(int(a.get("i", -1)), rbi)
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
 			continue
@@ -338,7 +338,7 @@ func _decide(a: Dictionary) -> void:
 	# 条件：有弹 + 不是队友 + (没进刀程 或 没刀) + 枪程内 + LOS + alienFireP 概率。
 	if int(a.get("bullet", 0)) > 0 and real_d > SpaceData.num(space, "reach", "knife"):
 		var shoot_range: float = SpaceData.num(space, "shoot", "range")
-		if real_d <= shoot_range and sim.ai_can_see(a.get("pos", Vector2.ZERO), bpos):
+		if real_d <= shoot_range and sim.ai_can_see(a, bpos):
 			var fire_p := 0.7
 			var shot_cfg: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("SHOT", {}) as Dictionary
 			fire_p = float(shot_cfg.get("alienFireP", 0.7))
@@ -382,7 +382,7 @@ func _decide(a: Dictionary) -> void:
 			# （低头做事的人看不见，既不计目击数也不计暴露度 —— 2026-11-05 A 批口径）
 			if busy:
 				continue
-			if sim.ai_can_see(wp, bpos):
+			if sim.ai_can_see(w, bpos):
 				witnesses += 1
 				# 2.5D witnessWeight 纯函数：贴脸 1.0 → 视野边缘 0.3
 				# （busy 只在"被计入的人"身上生效，被排除的人根本不进表）
@@ -572,7 +572,7 @@ func _try_breaker_off(a: Dictionary) -> bool:
 				or bool(w.get("downed", false)):
 			continue
 		if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(bp) <= 7.0 \
-				and sim.ai_can_see(w.get("pos", Vector2.ZERO), bp):
+				and sim.ai_can_see(w, bp):
 			witnesses += 1
 	if witnesses >= int(B.get("witnessCap", 1)):
 		return false

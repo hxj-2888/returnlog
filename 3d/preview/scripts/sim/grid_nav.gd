@@ -182,6 +182,12 @@ func in_poly(p: Vector2, poly: Array) -> bool:
 	return inside
 
 
+## 给 sim 层用的只读查询（2.5D inCorr(x,y)）：几何判定仍只在本文件，
+## 不把走廊坐标复制到规则层（3d/ARCHITECTURE.md §3 硬规则 3）。
+func corridor_at(p: Vector2) -> Variant:
+	return _in_corridor(p)
+
+
 func _in_corridor(p: Vector2) -> Variant:
 	for c: Dictionary in _corridors:
 		var pts: Array = c.get("pts", []) as Array

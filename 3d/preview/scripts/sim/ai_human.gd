@@ -59,7 +59,7 @@ func tick(dt: float) -> void:
 							and not bool(kt.get("downed", false)):
 						var kp: Vector2 = kt.get("pos", Vector2.ZERO)
 						var dd := ap.distance_to(kp)
-						if dd <= 7.0 and sim.ai_can_see(ap, kp):
+						if dd <= 7.0 and sim.ai_can_see(a, kp):
 							var closing: bool = bool(kt.get("moving", false)) \
 								or ((kt.get("path", PackedVector2Array()) as PackedVector2Array).size() > 0)
 							var travel := dd / maxf(1.0, SpaceData.num(space, "move", "speed"))
@@ -79,7 +79,7 @@ func tick(dt: float) -> void:
 				continue
 			var bpos2: Vector2 = v.get("bodyPos", Vector2.ZERO)
 			var dd2 := ap.distance_to(bpos2)
-			if dd2 < best_bd and sim.ai_can_see(ap, bpos2):
+			if dd2 < best_bd and sim.ai_can_see(a, bpos2):
 				best_bd = dd2
 				best_body = v
 		if not best_body.is_empty() and float(a.get("_reportT", 0.0)) <= 0.0:
@@ -107,7 +107,7 @@ func tick(dt: float) -> void:
 				var rb: Dictionary = sim.agent(report_body)
 				if not rb.is_empty() and bool(rb.get("bodyReported", false)) == false:
 					var rbp: Vector2 = rb.get("bodyPos", Vector2.ZERO)
-					if ap.distance_to(rbp) <= 5.8 and sim.ai_can_see(ap, rbp):
+					if ap.distance_to(rbp) <= 5.8 and sim.ai_can_see(a, rbp):
 						if sim.open_meeting(int(a.get("i", -1)), report_body):
 							return
 		# 医疗包优先救人：濒死者拖到天亮会失血而死（2.5D aiHuman:2782）
@@ -181,7 +181,7 @@ func _shoot_target(a: Dictionary) -> int:
 		var tp: Vector2 = t.get("pos", Vector2.ZERO)
 		if ap.distance_to(tp) > shoot_r:
 			continue
-		if not sim.ai_can_see(ap, tp):
+		if not sim.ai_can_see(a, tp):
 			continue
 		var score := 0.0
 		if sim.mind != null:
