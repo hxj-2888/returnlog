@@ -96,6 +96,7 @@
 | `3d:parity:check` | ❌ | ❌ | FAIL：`rules.json` 的 `sources` SHA 与 `js/` 真源不一致 |
 
 **分离没有引入新回归**：6 项读数与原仓逐项一致，包括 2 项既有失败。
+> ⚠ 下表是**分离时刻**的历史快照。第四批修复后现行读数为 **6 通过 / 0 失败**，见 `AGENTS.md` §6.2。
 验收时曾出现过一条 `X-ENTRY: source 不存在 index.html`（移植清单登记的 2.5D 入口未随迁），
 补入该只读对账文件后，读数回到原仓的「1 错误 / 1 警告」；这是分离过程中唯一一次路径缺口，已闭环。
 剩下两项失败来自上游当天未提交的工作区改动，不是路径断裂
@@ -118,8 +119,8 @@
 | 级别 | 事项 | 建议动作 |
 |---|---|---|
 | **P0** | 玩家除移动外无法进行任何操作 | 按 `AGENTS.md` §6.1 的入口排查。先确认 `main.gd` 的 `started` / 相位闸门与 `_input()` 分发，再查 E / 鼠标按键 / R；`project.godot` 当前**无 `[input]` 段**，按键全是硬编码。**不要**用加新按键 / 新状态绕过，按 §一.11 先回 2.5D 找语义 |
-| P1 | `3d:parity:check` FAIL | 确认上游 `js/` 改动结账后，跑 `npm run 3d:export:rules` 重导，再对账；不要在 3D 里手改 `rules.json` |
-| P1 | `3d:port:check` 未认领 111 行 | 在 `3d/spec/port-manifest.json` 补认领，并给 `cover_refs.json` 补 `schema_version` |
+| P1 | `3d:parity:check` FAIL | **已修（第四批）**：重导 `rules.json`。原处置建议：确认上游 `js/` 改动结账后，跑 `npm run 3d:export:rules` 重导，再对账；不要在 3D 里手改 `rules.json` |
+| P1 | `3d:port:check` 未认领 111 行 | **已修（第四批）**：`X-BIND` 认领到 11877 行。原处置建议：在 `3d/spec/port-manifest.json` 补认领，并给 `cover_refs.json` 补 `schema_version` |
 | P2 | 原仓 `3d/` 是否移除 | **由用户裁定**。本轮刻意保留作对照；确认新工程稳定后再决定，删除属破坏性操作，需单独确认 |
 | P2 | 基线刷新 | 上游 2.5D 演进后 `npm run baseline:sync` → `npm run export:all` → `npm run check` |
 

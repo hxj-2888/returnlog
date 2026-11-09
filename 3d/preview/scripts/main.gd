@@ -91,6 +91,12 @@ var home
 var started := true
 var _cur_seed := 20261108
 var ui_panels
+## 信息面板：2.5D 的 #b（尸检 / 伤情记录卡）与 #cam（全船监控）在 3D 的 Control 版。
+## 只呈现信息，不参与判定；画法属允许的美术差异，字段口径照抄 2.5D。
+var info_panel: Control
+var info_title: Label
+var info_text: RichTextLabel
+var _info_open := false
 var spectator_mode := false
 var audio
 var _last_event_n := 0
@@ -296,6 +302,12 @@ func _ready() -> void:
 	if args.has("--interacttest"):
 		await _run_interacttest()
 		get_tree().quit()
+		return
+
+	## 玩家动作全集 + 真实输入链自测（不靠 skip_discussion 绕过会议）。
+	if args.has("--actiontest"):
+		var act_ok := _run_actiontest()
+		get_tree().quit(0 if act_ok else 1)
 		return
 
 	## 2026-11-07：逐个任务点验证「设备存在 / 不悬高 / 站位能收到交互项」。
@@ -934,6 +946,85 @@ func _run_audiotest() -> void:
 		linear_to_db(maxf(0.001, float(st.get("gain", 0.0))))])
 	print("AUDIOTEST 总线 Master=%.1fdB（音乐滑杆不再写总线）· 音效档=%.2f" % [
 		AudioServer.get_bus_volume_db(0), ui_panels.get_sfx()])
+
+
+## 门禁夹具：new_game 会开 MEET_PRE（开局公开讨论）、dawn 会开 MEET_DAY（全员会）。
+## 会议期间 sim.tick 只推进会议相位、不推进夜钟（2.5D 的 MEET.pauseClock）。
+## 想验「夜里」或「下一夜」的自测必须先把会正常走完；skip_discussion 是 2.5D
+## 也有的玩家操作，不是改判定、也不是绕过验收。
+func _finish_meeting(s) -> void:
+	if s == null:
+		return
+	var guard := 0
+	while not s.meeting.is_empty() and guard < 1200:
+		if String(s.meeting.get("phase", "")) == "discuss":
+			s.skip_discussion()
+		s.tick(0.1)
+		guard += 1
+
+
+## 真实输入链自测（2026-11-09 分离后第一批）：
+## 不调用 skip_discussion() 绕过会议，也不把「直接调内部函数」当成玩家按过键。
+## 断言两件事：① 各 UI 相位下鼠标口径正确（旧缺陷：轮盘打开了却点不动）；
+## ② 2.5D collectInteractions 里的动作在 3D 的 _collect_offers 里都有入口。
+func _run_actiontest() -> bool:
+	var fails: Array = []
+	## sim.new_game() 按 2.5D 口径会开一场 pre 公开讨论（MEET_PRE），
+	## 所以自测里要先关掉这场会，才造得出「会议结束后的空闲态」。
+	sim.meeting = {}
+	_close_info()
+	if wheel != null and wheel.is_open():
+		wheel.close()
+	player.ui_locked = false
+	if _want_mouse_visible():
+		fails.append("空闲态误判为需要释放鼠标")
+	wheel.open([{"label": "A"}, {"label": "B"}],
+		func(_it: Dictionary) -> void: return,
+		func() -> void: return)
+	player.ui_locked = true
+	if not _want_mouse_visible():
+		fails.append("轮盘打开时没有释放鼠标（按钮会点不动）")
+	_refresh_mouse_mode()
+	wheel.close()
+	player.ui_locked = false
+	sim.meeting = {"kind": "night", "phase": "discuss", "t": 35.0}
+	if not _want_mouse_visible():
+		fails.append("会议期间没有释放鼠标")
+	sim.meeting = {}
+	_open_info("自测", ["x"])
+	if not _want_mouse_visible():
+		fails.append("信息面板打开时没有释放鼠标")
+	_close_info()
+	if _want_mouse_visible():
+		fails.append("所有 UI 关闭后鼠标没回到捕获态")
+	# 2.5D 动作全集：施救 / 查看记录 / 全船监控 / 异形破坏 / 机器人状态。
+	var me: Dictionary = sim.me()
+	me["medkit"] = 1
+	me["alien"] = true
+	var v: Dictionary = sim.agent(1)
+	v["alive"] = true
+	v["downed"] = true
+	v["searched"] = true
+	var seen := {}
+	for f: Dictionary in map_data.get("facility", []):
+		var kind := String(f.get("kind", ""))
+		if kind != "monitor" and kind != "secbot" and kind != "medbot":
+			continue
+		player.global_position = Vector3(float(f.get("x", 0)), 0.05, float(f.get("y", 0)))
+		v["pos"] = Vector2(player.global_position.x, player.global_position.z)
+		v["bodyPos"] = v["pos"]
+		for o: Dictionary in _collect_offers():
+			var oid := String(o.get("id", ""))
+			seen[oid.split("-")[0]] = true
+	for need: String in ["cams", "botinfo", "revive", "inspect", "sabotage"]:
+		if not seen.has(need):
+			fails.append("缺 2.5D 动作入口：" + need)
+	if fails.is_empty():
+		print("ACTION OK 鼠标相位 5/5 · 2.5D 动作入口 5/5 齐备")
+		return true
+	for msg: String in fails:
+		print("ACTION FAIL " + msg)
+	return false
 
 
 func _run_interacttest() -> void:
@@ -1629,6 +1720,7 @@ func _run_speechtest() -> bool:
 		print("SPEECHTEST FAIL 开局失败")
 		return false
 	s.ai_enabled = false
+	_finish_meeting(s)
 	if not bool(s.speech_enabled):
 		print("SPEECHTEST FAIL lines.json 没加载")
 		return false
@@ -2413,6 +2505,7 @@ func _process(delta: float) -> void:
 			_sim_hud_timer = 0.25
 			_refresh_sim_hud()
 	_update_interaction(delta)
+	_refresh_mouse_mode()
 	_toast_t -= delta
 	if _toast_t <= 0.0 and toast_label != null:
 		toast_label.visible = false
@@ -2422,6 +2515,81 @@ func _process(delta: float) -> void:
 	_hud_timer = 0.2
 	room_label.text = _room_name_at(player.global_position)
 	fps_label.text = "3D 预演 · %d FPS · 数值来自 space.json / sim.json（2.5D 真源导出）" % Engine.get_frames_per_second()
+
+
+func _build_info_panel() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 14
+	add_child(layer)
+	var bg := ColorRect.new()
+	bg.color = Color(0.01, 0.02, 0.04, 0.88)
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(bg)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.add_child(center)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(560, 0)
+	box.add_theme_constant_override("separation", 10)
+	center.add_child(box)
+	info_title = Label.new()
+	info_title.add_theme_font_size_override("font_size", 22)
+	info_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(info_title)
+	info_text = RichTextLabel.new()
+	info_text.custom_minimum_size = Vector2(560, 300)
+	box.add_child(info_text)
+	var close := Button.new()
+	close.text = "关闭（ESC）"
+	close.custom_minimum_size = Vector2(160, 36)
+	close.pressed.connect(_close_info)
+	box.add_child(close)
+	info_panel = bg
+	info_panel.visible = false
+
+
+func _open_info(title: String, lines: Array) -> void:
+	if info_panel == null:
+		_build_info_panel()
+	info_title.text = title
+	info_text.text = "\n".join(PackedStringArray(lines))
+	info_panel.visible = true
+	_info_open = true
+
+
+func _close_info() -> void:
+	if info_panel != null:
+		info_panel.visible = false
+	_info_open = false
+
+
+## 鼠标状态唯一口径（对应 2.5D 的 DOM UI：鼠标天然可见）。
+## 3D 第一人称要在 CAPTURED / VISIBLE 之间显式切换；会议、轮盘、小游戏、管道、
+## 设置面板各自赋值会互相覆盖，曾有「轮盘打开了却点不动」的缺陷（CAPTURED 下光标锁死）。
+## 这里每帧按「是否有需要点按的 UI」兜底，各处零散赋值即使漏了也会被纠正。
+func _want_mouse_visible() -> bool:
+	if sim != null and not sim.meeting.is_empty():
+		return true
+	if wheel != null and wheel.is_open():
+		return true
+	if mg_layer != null and mg_layer.is_open():
+		return true
+	if _pipe_open:
+		return true
+	if ui_panels != null and ui_panels.any_open():
+		return true
+	if _info_open:
+		return true
+	return false
+
+
+func _refresh_mouse_mode() -> void:
+	if player == null or not started:
+		return
+	var want := Input.MOUSE_MODE_VISIBLE if _want_mouse_visible() else Input.MOUSE_MODE_CAPTURED
+	if Input.mouse_mode != want:
+		Input.mouse_mode = want
 
 
 func _update_interaction(_delta: float) -> void:
@@ -2639,7 +2807,159 @@ func _collect_offers() -> Array:
 			"accent": Color("#FFE0A3") if is_ammo else Color("#B9F5DA"),
 			"act": func() -> void: _start_station("补给领取", dur, func() -> void: _on_supply_done(item)),
 		})
+	# ---- 以下 5 项是 2.5D collectInteractions / interact 里原本有、3D 之前没接入的动作 ----
+	# 施救（2.5D rescue + STAND.revive）：需医疗包，附近有濒死者，站桩后扣 1 个包。
+	if sim != null and not sim.agents.is_empty():
+		var me: Dictionary = sim.me()
+		if int(me.get("medkit", 0)) > 0:
+			var downed: Dictionary = sim.nearest_downed(Vector2(pos.x, pos.z),
+				SpaceData.num(space, "reach", "body"))
+			if not downed.is_empty():
+				var rv_i := int(downed.get("i", -1))
+				out.append({
+					"id": "revive-%d" % rv_i,
+					"label": "施救 · " + String(downed.get("name", "?")),
+					"hint": "站桩 %.0fs · 消耗 1 个医疗包" % SpaceData.num(space, "stand", "revive"),
+					"accent": Color("#B9F5DA"),
+					"act": func() -> void: _start_station("施救",
+						SpaceData.num(space, "stand", "revive"),
+						func() -> void: _on_revive_done(rv_i)),
+				})
+	# 查看记录（2.5D openBodyCard）：搜查过的尸体 / 伤者能回看状态、地点、检查与随身物资。
+	if sim != null:
+		for b: Dictionary in sim.agents:
+			if not bool(b.get("searched", false)):
+				continue
+			var bp: Vector2 = b.get("bodyPos", Vector2.ZERO)
+			if bp == Vector2.ZERO and bool(b.get("alive", false)):
+				bp = b.get("pos", Vector2.ZERO)
+			if bp.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "body"):
+				continue
+			var bi := int(b.get("i", -1))
+			out.append({
+				"id": "inspect-%d" % bi,
+				"label": "查看记录 · " + String(b.get("name", "?")),
+				"hint": "尸检 / 伤情记录",
+				"accent": Color("#C9D1DB"),
+				"act": func() -> void: _open_body_card(bi),
+			})
+	# 全船监控（2.5D openCams）：走到监控台才能调取；断电时信号中断。
+	for mfac in map_data.get("facility", []):
+		if String(mfac.get("kind", "")) != "monitor":
+			continue
+		var mp := Vector2(float(mfac.get("x", 0)), float(mfac.get("y", 0)))
+		if mp.distance_to(Vector2(pos.x, pos.z)) > dev_r:
+			continue
+		out.append({
+			"id": "cams",
+			"label": "全船监控 · " + String(mfac.get("label", "监控台")),
+			"hint": "%d 路在线 · V / ESC 退出" % (map_data.get("rooms", []) as Array).size(),
+			"accent": Color("#B9F5DA"),
+			"act": func() -> void: _open_cams(),
+		})
+	# 异形破坏（2.5D H → openSabPick → pickSabRoom）：每夜一次，bridge 不可破坏，
+	# 已有故障的舱室不重复下手。3D 玩家已站在舱内，等同「抵达目标后自动下手」。
+	if sim != null and not sim.agents.is_empty() and bool(sim.me().get("alien", false)):
+		var rid: String = String(sim.room_at(Vector2(pos.x, pos.z)))
+		var occupied := false
+		for d2: Dictionary in sim.dmg:
+			if String(d2.get("room", "")) == rid:
+				occupied = true
+				break
+		if rid != "" and rid != "bridge" and not occupied \
+				and not bool(sim.me().get("sabUsed", false)):
+			var sabrid: String = rid
+			out.append({
+				"id": "sabotage-" + sabrid,
+				"label": "破坏舱室 · " + sim.room_name(sabrid),
+				"hint": "每夜一次 · 30 秒内未修复则倒扣维修进度",
+				"accent": Color("#FFB3AC"),
+				"act": func() -> void: _on_sabotage(sabrid),
+			})
+	# 机器人状态（2.5D interact 尾部兜底 toast）：贴身时给出在线 / 停摆与剩余电量口径。
+	for bk: String in ["secbot", "medbot"]:
+		var bfac := {}
+		for f2: Dictionary in (map_data.get("facility", []) as Array):
+			if String(f2.get("kind", "")) == bk:
+				bfac = f2
+				break
+		if bfac.is_empty():
+			continue
+		var bpt := Vector2(float(bfac.get("x", 0)), float(bfac.get("y", 0)))
+		if bpt.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "sabotage"):
+			continue
+		var bk2 := bk
+		var blabel := String(bfac.get("label", bk2))
+		out.append({
+			"id": "botinfo-" + bk2,
+			"label": "查看机器人状态 · " + blabel,
+			"hint": "HP %d · 本夜额度 %d 次" % [int(sim.bot_hp.get(bk2, 0)),
+				int(SpaceData.num(space, "bot", "sec_uses" if bk2 == "secbot" else "med_uses"))],
+			"accent": Color("#C9D1DB"),
+			"act": func() -> void: _toast("%s · HP %d · %s" % [blabel,
+				int(sim.bot_hp.get(bk2, 0)),
+				"在线" if int(sim.bot_hp.get(bk2, 0)) > 0 else "已停摆"]),
+		})
 	return out
+
+
+func _on_revive_done(body_i: int) -> void:
+	if sim != null and sim.player_revive(body_i):
+		_toast("施救成功 · 剩余医疗包 %d" % int(sim.me().get("medkit", 0)))
+	else:
+		_toast("施救失败（医疗包不足 / 目标已不在濒死状态）")
+
+
+func _on_sabotage(room_id: String) -> void:
+	if sim != null and sim.player_sabotage(room_id):
+		_toast("已破坏 " + sim.room_name(room_id) + " · 30 秒内未修复将倒扣维修进度")
+	else:
+		_toast("破坏失败（本夜已用过 / 该舱已有故障 / 中央会议室不可破坏）")
+
+
+## 2.5D openBodyCard 的字段口径（状态 / 地点 / 检查 / 物资 / 时间），3D 用 Control 呈现。
+func _open_body_card(body_i: int) -> void:
+	if sim == null:
+		return
+	var b: Dictionary = sim.agent(body_i)
+	if b.is_empty():
+		return
+	var alive := bool(b.get("alive", false))
+	var bp: Vector2 = b.get("bodyPos", Vector2.ZERO)
+	if bp == Vector2.ZERO:
+		bp = b.get("pos", Vector2.ZERO)
+	var lines: Array = [
+		"状态：" + ("濒死 · 还有呼吸，拖进医疗间可由机器人救活" if alive else "已死亡"),
+		"发现地点：" + sim.room_name(sim.room_at(bp)),
+		"检查：" + ("已检查 · 伤口与拖拽痕迹完整" if bool(b.get("searched", false)) else "未检查"),
+		"随身物资：弹 %d / 包 %d / 单 %d" % [int(b.get("bullet", 0)),
+			int(b.get("medkit", 0)), int(b.get("qual", 0))],
+		"第 %d 夜 · 剩余 %.0fs" % [int(sim.night), maxf(0.0, float(sim.t))],
+	]
+	_open_info(("伤情记录 · " if alive else "尸检记录 · ") + String(b.get("name", "?")), lines)
+
+
+## 2.5D openCams：路数、断电中断、夜次与剩余时间；不暴露异形身份。
+func _open_cams() -> void:
+	if sim == null:
+		return
+	var rooms: Array = map_data.get("rooms", [])
+	var lines: Array = []
+	if power_on:
+		lines.append("● %d 路在线" % rooms.size())
+	else:
+		lines.append("● 信号中断 · 电闸断开（先合上配电室的电闸）")
+	lines.append("第 %d 夜 · 剩余 %.0fs" % [int(sim.night), maxf(0.0, float(sim.t))])
+	if power_on:
+		var seen := {}
+		for a: Dictionary in sim.agents:
+			if not bool(a.get("alive", false)):
+				continue
+			var rid: String = String(sim.room_at(a.get("pos", Vector2.ZERO)))
+			seen[rid] = int(seen.get(rid, 0)) + 1
+		for rid: String in seen.keys():
+			lines.append("%s：%d 人" % [sim.room_name(rid), int(seen[rid])])
+	_open_info("全船监控", lines)
 
 
 func _breaker_offer(dev) -> Dictionary:
@@ -3225,6 +3545,23 @@ func _show_end() -> void:
 func _input(event: InputEvent) -> void:
 	if sim == null or not started:
 		return
+	## 信息面板（尸检记录 / 全船监控）在最上层：只剩 ESC 关闭，其余按键不落到对局。
+	## 对应 2.5D 的 G.inspect / G.camView 输入屏蔽（js/game.js:7932 起）。
+	if _info_open:
+		if event is InputEventKey and (event as InputEventKey).pressed \
+				and (event as InputEventKey).keycode == KEY_ESCAPE:
+			_close_info()
+			get_viewport().set_input_as_handled()
+		return
+	## 设置 / 复盘面板在最上层（2.5D 的 SKSettings.isOpen() 守卫）：
+	## 只允许 P / ESC 关闭，其余按键一律不落到对局，避免面板开着时误触发交互。
+	if ui_panels != null and ui_panels.any_open():
+		if event is InputEventKey and (event as InputEventKey).pressed:
+			var pk := (event as InputEventKey).keycode
+			if pk == KEY_P or pk == KEY_ESCAPE:
+				ui_panels.close_all()
+				get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		if (event as InputEventKey).keycode == KEY_P and started:
 			if ui_panels.any_open():
@@ -3282,6 +3619,7 @@ func _run_meetingtest() -> bool:
 		print("MEETINGTEST FAIL 开局失败")
 		return false
 	s.ai_enabled = false
+	_finish_meeting(s)
 	var alien := {}
 	var victim := {}
 	for a: Dictionary in s.agents:
@@ -3424,6 +3762,7 @@ func _run_simtest() -> bool:
 	var s = SimStateScript.new()
 	_sim_check(r, s.new_game(20261108, 0, map_data, space), "开局成功")
 	s.ai_enabled = false
+	_finish_meeting(s)
 
 	var n_humans := 0
 	var n_aliens := 0
@@ -3499,8 +3838,11 @@ func _run_simtest() -> bool:
 	# 天亮：75 秒后进入第 2 夜
 	_sim_check(r, s.new_game(7, 0, map_data, space), "重开用于天亮测试")
 	s.ai_enabled = false
+	_finish_meeting(s)
 	for i in 751:
 		s.tick(0.1)
+	## 2.5D：天亮先开白天全员会，会议结束才 _start_night(true) 进下一夜。
+	_finish_meeting(s)
 	_sim_check(r, int(s.night) == 2, "75 秒后天亮 → 第 2 夜（实际第 %d 夜）" % s.night)
 	var has_dawn := false
 	for e: Dictionary in s.events:

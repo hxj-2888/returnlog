@@ -1,5 +1,60 @@
 # 3D 修改记录
 
+## 2026-11-09 · 第四批：玩家动作全集接通 + 真实输入链闭环（用户「参照 2.5D 全部移植」）
+
+> 用户指令：「开始修，参照物为 2.5D。除了美术和操作按键之外全部移植。」
+> 本批只在**分离后的独立工程 `新返航录 3D 版/`** 内改动，原仓不动。
+
+### 1. 输入链：UI 打开时鼠标必须释放（P0）
+
+- 旧缺陷：交互轮盘 `ui_wheel.gd` 打开后 `Input.mouse_mode` 仍是 `CAPTURED`，光标锁在屏幕中心，
+  轮盘按钮点不动；而 `--e2e` 用 `skip_discussion()` 绕过开局会议，于是「门禁绿、真人卡住」。
+- 新增 `main.gd::_want_mouse_visible()`（纯函数，可断言）与 `_refresh_mouse_mode()` 每帧兜底：
+  **会议 / 轮盘 / 小游戏 / 管道 / 设置 / 信息面板**任一打开 → `VISIBLE`，否则 `CAPTURED`。
+  各处零散赋值即使漏写也会被纠正。
+- `_input()` 补上 2.5D `SKSettings.isOpen()` / `G.inspect` / `G.camView` 的同款守卫：
+  面板在最上层时只放行 `P` / `ESC`，其余按键不落到对局。
+
+### 2. 补齐 2.5D `collectInteractions` 里 3D 缺的 5 类动作
+
+以 `js/game.js` 为参照，全部复用已有 `sim` 判定与 `space.json` 数值，**不自造状态 / 计数器 / 阈值**：
+
+| 2.5D 动作 | 出处 | 3D 落地 |
+|---|---|---|
+| 施救（医疗包 + 濒死者 + `STAND.revive`） | `rescue()` | `sim.player_revive()`，站桩后扣 1 包 |
+| 查看尸检 / 伤情记录 | `openBodyCard()` | `_open_body_card()`，字段口径照抄 |
+| 全船监控（断电时信号中断） | `openCams()` | `_open_cams()`，读监控台 facility |
+| 异形破坏（每夜一次、bridge 禁破坏） | `openSabPick()` | `sim.player_sabotage()` + `sabUsed` |
+| 机器人状态查询 | `interact()` 尾部 | 轮盘项，`bot_hp` / `bot.*_uses` |
+
+- `sim_state.gd` 新增 `player_revive()` / `player_sabotage()`：把玩家判定与记账收口到 sim，
+  与 AI 的 `_finish_doing` 完成链同口径（扣医疗包、`cred_broadcast("revive")`、
+  `sabUsed` 每夜由 `_start_night` 重置）。
+- 信息面板是 2.5D `#b` / `#cam` 的 Control 版，**只呈现、不参与判定**；画法属允许的美术差异。
+
+### 3. 数据同源、门禁与自测
+
+- `npm run 3d:export:rules` 重导 `rules.json`，消除 `sources` SHA 漂移；
+  `spec/port-manifest.json` 的 `X-BIND` 补认领上游新增的 111 行 `_t` 调试查询接口。
+- **npm 门禁：6 通过 / 0 失败**（分离时遗留的 2 项失败已清）。
+- 新增 `--actiontest` 真实输入链自测：鼠标相位 5/5 + 2.5D 动作入口 5/5，
+  **不调用 `skip_discussion()` 作弊**。
+- 修 3 个既有坏掉的自测（`--simtest` / `--meetingtest` / `--speechtest`）：
+  它们假设「开局直接进夜」，而 `new_game()` 按 2.5D 会先开 `MEET_PRE`、`dawn()` 会开 `MEET_DAY`；
+  新增 `_finish_meeting()` 夹具把会议正常走完（用 2.5D 也有的 `skip_discussion`），不改判定。
+  **原仓同批逐字同样失败**，确认不是本批回归。
+- 修复后读数：`SIMTEST 26/0`、`ACTION OK`、`--interacttest` / `--mgtest` / `--tasktest` /
+  `--devicetest` / `--navtest` / `--meetingtest` / `--speechtest` 全部 exit 0。
+
+### 4. 仍未同源（下一批，按证据强度）
+
+1. **行为层**：同 seed 人类胜率 2.5D 49.9% vs 3D 20.0%；三条根因见 `MIGRATION.md` §10.5.1
+   （`known` 写入量 / 医疗无人机救起 1.5 vs 3.34 / `block_cap` 60.5）。
+2. **机制缺口**：小游戏 14 型只做 10 型；`VOTE.change` 改票与早投、`MISLEAD.bus`、
+   `COFRAME` 附议名额；报告额度与播报文案。
+3. **事件层**：信封字段 3D 34 / 2.5D 40，kind 3D 18 / 2.5D 26（`simdiff-20261108.md`）。
+4. **自造数值**：`check-parity` 仍有 16 个非真源小数 WARN（1.1 / 0.94 / 0.26 / 5.4 / 5.8 等）。
+
 ## 2026-11-09 · 第三批：构陷 / 领袖 / 位移链补齐（用户「继续把机制补齐」）
 
 - **补齐内容**（全部读 `rules.json`，数值不在 GDScript 抄）：

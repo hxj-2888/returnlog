@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-08",
+  "generated_at": "2026-11-09",
   "note": "3D 移植准备清单（机器可读唯一真源）。status 只认已经能在 3D 里跑的行为与已落地的数据契约；校验：node 3d/tools/check-port-manifest.cjs game.js 的切片按函数起点维护；改动 game.js 后重跑校验，报未认领/重复认领时按新函数行号更新切片。 S 轨（2026-11-08）已开工：lines.json 是台词唯一真源，npm run 3d:lines:check 会逐字校验它与 js/data/lines.js 一致。 2026-11-08 用户裁定：推理/发言与 2.5D 同源，仅维度/美术/输入映射允许差异；spec/parity-map.json 为函数级对账真源。",
   "scope": {
     "goal": "把 2.5D 除美术素材外的全部内容移植到 3D；发言系统单列 S 轨，执行顺序最后",
@@ -526,7 +526,7 @@
         "S-STATE"
       ],
       "gate": "--simtest（夜计时 / 天亮）",
-      "notes": "B1 只有夜计时与 dawn；AI/战斗/会议的 tick 在后续批次接入。"
+      "notes": "主循环 update / 动作计时 / 帧采样。AI/战斗/会议的 tick 已按 2.5D 在后续批次接入（见 3d/CHANGELOG.md 第四批与 MIGRATION.md §10.4）；本条 status 仍标 partial，是因为逐相位对账尚未逐函数签完，不代表 tick 未运行。"
     },
     {
       "id": "A-HUMAN",
@@ -967,7 +967,7 @@
           "file": "js/game.js",
           "lines": [
             11755,
-            11766
+            11877
           ]
         }
       ],
@@ -977,7 +977,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；window.SKV3._t 只属于 2.5D 门禁",
-      "notes": "3D 的断言入口在 main.gd 的测试分支。"
+      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。"
     },
     {
       "id": "X-ENTRY",

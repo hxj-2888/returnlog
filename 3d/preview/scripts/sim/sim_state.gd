@@ -218,6 +218,8 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"bullet": 0,
 			"medkit": 0,
 			"knife": 1,
+			## 2.5D 的 me.sabUsed：异形每夜只能破坏一次（js/game.js openSabPick）。
+			"sabUsed": false,
 			"pos": spawn_pos,
 			"path": PackedVector2Array(),
 			"pathI": 0,
@@ -652,10 +654,12 @@ func _start_night(inc: bool) -> void:
 		mind.reset_night()
 	t = night_len()
 	_log("night_start", {"night": night})
-	# 2.5D：天亮给每只异形补 1 把刀（不是时间冷却，是每夜额度）
+	# 2.5D：天亮给每只异形补 1 把刀（不是时间冷却，是每夜额度），
+	# 同时重置「今晚破坏过没」—— 2.5D openSabPick 的 sabUsed 是每夜额度，不是全局。
 	for a: Dictionary in agents:
 		if bool(a.get("alive", false)):
 			a["knife"] = 1
+			a["sabUsed"] = false
 	check_terminator()
 	_log("dawn", {"night": night, "prog": prog})
 	check_win()
@@ -1026,6 +1030,39 @@ func search_body(body_i: int, by: int) -> bool:
 			b[k] = 0
 			got.append("%s×%d" % [String(k), n])
 	_log("search", {"actor": by, "victim": body_i, "got": ", ".join(got)})
+	return true
+
+
+## 玩家动作入口：2.5D 的 rescue() / sabotage() 由玩家按键触发，AI 走
+## start_doing → _finish_doing 的完成链。这里把玩家的判定与记账收口到 sim，
+## 免得 main.gd 再复制一份「医疗包够不够 / 今晚破坏过没」的状态（红线 11）。
+func player_revive(body_i: int) -> bool:
+	var me := agent(me_idx)
+	if me.is_empty() or not bool(me.get("alive", false)) or bool(me.get("downed", false)):
+		return false
+	if int(me.get("medkit", 0)) <= 0:
+		return false
+	var v := agent(body_i)
+	if v.is_empty() or not bool(v.get("alive", false)) or not bool(v.get("downed", false)):
+		return false
+	if not revive(body_i):
+		return false
+	me["medkit"] = int(me.get("medkit", 0)) - 1
+	## 与 _finish_doing 的 "revive" 分支同口径：救人是公开的可信信号。
+	if speech_enabled and mind != null:
+		mind.cred_broadcast(me_idx, "revive", me.get("pos", Vector2.ZERO))
+	return true
+
+
+func player_sabotage(room_id: String) -> bool:
+	var me := agent(me_idx)
+	if me.is_empty() or not bool(me.get("alive", false)) or not bool(me.get("alien", false)):
+		return false
+	if bool(me.get("sabUsed", false)):
+		return false
+	if not sabotage_room(room_id, me_idx):
+		return false
+	me["sabUsed"] = true
 	return true
 
 

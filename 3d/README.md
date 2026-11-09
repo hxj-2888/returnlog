@@ -244,6 +244,8 @@ npm run 3d:export:minigames
 `--audiotest` **文件=true 时长=151.2s 导入循环=true 播放=true**、档 0.35 → 增益 0.48（−6.4dB）、Master 回到 0dB；
 `--e2e` 先收束开局讨论再注 E，`E2E open=true`（旧写法在开局讨论还开着时注 E，永远 open=false）；
 `--mgtest` **10/10 pass**；`--tasktest` 26 点 0 失败；`--interacttest` 全绿。
+`--actiontest`（2026-11-09 第四批新增）：真实输入链自测，**鼠标相位 5/5 + 2.5D 动作入口 5/5**，
+不靠 `skip_discussion()` 绕过开局会议；修的是「轮盘打开了却点不动」这类门禁测不到的缺陷。
 ⚠ `--devicetest` 现在读的是 `open=false locked=true` / `closed=true unlocked=false`
 （本节此前写的是 `open=true closed=true unlocked=true`）——它在 `_ready` 当帧就调 `_open_device`，
 疑似小游戏层还没装配完；本批没动这条链路，留作下一批核对。

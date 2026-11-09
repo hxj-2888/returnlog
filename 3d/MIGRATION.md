@@ -453,7 +453,7 @@ js/ai/sanity.js  js/ai/traits.js  js/t2/ai.js  js/t2/decision.js  js/game.js  js
   2.5D 改任何阈值而不重导，`check-parity.cjs` 立刻 FAIL。
 - `check-parity.cjs` 还交叉校验 `lines.json#rules` 21 张表与 `rules.json` 一致，
   并扫描 3D 推理/发言脚本，拦住自造阈值。
-- `spec/parity-map.json` 对 70 个函数逐项对账：**38 synced / 7 adapter / 25 pending**，
+- `spec/parity-map.json` 对 70 个函数逐项对账：**63 synced / 7 adapter / 0 pending**，
   coverage 100%，pending 不伪装成完成。
 
 ### 10.3 本轮同步进去的内容

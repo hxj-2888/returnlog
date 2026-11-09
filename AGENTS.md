@@ -163,38 +163,51 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
    每次导出记录源文件哈希（导出器已自动写入 `sources`）。
 6. **提交**：中文，格式 `type(scope): 摘要`；不提交 `node_modules/` / `.godot/` / 日志 / 本机截图。
 
-## 六、分离时刻的已知问题与门禁读数（2026-11-09 实跑）
+## 六、已知问题与门禁读数（2026-11-09 · 第四批修复后实跑）
 
 > 本节是**事实快照**，不是数值真源；后续每批改动后按 §五.3 重新实跑并更新。
 
-### 6.1 P0 · 玩家除移动外无法进行任何操作
+### 6.1 P0 · 玩家除移动外无法操作 —— 已修（第四批）
 
 用户 2026-11-09 现场反馈：进入舱段后 WASD / 鼠标视角可用，**其余交互全部无响应**。
-本轮只做工程分离，**未修此问题**。排查入口（按优先级）：
+同日第四批（详见 `3d/CHANGELOG.md` 第四批）已修复输入链与动作入口：
 
-| 入口 | 位置 | 说明 |
-|---|---|---|
-| 输入总入口 | `3d/preview/scripts/main.gd` `_input()` ≈ L3225 | P / Esc / 鼠标按键 / R 的分发点 |
-| E 交互 | `3d/preview/scripts/main.gd` `_process()` ≈ L2387、L2430–2436 | `_e_down` / `e_now` 边沿检测与设备选点 |
-| 攻击 | `3d/preview/scripts/main.gd` `_handle_attack()` ≈ L2984 | 左键出刀 / 右键开枪 |
-| 玩家视角 | `3d/preview/scripts/player.gd` `_unhandled_input()` ≈ L75 | 鼠标捕获状态；`MOUSE_MODE_CAPTURED` 与 UI 焦点可能互斥 |
-| 输入映射 | `3d/preview/project.godot` | **当前没有 `[input]` 段**，全靠硬编码 `is_physical_key_pressed` / `keycode`；无头自测用 `InputEventKey` 注入（`main.gd` ≈ L363 / L575） |
-| 相位闸门 | `3d/preview/scripts/main.gd` 开始页 / `started` / `sim` 相位 | 交互分支普遍带 `started` 与阶段判断，先确认开局状态是否真的置位 |
+- **根因**：交互轮盘打开时 `Input.mouse_mode` 仍是 `CAPTURED`，光标锁在屏幕中心，按钮点不动；
+  `--e2e` 又用 `skip_discussion()` 绕过开局会议，造成「门禁绿、真人卡住」。
+- **修法**：`main.gd::_want_mouse_visible()` + `_refresh_mouse_mode()` 统一鼠标口径（会议 /
+  轮盘 / 小游戏 / 管道 / 设置 / 信息面板任一打开即 `VISIBLE`）；`_input()` 补 2.5D
+  `SKSettings.isOpen()` / `G.inspect` / `G.camView` 同款守卫；按 `js/game.js#collectInteractions`
+  补齐 3D 缺的 5 类动作（施救 / 查看记录 / 全船监控 / 异形破坏 / 机器人状态）。
+- **验证**：`npm run check` 6 通过 / 0 失败；`--actiontest` ACTION OK（鼠标相位 5/5 +
+  动作入口 5/5，**不靠 `skip_discussion()` 作弊**）；`SIMTEST 26/0`；7 项 Godot 自测 exit 0。
+- 排查入口备查：`main.gd` 的 `_input()` / `_update_interaction()` / `_handle_attack()`、
+  `player.gd` 的 `_unhandled_input()`、`project.godot`（**无 `[input]` 段**，按键全硬编码
+  `physical_keycode` —— 属允许的输入映射差异，不是缺陷）。
 
-复现路径：开始页选「人类 / 异形」→ 进入舱段 → 依次试 `E`、左键、右键、`R`、`P`、管道口。
-**不要**用「加新按键 / 新状态」绕过：按 §一.11，先确认 2.5D 对应交互在 `js/` 里的语义，再判断是移植缺口还是维度产物。
-
-### 6.2 门禁实跑读数（分离前原仓 = 分离后本工程，逐项对照）
+### 6.2 门禁读数（第四批后实跑）
 
 | 门禁 | 结果 | 读数 |
 |---|---|---|
-| `3d:assets` | ✅ | 0 错误 / **3 提醒**（3 项 wip 资产源文件未落地） |
-| `3d:import:check` | ✅ | 0 差异（74 个 `.glb.import` × 27 key） |
-| `3d:events:check` | ✅ | EVENTS OK（schema 31 / 2.5D 31 / 3D 31） |
-| `3d:lines:check` | ✅ | LINES OK（62 类 / 1221 行 / 21 规则表） |
-| `3d:port:check` | ❌ | **1 错误 / 1 警告**：`js/game.js` 111 行未被认领（首行 11767）；`cover_refs.json` 缺 `schema_version`（legacy） |
-| `3d:parity:check` | ❌ | **FAIL**：`rules.json` 的 `sources` SHA 与 2.5D 真源不一致（改了 `js/` 未重导 `3d:export:rules`）；另有 3D 硬编码扫描 WARN |
+| `3d:assets` | ✅ | 0 错误 / 3 提醒（3 项 wip 资产源文件未落地） |
+| `3d:import:check` | ✅ | 0 差异 |
+| `3d:port:check` | ✅ | 0 错误 / 1 警告（`cover_refs.json` 缺 `schema_version`，legacy） |
+| `3d:events:check` | ✅ | EVENTS OK |
+| `3d:lines:check` | ✅ | LINES OK |
+| `3d:parity:check` | ✅ | 63 synced / 7 adapter / 0 pending；仍有 16 个非真源小数 WARN |
+| **汇总** | ✅ | **6 通过 / 0 失败** |
 
-这两项失败来自**上游 2026-11-09 未提交的工作区改动**（原仓当时 55 项 modified/untracked），
-分离**没有引入、也没有掩盖**它们。修复顺序见 `SPLIT.md` §5：先在原仓结账 → 同步基线 → 重导规则 → 补认领。
-按 §一.4，在它们转绿之前，任何报告都必须如实写出这 2 项失败。
+分离时的 2 项既有失败已清：`rules.json` 重导消除 `sources` SHA 漂移；
+`port-manifest.json` 的 `X-BIND` 补认领上游新增的 111 行 `_t` 调试查询接口。
+Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接入后没更新的坏账
+（**原仓同批逐字同样失败**，非本工程回归），本批用 `_finish_meeting()` 夹具修好。
+
+### 6.3 仍未同源（下一批，按证据强度）
+
+1. **行为层**：同 seed 人类胜率 2.5D 49.9% vs 3D 20.0%；三条根因见 `3d/MIGRATION.md` §10.5.1
+   （`known` 写入量 / 医疗无人机救起 1.5 vs 3.34 / `block_cap` 60.5）。
+2. **机制缺口**：小游戏 14 型只做 10 型；`VOTE.change` 改票与早投、`MISLEAD.bus`、
+   `COFRAME` 附议名额；报告额度与播报文案。
+3. **事件层**：信封字段 34 vs 40、kind 18 vs 26（`3d/preview/reports/simdiff-20261108.md`）。
+4. **自造数值**：parity 的 16 个非真源小数 WARN。
+
+按 §一.4，这些未清项在任何报告里都要如实列出，不得沿用旧读数或伪装完成。
