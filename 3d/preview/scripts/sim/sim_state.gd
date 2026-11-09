@@ -734,10 +734,15 @@ func knife(killer_i: int, victim_i: int) -> bool:
 		return false
 	if not bool(v.get("alive", false)) or bool(v.get("alien", false)):
 		return false
-	# 2.5D 真源是「每夜 1 把刀 + RUSH 逃逸 + 目标承诺 + 管道突袭 + 异形开枪」的
-	# 组合，实测每夜约 1.93 刀。3D 异形只迁了贴脸出刀，进攻链补齐前不启用
-	# 每夜额度（只搬限制不搬能力会 0 胜）；出手频率由 KNIFE 理智线控制。
-	# 这是 port-manifest 里标注的 partial，不是新增规则。
+	# 2.5D knife()（js/game.js:4225 `if(killer.knife<1)return` / :4232 `killer.knife--`）：
+	# 每夜 1 把刀是硬 gate，先扣刀再结算；额度由 startNight(:7801 `a.knife=1`) 每夜补发。
+	# 第七批拨乱反正：此前 3D 以「进攻链未齐、只搬限制会 0 胜」为由人为不启用该 gate，
+	# 但逐条核实 RUSH 逃逸(sim_state.gd:500/_kill_rush_start)、目标承诺(ai_alien.gd:290)、
+	# 管道突袭(ai_alien.gd:60)、异形开枪(ai_alien.gd:338) 均已接入 —— 该理由已不成立，
+	# 按真源恢复额度。改动依据是 js/game.js 行号，不是任何平衡读数。
+	if int(k.get("knife", 0)) < 1:
+		return false
+	k["knife"] = int(k.get("knife", 0)) - 1
 	k["knifeUsed"] = int(k.get("knifeUsed", 0)) + 1
 	if bool(v.get("downed", false)):
 		return die(v)
@@ -1339,16 +1344,20 @@ func cast_vote(voter_i: int, target_i: int) -> void:
 	if v.is_empty() or not bool(v.get("alive", false)) or bool(v.get("downed", false)):
 		return
 	var votes: Dictionary = meeting.get("votes", {})
+	var had_vote: bool = votes.has(voter_i)
+	var prev_vote: int = int(votes.get(voter_i, -1))
 	var tgt := target_i
 	if tgt >= 0:
 		var t := agent(tgt)
 		if t.is_empty() or not bool(t.get("alive", false)):
 			tgt = -1
 	votes[voter_i] = tgt
-	var changed := votes.has(voter_i)
 	meeting["votes"] = votes
-	if changed:
-		_log("vote_change", {"actor": voter_i, "target": tgt})
+	# 2.5D logEvent('vote_change')（js/game.js:7398）只在**真的改票**时记，并带 from。
+	# 3D 此前把 `votes.has(voter_i)` 写在赋值之后，恒为 true —— 每一票都被记成改票；
+	# 第七批按真源修正。讨论期陆续投 + 跟票的完整时序仍是已知缺口，见 PORT-DIFF-AUDIT.md。
+	if had_vote and prev_vote != tgt:
+		_log("vote_change", {"actor": voter_i, "from": prev_vote, "target": tgt})
 	else:
 		_log("vote", {"actor": voter_i, "target": tgt})
 

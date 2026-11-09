@@ -391,11 +391,23 @@ npm run sim                                   # 2.5D 1000 局 → tools/mc-repor
 
 ### 9.3 仍不能对齐的部分（诚实口径）
 
+> **2026-11-09 第七批核实更正**：下面两条是 11-08 的历史诊断，**与当前代码不符**，
+> 保留仅为留痕。逐条读码核实结果见 `3d/PORT-DIFF-AUDIT.md`：
+> - 白天 / 开局会议（`_after_meeting` 的 `MEET_PRE`/`MEET_DAY`）、紧急按钮
+>   （`open_meeting_kind`）、`settleAccountability`（`sim_state.gd:1613`）**均已接入**；
+> - RUSH 逃逸（`_kill_rush_start` / `rushT`）、目标承诺（`ai_alien.gd:290`）、
+>   管道突袭（`ai_alien.gd:60`）、异形开枪（`ai_alien.gd:338`）、构陷编排
+>   （`speech.gd:106/191/318/321`）**均已接入**；
+> - 因此「不启用每夜 1 把刀额度」的前提已不成立，第七批按 `js/game.js:4225/4232/7801`
+>   **恢复硬 gate**；26 夜观察窗口也按 `js/game.js:11054-11058` 拨回 15 夜 / 17250 tick。
+> 当前真实缺口：`PORT-DIFF-AUDIT.md` §3/§6（讨论期改票时序、`buildMeetCtx`/`remainMs`、
+> `lightState` 三态、`startNight` 逐人重置、中文席位解析、追猎分支）。
+
 - **会议链**：白天 / 开局会议（`MEET.discussDay 60 / discussPre 50`）、紧急按钮、
   `settleAccountability` 身份公布追责未迁 → 残局收尾慢，需要更长观察窗口，
-  且误逐率仍高于 2.5D（3D ~36% / 2.5D ~20%）。
+  且误逐率仍高于 2.5D（3D ~36% / 2.5D ~20%）。【历史诊断，已失实】
 - **异形进攻链**：RUSH 逃逸、目标承诺、管道突袭、异形开枪（`SHOT.alienFireP 0.7`）、
-  构陷编排未迁 → 因此**暂不启用 2.5D 的"每夜 1 把刀"额度**（只搬限制会 0 胜）。
+  构陷编排未迁 → 因此**暂不启用 2.5D 的"每夜 1 把刀"额度**（只搬限制会 0 胜）。【历史诊断，已失实】
 - 这两组在 `port-manifest.json` 里是 `partial`，不是"完成"。
 - **判定改动会挪动随机流**：不同配置的小样本对比不是严格 A/B；正式基线只认
   同一份代码跑满 200/1000 局的报告，不拿 20~50 局的数字调参。

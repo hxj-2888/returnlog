@@ -1554,6 +1554,11 @@ func _run_b6test() -> bool:
 		if bool(s3.over):
 			break
 		s3.tick(0.1)
+	# 2.5D logEvent('vote_change')（js/game.js:7398）只在**真改票**时记。
+	# 第七批修复了 cast_vote 把 `votes.has()` 写在赋值之后、导致每票都被记成改票的 bug；
+	# 此前本断言是靠那个 bug 通过的（AI 两轮投票覆盖时刷出一串假 vote_change）。
+	# 现在按真源显式构造 vote 相位，让 0 号先投 2 号、再改投 3 号，验证真改票才记事件。
+	s3.meeting = {"phase": "vote", "votes": {}, "t": 5.0}
 	s3.cast_vote(0, 2)
 	s3.cast_vote(0, 3)
 	var needed := ["account", "night_start", "meeting_overtime", "vote_change"]
@@ -1585,9 +1590,13 @@ func _run_sim1000() -> void:
 	var garg := _arg_value(OS.get_cmdline_user_args(), "--games")
 	if garg != "":
 		games = clampi(int(garg), 1, 1000)
-	# 2.5D 15 夜内必分胜负；3D 会议链（白天/开局会议、紧急按钮）未全迁，
-	# 残局收尾更慢，用 26 夜观察窗口避免把"还能分出胜负"的局误记成超时。
-	var max_ticks := 20000
+	# 2.5D simGame（js/game.js:11054-11058）：maxNights=15，
+	# maxSteps = ceil(15*NIGHT/dt)+6000 = 17250，条件 `!over && night<=15 && steps<maxSteps`。
+	# 第七批拨乱反正：此前 3D 放宽成 26 夜 / 20000 tick，理由是「残局收尾慢、避免把
+	# 还能分出胜负的局误记成超时」—— 属于为读数好看放宽验收口径；且 pre/day/night
+	# 会议链与进攻链现已接入，该理由不再成立。按真源恢复，不改任何判定。
+	var max_nights := 15
+	var max_ticks := 17250
 	var human_wins := 0
 	var alien_wins := 0
 	var timeouts := 0
@@ -1616,7 +1625,8 @@ func _run_sim1000() -> void:
 		# 少一个人做任务也少一票，既拖慢进度又把 4 票门槛架空。
 		s.spectator = true
 		for k in max_ticks:
-			if bool(s.over):
+			# 2.5D `while(!G.over && G.night<=maxNights && steps<maxSteps)`（js/game.js:11058）
+			if bool(s.over) or int(s.night) > max_nights:
 				break
 			s.tick(0.1)
 		if not bool(s.over):
@@ -1682,7 +1692,7 @@ func _run_sim1000() -> void:
 		sum_kill, sum_revive,
 		timeout_humans / float(maxi(1, timeouts)), str(diag)])
 	var report := "# 3D 批量模拟基线（%s）\n\n" % Time.get_datetime_string_from_system()
-	report += "- 引擎：Godot 4.6 / `scripts/sim/sim_state.gd`，seed 20261108 起 %d 局，dt=0.1，单局上限 %d 秒。\n" % [games, max_ticks / 10]
+	report += "- 引擎：Godot 4.6 / `scripts/sim/sim_state.gd`，seed 20261108 起 %d 局，dt=0.1，上限 %d 夜（%d tick，2.5D simGame 口径）。\n" % [games, max_nights, max_ticks]
 	report += "- **人类 %.1f%% / 异形 %.1f%% / 超时 %d**（n=%d）。2.5D 同口径 1000 局是 49.9/50.1/超时 0；3D 剩余偏差见 `MIGRATION.md` §9（会议链/进攻链未全迁）。\n" % [hr, ar, timeouts, games]
 	report += "- 平均夜 %.2f；场均发言 %.1f 条 / 出刀 %.1f 次 / 会议 %.1f 次 / 末进度 %.1f。\n" % [
 		sum_nights / float(games), float(sum_chat) / float(games),

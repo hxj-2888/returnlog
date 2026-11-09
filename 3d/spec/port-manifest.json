@@ -502,7 +502,7 @@
         "E-GEO"
       ],
       "gate": "--speechtest 证词改 sus / --b6test / --aittest 投票走认知分",
-      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。parity-map 标 38 synced / 7 adapter / 25 pending；envEstimate / 时间线拆谎仍待接。"
+      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。2026-11-09 第七批核实：parity-map 为 38 synced / 0 pending，envEstimate(env_estimate) 与时间线拆谎(check_alibi) 均已接入，旧 note 的「25 pending / 仍待接」失实。仍缺：credWhy / claimHist / trust / grudge / humanT / ally / mem / seenBy 等 mindReset 跨夜保留字段，以及 almost 的跨夜语义（本批已按真源改为保留+就地推翻）。"
     },
     {
       "id": "S-LOOP",
@@ -526,7 +526,7 @@
         "S-STATE"
       ],
       "gate": "--simtest（夜计时 / 天亮）",
-      "notes": "主循环 update / 动作计时 / 帧采样。AI/战斗/会议的 tick 已按 2.5D 在后续批次接入（见 3d/CHANGELOG.md 第四批与 MIGRATION.md §10.4）；本条 status 仍标 partial，是因为逐相位对账尚未逐函数签完，不代表 tick 未运行。"
+      "notes": "主循环 update / 动作计时 / 帧采样；AI/战斗/会议 tick 已接入。status 仍标 partial 是因为逐相位对账尚未逐函数签完，不代表 tick 未运行。"
     },
     {
       "id": "A-HUMAN",
@@ -607,7 +607,7 @@
         "A-SOCIAL"
       ],
       "gate": "--aittest knife 6 / kill 6 / sab 0-1",
-      "notes": "按 sim.json#rules.KNIFE 复现三条理智硬线 + 性格冒险率 + HUNT 挑落单目标；watchersAt 排除 doing>0（注意力不在线）。每夜 1 把刀的额度在 RUSH/管道突袭/异形开枪补齐前不启用（只搬限制会 0 胜）。"
+      "notes": "按 sim.json#rules.KNIFE 复现三条理智硬线 + 性格冒险率 + HUNT 挑落单目标；watchersAt 排除 doing>0。RUSH 逃逸、目标承诺、管道突袭、异形开枪均已接入（ai_alien.gd:60/290/338、sim_state.gd:500）。2026-11-09 第七批拨乱反正：此前以「进攻链未齐、只搬限制会 0 胜」为由不启用每夜 1 把刀额度，核实该前提不成立，已按 js/game.js:4225/4232/7801 恢复硬 gate。"
     },
     {
       "id": "S-COMBAT",
@@ -634,7 +634,7 @@
         "A-COGNITION"
       ],
       "gate": "--b4test 开枪断言 · --aittest knife/kill 事件",
-      "notes": "出刀/开枪/濒死/死亡/救起已接；玩家左键出刀、右键开枪；人类 AI 按 SHOT.chaseKnown/chaseSus 开枪反制；枪声证人按 2.5D 目击口径收窄到 7 格 + LOS。RUSH/击杀加速/红身表现/异形开枪未接。"
+      "notes": "出刀/开枪/濒死/死亡/救起已接；玩家左键出刀、右键开枪；枪声证人收窄到 7 格 + LOS。RUSH 逃逸(_kill_rush_start)、击杀加速(rushT)、红身(redT)、异形开枪(alienFireP) 均已接入——旧 note 说「未接」失实。2026-11-09 第七批：人类 AI 开枪决策 _shoot_target 此前为死代码，现已在 ai_human._decide 接通射程内开枪；仍未接 2.5D 的 chaseKnown/chaseSus 追猎分支。每夜刀额度已恢复。"
     },
     {
       "id": "S-BOTS",
@@ -740,7 +740,7 @@
         "A-COGNITION"
       ],
       "gate": "--speechtest 11/0（讨论 13 条台词 / 玩家解析 saw_knife / 证词改 sus / 投票意向）",
-      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；talkScore/去重/排期系数全部读 rules.json#dispatch。未接：构陷编排 planAlienDeception / planMateBus、领袖型玩家剧本（parity-map 标 pending）。"
+      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；系数读 rules.json#dispatch。2026-11-09 第七批核实：构陷编排 plan_alien_deception(speech.gd:106)、plan_mate_bus(:321)、领袖指令 schedule_leader_orders(:394)、COFRAME 协同诬陷(:191)、MISLEAD.bus(:318) 均已接入，旧 note 的「未接」失实。仍缺：parseSpeech 的 CN_SEAT 中文席位 / 补零席位号 / whenWord 时间词（词表已导出但未被使用）。"
     },
     {
       "id": "S-DECISION",
@@ -760,7 +760,7 @@
         "S-STATE"
       ],
       "gate": "--meetingtest（5 秒投票）",
-      "notes": "报告额度/每夜会议上限/讨论快进/投票相位/改票/终结者/假说竞争弃权(MIND.hypGap/hypMinTop)/WARM.followChance/SOCIAL.pileOn 全部接通。settleAccountability 身份追责未迁。"
+      "notes": "报告额度/每夜会议上限/讨论快进/投票相位/改票/终结者/假说竞争弃权/WARM.followChance/SOCIAL.pileOn 全部接通。2026-11-09 第七批核实：settleAccountability 已接入(sim_state.gd:1613 / mind.settle_accountability)，旧 note 的「未迁」失实；并修复 cast_vote 把 votes.has() 写在赋值之后导致「每票都被记成 vote_change」的 bug（按 js/game.js:7398 只在真改票时记并带 from）。仍缺：2.5D 讨论期陆续投 + 跟票 + rev 信念版本号驱动改票的完整时序（3D 在 vote 相位一次结算）。"
     },
     {
       "id": "S-MEET",
@@ -788,7 +788,7 @@
         "S-DECISION"
       ],
       "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetshot 三张实拍",
-      "notes": "discuss(发言流+玩家输入框) → vote → result(身份公布+投票矩阵)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮（独立意向→跟票/顺势→落票）。白天/开局会议与紧急按钮未迁。"
+      "notes": "discuss(发言流+玩家输入框) → vote → result(身份公布+投票矩阵)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
     },
     {
       "id": "S-NIGHT",
@@ -814,7 +814,7 @@
         "S-MEET"
       ],
       "gate": "--simtest（75 秒天亮）/ B5 会议暂停",
-      "notes": "B1 只有夜计时与 dawn；会议暂停、终结者未接。"
+      "notes": "夜计时 / dawn / 会议暂停(MEET.pauseClock) / 终结者(check_terminator) 均已接入，旧 note 的「未接」失实。2026-11-09 第七批：每夜给刀 a.knife=1 现在被 knife() 真实消费（此前发了不用）。仍缺：2.5D startNight 逐人清理的 20+ agent 级字段（suspect/accuse/path/doing/拖拽/隐藏/破坏缓存/错峰/任务计划/目击记忆等）在 3D 跨夜保留。"
     },
     {
       "id": "S-ACTIONS",

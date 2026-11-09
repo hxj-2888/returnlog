@@ -209,6 +209,18 @@ func _decide(a: Dictionary) -> void:
 	var qual_pending := int(a.get("qualPending", 0))
 	var qual := int(a.get("qual", 0))
 
+	# 2.5D aiHuman（js/game.js:2838-2870）：有子弹 + 有确证/高置信目标 → 射程内开枪，
+	# 结算与玩家共用 fireShot。3D 此前只写了 _shoot_target() 却全文件零调用（死代码），
+	# 认知层的 best_known_target / affordable_almost_shot 结果没有消费者；第七批接通。
+	# 目标选择、门槛、射程全部复用 _shoot_target 与 space.json#shoot；节流复用 3D 已有的
+	# _aiT（对应 2.5D fireShot 后的 _rest = 2.5 + random()*2）。
+	# 未接部分：2.5D 的 chaseKnown/chaseSus 追猎分支（射程外仍愿意走过去），属后续全面移植。
+	if int(a.get("bullet", 0)) > 0:
+		var si: int = _shoot_target(a)
+		if si >= 0 and sim.shoot(i, si):
+			a["_aiT"] = 2.5 + sim._rng.randf() * 2.0
+			return
+
 	# 1) 有待领申请单：回圆桌领（个人进度 3 / 5 各生成一张）。
 	if qual_pending > 0 and qual < 2:
 		var spot: Vector2 = sim.claim_spot()

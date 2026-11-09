@@ -190,7 +190,7 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
   `player.gd` 的 `_unhandled_input()`、`project.godot`（**无 `[input]` 段**，按键全硬编码
   `physical_keycode` —— 属允许的输入映射差异，不是缺陷）。
 
-### 6.2 门禁读数（第四批后实跑）
+### 6.2 门禁读数（第七批后实跑）
 
 | 门禁 | 结果 | 读数 |
 |---|---|---|
@@ -199,7 +199,7 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
 | `3d:port:check` | ✅ | 0 错误 / 1 警告（`cover_refs.json` 缺 `schema_version`，legacy） |
 | `3d:events:check` | ✅ | EVENTS OK |
 | `3d:lines:check` | ✅ | LINES OK |
-| `3d:parity:check` | ✅ | 63 synced / 7 adapter / 0 pending；仍有 16 个非真源小数 WARN |
+| `3d:parity:check` | ✅ | 全域 63 synced / 7 adapter / 0 pending（`SKT2AI` 38 synced、`SKT2Decision` 11 synced / 2 adapter）；脚本自报 **18 个**非真源小数 WARN（列前 12），旧写 16 个已更正 |
 | **汇总** | ✅ | **6 通过 / 0 失败** |
 
 分离时的 2 项既有失败已清：`rules.json` 重导消除 `sources` SHA 漂移；
@@ -207,18 +207,24 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
 Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接入后没更新的坏账
 （**原仓同批逐字同样失败**，非本工程回归），本批用 `_finish_meeting()` 夹具修好。
 
-### 6.3 仍未同源（下一批，按证据强度）
+### 6.3 仍未同源（事实登记，不是立项）
 
-1. **行为层**：同 seed 20 局胜率 2.5D 49.9% vs 3D **35.0%**（第五批后，读数见 `3d/CHANGELOG.md` 第五批 §5）。
-   每夜状态复位带来 +15pp、平均夜 5.45 → 4.55（2.5D 4.72）；
-   但**医疗无人机救起链代码虽已按 2.5D 补齐，实测救起仍只有 1 次/20 局**（2.5D ≈67），
-   根因未定位，需先加埋点量化拖救 AI 触发率。根因 ①③ 仍见 `3d/MIGRATION.md` §10.5.1。
-2. **AI 视野**：第六批已按 `js/game.js:1784 observerVisionAt` 正向移植
-   （同亮区整片 / 7 格 60° 手电锥 / `agentAimAng` 朝向 / 相连走廊 LOS），近身圆近似已消除。
-   该批未采新平衡读数，`known` 写入量与 `block_cap` 的现况未重新观测（事实登记，非改动依据）。
-3. **机制缺口**：小游戏 14 型只做 10 型；`VOTE.change` 改票与早投、`MISLEAD.bus`、
-   `COFRAME` 附议名额；报告额度与播报文案。
-4. **事件层**：信封字段 34 vs 40、kind 18 vs 26（`3d/preview/reports/simdiff-20261108.md`）。
-5. **自造数值**：parity 的 16 个非真源小数 WARN。
+> 本节只登记当前已知事实，**不是下一批清单**；方向由用户裁定（见 §五.7）。
+
+1. **行为层读数已失效**：`3d-sim1000.md` 的 1000 局基线（人类 27.1% / 异形 68.9% / 超时 40、
+   平均夜 5.71、救起 156）是**第七批之前**代码在 26 夜窗口下的读数；第七批恢复每夜刀额度、
+   接通人类开枪并把窗口拨回 15 夜，**该读数不再代表当前代码**。按验收层边界，本批未采新读数，
+   也未据旧读数论证任何改动。2.5D 参考 49.9% / 4.72 / 超时 0。
+2. **医疗无人机救起链**：代码按 2.5D 补齐但行为未闭环（1000 局救起 0.156/局，2.5D 3.46/局），
+   根因未定位，**不标为已解决**。
+3. **第七批核实后仍缺的机制**（逐条见 `3d/PORT-DIFF-AUDIT.md` §C）：讨论期陆续投 + 跟票 +
+   `rev` 驱动改票的时序、`chaseKnown/chaseSus` 追猎、`lightState` 三态、`startNight` 逐人重置
+   20+ 字段、`mindReset` 跨夜字段（credWhy/claimHist/trust/grudge/humanT/ally 等）、
+   `CN_SEAT` 中文席位解析、`buildMeetCtx`/`remainMs`、小游戏 14→10 型。
+4. **事件层**：`simdiff-20261108.md` —— 两套独立实现，信封 34 vs 40、kind 18 vs 26，第 1 条事件就分歧。
+5. **自造数值**：parity 自报 18 个非真源小数 WARN（列前 12）。
+6. **验收层自身缺口**：`--mgtest 0/10`、`--taskflowtest`、`--floortest 失败 4`、`--e2e` 超时
+   为原仓基线同样失败的既有坏账；`--actiontest` 是状态断言（0 次 `InputEvent` 派发），
+   **真实输入链至今没有端到端自动化验收**。
 
 按 §一.4，这些未清项在任何报告里都要如实列出，不得沿用旧读数或伪装完成。

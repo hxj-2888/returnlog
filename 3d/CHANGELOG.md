@@ -1,5 +1,60 @@
 # 3D 修改记录
 
+## 2026-11-09 · 第七批：拨乱反正（用户「逐条核实，先拨乱反正」）
+
+**本批只做「回归 2.5D 真源」，不以任何读数论证改动、未采新平衡读数、未自行立项。**
+核实清单见 `3d/PORT-DIFF-AUDIT.md`（逐条带真源行号）。
+
+### 1. 核实结论（推翻前几批留下的失实记录）
+
+- `COFRAME` 协同诬陷 / `MISLEAD.bus` 大义灭亲 / 构陷编排 / 领袖指令：**已接**（`speech.gd:191/318/106/394`）。
+- RUSH 逃逸 / 击杀加速 / 目标承诺 / 管道突袭 / 异形开枪 / 红身：**全已接**
+  （`ai_alien.gd:60/290/338`、`sim_state.gd:500`）。`port-manifest S-COMBAT` 说「未接」失实。
+- `MEET.reveal` 结果公布 / pre/day/night 三类会议 / 紧急按钮 / `settleAccountability`：**已接**。
+- `parity-map` 的 `SKT2AI` 是 38 synced / 0 pending；`rules.json#tables.SKSanity` 42 张表齐全。
+- **决定性事实**：「进攻链没补齐所以不启用每夜 1 把刀」的前提被证伪 —— 能力都在，
+  唯独限制被人为拿掉。
+- 真正缺的：`VOTE.change` 讨论期改票时序、`chaseKnown/chaseSus` 追猎、`lightState` 三态、
+  `startNight` 逐人重置、`CN_SEAT` 中文席位解析、`buildMeetCtx`/`remainMs`。
+
+### 2. 执行层改动（每项写明真源）
+
+| 文件 | 改动 | 2.5D 真源 |
+|---|---|---|
+| `sim_state.gd::knife()` | 恢复**每夜 1 把刀**硬 gate（先前只发 `knife=1` 从不消费） | `js/game.js:4225/4232/7801` |
+| `ai_human.gd::_decide()` | 接通 `_shoot_target()` **死代码**：有子弹 + 射程内高置信目标 → `sim.shoot()`，用既有 `_aiT` 节流 | `js/game.js:2838-2870` |
+| `mind.gd::reset_night()` | `heard` 改回**整局滑动窗口**（原每夜清空，正是真源明确否决过的方案）；`almost` 改回跨夜保留 + `eval_almost` 就地推翻 | `js/t2/ai.js:253/270` |
+| `sim_state.gd::cast_vote()` | 修复 `votes.has()` 写在赋值之后恒为 true 的 bug；按真源只在**真改票**时记 `vote_change` 并带 `from` | `js/game.js:7398` |
+| `main.gd::_run_sim1000()` | 观察窗口 26 夜 / 20000 tick → **15 夜 / 17250 tick**，报告口径同步 | `js/game.js:11054-11058` |
+
+### 3. 测试夹具（不是改判定）
+
+`--b6test` 原断言「`vote_change` 事件存在」是靠上面那个 bug 通过的（AI 两轮投票覆盖时
+刷出一串假改票）。修复后按真源显式构造 vote 相位、让 0 号先投 2 号再改投 3 号。
+`B6TEST 6/0` 通过。**没有为了自测变绿去回退任何判定。**
+
+### 4. 契约与文档拨正
+
+`port-manifest.json` 8 条 notes 更正（A-COGNITION 的「25 pending」、S-SPEECH/S-DECISION/
+S-MEET/S-NIGHT 的「未迁」、S-COMBAT 的「人类 AI 会开枪」等）；`MIGRATION §9.3` 标注为
+历史诊断并列出核实结果。失实清单见 `PORT-DIFF-AUDIT.md` §4。
+
+### 5. 验收（回归防护，事后登记，非改动依据）
+
+- `npm run check` **6 通过 / 0 失败**；`BASELINE OK 555`；§一 12 条红线与原仓逐字一致（3558 字符）。
+- 19 项 Godot 无头自测中 **16 项 exit 0 且断言通过**：`SIMTEST 26/0`、`B6TEST 6/0`、
+  `MEETINGTEST ok=true`、`SPEECHTEST 11/0`、`ACTION OK`、`BOTTEST 6/0`、`B4TEST 8/0`、
+  `NAVTEST 28/0`、`TASKTEST 26/0`、`ROLETEST 4/0`、`HOMETEST 6/0`、`REACHTEST 走不到 0` 等。
+- **4 项既有坏账仍在，未修**：`--mgtest` `0/10 pass`（exit 0 假绿）、`--taskflowtest` exit 1、
+  `--floortest` 失败 4（exit 0 假绿）、`--e2e` 60s 超时 exit 124。
+  另有 `--devicetest` / `--walktest` / `--aittest` 是无断言的遥测打印。
+  这四项在**原仓分离基线上逐字同样失败**，不是本批回归；按 §一.4 如实列出，
+  且**本批未为了让它们变绿去改任何判定**。
+- `3d:parity:check` 通过，脚本自报 **18 个**非真源小数 WARN（列前 12）；文档旧写 16 个已更正。
+- **未采新的平衡读数**：`3d-sim1000.md` 是第七批之前代码在 26 夜窗口下的读数，
+  不代表本批代码；观察窗口已拨回 15 夜，与旧报告不再同口径。
+
+
 ## 2026-11-09 · 第六批：AI 视野按 2.5D `observerVisionAt` 正向移植
 
 > 用户约束：「不要违反架构红线，不要让验收层反过来影响执行层」。

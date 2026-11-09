@@ -1370,12 +1370,21 @@ func reset_night() -> void:
 		a["sus"] = sus_out
 		a["why"] = why_out
 		# ⑤ known 是长期记忆：**不清**
-		# ⑥ almost 重算（依赖新的 sus / why）
-		var al: Dictionary = {"foe": {}, "friend": {}}
-		a["almost"] = al
+		# ⑥ almost 跨夜保留，条件不成立时由 evalAlmost 就地推翻
+		#    （2.5D mindReset, js/t2/ai.js:270 `almost:{foe:Object.assign({},oldM.almost.foe),...}`）。
+		#    3D 此前每夜清空重算，与真源不符，第七批按真源恢复。
+		var almost_old: Dictionary = (a.get("almost", {}) as Dictionary).duplicate(true)
+		a["almost"] = {
+			"foe": (almost_old.get("foe", {}) as Dictionary).duplicate(),
+			"friend": (almost_old.get("friend", {}) as Dictionary).duplicate(),
+		}
 		for k5: int in sus_out.keys():
 			eval_almost(a, k5)
-		a["heard"] = []
+		# 2.5D mindReset(js/t2/ai.js:253)：heard 是**整局**滑动窗口，不跨夜清零；
+		# 真源注释明确记载「试过每场重置 10 条，1000 局 0 次触发，机制空转，所以只能是整局口径」，
+		# 且只收听来的证词（窗口长度 ATTN.heardMax 由 note_testimony 维护，见本文件:697）。
+		# 3D 此前每夜 `a["heard"] = []` 实现了真源明确否决过的方案，第七批拨正。
+		a["heard"] = (a.get("heard", []) as Array).duplicate()
 		a["hyps"] = []
 		a["talkN"] = 0
 		a["silent"] = false
