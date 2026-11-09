@@ -46,7 +46,8 @@ npm run export:all
 | `3d/spec/` | 契约唯一口径：`parity-map.json` / `port-manifest.json` / `assets.manifest.json` / schema / 约定 |
 | `3d/assets/` | 仓库级资产库：模型 GLB / 贴图 / 渲染 / 参照图 |
 | `3d/*.md`、`3d/version.json` | 3D 架构 / 决策 / 迁移 / 交接 / 资产台账 / 变更记录 / 版本真源 |
-| `js/`、`assets/`、`audio/`、`docs/`、`tools/`、`index.html` | **2.5D 只读基线**（见 `BASELINE.md`），供 `3d/tools/export-*.cjs` 与 `check-*.cjs` 使用；`index.html` 只是移植清单登记的对账对象，不是 3D 入口 |
+| `js/`、`assets/`、`audio/`、`tools/`、`index.html` | **2.5D 只读基线**（见 `BASELINE.md`），供 `3d/tools/export-*.cjs` 与 `check-*.cjs` 使用；`index.html` 只是移植清单登记的对账对象，不是 3D 入口 |
+| `docs/` | 2026-11-09 起移出基线：仅留 `qwen21/` 千问出图留档；2.5D 时代文档已清理（原仓保留） |
 | `package.json` | 本工程脚本清单；`version` / `gameVersion` 是上游基线标识，不是 3D 版本 |
 | `AGENTS.md` | 工程契约：**§一 逐字沿用原仓 12 条红线**，§三 是本工程的适用性映射 |
 | `SPLIT.md` / `BASELINE.md` / `CHANGELOG.md` | 分离记录 / 基线说明 / 工程级变更 |

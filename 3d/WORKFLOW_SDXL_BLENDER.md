@@ -166,7 +166,7 @@ tools/ship-layout-plan.json                  方案真源：rooms[].walls[] / sd
 含 Python 与缓存均不占 C 盘），配置在 `~\.workbuddy-ai\mcp.json`，
 Blender GUI 用 `F:\AI-MCP\scripts\Start-BlenderMCP.ps1` 启动。
 **需在连接器管理页点「信任」并重开会话后，MCP 才会在对话里生效。**
-调研结论见 `docs/调研报告_Blender_Godot_AI_MCP插件_20261106.md`，裁定见 ADR-0010。摘要：
+调研结论见原仓 `docs/调研报告_Blender_Godot_AI_MCP插件_20261106.md`，裁定见 ADR-0010。摘要：
 
 - Blender 侧事实标准是 `ahujasid/mcp-for-blender`（原 `blender-mcp`，MIT、33.4k stars、
   2026-11-04 仍在更新），可在活会话里 `look` / `get_scene_info` 自检，替代全量重跑；

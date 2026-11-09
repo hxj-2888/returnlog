@@ -16,7 +16,7 @@
 | `js/` | 规则 / 数值 / 语料 / AI / 地图真源；`3d/tools/export-*.cjs` 的输入，`check-*.cjs` 的对账对象 | **禁止** |
 | `assets/` | 2.5D 素材与 `MANIFEST.json`、CREDITS / LICENSE 署名 | **禁止** |
 | `audio/` | 2.5D 音频与署名 | **禁止** |
-| `docs/` | 3D 调研 / 审查报告 + 千问出图留档（`gen-art-refs.ps1` 的留档目标） | **禁止** |
+| `docs/` | **2026-11-09 起移出基线**：2.5D 时代的调研 / 交接 / 审查文档已清理（原仓仍在），只保留 `qwen21/` 千问出图留档 | 可改（不再属基线） |
 | `tools/` | 基线工具片段：`blender-ship.py`、`ship-layout-plan.json`、`gen-materials.py`、`align-tex-style.py`、`_qwen_refs/` 等 | **禁止**，仅 `tools/sync-baseline.cjs` 与 `tools/check-all.cjs` 是本工程自有文件 |
 | `index.html` | **只读对账对象**：`3d/spec/port-manifest.json` 把它登记成 `X-ENTRY` source，`3d:port:check` 会校验存在性与行数；不是 3D 入口 | **禁止** |
 | `package.json` 的 `version` / `gameVersion` | 上游基线标识（`3d/tools/export-version.cjs` 会校验它与 `js/config/version.js` 一致） | **禁止手改**，只由 `baseline:sync` 写 |
@@ -31,10 +31,15 @@
 
 - `source`：快照来源路径；`captured`：快照日期；`baseline`：上游版本标识；
 - `files`：每个基线文件的相对路径 → `{ sha256, size }`；
-- 覆盖范围：`js/`、`assets/`、`audio/`、`docs/`、`tools/`（排除本工程自有的两个新脚本）。
+- 覆盖范围：`js/`、`assets/`、`audio/`、`tools/`（排除本工程自有的两个新脚本）；
+  `docs/` 自 2026-11-09 起**不在覆盖范围**（见 §6）。
 
 清单由 `npm run baseline:sync` 生成；`npm run baseline:check` 在**离线**状态下逐个重算哈希，
 发现本地基线被改动就报错退出 1，并列出前 20 个不一致文件。
+
+范围收缩（只允许少文件、不允许改内容）走 `node tools/sync-baseline.cjs --rebuild`：
+它不连上游、不复制任何文件，且对「新旧清单都存在」的文件逐个校验哈希，任一漂移即失败退出，
+避免用「重建」把本地手改悄悄洗白。
 
 ## 3. 命令
 
@@ -42,6 +47,7 @@
 npm run baseline:check                                  # 离线校验：基线没被本地改过 + 版本标识一致
 npm run baseline:sync                                   # 从默认上游刷新基线并重建清单
 npm run baseline:sync -- --source "D:\path\to\新返航录"  # 指定上游路径
+node tools/sync-baseline.cjs --rebuild                  # 只按当前磁盘重建清单（范围收缩，不连上游）
 ```
 
 也可用环境变量 `RETURNLOG_25D_ROOT` 覆盖默认上游路径。
@@ -69,3 +75,18 @@ npm run baseline:sync -- --source "D:\path\to\新返航录"  # 指定上游路�
 
 它们是**上游遗留**，不是基线复制错误。修复顺序见 `SPLIT.md` §5.2；
 在转绿前，任何门禁报告都必须如实写出这 2 项失败（`AGENTS.md` §一.4）。
+
+## 6. 变更记录
+
+### 2026-11-09 · `docs/` 移出基线（清单 555 → 451）
+
+- **裁定**：用户「本次同步先到此为止，把过期文档和 SDXL 舱室图清掉」。
+- **删除**：`docs/` 下 25 个 2.5D 时代文档（调研 / 交接 / 审查 / 审计 / 施工单，323 KB）；
+  原仓 `C:\Users\ASUS\Desktop\新返航录\docs\` 完整保留，需要时从原仓取。
+- **保留**：`docs/qwen21/` 79 个千问出图留档（101 MB），仍由 `gen-art-refs.ps1` 写入；
+  它是本工程资料，不是可对账基线，因此不再纳入哈希清单。
+- **方式**：`node tools/sync-baseline.cjs --rebuild`。保留的 451 个文件哈希与旧清单逐一比对一致，
+  未复制任何上游文件（当时上游已有 21 项内容漂移 + 3 项新增，按用户「同步先到此为止」不予拉取）。
+- **影响**：`BASELINE OK` 的文件数由 555 变为 451；`npm run check` 的 6 项不依赖 `docs/`，不受影响。
+- **历史文档里的 `docs/*.md` 引用**（`3d/CHANGELOG.md`、`3d/HANDOFF.md`、`3d/MIGRATION.md`、
+  `3d/DECISIONS.md` 等）均指原仓同名文件，本工程内不再有实体。

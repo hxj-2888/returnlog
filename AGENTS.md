@@ -87,7 +87,8 @@
 | `3d/assets/` | 仓库级资产库（模型 / 贴图 / 渲染 / 参照） | 可改，须登记 `3d/ASSETS.md` 与 CREDITS |
 | `3d/*.md`、`3d/version.json` | 3D 自己的架构 / 决策 / 迁移 / 交接 / 变更记录 / 版本真源 | 可改（走流程） |
 | `js/` | **2.5D 只读基线**：规则 / 数值 / 语料 / AI / 地图的唯一真源镜像，供 `3d/tools/export-*.cjs` 导出、`check-*.cjs` 对账 | **禁止修改** |
-| `assets/`、`audio/`、`docs/`、`index.html` | 2.5D 只读基线素材与资料（含 `MANIFEST.json` / `CREDITS.md` / `LICENSE.txt` 署名）；`index.html` 只是 `3d/spec/port-manifest.json` 登记的 `X-ENTRY` 对账对象，**不是 3D 入口** | **禁止修改** |
+| `assets/`、`audio/`、`index.html` | 2.5D 只读基线素材与资料（含 `MANIFEST.json` / `CREDITS.md` / `LICENSE.txt` 署名）；`index.html` 只是 `3d/spec/port-manifest.json` 登记的 `X-ENTRY` 对账对象，**不是 3D 入口** | **禁止修改** |
+| `docs/` | **2026-11-09 起移出只读基线**：2.5D 时代的调研 / 交接 / 审查文档已清理（原仓保留），只留 `qwen21/` 千问出图留档（`gen-art-refs.ps1` 的留档目标）；不再参与 `baseline:check` 哈希校验 | 可改（不再属基线） |
 | `tools/` | 2.5D 只读基线工具片段（`blender-ship.py` 等）+ 本工程自有的 `sync-baseline.cjs` / `check-all.cjs` | 除这两个新脚本外**禁止修改** |
 | `package.json` | 本工程脚本清单；`version` / `gameVersion` 是**上游基线标识**（`3d/tools/export-version.cjs` 依赖），**不是 3D 版本** | 可改 scripts；两个版本字段只由 `baseline:sync` 更新 |
 | `BASELINE.sha256.json` | 只读基线哈希清单，由 `sync-baseline.cjs` 生成 | 只由脚本生成 |

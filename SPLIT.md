@@ -35,7 +35,8 @@
 | `3d/preview/scripts/*.gd` 注释、`3d/*.md` 全部历史文档 | `3d/tools/...`、`3d/preview/data/...` | 改了会破坏历史记录的可追溯性 |
 
 **结论**：把原 `3d/` 整体提升为「新工程里的 `3d/`」，并在**新工程根**放一份 2.5D 只读基线
-（`js/` / `assets/` / `audio/` / `tools/` / `docs/`），则脚本里的 `ROOT` 恰好等于新工程根，
+（`js/` / `assets/` / `audio/` / `tools/`；`docs/` 于 2026-11-09 移出基线，见 §3），
+则脚本里的 `ROOT` 恰好等于新工程根，
 `ROOT/js/...` 与 `ROOT/3d/...` 全部原样成立。
 代价是根目录多几个非 3D 目录，收益是**零路径改写、零工具链回归、历史记录不失真**。
 `AGENTS.md` §二与 `BASELINE.md` 已把这几个目录标为只读，防止被误当成 3D 代码修改。
@@ -45,7 +46,7 @@
 | 源 → 目标 | 体积 | 说明 |
 |---|---|---|
 | `3d/` → `3d/` | **963 MB** | **完整复制**：8 份文档、`spec/`、`tools/`、`assets/`、`preview/`（Godot 工程，含 `.godot/` 缓存与截图）、`reports/`、`version.json` |
-| `docs/` → `docs/` | 101 MB | 3D 调研 / 审查报告、千问出图留档 `qwen21/`（`gen-art-refs.ps1` 的留档目标就是 `docs/qwen21/...`） |
+| `docs/` → `docs/` | 101 MB | 千问出图留档 `qwen21/`（`gen-art-refs.ps1` 的留档目标就是 `docs/qwen21/...`）。**2026-11-09 收缩**：25 个 2.5D 时代文档已清理、`docs/` 移出基线；原仓仍完整保留 |
 | `js/` → `js/` | 1.1 MB | **2.5D 只读基线**：规则 / 数值 / 语料 / AI / 地图真源，导出器与对账脚本的输入 |
 | `assets/` → `assets/` | 138 MB | 2.5D 只读基线素材（含 `MANIFEST.json` / CREDITS / 署名） |
 | `audio/` → `audio/` | 3.8 MB | 2.5D 只读基线音频与署名 |
@@ -79,7 +80,8 @@
   3D 自己 `V1P-0.1` / `0.1.0`（`3d/version.json`）。两者互不占号，口径见 `3d/README.md` §1.5。
 - **完整性清单**：`BASELINE.sha256.json` 由 `npm run baseline:sync` 生成，
   记录每个基线文件的 SHA256 与字节数；`npm run baseline:check` 可离线校验基线未被本地篡改。
-- **禁止修改**：`js/`、`assets/`、`audio/`、`docs/`、`tools/`（除两个新增脚本）、
+  **2026-11-09**：`docs/` 移出范围后由 `--rebuild` 重建，清单 555 → **451**（保留项哈希全部一致）。
+- **禁止修改**：`js/`、`assets/`、`audio/`、`tools/`（除两个新增脚本）、
   `package.json` 的 `version` / `gameVersion`。需要上游变更时的流程见 `AGENTS.md` §五.2。
 
 ## 5. 门禁对照与后续待办

@@ -283,6 +283,10 @@ sdcpp Vulkan 的 fp16 / q8 / q4 权重分配均 OOM。最终走 **CPU + q2_K** �
 
 > 参考图：`3d/assets/refs/<room>.{png,json}`，**10 个舱全部出齐**（本地 SDXL，固定 seed，
 > 脚本 `3d/tools/gen-cover-refs.py`）。一次加载模型后每舱约 1–2 分钟，别再一张一次起进程。
+>
+> **2026-11-09 清理**：10 张 `<room>.png` 与 `3d/assets/renders/covers-*.png` 检查板已删除
+> （共 21.6 MB，二者都不入 git、运行时不引用）；只保留 `<room>.json` 的模型 / seed / prompt 记录。
+> 复现单舱：`C:\Python314\python.exe 3d/tools/gen-cover-refs.py <room>`（如 `fun bridge`）。
 
 ### 从 10 张图里收敛出的四条规则（按有效性排序）
 
