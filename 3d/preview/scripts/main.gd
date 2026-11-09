@@ -1467,6 +1467,7 @@ func _run_b6test() -> bool:
 		print("B6TEST FAIL 开局失败")
 		return false
 	s.ai_enabled = false
+	_finish_meeting(s)
 	# ① 拖尸 → 藏尸（非会议室）
 	var v := s.agent(3)
 	v["alive"] = false
@@ -1522,6 +1523,7 @@ func _run_b6test() -> bool:
 	var sp = SimStateScript.new()
 	sp.new_game(20261117, 0, map_data, space)
 	sp.spectator = true
+	_finish_meeting(sp)
 	var p0: Vector2 = sp.agent(0).get("pos", Vector2.ZERO)
 	for k in 250:
 		sp.tick(0.1)
@@ -1833,6 +1835,8 @@ func _run_speechtest() -> bool:
 func _run_b4test() -> bool:
 	var pass_n := 0
 	var fail_n := 0
+	# _sync_player_pos 在会议期间不写位置（2.5D pauseClock 同源）；先收掉开局 pre 会。
+	_finish_meeting(sim)
 	# ① 玩家真实位置进入 sim
 	player.global_position = Vector3(40.0, 0.05, 30.0)
 	_sync_player_pos()
@@ -1919,6 +1923,7 @@ func _run_b4test() -> bool:
 	var m = SimStateScript.new()
 	m.new_game(20261113, 0, map_data, space)
 	m.ai_enabled = false
+	_finish_meeting(m)
 	var v := m.agent(3)
 	v["alive"] = false
 	v["bodyPos"] = Vector2(31.0, 33.5)
@@ -1960,6 +1965,7 @@ func _run_bottest() -> bool:
 		print("BOTTEST FAIL 开局失败")
 		return false
 	s.ai_enabled = false
+	_finish_meeting(s)
 	var b = s.bots
 	if b == null:
 		print("BOTTEST FAIL bots 没有初始化")
@@ -2030,6 +2036,7 @@ func _run_bottest() -> bool:
 		print("BOTTEST FAIL 第二局开局失败")
 		return false
 	s.ai_enabled = false
+	_finish_meeting(s)
 	var v2: Dictionary = {}
 	var k2: Dictionary = {}
 	for a: Dictionary in s.agents:
@@ -2041,7 +2048,9 @@ func _run_bottest() -> bool:
 	v2["pos"] = s.bots.med_home + Vector2(1.5, 0.0)
 	s.knife(int(k2.get("i", -1)), int(v2.get("i", -1)))
 	var was_downed := bool(v2.get("downed", false))
-	for k in 60:
+	# 2.5D MEDBOT_HEAL_TIME=7 秒近身读条 + 飞到 MEDBOT_TOUCH_R 内的时间；
+	# 6 秒（旧夹具）不够，濒死倒计时 12 秒内留足余量。
+	for k in 110:
 		s.tick(0.1)
 	var revived := false
 	for e: Dictionary in s.events:

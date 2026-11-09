@@ -135,6 +135,15 @@ const out = {
       detain_sec: parseFloat(m[3]),
       sec_uses: parseInt(m[4], 10),
       med_uses: pick(gameSrc, gamePath, /const MEDBOT_CHARGES=(\d+);/, 'MEDBOT_CHARGES'),
+      /* 医疗无人机治疗链（js/game.js 4664-4667）：3D 之前把这几项写成 0/1.2/4.2/0，
+         导致「贴到即救」+ 无眩晕，与 2.5D 的近身读条 7 秒差一整段机制。 */
+      med_heal_time: pick(gameSrc, gamePath, /const MEDBOT_HEAL_TIME=([\d.]+);/, 'MEDBOT_HEAL_TIME'),
+      med_touch_r: pick(gameSrc, gamePath, /const MEDBOT_TOUCH_R=([\d.]+);/, 'MEDBOT_TOUCH_R'),
+      med_fly_speed: pick(gameSrc, gamePath, /const MEDBOT_FLY_SPEED=([\d.]+);/, 'MEDBOT_FLY_SPEED'),
+      med_stun: pick(gameSrc, gamePath, /const MEDBOT_REVIVE_STUN=([\d.]+);/, 'MEDBOT_REVIVE_STUN'),
+      /* 2.5D startNight（js/game.js:7829）每夜把机器人 HP 复位，3D 之前从不复位。 */
+      hp_secbot: pick(gameSrc, gamePath, /botHp:\{secbot:(\d+),medbot:\d+\}/, 'botHp.secbot'),
+      hp_medbot: pick(gameSrc, gamePath, /botHp:\{secbot:\d+,medbot:(\d+)\}/, 'botHp.medbot'),
     };
   })(),
   night: { len: SKSanity.NIGHT.len },

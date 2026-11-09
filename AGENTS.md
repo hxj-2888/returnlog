@@ -203,11 +203,16 @@ Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接�
 
 ### 6.3 仍未同源（下一批，按证据强度）
 
-1. **行为层**：同 seed 人类胜率 2.5D 49.9% vs 3D 20.0%；三条根因见 `3d/MIGRATION.md` §10.5.1
-   （`known` 写入量 / 医疗无人机救起 1.5 vs 3.34 / `block_cap` 60.5）。
-2. **机制缺口**：小游戏 14 型只做 10 型；`VOTE.change` 改票与早投、`MISLEAD.bus`、
+1. **行为层**：同 seed 20 局胜率 2.5D 49.9% vs 3D **35.0%**（第五批后，读数见 `3d/CHANGELOG.md` 第五批 §5）。
+   每夜状态复位带来 +15pp、平均夜 5.45 → 4.55（2.5D 4.72）；
+   但**医疗无人机救起链代码虽已按 2.5D 补齐，实测救起仍只有 1 次/20 局**（2.5D ≈67），
+   根因未定位，需先加埋点量化拖救 AI 触发率。根因 ①③ 仍见 `3d/MIGRATION.md` §10.5.1。
+2. **AI 视野（根因 ①③ 的公共上游）**：3D `ai_can_see` 是近身圆近似，2.5D `aiCanSee` =
+   `observerVisionAt`（亮区整片 / 7 格 60° 手电锥 / 朝向 / LOS），需整段移植后
+   才能量化 `known` 写入量与 `block_cap`。
+3. **机制缺口**：小游戏 14 型只做 10 型；`VOTE.change` 改票与早投、`MISLEAD.bus`、
    `COFRAME` 附议名额；报告额度与播报文案。
-3. **事件层**：信封字段 34 vs 40、kind 18 vs 26（`3d/preview/reports/simdiff-20261108.md`）。
-4. **自造数值**：parity 的 16 个非真源小数 WARN。
+4. **事件层**：信封字段 34 vs 40、kind 18 vs 26（`3d/preview/reports/simdiff-20261108.md`）。
+5. **自造数值**：parity 的 16 个非真源小数 WARN。
 
 按 §一.4，这些未清项在任何报告里都要如实列出，不得沿用旧读数或伪装完成。

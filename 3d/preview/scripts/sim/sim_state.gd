@@ -218,6 +218,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"bullet": 0,
 			"medkit": 0,
 			"knife": 1,
+			"stunT": 0.0,
 			## 2.5D 的 me.sabUsed：异形每夜只能破坏一次（js/game.js openSabPick）。
 			"sabUsed": false,
 			"pos": spawn_pos,
@@ -242,6 +243,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"medTried": false,
 			"reportLeft": int((cfg.get("rules", {}) as Dictionary).get("MEET", {}).get("reportsPerAgent", 2)),
 			"drag": -1,
+			"draggedBy": null,
 			"hidden": false,
 			"bodyPos": spawn_pos,
 		})
@@ -481,6 +483,12 @@ func tick_agents(dt: float) -> void:
 			continue
 		if bool(a.get("detained", false)):
 			continue
+		# 2.5D MEDBOT_REVIVE_STUN：救起后短时间只禁移动，
+		# 不跳过站桩 / 濒死结算（"只禁移动，不禁交互/发言"）。
+		if float(a.get("stunT", 0.0)) > 0.0:
+			a["stunT"] = maxf(0.0, float(a.get("stunT", 0.0)) - dt)
+			a["path"] = PackedVector2Array()
+			a["moving"] = false
 		# RUSH 逃逸计时（独立于红身）：2.5D RUSH 是"放倒人之后的体力状态"
 		if float(a.get("rushT", 0.0)) > 0.0:
 			a["rushT"] = maxf(0.0, float(a.get("rushT", 0.0)) - dt)
@@ -654,6 +662,13 @@ func _start_night(inc: bool) -> void:
 		mind.reset_night()
 	t = night_len()
 	_log("night_start", {"night": night})
+	# 2.5D startNight（js/game.js:7829）：机器人每夜复位（电量 / HP / 死亡标记 / 押送），
+	# 故障不跨夜追罚、电闸修复标记清零。3D 之前从不复位，医疗无人机整局只能救 2 次。
+	bots.reset_night()
+	var bc: Dictionary = space.get("bot", {}) as Dictionary
+	bot_hp = {"secbot": int(bc.get("hp_secbot", 2)), "medbot": int(bc.get("hp_medbot", 1))}
+	dmg = []
+	power_fixed = false
 	# 2.5D：天亮给每只异形补 1 把刀（不是时间冷却，是每夜额度），
 	# 同时重置「今晚破坏过没」—— 2.5D openSabPick 的 sabUsed 是每夜额度，不是全局。
 	for a: Dictionary in agents:
@@ -801,9 +816,11 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	return true
 
 
-## 医疗无人机把人救起：取消流血倒计时，保留"这一局被救过一次"的标记
+## 把濒死者救起：取消流血倒计时，保留"这一局被救过一次"的标记
 ## （同一轮里不重复救同一个人，避免无人机贴着人反复刷次数）。
-func revive(agent_i: int) -> bool:
+## method / stun 按 2.5D medbotTick 的事件口径（js/game.js:4755）；
+## 玩家施救、AI 施救、医疗无人机共用这一条入口，method 默认 "manual"。
+func revive(agent_i: int, method: String = "manual", stun: float = 0.0) -> bool:
 	var a := agent(agent_i)
 	if a.is_empty() or not bool(a.get("alive", false)) or not bool(a.get("downed", false)):
 		return false
@@ -811,7 +828,19 @@ func revive(agent_i: int) -> bool:
 	a["downedT"] = 0.0
 	a["deathCause"] = ""
 	a["medTried"] = true
-	_log("revive", {"actor": agent_i})
+	# 2.5D：救起后短时间内站不稳（只禁移动，不禁交互 / 发言）；拖拽关系一并解除。
+	if stun > 0.0:
+		a["stunT"] = stun
+	a["path"] = PackedVector2Array()
+	a["moving"] = false
+	var dragger: Variant = a.get("draggedBy", null)
+	if dragger != null and int(dragger) >= 0:
+		release_drag(int(dragger))
+	a["draggedBy"] = null
+	var p: Vector2 = a.get("pos", Vector2.ZERO)
+	_log("revive", {"actor": agent_i, "victim": agent_i, "method": method,
+		"stun": stun, "room": room_at(p),
+		"x": snappedf(p.x, 0.1), "y": snappedf(p.y, 0.1)})
 	return true
 
 
@@ -1556,8 +1585,15 @@ func start_drag(agent_i: int, body_i: int) -> bool:
 	if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
 			or bool(a.get("detained", false)):
 		return false
-	if bool(b.get("alive", false)) or bool(b.get("bodyGone", false)) \
-			or bool(b.get("bodyReported", false)):
+	# 2.5D startDrag（js/game.js:2456）：拖的对象可以是尸体，也可以是**还活着的濒死者**
+	# （把伤员拖进医疗间交给无人机救活，即 dragToMed）；只有活着且没濒死的人不能拖。
+	# 3D 之前一句 `if b.alive: return false` 把整条拖救链堵死了。
+	if bool(b.get("alive", false)) and not bool(b.get("downed", false)):
+		return false
+	if bool(b.get("bodyGone", false)) or bool(b.get("bodyReported", false)):
+		return false
+	var dragged_by: Variant = b.get("draggedBy", null)
+	if dragged_by != null and int(dragged_by) >= 0:
 		return false
 	if int(a.get("drag", -1)) >= 0:
 		return false
@@ -1566,6 +1602,10 @@ func start_drag(agent_i: int, body_i: int) -> bool:
 		if int(x.get("drag", -1)) == body_i:
 			return false
 	a["drag"] = body_i
+	b["draggedBy"] = agent_i
+	# 2.5D bodyPos()：濒死者用当前坐标当身体位置，拖行时由 tick_agents 同步。
+	if bool(b.get("downed", false)):
+		b["bodyPos"] = b.get("pos", Vector2.ZERO)
 	a["path"] = PackedVector2Array()
 	_log("drag_start", {"actor": agent_i, "victim": body_i, "downed": bool(b.get("downed", false))})
 	return true
@@ -1579,6 +1619,7 @@ func release_drag(agent_i: int) -> bool:
 	var b := agent(body_i)
 	a["drag"] = -1
 	if not b.is_empty():
+		b["draggedBy"] = null
 		var rid: String = room_at(b.get("bodyPos", Vector2.ZERO))
 		# 拖到医疗间：濒死者被救起（2.5D dragToMed）
 		if rid == "med" and bool(b.get("downed", false)):

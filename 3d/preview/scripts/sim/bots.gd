@@ -10,9 +10,13 @@ extends RefCounted
 
 const SpaceData := preload("res://scripts/space_data.gd")
 
-## 数值全部来自 space.json#bot（由 3d/tools/export-space.cjs 从 js/game.js 具名常量导出），
-## 这里只放"不在 2.5D 表里"的表现常量。
-const MED_SPEED := 4.2
+## 数值全部来自 space.json#bot（由 3d/tools/export-space.cjs 从 js/game.js 的
+## BOT_* / MEDBOT_* 具名常量导出）；下方的初始值只是「导出缺字段」时的兜底。
+var MED_SPEED := 4.6
+var MED_HEAL_TIME := 7.0
+var MED_TOUCH_R := 1.15
+var MED_STUN := 3.0
+var med_t := 0.0
 const CATCH_REACH := 1.2
 
 var SEC_RANGE := 6.0
@@ -53,6 +57,7 @@ func setup(p_sim, p_space: Dictionary) -> void:
 	sec_ang = 0.0
 	med_uses = 0
 	med_target = -1
+	med_t = 0.0
 	catch_state = {}
 	dead = {}
 	if sim == null:
@@ -66,6 +71,10 @@ func setup(p_sim, p_space: Dictionary) -> void:
 		MED_USES_MAX = int(bc.get("med_uses", MED_USES_MAX))
 		SEC_SPEED = float(bc.get("speed", SEC_SPEED))
 		SEC_CHASE_SPEED = float(bc.get("catch_speed", SEC_CHASE_SPEED))
+		MED_SPEED = float(bc.get("med_fly_speed", MED_SPEED))
+		MED_HEAL_TIME = float(bc.get("med_heal_time", MED_HEAL_TIME))
+		MED_TOUCH_R = float(bc.get("med_touch_r", MED_TOUCH_R))
+		MED_STUN = float(bc.get("med_stun", MED_STUN))
 	for fac: Dictionary in (sim.map.get("facility", []) as Array):
 		var kind := String(fac.get("kind", ""))
 		var p := Vector2(float(fac.get("x", 0.0)), float(fac.get("y", 0.0)))
@@ -86,6 +95,20 @@ func _free(p: Vector2) -> Vector2:
 	if sim != null and sim.nav != null:
 		return sim.nav.nearest_free(p)
 	return p
+
+
+## 2.5D startNight（js/game.js:7829）：医疗电量 / 保安擒拿次数 / 机器人死亡标记 /
+## 押送状态 / 治疗计时**每夜**全部复位。3D 之前只在 setup() 归零，整局最多救 2 次
+## （2.5D 是每夜 2 次），这是「救起 1.5/局 vs 2.5D 3.34/局」的主因。
+func reset_night() -> void:
+	sec_uses = 0
+	med_uses = 0
+	med_target = -1
+	med_t = 0.0
+	catch_state = {}
+	dead = {}
+	sec_pos = sec_home
+	med_pos = med_home
 
 
 func tick(dt: float) -> void:
@@ -227,26 +250,35 @@ func detained(i: int) -> bool:
 	return int(catch_state.get("i", -1)) == i
 
 
+## 2.5D medbotTick（js/game.js:4688）：沿用上一帧目标 → 飞到 MEDBOT_TOUCH_R 内
+## → 近身悬停读条 MEDBOT_HEAL_TIME 秒 → 才真正拉起；途中不计时，计时与目标一起清零。
+## 3D 之前是「贴到 1.2 米立刻救」，少了整段治疗前摇，也少了救起后的眩晕。
 func _tick_med(dt: float) -> void:
-	if is_dead("medbot"):
-		return
-	if med_uses >= MED_USES_MAX:
+	if is_dead("medbot") or med_uses >= MED_USES_MAX:
 		return
 	if med_target >= 0 and not _downed(med_target):
 		med_target = -1
+		med_t = 0.0
 	if med_target < 0:
 		med_target = _find_downed()
+		med_t = 0.0
 	if med_target < 0:
-		med_pos = med_pos.move_toward(med_home, MED_SPEED * dt)
+		med_t = 0.0
+		med_pos = med_pos.move_toward(med_home, MED_SPEED * 0.75 * dt)
 		return
 	var t: Dictionary = sim.agent(med_target)
 	var tp: Vector2 = t.get("pos", Vector2.ZERO)
-	med_pos = med_pos.move_toward(tp, MED_SPEED * dt)
-	if med_pos.distance_to(tp) <= 1.2:
-		sim.revive(med_target)
-		med_uses += 1
-		t["medTried"] = true
-		med_target = -1
+	if med_pos.distance_to(tp) > MED_TOUCH_R:
+		med_t = 0.0
+		med_pos = med_pos.move_toward(tp, MED_SPEED * dt)
+		return
+	med_t += dt
+	if med_t < MED_HEAL_TIME:
+		return
+	sim.revive(med_target, "medbot", MED_STUN)
+	med_uses += 1
+	med_t = 0.0
+	med_target = -1
 
 
 func _downed(i: int) -> bool:
@@ -263,7 +295,12 @@ func _find_downed() -> int:
 			continue
 		if bool(a.get("medTried", false)):
 			continue
-		var d: float = med_pos.distance_to(a.get("pos", Vector2.ZERO))
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		# 2.5D medbotTick：只响应医疗间内的濒死者（inMedRoom），不做全船飞行。
+		# 之前 3D 全船找目标 + 7 秒治疗前摇，无人机飞不到人就没了（20 局只救起 3 次）。
+		if sim.room_at(ap) != "med":
+			continue
+		var d: float = med_pos.distance_to(ap)
 		if d < bd:
 			bd = d
 			best = int(a.get("i", -1))

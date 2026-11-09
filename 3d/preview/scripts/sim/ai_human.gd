@@ -37,6 +37,15 @@ func tick(dt: float) -> void:
 		if float(a.get("doing", 0.0)) > 0.0:
 			continue
 		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		# 2.5D dragToMed：拖着濒死者抵达医疗间就必须放下，交给无人机救活。
+		# 3D 之前 AI 侧没有任何 release_drag 调用点，路径走完后一直把人拖着直到失血死亡，
+		# 整条拖救链是断的（20 局只救起 1 次）。
+		if int(a.get("drag", -1)) >= 0:
+			var carried: Dictionary = sim.agent(int(a.get("drag", -1)))
+			if not carried.is_empty() and bool(carried.get("downed", false)) \
+					and sim.room_at(ap) == "med":
+				sim.release_drag(int(a.get("i", -1)))
+				continue
 		# ---- taskThreat / fleeTask（2.5D aiHuman:2743）----
 		# 站桩做事时，亲眼确证的异形正在逼近 → 弃任务逃跑。
 		# 弃任务本身是**能被看见的事实**（saw_task_abandon，EV_W 0.14）。
@@ -113,6 +122,26 @@ func tick(dt: float) -> void:
 					continue
 				elif sim.set_path(int(a.get("i", -1)), vp):
 					continue
+		# 2.5D aiHuman（js/game.js:2875）：没有医疗包但医疗无人机可用时，
+		# 把视线内的濒死者拖进医疗间交给机器人复活。3D 之前缺这条，
+		# 于是「无人机只救医疗间内」时根本没人被送进去。
+		# 只排除"自己刚开枪打倒的人"，避免救活自己刚制服的嫌疑人。
+		if int(a.get("medkit", 0)) <= 0 and _medbot_usable():
+			var dv: Dictionary = sim.nearest_downed(ap, 8.5)
+			var dragged_by: Variant = dv.get("draggedBy", null)
+			var killer: Variant = dv.get("killedBy", null)
+			var free_body: bool = dragged_by == null or int(dragged_by) < 0
+			var self_killed: bool = killer != null and int(killer) == int(a.get("i", -1))
+			if not dv.is_empty() and free_body and not self_killed \
+					and sim.room_at(dv.get("pos", Vector2.ZERO)) != "med":
+				var dvp: Vector2 = dv.get("pos", Vector2.ZERO)
+				if ap.distance_to(dvp) < 1.9:
+					if sim.start_drag(int(a.get("i", -1)), int(dv.get("i", -1))):
+						# 2.5D medDropSpot：医疗间中心（无人机坞位）。
+						sim.set_path(int(a.get("i", -1)), sim.bots.med_home)
+						continue
+				elif sim.set_path(int(a.get("i", -1)), dvp):
+					continue
 		var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if path.size() > 0:
 			continue
@@ -121,6 +150,13 @@ func tick(dt: float) -> void:
 		if wait > 0.0:
 			continue
 		_decide(a)
+
+
+## 2.5D medbotUsable（js/game.js:2719）：无人机没被拆、且还有当夜电量。
+func _medbot_usable() -> bool:
+	if sim.bots == null or sim.bots.is_dead("medbot"):
+		return false
+	return sim.bots.med_uses < sim.bots.MED_USES_MAX
 
 
 ## 选一个"敢开枪"的目标：确证优先 → 准-确证 affordableAlmostShot → 综合嫌疑。
