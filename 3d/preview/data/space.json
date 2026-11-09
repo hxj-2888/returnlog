@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-08T05:26:16.752Z",
+  "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
+  "sources": {
+    "js/ai/sanity.js": "6906d094d6c4",
+    "js/t2/space.js": "9a4e8a8b9c26",
+    "js/game.js": "25c14e2c44b8"
+  },
+  "grid": {
+    "meters_per_cell": 1,
+    "bake_step": 0.6
+  },
+  "move": {
+    "speed": 4,
+    "drag_speed": 2.5,
+    "ghost_task_cap": 1
+  },
+  "door": {
+    "open_r": 3,
+    "close_r": 3.6,
+    "speed": 4,
+    "width": 1.8,
+    "pass": 0.6,
+    "scan_sec": 2
+  },
+  "sight": {
+    "human_light_r": 7,
+    "human_dark_r": 2.3,
+    "alien_dark_r": 3.5,
+    "corr_r": 12,
+    "lit_room_mul": 1.15,
+    "fog_room_mask": 0.87,
+    "fog_corridor_mask": 0.5,
+    "cone_deg": 60
+  },
+  "stand": {
+    "fix": 10,
+    "revive": 5,
+    "search": 1.2,
+    "qual": 3,
+    "ammo": 7,
+    "med": 5,
+    "fault_left": 30
+  },
+  "reach": {
+    "knife": 1.35,
+    "sabotage": 1.7,
+    "fix": 2,
+    "body": 2.2,
+    "round_table": 2.3,
+    "breaker": 2
+  },
+  "pipe": {
+    "cooldown": 20,
+    "human_forbidden": true
+  },
+  "breaker": {
+    "on_fixed": 3,
+    "on_default": 4.5,
+    "off_max": 9,
+    "off_step": 3,
+    "witness_cap": 1
+  },
+  "shoot": {
+    "range": 9,
+    "chase_known": 14,
+    "chase_sus": 10
+  },
+  "bot": {
+    "speed": 1.6,
+    "catch_speed": 7.5,
+    "sec_range": 6,
+    "sec_arc_div": 2,
+    "detain_sec": 30,
+    "sec_uses": 2,
+    "med_uses": 2
+  },
+  "night": {
+    "len": 75
+  },
+  "lamps": {
+    "corridor": [
+      [
+        {
+          "x": 28,
+          "y": 42.68,
+          "ang": 1.571
+        },
+        {
+          "x": 28,
+          "y": 45.32,
+          "ang": 1.571
+        }
+      ],
+      [
+        {
+          "x": 58,
+          "y": 44.64,
+          "ang": 1.571
+        },
+        {
+          "x": 58,
+          "y": 50.36,
+          "ang": 1.571
+        }
+      ],
+      [
+        {
+          "x": 66.48,
+          "y": 32,
+          "ang": 0
+        },
+        {
+          "x": 73.52,
+          "y": 32,
+          "ang": 0
+        }
+      ],
+      [
+        {
+          "x": 16.72,
+          "y": 53,
+          "ang": 3.142
+        },
+        {
+          "x": 16.28,
+          "y": 53,
+          "ang": 3.142
+        }
+      ],
+      [
+        {
+          "x": 39.56,
+          "y": 54,
+          "ang": 0
+        },
+        {
+          "x": 40.44,
+          "y": 54,
+          "ang": 0
+        }
+      ],
+      [
+        {
+          "x": 30,
+          "y": 72.64,
+          "ang": 1.571
+        },
+        {
+          "x": 35.36,
+          "y": 84,
+          "ang": 0
+        }
+      ],
+      [
+        {
+          "x": 58,
+          "y": 68.64,
+          "ang": 1.571
+        },
+        {
+          "x": 58,
+          "y": 74.36,
+          "ang": 1.571
+        }
+      ],
+      [
+        {
+          "x": 84,
+          "y": 44.2,
+          "ang": -1.571
+        },
+        {
+          "x": 84,
+          "y": 39.8,
+          "ang": -1.571
+        }
+      ],
+      [
+        {
+          "x": 83,
+          "y": 62.12,
+          "ang": 1.571
+        },
+        {
+          "x": 83,
+          "y": 63.88,
+          "ang": 1.571
+        }
+      ],
+      [
+        {
+          "x": 71,
+          "y": 73.44,
+          "ang": 1.571
+        },
+        {
+          "x": 70.44,
+          "y": 83,
+          "ang": 3.142
+        }
+      ],
+      [
+        {
+          "x": 41,
+          "y": 17.8,
+          "ang": 1.571
+        },
+        {
+          "x": 41,
+          "y": 22.2,
+          "ang": 1.571
+        }
+      ]
+    ],
+    "corridor_per": 2
+  },
+  "pipe_tint": {
+    "engine": [
+      245,
+      117,
+      51
+    ],
+    "cam": [
+      61,
+      199,
+      242
+    ],
+    "armory": [
+      250,
+      184,
+      51
+    ],
+    "warehouse": [
+      250,
+      199,
+      61
+    ],
+    "transit": [
+      250,
+      204,
+      115
+    ],
+    "med": [
+      77,
+      209,
+      240
+    ],
+    "bridge": [
+      242,
+      184,
+      71
+    ],
+    "ecosys": [
+      87,
+      219,
+      112
+    ],
+    "power": [
+      245,
+      179,
+      41
+    ],
+    "fun": [
+      224,
+      82,
+      204
+    ]
+  }
+}

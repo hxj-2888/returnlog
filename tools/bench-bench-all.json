@@ -1,0 +1,12 @@
+{
+	"covers": 127,
+	"draw_calls": 3109.0,
+	"fps_avg": 7.22222222222222,
+	"headless_note": "headless 下 draw call / 帧内对象 / 纹理显存由 GPU 上报，通常为 0；FPS 与节点可见统计可作相对比较。",
+	"hidden_cover_nodes": 0,
+	"mode": "all",
+	"objects_in_frame": 3259.0,
+	"shared_cover_mats": 8,
+	"texture_mem_bytes": 417022965.0,
+	"visible_cover_nodes": 127
+}

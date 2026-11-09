@@ -1,0 +1,44 @@
+{
+  "name": "returnlog-3d",
+  "displayName": "新返航录 3D 版",
+  "version": "3.6.0",
+  "gameVersion": "返航录V3.6",
+  "x-3d-version": "V1P-0.1",
+  "description": "《新返航录》3D 版独立工程 · Godot 4.6 垂直切片；3D 是 2.5D 的延伸，规则/数值/语料以随仓只读基线为唯一真源",
+  "author": "hxj-2888",
+  "license": "MIT",
+  "private": true,
+  "x-baseline": {
+    "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
+    "captured": "2026-11-09",
+    "manifest": "BASELINE.sha256.json",
+    "note": "js/ assets/ audio/ docs/ tools/ 为 2.5D 只读基线镜像，禁止修改；version/gameVersion 是上游基线标识（3d/tools/export-version.cjs 依赖），不是 3D 版本；3D 版本真源在 3d/version.json"
+  },
+  "scripts": {
+    "check": "node tools/check-all.cjs",
+    "export:all": "npm run 3d:export:map && npm run 3d:export:minigames && npm run 3d:export:space && npm run 3d:export:sim && npm run 3d:export:lines && npm run 3d:export:rules && npm run 3d:export:version",
+    "baseline:check": "node tools/sync-baseline.cjs --check",
+    "baseline:sync": "node tools/sync-baseline.cjs",
+    "3d:assets": "node 3d/tools/validate-assets.cjs",
+    "3d:sync:models": "node 3d/tools/sync-models.cjs",
+    "3d:import:check": "node 3d/tools/check-godot-import.cjs",
+    "3d:export:map": "node 3d/tools/export-map.cjs",
+    "3d:export:minigames": "node 3d/tools/export-minigames.cjs",
+    "3d:export:space": "node 3d/tools/export-space.cjs",
+    "3d:export:sim": "node 3d/tools/export-sim.cjs",
+    "3d:export:lines": "node 3d/tools/export-lines.cjs",
+    "3d:export:rules": "node 3d/tools/export-rules.cjs",
+    "3d:export:version": "node 3d/tools/export-version.cjs",
+    "3d:simdump": "node 3d/tools/simdump.cjs",
+    "3d:port:check": "node 3d/tools/check-port-manifest.cjs",
+    "3d:events:check": "node 3d/tools/check-events.cjs",
+    "3d:lines:check": "node 3d/tools/check-lines.cjs",
+    "3d:parity:check": "node 3d/tools/check-parity.cjs",
+    "3d:floor:check": "node 3d/tools/check-floor-spec.cjs",
+    "3d:refs:cabin": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set cabin",
+    "3d:refs:tasks": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set tasks"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}

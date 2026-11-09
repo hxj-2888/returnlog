@@ -1,0 +1,307 @@
+{
+  "armory_ammocrate": [
+    2.13,
+    1.675,
+    1.7
+  ],
+  "armory_gunrack": [
+    4.524,
+    1.635,
+    1.7
+  ],
+  "armory_issuedesk": [
+    2.3,
+    1.324,
+    1.7
+  ],
+  "armory_targetlane": [
+    2.08,
+    1.595,
+    1.7
+  ],
+  "armory_vise": [
+    1.104,
+    1.104,
+    1.7
+  ],
+  "armory_workbench": [
+    3.24,
+    1.708,
+    1.7
+  ],
+  "bridge_chair": [
+    0.866,
+    0.796,
+    1.705
+  ],
+  "bridge_column": [
+    1.183,
+    1.175,
+    1.7
+  ],
+  "bridge_holoscreen": [
+    5.04,
+    1.134,
+    1.7
+  ],
+  "bridge_navconsole": [
+    4.3,
+    1.64,
+    1.7
+  ],
+  "bridge_recorddesk": [
+    4.44,
+    1.326,
+    1.7
+  ],
+  "bridge_sideboard": [
+    2.68,
+    1.06,
+    1.7
+  ],
+  "bridge_table": [
+    5.91,
+    5.9,
+    1.7
+  ],
+  "cam_archivebox": [
+    1.168,
+    0.76,
+    1.7
+  ],
+  "cam_codecrack": [
+    2.04,
+    1.45,
+    1.7
+  ],
+  "cam_opsdesk": [
+    3.08,
+    1.038,
+    1.7
+  ],
+  "cam_screenwall": [
+    3.64,
+    1.193,
+    1.7
+  ],
+  "cam_servercab": [
+    1.57,
+    1.22,
+    1.7
+  ],
+  "ecosys_climate": [
+    2.744,
+    1.512,
+    1.7
+  ],
+  "ecosys_growrack": [
+    2.3,
+    1.31,
+    1.7
+  ],
+  "ecosys_irrigation": [
+    2.632,
+    1.512,
+    1.7
+  ],
+  "ecosys_oxygen": [
+    1.572,
+    1.814,
+    1.7
+  ],
+  "ecosys_pond": [
+    4.08,
+    2.08,
+    1.7
+  ],
+  "ecosys_shrub": [
+    1.568,
+    1.524,
+    1.7
+  ],
+  "ecosys_tank": [
+    2.6,
+    2.4,
+    1.7
+  ],
+  "ecosys_tree": [
+    2.518,
+    2.261,
+    1.7
+  ],
+  "engine_compressor": [
+    2.15,
+    1.176,
+    1.7
+  ],
+  "engine_cylinder": [
+    2.672,
+    1.78,
+    1.7
+  ],
+  "engine_fusepanel": [
+    1.44,
+    1.054,
+    1.7
+  ],
+  "engine_partscart": [
+    2.345,
+    1.798,
+    1.7
+  ],
+  "engine_reactor": [
+    2.463,
+    2.538,
+    1.7
+  ],
+  "engine_toolbench": [
+    2.2,
+    1.204,
+    1.7
+  ],
+  "fun_arcade": [
+    2.328,
+    2.017,
+    1.7
+  ],
+  "fun_coffeetable": [
+    2.0,
+    1.2,
+    1.7
+  ],
+  "fun_gametable": [
+    2.92,
+    1.62,
+    1.7
+  ],
+  "fun_jukebox": [
+    1.448,
+    1.222,
+    1.7
+  ],
+  "fun_racer": [
+    1.42,
+    1.848,
+    1.7
+  ],
+  "fun_sofa": [
+    2.44,
+    2.267,
+    1.7
+  ],
+  "fun_stool": [
+    0.819,
+    0.832,
+    1.7
+  ],
+  "med_bed": [
+    2.42,
+    1.891,
+    1.7
+  ],
+  "med_medcab": [
+    2.224,
+    0.99,
+    1.7
+  ],
+  "med_monitor": [
+    0.94,
+    0.59,
+    1.7
+  ],
+  "med_sterilizer": [
+    2.32,
+    1.5,
+    1.7
+  ],
+  "med_supplycart": [
+    2.745,
+    1.798,
+    1.7
+  ],
+  "med_surgery": [
+    3.036,
+    1.679,
+    1.7
+  ],
+  "med_ventilator": [
+    1.192,
+    1.122,
+    1.7
+  ],
+  "power_breakerbank": [
+    3.07,
+    1.567,
+    1.7
+  ],
+  "power_gauge": [
+    0.94,
+    0.75,
+    1.7
+  ],
+  "power_switchgear": [
+    2.48,
+    1.82,
+    1.7
+  ],
+  "power_transformer": [
+    1.8,
+    2.094,
+    1.7
+  ],
+  "transit_diningtable": [
+    2.227,
+    1.614,
+    1.7
+  ],
+  "transit_drinkbar": [
+    1.68,
+    1.234,
+    1.7
+  ],
+  "transit_platecart": [
+    1.58,
+    1.182,
+    1.7
+  ],
+  "transit_servicecounter": [
+    3.29,
+    1.148,
+    1.7
+  ],
+  "transit_trayreturn": [
+    1.512,
+    1.015,
+    1.7
+  ],
+  "warehouse_packbench": [
+    2.64,
+    1.43,
+    1.7
+  ],
+  "warehouse_pallet": [
+    1.0,
+    1.0,
+    1.735
+  ],
+  "warehouse_rack_east": [
+    1.46,
+    7.09,
+    1.7
+  ],
+  "warehouse_rack_west": [
+    1.46,
+    7.09,
+    1.7
+  ],
+  "warehouse_receiving": [
+    3.45,
+    1.205,
+    1.7
+  ],
+  "warehouse_terminal": [
+    2.583,
+    1.32,
+    1.7
+  ]
+}

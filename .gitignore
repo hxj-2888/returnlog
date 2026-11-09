@@ -1,0 +1,54 @@
+# 依赖与工具产物
+node_modules/
+*.log
+*.err
+.env
+
+# 系统垃圾文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Godot 本机缓存与截图（可再生成，随盘保留、不入库）----
+3d/preview/.godot/
+3d/preview/screenshots/
+3d/preview/scripts/_*.gd
+3d/preview/scripts/_*.gd.uid
+
+# ---- Python / 工具临时产物 ----
+__pycache__/
+*.pyc
+3d/tools/__pycache__/
+3d/tools/_bak/
+tools/__pycache__/
+tools/_bak/
+tools/screenshots/
+tools/_*.png
+tools/_shot*.png
+tools/_zoom*.png
+tools/_gate-*.log
+tools/_mc-*.json
+tools/_mc-*.md
+tools/_*.cjs
+tools/_diag*.cjs
+
+# ---- 2.5D 烘焙源材质（沿用原仓口径）----
+# 3D 侧同款贴图走 3d/preview/assets/textures；door-panel.png 是运行时依赖，保留入库。
+assets/scene/v4/tex/*
+!assets/scene/v4/tex/door-panel.png
+assets/scene/v4/facility/_raw/
+assets/scene/v4/facility/_raw_fx/
+
+# ---- 大体积可再生物：随盘保留、不入库（沿用原仓「出仓」策略）----
+# 说明：文件都在磁盘上，Godot 直接可跑；如需把资产纳入版本控制，删掉对应行即可。
+3d/preview/assets/textures/
+3d/assets/renders/
+3d/assets/refs/
+assets/qwen-lib/
+tools/_qwen_refs/
+docs/qwen21/
+*.blend1
+
+# 蒙特卡洛原始局（基线工具产物）
+tools/mc-results.json
+tools/mc-results-E.json

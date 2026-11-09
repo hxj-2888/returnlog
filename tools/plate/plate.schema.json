@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "图内要素板（plate）",
+  "description": "描述一张可直接操控的面板图：像素坐标里的线、断口位置与交互热区。运行时代理真源为 js/data/plates.js。",
+  "type": "object",
+  "required": ["id", "label", "image", "size", "crop", "cut", "ember", "wires"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "label": { "type": "string", "minLength": 1 },
+    "image": { "type": "string", "minLength": 1, "description": "相对仓库根目录的图片路径" },
+    "size": {
+      "type": "array", "items": { "type": "integer", "minimum": 1 },
+      "minItems": 2, "maxItems": 2
+    },
+    "crop": {
+      "type": "array", "items": { "type": "number", "minimum": 0 },
+      "minItems": 4, "maxItems": 4,
+      "description": "显示时放大哪一块：[x, y, w, h]，单位同 size"
+    },
+    "cut": {
+      "type": "object", "required": ["w", "h"], "additionalProperties": false,
+      "properties": {
+        "w": { "type": "number", "minimum": 4 },
+        "h": { "type": "number", "minimum": 4 }
+      }
+    },
+    "ember": {
+      "type": "object", "required": ["r", "hit"], "additionalProperties": false,
+      "properties": {
+        "r": { "type": "number", "minimum": 1 },
+        "hit": { "type": "number", "minimum": 4 }
+      }
+    },
+    "wires": {
+      "type": "array", "minItems": 1,
+      "items": { "$ref": "#/definitions/wire" }
+    }
+  },
+  "definitions": {
+    "wire": {
+      "type": "object",
+      "required": ["id", "color", "width", "path", "cut"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "width": { "type": "number", "minimum": 1 },
+        "path": { "type": "string", "pattern": "^M[0-9]" },
+        "cut": {
+          "type": "object", "required": ["x", "y", "angle"], "additionalProperties": false,
+          "properties": {
+            "x": { "type": "number", "minimum": 0 },
+            "y": { "type": "number", "minimum": 0 },
+            "angle": { "type": "number", "minimum": -360, "maximum": 360 }
+          }
+        }
+      }
+    }
+  }
+}

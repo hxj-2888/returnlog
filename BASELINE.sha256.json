@@ -1,0 +1,2232 @@
+{
+  "schema_version": 1,
+  "generated": "2026-11-09",
+  "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
+  "baseline": {
+    "version": "3.6.0",
+    "gameVersion": "返航录V3.6"
+  },
+  "file_count": 555,
+  "files": {
+    "assets/MANIFEST.json": {
+      "sha256": "26d078ba4fd1d15d8ce4195c412019b1c134fc86feb2085fc4edacb88beca0fb",
+      "size": 12965
+    },
+    "assets/minigame/CREDITS.md": {
+      "sha256": "4f2f64a80bc3a36e275097928286c7f447d8831ba0ad6c43055ea8e049546b65",
+      "size": 2209
+    },
+    "assets/minigame/panel-breaker.png": {
+      "sha256": "3cb64bc7f23ac4c27d106bc0a8ef7a778023ef35225db7f21f15fe8edb18a227",
+      "size": 1090279
+    },
+    "assets/minigame/panel-fix.png": {
+      "sha256": "12f078b5c0d4046048c20c73a501480b96114f27382b3ce4d2fe7710a2bd15b9",
+      "size": 1269300
+    },
+    "assets/minigame/task-frame.png": {
+      "sha256": "c679776ac4b28d38f937d2edaea8fe7178df2e0e424d99eedd74b26cacbe3a57",
+      "size": 811094
+    },
+    "assets/portfolio/icon-512.png": {
+      "sha256": "6b0ce04608dcb33d4651ac7d001dde661b05cc6ed8d05246248980ccea50e425",
+      "size": 27295
+    },
+    "assets/portfolio/returnlog-demo-poster.jpg": {
+      "sha256": "e6da5f965564b6d220d4b33cd59f932a455f4efc2516c21d126bc2aa98470a27",
+      "size": 121672
+    },
+    "assets/portfolio/returnlog-demo.mp4": {
+      "sha256": "68ff10953bee729446538a12ef7d0b7f77f147b659aabce5c2d97fa8d62e6b68",
+      "size": 1768648
+    },
+    "assets/portfolio/returnlog-qr.png": {
+      "sha256": "729646e84892b058e37ca906283c2fa17d91fe6fb7db835d0ffa6903b68b175c",
+      "size": 2464
+    },
+    "assets/portfolio/returnlog-thumb.png": {
+      "sha256": "a6e582dcb9e575e6cfdf441e8a54b68b70ed5088b2344eb57ce73ae8ac45ebd0",
+      "size": 341994
+    },
+    "assets/qwen-lib/README.md": {
+      "sha256": "06fb11110bd30c13aa68d8a0a29c97034b676773e608f217ea8dac45af81af2d",
+      "size": 1494
+    },
+    "assets/qwen-lib/armory-floor_768.png": {
+      "sha256": "c84cdbaa8e0d65febd81eec41ec50dbf887e3fa3655b578dd0ab316a84aedee7",
+      "size": 1416925
+    },
+    "assets/qwen-lib/armory-wall_768.png": {
+      "sha256": "1310533afa4d50f529c6049dd890bedb4c4911b9d56ce3ad84b4bb9202f0ea48",
+      "size": 1282927
+    },
+    "assets/qwen-lib/bridge-floor_768.png": {
+      "sha256": "12e2a1e58b6cff208933ba82b78ae6c3ac69b0e5f81cc5e34a967e7d52d51313",
+      "size": 1910282
+    },
+    "assets/qwen-lib/bridge-wall_768.png": {
+      "sha256": "3fe4b2e296051e203d1f0225f903f72500dd50f20222fc44553cab2db6bd1060",
+      "size": 1224749
+    },
+    "assets/qwen-lib/cafeteria-top.png": {
+      "sha256": "3a6f2f8fe5d84355bb345be81c6c61512af5e994ee7335f39787b393aa68d4db",
+      "size": 4073153
+    },
+    "assets/qwen-lib/cam-floor_768.png": {
+      "sha256": "967f82dde521d165bcfdf71de2923a459f1b6090224ff0550ce801a0c12e5dbe",
+      "size": 1082419
+    },
+    "assets/qwen-lib/cam-wall_768.png": {
+      "sha256": "95480b37c7e555543a491a8b09fb2a85995a37f7e96eea79cc3eee6e7fe0b07e",
+      "size": 1604911
+    },
+    "assets/qwen-lib/crate-steel.png": {
+      "sha256": "6ad6c8053c1d551e6f440c265ff4c48c650dfb1851ccfe54e0ac3624107c14a5",
+      "size": 4107247
+    },
+    "assets/qwen-lib/ecosys-floor_768.png": {
+      "sha256": "6196ee3cd92b3360bcc27c3bc8caa299db16b1ad65e15750f6fa672c438d129d",
+      "size": 1446042
+    },
+    "assets/qwen-lib/ecosys-wall_768.png": {
+      "sha256": "aac3c3569004b3ae06f6d89c2b98378432f77d08c35b5122f1b1495160c91f9f",
+      "size": 1468255
+    },
+    "assets/qwen-lib/engine-floor_768.png": {
+      "sha256": "1954f3cd7c23327765be996fe009b432201f6a3da536d3387b151e8ceddf878e",
+      "size": 1671497
+    },
+    "assets/qwen-lib/engine-wall_768.png": {
+      "sha256": "5654ce2bb75ca05fc2ccf856178818fc520b70558d9db9406fb0010cb0403612",
+      "size": 1331806
+    },
+    "assets/qwen-lib/fabric-weave.png": {
+      "sha256": "e45d82d834a855e0e62d6258529c475998af6cccce09f7c862bf69d3329f0598",
+      "size": 4584325
+    },
+    "assets/qwen-lib/facility-panel.png": {
+      "sha256": "1bf70e2a57b55a43ea3fc5d9c10a8b1a4d2fee92f8a568586cee1935b1a3e4e0",
+      "size": 4066721
+    },
+    "assets/qwen-lib/facility-screen.png": {
+      "sha256": "d90266b60cf92e29f068f7794bd116e8887ae7b5f2579dfd8e47ecf8dda3c3b8",
+      "size": 3891287
+    },
+    "assets/qwen-lib/fun-floor_768.png": {
+      "sha256": "b739d09e8e32ea9454559f771505f535d9292940aaf415d93a6e72e8153b2dcf",
+      "size": 1450668
+    },
+    "assets/qwen-lib/fun-wall_768.png": {
+      "sha256": "83c08028059c81b0489a5ad867cda79b9876bc53bd2aa8809010556072d75b8d",
+      "size": 1240859
+    },
+    "assets/qwen-lib/hazard-stripe.png": {
+      "sha256": "6be835b5b9e1af745529a56a73a4cf1fff1f33e0df6e8c54e931e734866a1e74",
+      "size": 3784161
+    },
+    "assets/qwen-lib/med-floor_768.png": {
+      "sha256": "a914b6cc6dbddb60f47d2bdf7e7a915650fc39083cddf1f75724dc1ed17fbcd9",
+      "size": 902532
+    },
+    "assets/qwen-lib/med-wall_768.png": {
+      "sha256": "4d1ea9b5f71eaff986e95c4266aba31ee0dbcc72f0d297dae632d5a274b392e2",
+      "size": 756478
+    },
+    "assets/qwen-lib/panel-metal.png": {
+      "sha256": "364829b7f527a166d5c7ceb1098348030e4ea204602d66cfe1ad1bc50e331891",
+      "size": 4153526
+    },
+    "assets/qwen-lib/panel-white.png": {
+      "sha256": "b284985d19e6dd8edae2d2bed55c45df4eebd1b548f0e05ebc395e1389bb63c8",
+      "size": 3988673
+    },
+    "assets/qwen-lib/power-floor_768.png": {
+      "sha256": "fff78eb59c718adf1e2b4e6474eef9468f18559672fc031f323d3961092104c4",
+      "size": 1101256
+    },
+    "assets/qwen-lib/power-wall_768.png": {
+      "sha256": "807697a1636e279b23c951ac81a067dc5bd71411808ddae6edf16600fb2954c3",
+      "size": 1013184
+    },
+    "assets/qwen-lib/surf-cafeteria-top_768.png": {
+      "sha256": "1569acdf5c7a57a80eb0755f6b01ea1df5ed42db71dfbc47231f6f29bf1e19fc",
+      "size": 1326690
+    },
+    "assets/qwen-lib/surf-crate-steel_768.png": {
+      "sha256": "f9fb72728c6ae122fb9d7134ddee633b234c6b70a4bc8e15ae76349a0bf3abe1",
+      "size": 1399439
+    },
+    "assets/qwen-lib/surf-fabric-weave_768.png": {
+      "sha256": "537d3f49248c2aa530b3981c3d9abe3f0c64811f37c5276aad31dc0dab4674c6",
+      "size": 1746436
+    },
+    "assets/qwen-lib/surf-facility-panel_768.png": {
+      "sha256": "2ac600baa50763efeb838e03c780ca0ec9f2b4b070bb1566fe5af869d7aadebb",
+      "size": 1084554
+    },
+    "assets/qwen-lib/surf-facility-screen_768.png": {
+      "sha256": "248a29c5d253b07a29579280bd9a802bc31ef372ce07e3da7fc48500a48c6b08",
+      "size": 887177
+    },
+    "assets/qwen-lib/surf-hazard-stripe_768.png": {
+      "sha256": "ec7d41b6dfcd9aeab61cd3499eef8526c6bad47404f7217b64a2d770af0454da",
+      "size": 1463745
+    },
+    "assets/qwen-lib/surf-panel-metal_768.png": {
+      "sha256": "81c6e159871a1b6b1e7c1a094fb3b024fd75f32e9d1fe493e253437df0be9fba",
+      "size": 1484258
+    },
+    "assets/qwen-lib/surf-panel-white_768.png": {
+      "sha256": "f263188ab7db68a42f5d5db228350c189d54ddadbaa8666fda779fd77f776aa2",
+      "size": 867787
+    },
+    "assets/qwen-lib/surf-table-composite_768.png": {
+      "sha256": "1d90272358e6f62e3a2a379b62252d3db05ac0e26887b15c7e2cc7e0a2ca3ce1",
+      "size": 1179684
+    },
+    "assets/qwen-lib/surf-warehouse-rack_768.png": {
+      "sha256": "3115de05515795f0c083018ef61a5d417b4d33392889bf0945d5d41782724cbe",
+      "size": 1343826
+    },
+    "assets/qwen-lib/table-composite.png": {
+      "sha256": "3e4d2c4eae1e3df0f596d020fe93428be180e4c468753d23e8acffe559ccf8b2",
+      "size": 4028259
+    },
+    "assets/qwen-lib/transit-floor_768.png": {
+      "sha256": "d6c3aa9cc6eed9337d96c5e6791548e3c09984d271c11dab8913d45ad9a6fcfb",
+      "size": 1562858
+    },
+    "assets/qwen-lib/transit-wall_768.png": {
+      "sha256": "250637d5a4107a237829d7a821010a0e944ecda3a805fbb8dd03caaab5071a5e",
+      "size": 1073219
+    },
+    "assets/qwen-lib/warehouse-floor_768.png": {
+      "sha256": "1f0bea278e8af7a278a69ae3f0103c96a08313f7f3e5765a0a8792742152e171",
+      "size": 1612820
+    },
+    "assets/qwen-lib/warehouse-rack.png": {
+      "sha256": "b0d8cbd646105380604a0e48587ff98536c48733e3bcd36a4eb1ed14aae036fe",
+      "size": 4101443
+    },
+    "assets/qwen-lib/warehouse-wall_768.png": {
+      "sha256": "15792260d592851f5a6686956bd8170c3013dae14cb9ad072bb0c3eb003d1c07",
+      "size": 1279720
+    },
+    "assets/qwen-lib/素材库清单.json": {
+      "sha256": "e8377374ba5c263f6b96729a98b0a04f283e95844688ef7e5de501bc3f783f1a",
+      "size": 10013
+    },
+    "assets/scene/bg/departure-ring.svg": {
+      "sha256": "3ae0a8fce8c7e16603aadd14152a7de7ba9f50f8c551563fbc34909a45fcf07b",
+      "size": 4715
+    },
+    "assets/scene/bg/hull-tile.png": {
+      "sha256": "0c34acc1be608ecbd9ca07df8bac23a7bfb3b457566998378a65ccf8737a61e2",
+      "size": 6673
+    },
+    "assets/scene/bg/spaceship-interior-1600.jpg": {
+      "sha256": "dd26d46ce6f51db4ab7c5bf84302e199e4375c7d44d78d7f56f7ebfe59116ef9",
+      "size": 240225
+    },
+    "assets/scene/bg/spaceship-interior-v1.jpg": {
+      "sha256": "a1b9850663053a61681f3a1c92014331b5f9f6b47b4d182f1bc80bcfb26b0e51",
+      "size": 2144424
+    },
+    "assets/scene/cozy/LICENSE.txt": {
+      "sha256": "7944ac3c5d62b6582e5951a22c57c7114e3a803adeb5a313805196b1658b9272",
+      "size": 2764
+    },
+    "assets/scene/cozy/furniture/barrel.png": {
+      "sha256": "23c798cb9926b4293e72485b8d344436b300dd58b96404a461eb79580a846f9d",
+      "size": 163
+    },
+    "assets/scene/cozy/furniture/bed.png": {
+      "sha256": "4bdac1808ce2a90633f8bc60e0ba2e885a86f8f1e85cd324681dcfc690d1f1ee",
+      "size": 198
+    },
+    "assets/scene/cozy/furniture/bin.png": {
+      "sha256": "0749e3e25a4111500c62b50693991bf462bee19abdbb4136b93b6e184a44650c",
+      "size": 153
+    },
+    "assets/scene/cozy/furniture/bookshelf.png": {
+      "sha256": "458bbb13a1195ed027b6dca9e2e947370fccfb7d09d1e5317f762f43a9793ef6",
+      "size": 224
+    },
+    "assets/scene/cozy/furniture/chair.png": {
+      "sha256": "befac1760debd685c4cca8c119fc2dc3a897c5d2b41bf3c01d604bd97f4b5ced",
+      "size": 179
+    },
+    "assets/scene/cozy/furniture/console.png": {
+      "sha256": "6f2285a8114d88694947ba0327d2d2995165550bb71ed772b3ed03fbce07aad7",
+      "size": 247
+    },
+    "assets/scene/cozy/furniture/cooler.png": {
+      "sha256": "6adf99ac7c7c2ce46f4224d3e40f1a9f3c4cbc6377ada7a6ae69c493f499964c",
+      "size": 184
+    },
+    "assets/scene/cozy/furniture/crate.png": {
+      "sha256": "a0356f87a96771078f1a6361c896ff5445bac324d37e94e6d8925abb5a345c8c",
+      "size": 168
+    },
+    "assets/scene/cozy/furniture/cryopod.png": {
+      "sha256": "840ab6117c0105de33b22782b7671a5e321f3599201148e25c9e0ef37d7c1450",
+      "size": 220
+    },
+    "assets/scene/cozy/furniture/desk.png": {
+      "sha256": "dcd0e49f8f40a3db6a9d2eec2922fc1e77e958a5918edbc11725ab706d6a5dbc",
+      "size": 241
+    },
+    "assets/scene/cozy/furniture/fridge.png": {
+      "sha256": "86c93fa0741e4f34316a9182cdd0a52f2e69a1696b809b104b0be94a5d0de5a1",
+      "size": 177
+    },
+    "assets/scene/cozy/furniture/lamp.png": {
+      "sha256": "2117cef7b58f5a5a7a92632e410741e15b001e0069c0cd427261f12df9fed4bb",
+      "size": 182
+    },
+    "assets/scene/cozy/furniture/locker.png": {
+      "sha256": "3f54e24cd0e210c1ed74c65118fa7cb1d0d202d670a50028ed83083b9be1d9bf",
+      "size": 179
+    },
+    "assets/scene/cozy/furniture/plant.png": {
+      "sha256": "588042b2b079b05c5dfb05e359872708ca97b6e1daf3c49dcdad3d6d5060821c",
+      "size": 218
+    },
+    "assets/scene/cozy/furniture/rack.png": {
+      "sha256": "d226fc287e8434bb79e323a73d6747bbbbdef1af6c5a6e471bcdc559e3917fff",
+      "size": 229
+    },
+    "assets/scene/cozy/furniture/rug.png": {
+      "sha256": "904a5eade4defefaf87a74c8e3700f74bdbb081c728275de06a565b6b2700795",
+      "size": 193
+    },
+    "assets/scene/cozy/furniture/screen.png": {
+      "sha256": "a7f991493ebcbb5962d9168149fddda030f0c399fbeba380ede814ecf5e0c124",
+      "size": 227
+    },
+    "assets/scene/cozy/furniture/sink.png": {
+      "sha256": "1c4193e7f02b9ff85e808452b893232f47811e13c5462b541156536124acfbb7",
+      "size": 168
+    },
+    "assets/scene/cozy/furniture/sofa.png": {
+      "sha256": "616fbf8474d7b8d4baaf791b77b597803833998047c7643a2efc445131a3a06e",
+      "size": 209
+    },
+    "assets/scene/cozy/furniture/table.png": {
+      "sha256": "c862577d1d5efd17e15756bb94d81d43785214acea4f4c099cbc4c3d6fae0d7c",
+      "size": 198
+    },
+    "assets/scene/cozy/furniture/tallplant.png": {
+      "sha256": "c5324eb3b8600d67b2c019db21233ed9d890db8159e21538d1037b0216d7268a",
+      "size": 292
+    },
+    "assets/scene/cozy/furniture/terminal.png": {
+      "sha256": "8c0625ef397864c7c5fde8d785b923164829dcf6e4ba0f4c18c37af7192eb8ed",
+      "size": 219
+    },
+    "assets/scene/cozy/furniture/vending.png": {
+      "sha256": "58c068db56b2ce98bcd27c695abe97dc682e0a82f908cd330b6ddd587077d116",
+      "size": 237
+    },
+    "assets/scene/cozy/tiles/door-closed.png": {
+      "sha256": "95fa9aa4a1e11d178b8ffdb73daef2a2d0aa7981c5e6a94c730bee59276ff61b",
+      "size": 302
+    },
+    "assets/scene/cozy/tiles/door-open.png": {
+      "sha256": "8300649c8de905f690d75b8a3b1673e3019e35ddc026acb3f3a7e33d4f08afe0",
+      "size": 291
+    },
+    "assets/scene/cozy/tiles/floor-carpet-beige.png": {
+      "sha256": "abeb85fd3b4a70b4339d2c7671841f385b7a5e40225bfabb2e1b3209dda8b0c9",
+      "size": 329
+    },
+    "assets/scene/cozy/tiles/floor-carpet-blue.png": {
+      "sha256": "a73696282f957f2a665882bc8f0b6cc38235ee28bfcb7ec14e75fcc5fe8a5e06",
+      "size": 329
+    },
+    "assets/scene/cozy/tiles/floor-grate.png": {
+      "sha256": "954c8a353e549d732c74b0ed289ed81617cffad5312ac8f6206ae72045a0ac04",
+      "size": 278
+    },
+    "assets/scene/cozy/tiles/floor-hatch.png": {
+      "sha256": "aa4b5be54d9e71709ca4a4fa611234333b43076afb47f080da8ed326384cba20",
+      "size": 561
+    },
+    "assets/scene/cozy/tiles/floor-hazard.png": {
+      "sha256": "c67fd5567cb1430cf78d8736dff8314762cfe3d47253b08f862b69db25ed86b1",
+      "size": 415
+    },
+    "assets/scene/cozy/tiles/floor-lab.png": {
+      "sha256": "e99936ca6d89703e17dbb12015263a92c5afbb01b894cdd2dd5a0340779cf19d",
+      "size": 192
+    },
+    "assets/scene/cozy/tiles/floor-light-panel.png": {
+      "sha256": "25c948d5b35d7c0248a5bc0be45098583631636d49e2a93e6a340f28abb59232",
+      "size": 269
+    },
+    "assets/scene/cozy/tiles/floor-space.png": {
+      "sha256": "e82ba423bd223af4546227aace1412f828dbd87262ca1e5aa7d95f9497d420a3",
+      "size": 135
+    },
+    "assets/scene/cozy/tiles/floor-steel-bolts.png": {
+      "sha256": "08ed8ced94a384c5eba9ae806f15daf64cf143e3f6221c3598238996a83b98a9",
+      "size": 288
+    },
+    "assets/scene/cozy/tiles/floor-steel-plain.png": {
+      "sha256": "8847f101603f57fc47aed1233a6ffdc458e47b4c9e0501a9e35610060f6baf57",
+      "size": 135
+    },
+    "assets/scene/cozy/tiles/floor-steel-vent.png": {
+      "sha256": "707278eb2326caf853cf501a5c0ec42058128461fb38798da26b4bb45f180642",
+      "size": 296
+    },
+    "assets/scene/cozy/tiles/floor-steel.png": {
+      "sha256": "b9a1af8f4375bdc0a19b968e32e6eeaec0e02512a2cfc64dff34223f403f6c0f",
+      "size": 176
+    },
+    "assets/scene/cozy/tiles/wall-light.png": {
+      "sha256": "90b8d94506826967e0e548f02c75336c14ef3f93196b23b006a722639d4ab332",
+      "size": 253
+    },
+    "assets/scene/cozy/tiles/wall-pipes.png": {
+      "sha256": "d1dd2e1481bee7896d4e24582f5f584bd25f1d79d981f97f028e603b84a486f0",
+      "size": 317
+    },
+    "assets/scene/cozy/tiles/wall-screen.png": {
+      "sha256": "f23ca99ad352584afb7ba1e0f241a90e513d7718ea826ef584e4492fff5458c5",
+      "size": 361
+    },
+    "assets/scene/cozy/tiles/wall-sign.png": {
+      "sha256": "a99043f42b2ccfd6e99d287b9587d66de4f7e57eb8d2bf9dc015bdf6c7735efc",
+      "size": 286
+    },
+    "assets/scene/cozy/tiles/wall-vent.png": {
+      "sha256": "d05f1f683b8c48159ed161ea5c8d6bcce12125e0e083d5c05f5142e5eaeeff3d",
+      "size": 314
+    },
+    "assets/scene/cozy/tiles/wall-window-planet.png": {
+      "sha256": "8b8bf4681211a1e544334f8f12e774dcd2fb05770f28dde2ebe011481971b08f",
+      "size": 500
+    },
+    "assets/scene/cozy/tiles/wall-window.png": {
+      "sha256": "bf94bf071cf092b01ae65758a889e35367f9efa9d143439d9bc34c443a0ad769",
+      "size": 382
+    },
+    "assets/scene/cozy/tiles/wall.png": {
+      "sha256": "a22b30c22f9fb806ef481bc2ebab783a12c4611245e60ed9b1cb9e96aa6e0185",
+      "size": 188
+    },
+    "assets/scene/crew/LICENSE.txt": {
+      "sha256": "52666746796b6eaffb2adc43c441e67f005b6778ae1533ac4b6ae818a6e4eb4e",
+      "size": 2999
+    },
+    "assets/scene/crew/_pixel-backup/crew-01.png": {
+      "sha256": "ba7f236da31dc0dadc0fe5774344d930973df6388e37b0c3c104f43ab61a87a2",
+      "size": 6216
+    },
+    "assets/scene/crew/_pixel-backup/crew-02.png": {
+      "sha256": "aecdb03aa7faa6bf1511fcef86417dade0e1a3fe3f34ef9f24a3512740b2fafb",
+      "size": 6775
+    },
+    "assets/scene/crew/_pixel-backup/crew-03.png": {
+      "sha256": "7fe6992f662f13da32a49a2e63f49c7f7c7cb0a5567d48540137992d537cac5e",
+      "size": 6830
+    },
+    "assets/scene/crew/_pixel-backup/crew-04.png": {
+      "sha256": "53a22f3c9c375b366843fb73684d346cbfa57db20754960b3e92e561c6016019",
+      "size": 6859
+    },
+    "assets/scene/crew/_pixel-backup/crew-05.png": {
+      "sha256": "174465e2ab95c04d8b9caf0a73d4575c9dbcc94c3e5e03adc1bd821acf0c44c0",
+      "size": 6871
+    },
+    "assets/scene/crew/_pixel-backup/crew-06.png": {
+      "sha256": "81483de10ca9a40324db2f4f6257a7e683bec21a64f78fa3aef7512a6b689786",
+      "size": 6712
+    },
+    "assets/scene/crew/_pixel-backup/crew-07.png": {
+      "sha256": "c84195cbeea7802ecabd32e5aad2b92b3488c0ade81310ef61ae5805e23f3c91",
+      "size": 6997
+    },
+    "assets/scene/crew/_pixel-backup/crew-08.png": {
+      "sha256": "aa9a6b9067141f1990050b9d08a31f873e5b86c057eee53459e36100b5c3d372",
+      "size": 6972
+    },
+    "assets/scene/crew/_pixel-backup/crew-09.png": {
+      "sha256": "2d18354b3da0412ead29b97c7e0a8f1a747e3f2619904297fd2f4ec779d4a499",
+      "size": 6802
+    },
+    "assets/scene/crew/_pixel-backup/crew-10.png": {
+      "sha256": "5671929fb2f1a36bd383be9dfdcdf454eda2241d9463cdf721caaee864d8796b",
+      "size": 6448
+    },
+    "assets/scene/crew/_pixel-backup/crew-11.png": {
+      "sha256": "9ce43ef3af37470c5afe679d69b1cfd2883304cdac037e5e0627ea9822b8ec62",
+      "size": 7019
+    },
+    "assets/scene/crew/_pixel-backup/crew-12.png": {
+      "sha256": "4f2dd0514796cfba751c7a32757d3a782747c95932d952481924ba17566e805f",
+      "size": 6956
+    },
+    "assets/scene/crew/_pixel-backup/crew-13.png": {
+      "sha256": "13ed6adcbfc5f7d859ce3e50dfe040c21da65490ea8151f8322bcaa6122cd94a",
+      "size": 6502
+    },
+    "assets/scene/crew/_pixel-backup/crew-14.png": {
+      "sha256": "6f362328e31427d57105435caef92af8695fe2dffaa0ae37f7a6e3bf8bb35ac5",
+      "size": 6596
+    },
+    "assets/scene/crew/_pixel-backup/crew-15.png": {
+      "sha256": "1c6a40d80bbaef7a226763be5b9116776342b38c33ab33390d21c1afa2641f6d",
+      "size": 6724
+    },
+    "assets/scene/crew/crew-01.png": {
+      "sha256": "0c8839a85422f3c7b8ddbcd86c5e4a232811208ce12c06d63701071c099846f5",
+      "size": 145057
+    },
+    "assets/scene/crew/crew-02.png": {
+      "sha256": "d3a343666aad53e3c0ebf9ac46c90a1c0a9ad94d88191a10c93ab794b00c475d",
+      "size": 148368
+    },
+    "assets/scene/crew/crew-03.png": {
+      "sha256": "a98903d24033f28bf1618d36161b5faa083ef00665e96b1b22ef776782b72f65",
+      "size": 148078
+    },
+    "assets/scene/crew/crew-04.png": {
+      "sha256": "7b132fac06e3174d59c19093831aec5cd2d5a8f8f3d39936407befe11ef929d3",
+      "size": 147412
+    },
+    "assets/scene/crew/crew-05.png": {
+      "sha256": "3e9c7892236c163ef4381da7ddc1ddf539fcb12ec4027e8088d57fca3557f715",
+      "size": 141994
+    },
+    "assets/scene/crew/crew-06.png": {
+      "sha256": "896d58707ae4ce137f1d6b757cee29d7e8501de0afe2990f1e4a2253568bae09",
+      "size": 151043
+    },
+    "assets/scene/crew/crew-07.png": {
+      "sha256": "d5e7760a43e35cb24d387a8cdf6b56d6d90dd2591450c9c5c5a25813638351fa",
+      "size": 145637
+    },
+    "assets/scene/crew/crew-08.png": {
+      "sha256": "13e5ea6cfe61414531f3569bb0d777e89b77bb549170bf8defb1025c893059fa",
+      "size": 146335
+    },
+    "assets/scene/crew/crew-09.png": {
+      "sha256": "f73dd0a5619331589b47ca91f9087fcce6cbea1b357e1eb3bf7b5041b95d60d7",
+      "size": 151071
+    },
+    "assets/scene/crew/crew-10.png": {
+      "sha256": "010d4c2556cf35d4c4a3602f50eb9578e313555244e71b6f5f31251e1ebd4541",
+      "size": 140936
+    },
+    "assets/scene/crew/crew-11.png": {
+      "sha256": "81e6aaa1182d18009b9d3b389170beee6c2963b5753de45cc4c481f4498e2af8",
+      "size": 145223
+    },
+    "assets/scene/crew/crew-12.png": {
+      "sha256": "4988858a56eca74558e625d7e1bb6286434572898ca8f28df6162eabcb1ea2f9",
+      "size": 147303
+    },
+    "assets/scene/crew/crew-13.png": {
+      "sha256": "c67c0c88799c03b5d7b55fdfeedf1d72d28a070fbb2a04e22e174ed5d3f51a6e",
+      "size": 146144
+    },
+    "assets/scene/crew/crew-14.png": {
+      "sha256": "7d2d2062d8d103b8137e7826a25f113119aa0da447437cff02229905a5e05d39",
+      "size": 150059
+    },
+    "assets/scene/crew/crew-15.png": {
+      "sha256": "d48476480c86a9ee4a5a601043ae4ad1b735fc11486a42b0f1251eb7565b09d0",
+      "size": 147022
+    },
+    "assets/scene/crew/manifest.json": {
+      "sha256": "70a688a1aeb58fa5c4a122388dcdf9afc356dbbff63c569a0260d3e77ab6e41c",
+      "size": 1764
+    },
+    "assets/scene/rooms/LICENSE.txt": {
+      "sha256": "25c02966e914f7b90e34f4bada4c4a0d8a1368876043bde3fbd9c1725d8d4c7d",
+      "size": 1952
+    },
+    "assets/scene/rooms/armory.png": {
+      "sha256": "20eb6c181a56ea3329effb868d0bcd82d47248aabb7add2374866792426ceaa6",
+      "size": 2934
+    },
+    "assets/scene/rooms/medical.png": {
+      "sha256": "713dd1dabc0623089c4a803d492b76eb22cb67101e1ad4f4d653fd82a5d3754c",
+      "size": 2644
+    },
+    "assets/scene/rooms/meeting.png": {
+      "sha256": "ed6b61718d5e6a5eb50af34078d9db53995dfebce785375f7c9fe553501217c4",
+      "size": 2166
+    },
+    "assets/scene/rooms/patrol.png": {
+      "sha256": "a515b67bbe6716dd3c0431fb108e0ba5f0f489e2b89c96683c64529aa9336ddd",
+      "size": 2920
+    },
+    "assets/scene/rooms/pharma.png": {
+      "sha256": "30fe3e4f80c8a789cd800501e220c80ec1e835b3b148cc7a5e0b31f8ef89efcc",
+      "size": 2836
+    },
+    "assets/scene/rooms/repair.png": {
+      "sha256": "68002071f024fe0197b3e81e5a333482a8e19ed81a9f7ac7fcb731610cb26837",
+      "size": 3242
+    },
+    "assets/scene/rooms/safe.png": {
+      "sha256": "d728e7c2db89e4bf693409a7eaff4cb6a27c23f65a9d0acfaea4a329387f8e0a",
+      "size": 2983
+    },
+    "assets/scene/rooms/verify.png": {
+      "sha256": "3a9933aad5d1452f3b357a47c479a92df724a5922f404a04b67759aea6778610",
+      "size": 2938
+    },
+    "assets/scene/station/LICENSE-Kenney.txt": {
+      "sha256": "e8de83b5cb2f01810e32f07691cb1dcf9494dc4a7f8cce0ec8175dfb8c5d98d9",
+      "size": 720
+    },
+    "assets/scene/station/balcony-floor-center.png": {
+      "sha256": "1a2592130b824d32f491b57d060753bc80b298790f7e9e4aa097e675db082ffe",
+      "size": 1541
+    },
+    "assets/scene/station/balcony-floor-corner.png": {
+      "sha256": "581bebf237b35b61789a9893ead1a3fd7cf3768efae1b5abbdc705e8ff00d628",
+      "size": 1960
+    },
+    "assets/scene/station/balcony-floor.png": {
+      "sha256": "2c319fb0b911ab8fe7ded54cd715c7dad6eebb9f5bb5b26ce07d2e87b989dd7c",
+      "size": 1903
+    },
+    "assets/scene/station/balcony-rail-center.png": {
+      "sha256": "3c0414c3a22582a92652cf8a5dae9de2067480b74592b1955ddbded8648a29ee",
+      "size": 1844
+    },
+    "assets/scene/station/balcony-rail-corner.png": {
+      "sha256": "45dcf4de65d6b64df1a290f1e678d4288efaa957bca68cda5438111d63d8b6dd",
+      "size": 1689
+    },
+    "assets/scene/station/balcony-rail.png": {
+      "sha256": "1bdfa58adff593c7959d651de3c6d655232fe9d48c15a73c119a225438bf98a0",
+      "size": 1928
+    },
+    "assets/scene/station/bed-double-cover.png": {
+      "sha256": "1abf15baf1c355c45b1642e44735532a24e30c9625d21b0ab203bc0c7c376d00",
+      "size": 1524
+    },
+    "assets/scene/station/bed-double.png": {
+      "sha256": "2f5541fdb98c0d6bbcc5ed91b30ceb7bf8a226ede6c7bc7a73ec7a13680fcc31",
+      "size": 1945
+    },
+    "assets/scene/station/bed-single-cover.png": {
+      "sha256": "328e25487996d04e283515ee1207ea8103dc42c5414a55762805611a9bfcb478",
+      "size": 1819
+    },
+    "assets/scene/station/bed-single.png": {
+      "sha256": "a2d7f72af10e2d9a973fa21461b5603f113f68ee55d15fe730ebf989031aef61",
+      "size": 1957
+    },
+    "assets/scene/station/chair-armrest-headrest.png": {
+      "sha256": "9b558baef0c5d28fb1e1bddbe6c32d02d004a6f3d08e3a473a1f7396a593ef37",
+      "size": 1613
+    },
+    "assets/scene/station/chair-armrest.png": {
+      "sha256": "e168f9ba92148da5bf6ee8e09b58e8055669554948457281f191171f975d8e84",
+      "size": 1720
+    },
+    "assets/scene/station/chair-cushion-headrest.png": {
+      "sha256": "3306ba5e9e38bbe0d5987de28bf7b76f42dd44e88375d11f46c85400452ca867",
+      "size": 1578
+    },
+    "assets/scene/station/chair-cushion.png": {
+      "sha256": "21b825d3e73f91497061951e71d69728a4ca0face67ea2085bb17034ee5521da",
+      "size": 1668
+    },
+    "assets/scene/station/chair-headrest.png": {
+      "sha256": "17bf604e66a8b2caa0dd2f1afcfca004356033557a8df690d0553bed15736702",
+      "size": 1571
+    },
+    "assets/scene/station/chair.png": {
+      "sha256": "0e5e87db4f13e1415ff8d9c73463814b74a5b9ac8337477517fe60b83aab0b95",
+      "size": 1652
+    },
+    "assets/scene/station/computer-screen.png": {
+      "sha256": "c1fa28f105681cab9b951734e3a391324879cf5f2f3b65b301dc780088054e50",
+      "size": 1835
+    },
+    "assets/scene/station/computer-system.png": {
+      "sha256": "f84a63e55b95d65af44836dc14071184dc4b0d552216a514cad37b485cc6c00d",
+      "size": 1988
+    },
+    "assets/scene/station/computer-wide.png": {
+      "sha256": "92987776b0e47f2453e58a1ac287419144c5b92b602aabb55516708d8e4157c8",
+      "size": 2065
+    },
+    "assets/scene/station/computer.png": {
+      "sha256": "7e7b4620a87cf8ca4e4221db3ded9fcb07eb1a8d87b1dc19b87e26dfe742a3a1",
+      "size": 1700
+    },
+    "assets/scene/station/container-flat-open.png": {
+      "sha256": "67b18a261db824e831a7adef0fac5f9fea2420c0becd1fa107a9dafe618f2eb8",
+      "size": 1934
+    },
+    "assets/scene/station/container-flat.png": {
+      "sha256": "72e15a35b422a10e7a7fc9e32d2bafd2ce1f72cb14958fddbe5770c2d55f9601",
+      "size": 2003
+    },
+    "assets/scene/station/container-tall.png": {
+      "sha256": "ffd4efd757429e9fb5801561fa28123bf5fdda0a158d93282be20baaa822df6a",
+      "size": 1679
+    },
+    "assets/scene/station/container-wide.png": {
+      "sha256": "3945c4e7e09f2b1a44b320ae6f0fd96c0d6da0e69869a20259f85ae31d0f63f3",
+      "size": 1895
+    },
+    "assets/scene/station/container.png": {
+      "sha256": "6ffdf4da5a2900e94ef25a16d987507cb0c2c7c956cedfeeb758c2f9afc5679f",
+      "size": 1834
+    },
+    "assets/scene/station/display-wall-wide.png": {
+      "sha256": "8626ab2e4d2e71a80d0b1fcf467c6c2fd0063b678967666ff189976cfb5359eb",
+      "size": 1970
+    },
+    "assets/scene/station/display-wall.png": {
+      "sha256": "201a74dacb81774ef92002489dbb46f954b7c42a6f56259daf8fe241781d0e2c",
+      "size": 1874
+    },
+    "assets/scene/station/door-double-closed.png": {
+      "sha256": "52ef278341f90bc980b65f691b44ea5832b8ca26073fe7c99e24f0880d736142",
+      "size": 1703
+    },
+    "assets/scene/station/door-double-half.png": {
+      "sha256": "3ff1e811ae0d449341e3a4464f721fdd221fd9f025160e05dfc6d55c28622a96",
+      "size": 1682
+    },
+    "assets/scene/station/door-double.png": {
+      "sha256": "9077b0bb61a7ce43a5533ceeda5ff5092d531d47818dc8e97c13fe6b2826d4ff",
+      "size": 1717
+    },
+    "assets/scene/station/door-single-closed.png": {
+      "sha256": "9f4ac8b4a0d2b86dc5e2ab4a9dc1aaeb7e29a59a4c8899ee04a2f9d7cca46c3e",
+      "size": 1640
+    },
+    "assets/scene/station/door-single-half.png": {
+      "sha256": "e3b26feb6ca32a6bd9e9ae9ffe490efcae659eba1be9ead532c8b6d5a9cee769",
+      "size": 1641
+    },
+    "assets/scene/station/door-single.png": {
+      "sha256": "d2b33d1e54e594bbece4237548340d3ebaa5e6edf67e26c3a7f54607d1e0ce73",
+      "size": 1667
+    },
+    "assets/scene/station/floor-corner.png": {
+      "sha256": "df1df478964ec8c983d1a35edf169afc920ed62f3ab89a9cf0814ffc21b17c97",
+      "size": 1641
+    },
+    "assets/scene/station/floor-detail.png": {
+      "sha256": "f24e95f32fde68f3c8b2d49558e1fa885b2ba435844e6272a32297cc3eece1af",
+      "size": 1979
+    },
+    "assets/scene/station/floor-panel-corner.png": {
+      "sha256": "990123696545383917b1a37bebe036e0b93d08523e8113114c86fbcd30c92cc7",
+      "size": 2030
+    },
+    "assets/scene/station/floor-panel-end.png": {
+      "sha256": "2c6ee2b230feefa8ffa895cd33ad5c8813d66cef4dfdb79ca29676cf21e41e0c",
+      "size": 2013
+    },
+    "assets/scene/station/floor-panel-straight.png": {
+      "sha256": "51d8e859e72cfa2ac5004b30afdd183a75a656fa555b830aaf5619297fea70d3",
+      "size": 1987
+    },
+    "assets/scene/station/floor-panel.png": {
+      "sha256": "da076baf1092346c69670fec316660c188ab183cbae6eb832c73f4ba84fccb8b",
+      "size": 2074
+    },
+    "assets/scene/station/floor.png": {
+      "sha256": "3b964f65a09bb8c646962ebd627af47394018c3f3e60d6065afcfc05ced84ec3",
+      "size": 1658
+    },
+    "assets/scene/station/pipe-bend-diagonal.png": {
+      "sha256": "6af2093f78f4db18cc5ae8574757ddb54a9d1bbd4a0c09f5b596eb7fe7ef226d",
+      "size": 1654
+    },
+    "assets/scene/station/pipe-bend.png": {
+      "sha256": "1c2f0e8aa1a6e9bab800cbb097a76510577723dd4a15dc0a59a559b51c2d436e",
+      "size": 2005
+    },
+    "assets/scene/station/pipe-end-colored.png": {
+      "sha256": "dbf072988ceda10c0b786879bf0a8fc44e6c663643ded49478ae9f81fd5ad2df",
+      "size": 1641
+    },
+    "assets/scene/station/pipe-end.png": {
+      "sha256": "60015714b9d0192a25aa621628b0409cb1fa5541e743f3b612d9aef6e3785ce1",
+      "size": 1664
+    },
+    "assets/scene/station/pipe-ring-colored.png": {
+      "sha256": "f07d733a0e421efef3b3a2bc80612ec6a7eb0bced1da0cdfb6f0d267d8038dc8",
+      "size": 1695
+    },
+    "assets/scene/station/pipe-ring.png": {
+      "sha256": "e55b8f5376302ed704e11f33376ef330cfa6b119ad49a37b46a1a12ae6225022",
+      "size": 1719
+    },
+    "assets/scene/station/pipe.png": {
+      "sha256": "dcf37506cf1c04eacaf4e89324d95895c409fb0ea9bb71a88efe6e69e8f4c05e",
+      "size": 1648
+    },
+    "assets/scene/station/rail-narrow.png": {
+      "sha256": "feb4f17636db15db9dcbaf7d5e30703fe55c3e535c41f3c2e4a099f2914744d2",
+      "size": 1518
+    },
+    "assets/scene/station/rail.png": {
+      "sha256": "3a3eadc5635d9aeda970dd292463c94a84c5aee663837339ae4f35a02736ff39",
+      "size": 1490
+    },
+    "assets/scene/station/rocks.png": {
+      "sha256": "0e0228e00b0be69aa064a6742c194f1195acf693e3ad365d25775929b12881aa",
+      "size": 1910
+    },
+    "assets/scene/station/skip-rocks.png": {
+      "sha256": "d32fc50618049b545c61d15ab2984053204891087b3835dd4797174aae463699",
+      "size": 1898
+    },
+    "assets/scene/station/skip.png": {
+      "sha256": "0b1a5f708636a86c3e84defdbf2fc17cd2c4aba4c709add8415f1b461880f780",
+      "size": 2098
+    },
+    "assets/scene/station/stairs-corner-inner.png": {
+      "sha256": "ad422de598ee87af86887da51c1998a3057618c0051e5fbe06c92c6f9515589b",
+      "size": 2018
+    },
+    "assets/scene/station/stairs-corner.png": {
+      "sha256": "3e0d0bae2fdf3a65b3362196264daca0730f6bdee280b024d47debc8e2b7ae21",
+      "size": 1878
+    },
+    "assets/scene/station/stairs-handrail-single.png": {
+      "sha256": "aebafe3b69b4ffc9f8444680cb124284ac0052b1d328c6c8984c0814397165a7",
+      "size": 1308
+    },
+    "assets/scene/station/stairs-handrail.png": {
+      "sha256": "e552033fd3663f21c016ae90456ace2e3c5037b2b519881ca2fce42e207fda97",
+      "size": 1492
+    },
+    "assets/scene/station/stairs-ramp.png": {
+      "sha256": "e12f70b7d4414897a552fd0c15cbf73fac7353d1f824e42db80cc2a99662af13",
+      "size": 1992
+    },
+    "assets/scene/station/stairs-small-center.png": {
+      "sha256": "5d61311c8b8d11400686c4e2d85aa491e675ecaf3cf233c5cc1e930e25641d6c",
+      "size": 1958
+    },
+    "assets/scene/station/stairs-small-corner-inner.png": {
+      "sha256": "52a0701846079257c3196e00c0442a87689561e30b26496ef116b6702b0f9a94",
+      "size": 1738
+    },
+    "assets/scene/station/stairs-small-corner.png": {
+      "sha256": "a9a644e34b90f40aaa580e87fd61bf75311a12e83eec40a32b4c3d692b28c3ef",
+      "size": 1560
+    },
+    "assets/scene/station/stairs-small-edge-handrail.png": {
+      "sha256": "f54701614e441398516030e460d57f58e56dbec89074e5f19ba14fbd017b57bf",
+      "size": 1717
+    },
+    "assets/scene/station/stairs-small-edge.png": {
+      "sha256": "9bd41cc7e2611c593b68b3fac059e257c263b8cdfdf85913e1f9a23c8d518230",
+      "size": 1968
+    },
+    "assets/scene/station/stairs-small-edges-handrail.png": {
+      "sha256": "2e3fb1eb82dd7f4fdd7aee191c1a18ca7b9cce6a530092ecab3028ccb816f930",
+      "size": 1773
+    },
+    "assets/scene/station/stairs-small-edges.png": {
+      "sha256": "e8d84b12e9052d29ff927f64ec5979478dd2abc3a300e986a9309f8c7049af0c",
+      "size": 1870
+    },
+    "assets/scene/station/stairs.png": {
+      "sha256": "ef3065df4bc532965b675c37fe82ce0dcec9c3dabd213df5d1d3e7ea24aae0ff",
+      "size": 1952
+    },
+    "assets/scene/station/structure-barrier-high.png": {
+      "sha256": "f00f30f88cbd1b436e6aa225bc8f0616d0ecc4c5c1ba9caaa71f22cca2cf4e04",
+      "size": 1697
+    },
+    "assets/scene/station/structure-barrier.png": {
+      "sha256": "8c5b9d969a396e4a484e28da5baf8036611ac9993fa07244ffa1a2bdc7f340f8",
+      "size": 1694
+    },
+    "assets/scene/station/structure-panel.png": {
+      "sha256": "866a0d45fc6507ae88cd012a9fd8dc0a5ad8ec2c60fb82b3a65bc4cd6ebb66b0",
+      "size": 1976
+    },
+    "assets/scene/station/structure.png": {
+      "sha256": "7fe66cbcc454c747f904cd619707d30623884c3a2aaadf636b907ba778d7ca7e",
+      "size": 1686
+    },
+    "assets/scene/station/table-display-planet.png": {
+      "sha256": "f3cedd348fe9f1e55cbe27497e0214b9f83fcd5f2bd4a699268dd1f5b516ac50",
+      "size": 1629
+    },
+    "assets/scene/station/table-display-small.png": {
+      "sha256": "2cb3ecdc8435175a53286ef5f6e7c824f1143f88be985c4e3f1c15566670cc25",
+      "size": 1760
+    },
+    "assets/scene/station/table-display.png": {
+      "sha256": "295f8cc0782e07ef5e630af26ac7cb488179197c3cdb4cf24f0d8c7c9015cd95",
+      "size": 1876
+    },
+    "assets/scene/station/table-inset-small.png": {
+      "sha256": "51213b15e57dda78d29bd7641673f9df6f75c62f76ab1e48019bd1b0111682b2",
+      "size": 1926
+    },
+    "assets/scene/station/table-inset.png": {
+      "sha256": "07545bac0d80cc1a743add001d3685dba7b05e878d02d184d1deba02038944c9",
+      "size": 1969
+    },
+    "assets/scene/station/table-large.png": {
+      "sha256": "20df9c2a0efbad58050b192d11585d3b3fa0e118db8cec9e1a1227e5181c6810",
+      "size": 2048
+    },
+    "assets/scene/station/table.png": {
+      "sha256": "29565da7d49211d97291fd69e91d3dbc1784fd431d60d20a60750eddcdef0ac1",
+      "size": 2198
+    },
+    "assets/scene/station/wall-banner.png": {
+      "sha256": "8f0fc8827c13f4baa78c3d826120cb65e053efb459d06d59fd4e380ce1c48508",
+      "size": 1734
+    },
+    "assets/scene/station/wall-corner-banner.png": {
+      "sha256": "f354c26b8644865ef0fbb9e0e45cc8523eb599e156b3c70b565242ce5d427049",
+      "size": 1625
+    },
+    "assets/scene/station/wall-corner-round-banner.png": {
+      "sha256": "7842992ea74f59f428dea334e4f32874c491b2fd1700565ab8d62365b6777ac2",
+      "size": 1470
+    },
+    "assets/scene/station/wall-corner-round.png": {
+      "sha256": "7cadbe090264d6d8e1d0c1160ecedd6eb71384c838b4852a94834aef99007184",
+      "size": 1473
+    },
+    "assets/scene/station/wall-corner.png": {
+      "sha256": "46fa795d3fc463c09082e37a40f09bf5827d102f29a1f4a4931a4717ce3fde84",
+      "size": 1632
+    },
+    "assets/scene/station/wall-detail.png": {
+      "sha256": "65bf525583d1bb96cfec2c4f7f23766ebd355604834ea1949792059e7eacfd82",
+      "size": 1596
+    },
+    "assets/scene/station/wall-door-banner.png": {
+      "sha256": "1f4d9ebb55a6ff931f4d12578aa99071635796652c739e38a0488901dcc0c4bc",
+      "size": 1751
+    },
+    "assets/scene/station/wall-door-center.png": {
+      "sha256": "2bbf84a3f91c149df2b4e7578d9c62e5f686fc03355a5408bf8f5cedd2d3e1d7",
+      "size": 1960
+    },
+    "assets/scene/station/wall-door-edge-banner.png": {
+      "sha256": "d920354f27c9d64a48f5a2412dbf3c7562cacbd53ba965a4a4c60711fdf0537f",
+      "size": 2075
+    },
+    "assets/scene/station/wall-door-edge.png": {
+      "sha256": "7ef6fe1160ea5d9af0c30e29c4c8ac06232bd4a50818c67469328aff3b54265b",
+      "size": 2078
+    },
+    "assets/scene/station/wall-door-wide-banner.png": {
+      "sha256": "fe3606535256e2a85841bdc0402ce4ec83c6ff76c358d8c19b4360ae9f38e502",
+      "size": 1692
+    },
+    "assets/scene/station/wall-door-wide.png": {
+      "sha256": "10f5b83e27b3755d9bde8c510408f0d8cdec0ada6ffa1d8e1724bc0b9c188ecb",
+      "size": 1699
+    },
+    "assets/scene/station/wall-door.png": {
+      "sha256": "c228aa8970c15e65be0b738f8c654b69141eb2e75414b519453c83d298dcf515",
+      "size": 1761
+    },
+    "assets/scene/station/wall-pillar-banner.png": {
+      "sha256": "5044cf8cee00ccb5f36fb79aa2ab9ccaea13f1626c6e5b83bc626632f90f02dc",
+      "size": 1858
+    },
+    "assets/scene/station/wall-pillar.png": {
+      "sha256": "a856573b5b0f14bba8dc1e0c8764f5c96dd506af72e3b26102e5d198aa3348c3",
+      "size": 1842
+    },
+    "assets/scene/station/wall-switch.png": {
+      "sha256": "c22f617c0f4ea88f6f323e1346cc5ae53964c8764419767727e4394ccbf3b672",
+      "size": 1558
+    },
+    "assets/scene/station/wall-window-banner.png": {
+      "sha256": "5d03b955186366890cd5093cd2c3f71235f7fb1d06d5ca79a4e9b8657bdb2612",
+      "size": 1767
+    },
+    "assets/scene/station/wall-window-frame.png": {
+      "sha256": "84a9e3ffcaeedb1936cd016dedd6c12199ad45983dfe59e183245aff63cdb446",
+      "size": 1777
+    },
+    "assets/scene/station/wall-window-shutters.png": {
+      "sha256": "0ae1777ca31583628faf9927645e18b7cc96f2c481f5c2a94b5aa6afdc04c21b",
+      "size": 1862
+    },
+    "assets/scene/station/wall-window.png": {
+      "sha256": "4e3e68b3f7ddd286dddf0c7340b27a8c5668445ff6d6d2de179765329df3d2cf",
+      "size": 1776
+    },
+    "assets/scene/station/wall.png": {
+      "sha256": "dbc28a1da64de0f9df07925291c8ebca88da0c4129ab9a474c609fc3db78a153",
+      "size": 1757
+    },
+    "assets/scene/v4/CREDITS.md": {
+      "sha256": "22ea13f2d72fc5e6980a48bf2ebaefc9e3780ff3224785a636a92a7fd9897922",
+      "size": 3459
+    },
+    "assets/scene/v4/_preview.png": {
+      "sha256": "3461537ed665e0c862a3a53d55461ce22cb5a8596daaf75c9a47d24a1ce7cd0e",
+      "size": 736028
+    },
+    "assets/scene/v4/base-lit.png": {
+      "sha256": "68e2d981d5d1e279cd9b2fdcec4505ebcccdaf78d68bfb0c856243e12bfb9be7",
+      "size": 15271096
+    },
+    "assets/scene/v4/facility/_raw/breaker-c0.png": {
+      "sha256": "ae8b6f8f6493b1736496b0a4b801477e1e8bd820d5b3c1b0735b763abe5d85c7",
+      "size": 415116
+    },
+    "assets/scene/v4/facility/_raw/breaker-c1.png": {
+      "sha256": "679f1d3d5ebe0b79ca3714b1725f76a68082a1bce9722c023d3895f6eb61b3b5",
+      "size": 456852
+    },
+    "assets/scene/v4/facility/_raw/breaker-c2.png": {
+      "sha256": "628e95b46ee252d9987ad20266c91f192ed7c1c26a97246b31650b5b0e0082cf",
+      "size": 415574
+    },
+    "assets/scene/v4/facility/_raw/fx-task-c0.png": {
+      "sha256": "5e5b9be951ab0242af5c9da34b6ad134e4ca6f798a9bcadf135ddfdfdb0f33a3",
+      "size": 665619
+    },
+    "assets/scene/v4/facility/_raw/fx-task-c1.png": {
+      "sha256": "ecbf1ee8e1418ac12ca8d46206b9acb569b3787aed200a91a165a56cb510decf",
+      "size": 859944
+    },
+    "assets/scene/v4/facility/_raw/fx-weld-c0.png": {
+      "sha256": "b16872a0ec71072190fd32c50debd3f987279097fa09e7c53e39d929ae74aee6",
+      "size": 534974
+    },
+    "assets/scene/v4/facility/_raw/fx-weld-c1.png": {
+      "sha256": "190007e93d17d431f546dba0a7bd2797ac07c0fd5ff38bf645468e9f7008d46c",
+      "size": 748916
+    },
+    "assets/scene/v4/facility/_raw/medbot-c0.png": {
+      "sha256": "aac1a1809684ef8acdb0a48ab507834ed33fbf88aa597325f0d1b7a9ec2dc50a",
+      "size": 568871
+    },
+    "assets/scene/v4/facility/_raw/medbot-c1.png": {
+      "sha256": "1de1f39cc4b533cdf429f9a4509192350aaa7acfade662afa454e9aabcba08be",
+      "size": 452507
+    },
+    "assets/scene/v4/facility/_raw/medbot-c2.png": {
+      "sha256": "558d8d11adba1131c4b2b87473d9cce8e4fadd8cbe8db008545c9354814b94f5",
+      "size": 618139
+    },
+    "assets/scene/v4/facility/_raw/monitor-c0.png": {
+      "sha256": "a68c48f1fe9731ee8c759d8e5338b7e18d0ce4cc6d09238570081ea357d747e2",
+      "size": 287344
+    },
+    "assets/scene/v4/facility/_raw/monitor-c1.png": {
+      "sha256": "1bec86e61026e2461ef381e661b03b7138259e8afe75928419412c11e0b712a4",
+      "size": 575883
+    },
+    "assets/scene/v4/facility/_raw/monitor-c2.png": {
+      "sha256": "d6183173f37b713bcc94fa231b0037c22b6f3db04034e40ad1933e2e42cf12a1",
+      "size": 533226
+    },
+    "assets/scene/v4/facility/_raw/secbot-c0.png": {
+      "sha256": "ac861530171f0853526d4a921a9af93f88edad70ab8544818af7892ab1f2f9c4",
+      "size": 551519
+    },
+    "assets/scene/v4/facility/_raw/secbot-c1.png": {
+      "sha256": "dfa7d6e5469e4573f44bf9cd333985d45e4e9e6f856d76a2ecab40d2b938ee5d",
+      "size": 632983
+    },
+    "assets/scene/v4/facility/_raw/supply-ammo-c0.png": {
+      "sha256": "2e12db2f569b85b92c92d1f77d7597410f49faa9ff6b257e2fdb3621f53e29a6",
+      "size": 421847
+    },
+    "assets/scene/v4/facility/_raw/supply-med-c0.png": {
+      "sha256": "f004727d1045a5066d09ca9128724a43980194c25c10c274701141999ec11c56",
+      "size": 265959
+    },
+    "assets/scene/v4/facility/_raw/supply-med-c1.png": {
+      "sha256": "76f160401035edec139e6534f5f61dbc023299edc3993c469abd6d3c042154a7",
+      "size": 416588
+    },
+    "assets/scene/v4/facility/_raw/tool-wrench-c0.png": {
+      "sha256": "fb871244b3a5859fdc5478070adf6a6de9519dbe316f6da03d2422fd81b55c97",
+      "size": 286577
+    },
+    "assets/scene/v4/facility/_raw/tool-wrench-c1.png": {
+      "sha256": "1ab35416a8c3c054f9734f16ecbb651b10d6cfcdc9fa564e4eb27980f87b119e",
+      "size": 372362
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-arc_0.png": {
+      "sha256": "ea0b8d4b217888fb96e3322e10159ec421b984429a1da0693741999de9834910",
+      "size": 120636
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-arc_1.png": {
+      "sha256": "f400783229f5692e57f40dec0a5167e980868ddfd68e146c831034dca4ded0f9",
+      "size": 111487
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-arc_2.png": {
+      "sha256": "3ee4acb363d7f08ea1dbe1e11ad5a826e9441faf79dca2e205bb7c5cbd879fcd",
+      "size": 113308
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-arc_3.png": {
+      "sha256": "48561d2be9e0ad93b2129a8784b2fb864f0b8826958c9ed06232d7c7dce4a405",
+      "size": 118692
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-weld_0.png": {
+      "sha256": "a2cef06f447c7309a6021f23904db9cd7f07288f9f8604fad7c95bc5273d03db",
+      "size": 95549
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-weld_1.png": {
+      "sha256": "97ae732526f98f4a20f8b719d052902fc103826047d9ec6ced0b5aebd5388a2c",
+      "size": 94804
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-weld_2.png": {
+      "sha256": "6c860a8bdfd102e86878e3bc8be719b353439c72f5fea1bfe4296c775d64d614",
+      "size": 95889
+    },
+    "assets/scene/v4/facility/_raw_fx/_fx-weld_3.png": {
+      "sha256": "3bcf4141fa206bebafa060da04e5d7ed9e5650e5691ef7793d7d4e08ef6da747",
+      "size": 91017
+    },
+    "assets/scene/v4/facility/_raw_fx/supply-ammo.png": {
+      "sha256": "15d01100d4e52c63f2769af5d1142204a436c960d91ce0f8394d38387687e0fb",
+      "size": 172370
+    },
+    "assets/scene/v4/facility/_raw_fx/supply-med.png": {
+      "sha256": "3c3c2cfebe9ceafcf4735278b63ccb388b954f4b6429e778ef3d8bf4ef08bfd4",
+      "size": 166591
+    },
+    "assets/scene/v4/facility/_raw_fx/tool-wrench.png": {
+      "sha256": "eec348fbfcfdd76754fa8434713e56789efd591c8c1bbafc155034a4880f0458",
+      "size": 104644
+    },
+    "assets/scene/v4/facility/breaker-c0.png": {
+      "sha256": "f575c443ac255b990fb38f4f8eeab06b75c0a69ad7a1055cdc7f6ccc6894696b",
+      "size": 160082
+    },
+    "assets/scene/v4/facility/breaker-c1.png": {
+      "sha256": "e7418189b8c1c99c4dc13ec7feee2379a611bbe8b82c5a0559076f33e3d4e9ed",
+      "size": 162458
+    },
+    "assets/scene/v4/facility/breaker-c2.png": {
+      "sha256": "fc0832914b21d89c0d751202f2d8468f897e0176416651d5ffd483d9889a7548",
+      "size": 93251
+    },
+    "assets/scene/v4/facility/breaker.png": {
+      "sha256": "f575c443ac255b990fb38f4f8eeab06b75c0a69ad7a1055cdc7f6ccc6894696b",
+      "size": 160082
+    },
+    "assets/scene/v4/facility/fx-arc.png": {
+      "sha256": "193c423380f98224437fa4a1acb3c655ce689b9d02b3c25349678402da57803b",
+      "size": 218180
+    },
+    "assets/scene/v4/facility/fx-task-c0.png": {
+      "sha256": "0a70b99c66004596756c1024e85970cb6a5631cdf7992f8319ac4d1182cef56d",
+      "size": 414739
+    },
+    "assets/scene/v4/facility/fx-task-c1.png": {
+      "sha256": "1c21e9d6389b59a7ffb0c4b08956782ced4670fdad3cd8c1a58c20dc58a5e68a",
+      "size": 536632
+    },
+    "assets/scene/v4/facility/fx-task.png": {
+      "sha256": "a6dc9a0145bf13fddb023cb4cc1a6c9a60966014263da486eabb29fd4f2b85a2",
+      "size": 425720
+    },
+    "assets/scene/v4/facility/fx-weld-c0.png": {
+      "sha256": "936504e83cdf79a0d668d2c8cef3256b5009c9cb65bfdae62b0bfeef604b51c3",
+      "size": 302368
+    },
+    "assets/scene/v4/facility/fx-weld-c1.png": {
+      "sha256": "25419cd59b3af3ee0c7de44d4041119d9fd126d97db4f2097fa701e5ec7009ca",
+      "size": 452581
+    },
+    "assets/scene/v4/facility/fx-weld.png": {
+      "sha256": "0cda3c938dec6566584412866c9e5f67ab48b9324153b2baadb778c6ba81d587",
+      "size": 151446
+    },
+    "assets/scene/v4/facility/medbot-c0.png": {
+      "sha256": "9b8f1581f22c5dd02d9da23e93b8132262d4161145db6d762f4a8fca30f1d394",
+      "size": 118187
+    },
+    "assets/scene/v4/facility/medbot-c1.png": {
+      "sha256": "aeb5fab2278a2d0dc57c11628f7eae025e5eea9492374933553accc634982aad",
+      "size": 204333
+    },
+    "assets/scene/v4/facility/medbot-c2.png": {
+      "sha256": "403796ed9023618eae68c3036acd1c4d2f12e74215b9ecb182563f7165cabed1",
+      "size": 96145
+    },
+    "assets/scene/v4/facility/medbot.png": {
+      "sha256": "403796ed9023618eae68c3036acd1c4d2f12e74215b9ecb182563f7165cabed1",
+      "size": 96145
+    },
+    "assets/scene/v4/facility/monitor-c0.png": {
+      "sha256": "ae0b44381521f54bfdfb3ee107d9b1f24604bd015dc5fddf55809c8cbfd88590",
+      "size": 114347
+    },
+    "assets/scene/v4/facility/monitor-c1.png": {
+      "sha256": "fc5fd8aaf2f4d368e17e98e3970e4a632117a79265cf6268b332dc66e838d5f0",
+      "size": 132984
+    },
+    "assets/scene/v4/facility/monitor-c2.png": {
+      "sha256": "ec2bb6c63cc325723a7a492163ed410bea21bb5554d5a8a3c9efe4f251d95526",
+      "size": 178813
+    },
+    "assets/scene/v4/facility/monitor.png": {
+      "sha256": "ae0b44381521f54bfdfb3ee107d9b1f24604bd015dc5fddf55809c8cbfd88590",
+      "size": 114347
+    },
+    "assets/scene/v4/facility/pipe-port-armory.png": {
+      "sha256": "d44797f3b9d2248bfec346e5e0fc94e38bab93161429f25a90f8c05e2794c5dc",
+      "size": 272727
+    },
+    "assets/scene/v4/facility/pipe-port-cam.png": {
+      "sha256": "8b83723a715e2b24bbeb39e2b0afc3196ec2412b63d0edf229d887d7a16fdfe6",
+      "size": 271752
+    },
+    "assets/scene/v4/facility/pipe-port-ecosys.png": {
+      "sha256": "ce0441f406bb76aacbfd827bd5e8ac83c5b67f302b8520913391a1424e0d05da",
+      "size": 273083
+    },
+    "assets/scene/v4/facility/pipe-port-engine.png": {
+      "sha256": "3df2aec8d53e1ec82bdfd8de7306ec50e1a1d645739798108759fb44d7832074",
+      "size": 272841
+    },
+    "assets/scene/v4/facility/pipe-port-fun.png": {
+      "sha256": "593976cfd8a0197b710162d4016ae8808b06d7970c4055d4b8568f0ed9b7f616",
+      "size": 272664
+    },
+    "assets/scene/v4/facility/pipe-port-med.png": {
+      "sha256": "9f5fe96898ab3a9c1c017a64e724cb33eb2144d770a01f33f348c60220aa281a",
+      "size": 271758
+    },
+    "assets/scene/v4/facility/pipe-port-transit.png": {
+      "sha256": "d255c06fa76cbdd66cda9a4e642070a6972f2686b3bd12619a6b4dce9e516ded",
+      "size": 272423
+    },
+    "assets/scene/v4/facility/pipe-port-warehouse.png": {
+      "sha256": "8af220d2b77ea331d322d06a02b935c53007540a65b0f0a6b5875b6a297f26a7",
+      "size": 272675
+    },
+    "assets/scene/v4/facility/secbot-c0.png": {
+      "sha256": "85faa4004a962115f83f5746c96fdfc16ea5ace4b0a4365cbbe4a43c6261fb57",
+      "size": 217583
+    },
+    "assets/scene/v4/facility/secbot-c1.png": {
+      "sha256": "17d8296115ec35ed8511c9834724602e9b0931678dffb30b35c623f1400bf89d",
+      "size": 126527
+    },
+    "assets/scene/v4/facility/secbot.png": {
+      "sha256": "17d8296115ec35ed8511c9834724602e9b0931678dffb30b35c623f1400bf89d",
+      "size": 126527
+    },
+    "assets/scene/v4/facility/supply-ammo-c0.png": {
+      "sha256": "8a80c39b4f789f2795543d8b61dc862323bbc126a875bf6ace15bdb891f3d8ab",
+      "size": 267960
+    },
+    "assets/scene/v4/facility/supply-ammo.png": {
+      "sha256": "4c047fc69bc996ce7448fab51c5dbc55137b422f1a76fe6d11d54abe22b66bfd",
+      "size": 172843
+    },
+    "assets/scene/v4/facility/supply-med-c0.png": {
+      "sha256": "cac353b9dc79a057eb1980e381965e88d15c0535110207aae1c41bcbd33b40ac",
+      "size": 153176
+    },
+    "assets/scene/v4/facility/supply-med-c1.png": {
+      "sha256": "cdbbb5806eb99a6a358d4f2a50e5197ef65262ba132e375ca25b125bd0817d6d",
+      "size": 232251
+    },
+    "assets/scene/v4/facility/supply-med.png": {
+      "sha256": "281e7b5c37b377397afec52269b92533e13e94005c76bb4907cbbccd042d20ed",
+      "size": 166347
+    },
+    "assets/scene/v4/facility/tool-wrench.png": {
+      "sha256": "52719895c09f85065c6b446959fd14a3a6a3bc03612b30b81859d0454084a9ab",
+      "size": 65251
+    },
+    "assets/scene/v4/hull-deck.png": {
+      "sha256": "022d17d707f4bf672fd611d4f1511338fa99dd3faef92320e0d3469c815b6106",
+      "size": 7300895
+    },
+    "assets/scene/v4/tex/ao-soft.png": {
+      "sha256": "9bb6ea05e966c6a4e3854489e9f5d602ee4081af4d59dadc01fb55c639c6dce8",
+      "size": 29343
+    },
+    "assets/scene/v4/tex/door-panel.png": {
+      "sha256": "e4fe221cf6377e45db5839aa5fccefcff41654a81e9ecffdee3e501471a65802",
+      "size": 4037351
+    },
+    "assets/scene/v4/tex/floor-grate.png": {
+      "sha256": "b0cad6d65d78a42bc21b45f273ca446542c66fe47fc73ffcffec7db95fdedee4",
+      "size": 4166546
+    },
+    "assets/scene/v4/tex/wall-panel.png": {
+      "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
+      "size": 3191808
+    },
+    "audio/CREDITS.md": {
+      "sha256": "52ef431fd283391d79015f302c611b8f759872dfbfb5fc0b20beecd3ebf93d99",
+      "size": 5455
+    },
+    "audio/music-bgm.m4a": {
+      "sha256": "8d4a63bb1bfec500ef8390325a0117dc5354a48ee20951098f352d04296fabf4",
+      "size": 3755288
+    },
+    "audio/sfx-click.ogg": {
+      "sha256": "f4597ea6f65e172ca7fb83f435cad8b76eb3fb7aaa6362c0314e8548e74123cb",
+      "size": 4927
+    },
+    "audio/sfx-death.ogg": {
+      "sha256": "c168fa000808cdbb6c393f723a08ec63feb1bbda7ab00f20a4e65eaaed563952",
+      "size": 14112
+    },
+    "audio/sfx-door.ogg": {
+      "sha256": "ece381fe7b79ee2c1cddd75504ab4885109fb46c2a1f74d1a3a5469b3912a369",
+      "size": 8199
+    },
+    "audio/sfx-flesh.ogg": {
+      "sha256": "eb9f878ec6a71829a6630fd63e7612f9b23d5a02c58ca6f6bc64c8174a203017",
+      "size": 8832
+    },
+    "audio/sfx-gun.ogg": {
+      "sha256": "1581ee369835bda2c295da2deb7c4d519395519cc046fd33d612187ed7614a7c",
+      "size": 9093
+    },
+    "audio/sfx-knife-01.ogg": {
+      "sha256": "70c16f721fb7377e95f8cb6dc8774604007e302e21011998e7cd174b085ff33b",
+      "size": 7534
+    },
+    "audio/sfx-knife-02.ogg": {
+      "sha256": "ac4180fa156d2f38644c9fb6b8e08cec81bb30272352acbbcdc59b09a7d275d5",
+      "size": 7285
+    },
+    "audio/sfx-lose.ogg": {
+      "sha256": "84c2e6d8699d4eb25a4dddc541e515308589a00cf07f1829833f094f4aa2b233",
+      "size": 12250
+    },
+    "audio/sfx-metal.ogg": {
+      "sha256": "1481109f59c5ba2c0168dd8a8041b61f6da75d40e5c4e928c3084199094bb1c2",
+      "size": 9022
+    },
+    "audio/sfx-notify.ogg": {
+      "sha256": "0119b5eedbbb93270a30b7a56be6c99783f24324a46cd9a3e8b8c20516e7ce1c",
+      "size": 7935
+    },
+    "audio/sfx-scream-01.ogg": {
+      "sha256": "eacd025de9bd9044e7167ab2dadd9107438224f21b1d85b1ba73152ab84d4a14",
+      "size": 7834
+    },
+    "audio/sfx-scream-02.ogg": {
+      "sha256": "4718a2cddd5e63e5fbfb361023f847018251b9a6980972abe43d09cf71e5f17d",
+      "size": 9078
+    },
+    "audio/sfx-step-01.ogg": {
+      "sha256": "5e787482fade5fda3f07b562b0ebaeec41007e0a184582125dd14c70680ceee5",
+      "size": 6439
+    },
+    "audio/sfx-step-02.ogg": {
+      "sha256": "ea9f28cff12f0d5d40b0fed878dc74b87a6a557d0f7cdb5469952072b531e8c5",
+      "size": 7314
+    },
+    "audio/sfx-submit.ogg": {
+      "sha256": "17942771e639cc79185b0b3d81b3abcecaf9e01bad82a7abc18f2b324d590946",
+      "size": 5846
+    },
+    "audio/sfx-tick.ogg": {
+      "sha256": "9198a1d4f0e7b2e836bc7d11a6b69687ef3c37dcc75c2173de6a23f6344c392e",
+      "size": 5197
+    },
+    "audio/sfx-ui.ogg": {
+      "sha256": "836a1770ae7dad2d57bd7e35d34493a9a474bcae84bd091673f61edbefac1f56",
+      "size": 5566
+    },
+    "audio/sfx-vote.ogg": {
+      "sha256": "5e3ae22edd311da79180e70bf7f6b4de568183f82763bb523ca2af8cd6f1191b",
+      "size": 5506
+    },
+    "audio/sfx-win.ogg": {
+      "sha256": "e5bd4b7e9896bd382d346ea1e76dbb8c2fa7a4aeff1278b1117d527becfa3ba9",
+      "size": 9582
+    },
+    "audio/sfx-work.ogg": {
+      "sha256": "840133881b09ff29cc2f3a85d2b9d00787cc1b0277510d293f0bd06c730c197e",
+      "size": 5561
+    },
+    "docs/00-先导-游戏体验.md": {
+      "sha256": "2dea5ed5c64b09e909fa71aa72e58eb89796fd3b68745bbcdfb6aeaf820bacf5",
+      "size": 2583
+    },
+    "docs/3D_预演_20261103.md": {
+      "sha256": "b6e9ed172d90c668f372c05a1941aac1eff0999bc36607756812f466c8631169",
+      "size": 10830
+    },
+    "docs/3D化审查_20261105.md": {
+      "sha256": "8804b2e392e1029266d131899cc2050c0abc8e8e4576bd476e6932142a2fd7fa",
+      "size": 14111
+    },
+    "docs/Qwen2.1_生图测试_20261103.md": {
+      "sha256": "c5c62ef0b227878d32e03025277323e5efaf5c414d26bd05b0b513dbc1ef3c45",
+      "size": 4353
+    },
+    "docs/_planned/01-工程化重构施工单.md": {
+      "sha256": "69740698f74e98c27973ea706f8147818325a34a5c2b1eee7485d4974cc2ade0",
+      "size": 8721
+    },
+    "docs/_planned/02-档3取舍单.md": {
+      "sha256": "254ccb2cbdad9c50c4a20803d9017b03dda3c7d1789c36aa514c39ded8fe396f",
+      "size": 5993
+    },
+    "docs/_planned/03-方案A-按三域切施工单.md": {
+      "sha256": "c00696510608475ac406d4068575538875754268e02ea1bc43c47a2d7863b917",
+      "size": 12699
+    },
+    "docs/_planned/04-AI推理优化施工单.md": {
+      "sha256": "e71f99c33f999e9909917c46c792c9a8d9b6fe6875333c78600b0305d793e263",
+      "size": 8655
+    },
+    "docs/_planned/README.md": {
+      "sha256": "4ca2407dd6828f1ffd7c9ce24cf12b32e8f313d16ec1d21a04c3c5cff45316dd",
+      "size": 2093
+    },
+    "docs/_proposals/G1/ARCHITECTURE.md": {
+      "sha256": "68fcaf1504444e612e51afcabc4c7a4667e5a0f252e3d9d0a72e47122e90694d",
+      "size": 47292
+    },
+    "docs/_reference/README.md": {
+      "sha256": "a580a47006a1aaf2cce9c71bb7c721a4166bf26df40e813875d447938fff0b45",
+      "size": 1306
+    },
+    "docs/qwen21/_contact_cabin.png": {
+      "sha256": "ce6a63fb920ef40fb87c0224ce2a813acdd138b364aca7944741bc8804700f74",
+      "size": 3205253
+    },
+    "docs/qwen21/_contact_task.png": {
+      "sha256": "09249b340d98ba8f321bd65d62c39746bde115df9ff40cccdd173e461cae2903",
+      "size": 6198036
+    },
+    "docs/qwen21/base-lit-new-20261109.png": {
+      "sha256": "b4ab38dd596b7f6ba35972d0a91420abd2051ea73a7ecadbf757481556a0cd2c",
+      "size": 1083075
+    },
+    "docs/qwen21/cabin-refs/armory_768.png": {
+      "sha256": "498b878ca385c2dd0a6cbe5b43c89d7b4e1e3a7c7884abf8fdd24b8bcd75274f",
+      "size": 1487973
+    },
+    "docs/qwen21/cabin-refs/bridge_768.png": {
+      "sha256": "56fafa90c1f510c8c6a1692e632c0daa004ee8054c07312065e1e245c0b39ded",
+      "size": 1251000
+    },
+    "docs/qwen21/cabin-refs/cam_768.png": {
+      "sha256": "1dd5ca3486541bec0441bbeddb312d69fadbbecdd623abb2dbb9225a220aec24",
+      "size": 1794781
+    },
+    "docs/qwen21/cabin-refs/ecosys_768.png": {
+      "sha256": "4ec7c641881d2a494ce35b45b599ed7034d83376b7a293b56526d2fda56aa10c",
+      "size": 1429799
+    },
+    "docs/qwen21/cabin-refs/engine_768.png": {
+      "sha256": "1ec0845e9429c3c94af2fd05a1c1d95a4bc5c10f59a123c1dd49b2c8a110d0d7",
+      "size": 1233143
+    },
+    "docs/qwen21/cabin-refs/fun_768.png": {
+      "sha256": "fa7d6cbbb52569d43c8e96864cd295ea0d66f8410d29a77811505ea0c0607bac",
+      "size": 1340788
+    },
+    "docs/qwen21/cabin-refs/manifest.json": {
+      "sha256": "836f467693b647b9c51decab115dcc1d0353d30eb6ef15b203c0b4c54e6252f7",
+      "size": 24149
+    },
+    "docs/qwen21/cabin-refs/med_768.png": {
+      "sha256": "66b659a7b8a910669bdb3a932ecf8a1da16d309ba9d5cffe72d01d95104fa3d6",
+      "size": 838003
+    },
+    "docs/qwen21/cabin-refs/power_768.png": {
+      "sha256": "9263f4c3445af9a348f0fd4b8063d6d37b3c03c9ec499093fabd940774a77b5b",
+      "size": 1029942
+    },
+    "docs/qwen21/cabin-refs/transit_768.png": {
+      "sha256": "fdb9977ba8737b351e717c7a3f70a7ea4a0075d63942867def9b0f47e9be1755",
+      "size": 1110338
+    },
+    "docs/qwen21/cabin-refs/warehouse_768.png": {
+      "sha256": "53c8bd9f2fa99ef7b9cf919ee29e9d1526b2aaf7825ce5022bba1396a2547067",
+      "size": 1170472
+    },
+    "docs/qwen21/character_768.png": {
+      "sha256": "4992305288a191eea45a75ec15bb359e252ed129498f05828cb6cafb1b189499",
+      "size": 1018771
+    },
+    "docs/qwen21/character_stylized_512.jpg": {
+      "sha256": "d3e7bdc9ba5cb2607460da5ccf62260a7468adaf0b30972a374e5e7f65a1fcc5",
+      "size": 27947
+    },
+    "docs/qwen21/character_stylized_768.png": {
+      "sha256": "1924150d360ef02d5cb7b6d92db671ab8024378ef484dd5fbfc281d26d71d513",
+      "size": 818701
+    },
+    "docs/qwen21/corridor_1024.png": {
+      "sha256": "e76b1d4a0fbb692b9876f15df992c256d58dfc4e89cff65856e7214da3d3ce82",
+      "size": 2126190
+    },
+    "docs/qwen21/corridor_512.png": {
+      "sha256": "a28646d7be7c4a5b15104e619c96269db71cb702399e94baedb36fe5623353ad",
+      "size": 561833
+    },
+    "docs/qwen21/preview-board-20261109.png": {
+      "sha256": "11840cdd83a2422083a216d463d1d70a97c18028f71358637c76bf5e87b87787",
+      "size": 5044160
+    },
+    "docs/qwen21/room-skins/armory-floor_768.png": {
+      "sha256": "42beff1a790306320633d13be65f3fba760b609248f1a92d7003970e24fd6e78",
+      "size": 1905897
+    },
+    "docs/qwen21/room-skins/armory-wall_768.png": {
+      "sha256": "1310533afa4d50f529c6049dd890bedb4c4911b9d56ce3ad84b4bb9202f0ea48",
+      "size": 1282927
+    },
+    "docs/qwen21/room-skins/bridge-floor_768.png": {
+      "sha256": "504a3718e2193cf45fc4f8163ceb6313fa6db29228ab82977a71a51373712147",
+      "size": 1783113
+    },
+    "docs/qwen21/room-skins/bridge-wall_768.png": {
+      "sha256": "3fe4b2e296051e203d1f0225f903f72500dd50f20222fc44553cab2db6bd1060",
+      "size": 1224749
+    },
+    "docs/qwen21/room-skins/cam-floor_768.png": {
+      "sha256": "6cdec2742199616d8956f79f6c638d56abcbfe61b5075a1a6c275db65b7428d8",
+      "size": 1252662
+    },
+    "docs/qwen21/room-skins/cam-wall_768.png": {
+      "sha256": "95480b37c7e555543a491a8b09fb2a85995a37f7e96eea79cc3eee6e7fe0b07e",
+      "size": 1604911
+    },
+    "docs/qwen21/room-skins/ecosys-floor_768.png": {
+      "sha256": "4183a975910bad6f8a598012e332f6fb6f496a76473d4b3465ff45b7e7bfced5",
+      "size": 1601840
+    },
+    "docs/qwen21/room-skins/ecosys-wall_768.png": {
+      "sha256": "aac3c3569004b3ae06f6d89c2b98378432f77d08c35b5122f1b1495160c91f9f",
+      "size": 1468255
+    },
+    "docs/qwen21/room-skins/engine-floor_768.png": {
+      "sha256": "afef6941e3d48b17673b18b9ea9e029d90f4895c5e0429550e6f8a3a3305b742",
+      "size": 1586353
+    },
+    "docs/qwen21/room-skins/engine-wall_768.png": {
+      "sha256": "5654ce2bb75ca05fc2ccf856178818fc520b70558d9db9406fb0010cb0403612",
+      "size": 1331806
+    },
+    "docs/qwen21/room-skins/fun-floor_768.png": {
+      "sha256": "813db7c564d768e7e27d20d9cd4af097c049e084c4efb7267f022992d93d929e",
+      "size": 1715083
+    },
+    "docs/qwen21/room-skins/fun-wall_768.png": {
+      "sha256": "83c08028059c81b0489a5ad867cda79b9876bc53bd2aa8809010556072d75b8d",
+      "size": 1240859
+    },
+    "docs/qwen21/room-skins/manifest.json": {
+      "sha256": "8976d46ee1c77a49a52e4c22fe9f14255af6050cca755a7d232e8462d7ca79fd",
+      "size": 9294
+    },
+    "docs/qwen21/room-skins/med-floor_768.png": {
+      "sha256": "4a756b477f26c1eeea6690b9e37b136704f41dbc08943e56751e0d3bc450a945",
+      "size": 1094007
+    },
+    "docs/qwen21/room-skins/med-wall_768.png": {
+      "sha256": "4d1ea9b5f71eaff986e95c4266aba31ee0dbcc72f0d297dae632d5a274b392e2",
+      "size": 756478
+    },
+    "docs/qwen21/room-skins/power-floor_768.png": {
+      "sha256": "d4e35efc3ad4850921f85a6187ce60fb84d6e0857a144062f9e4b7850d0794bc",
+      "size": 1429286
+    },
+    "docs/qwen21/room-skins/power-wall_768.png": {
+      "sha256": "807697a1636e279b23c951ac81a067dc5bd71411808ddae6edf16600fb2954c3",
+      "size": 1013184
+    },
+    "docs/qwen21/room-skins/transit-floor_768.png": {
+      "sha256": "28558f8ef34260667a35508e4759a38425106c0e75ebca33a9a198309955a434",
+      "size": 1820665
+    },
+    "docs/qwen21/room-skins/transit-wall_768.png": {
+      "sha256": "250637d5a4107a237829d7a821010a0e944ecda3a805fbb8dd03caaab5071a5e",
+      "size": 1073219
+    },
+    "docs/qwen21/room-skins/warehouse-floor_768.png": {
+      "sha256": "771777ce291281028d655d3ff5138064f1db08b266241541fe92d2caf72a5127",
+      "size": 2021050
+    },
+    "docs/qwen21/room-skins/warehouse-wall_768.png": {
+      "sha256": "15792260d592851f5a6686956bd8170c3013dae14cb9ad072bb0c3eb003d1c07",
+      "size": 1279720
+    },
+    "docs/qwen21/surfaces/manifest.json": {
+      "sha256": "c4f398dc1cf49906df42b70603f0dd1daa442ef72874222bc193821ba58b930f",
+      "size": 7147
+    },
+    "docs/qwen21/surfaces/surf-cafeteria-top_768.png": {
+      "sha256": "1569acdf5c7a57a80eb0755f6b01ea1df5ed42db71dfbc47231f6f29bf1e19fc",
+      "size": 1326690
+    },
+    "docs/qwen21/surfaces/surf-crate-steel_768.png": {
+      "sha256": "f9fb72728c6ae122fb9d7134ddee633b234c6b70a4bc8e15ae76349a0bf3abe1",
+      "size": 1399439
+    },
+    "docs/qwen21/surfaces/surf-fabric-weave_768.png": {
+      "sha256": "537d3f49248c2aa530b3981c3d9abe3f0c64811f37c5276aad31dc0dab4674c6",
+      "size": 1746436
+    },
+    "docs/qwen21/surfaces/surf-facility-panel_768.png": {
+      "sha256": "2ac600baa50763efeb838e03c780ca0ec9f2b4b070bb1566fe5af869d7aadebb",
+      "size": 1084554
+    },
+    "docs/qwen21/surfaces/surf-facility-screen_768.png": {
+      "sha256": "248a29c5d253b07a29579280bd9a802bc31ef372ce07e3da7fc48500a48c6b08",
+      "size": 887177
+    },
+    "docs/qwen21/surfaces/surf-hazard-stripe_768.png": {
+      "sha256": "ec7d41b6dfcd9aeab61cd3499eef8526c6bad47404f7217b64a2d770af0454da",
+      "size": 1463745
+    },
+    "docs/qwen21/surfaces/surf-panel-metal_768.png": {
+      "sha256": "81c6e159871a1b6b1e7c1a094fb3b024fd75f32e9d1fe493e253437df0be9fba",
+      "size": 1484258
+    },
+    "docs/qwen21/surfaces/surf-panel-white_768.png": {
+      "sha256": "f263188ab7db68a42f5d5db228350c189d54ddadbaa8666fda779fd77f776aa2",
+      "size": 867787
+    },
+    "docs/qwen21/surfaces/surf-table-composite_768.png": {
+      "sha256": "1d90272358e6f62e3a2a379b62252d3db05ac0e26887b15c7e2cc7e0a2ca3ce1",
+      "size": 1179684
+    },
+    "docs/qwen21/surfaces/surf-warehouse-rack_768.png": {
+      "sha256": "3115de05515795f0c083018ef61a5d417b4d33392889bf0945d5d41782724cbe",
+      "size": 1343826
+    },
+    "docs/qwen21/task-refs/01-engine-sync_768.png": {
+      "sha256": "5a5e7e0ab1e84bf20e33a3ddede26e812aceca339bae2ae2febbf513285f8999",
+      "size": 1334157
+    },
+    "docs/qwen21/task-refs/02-engine-place_768.png": {
+      "sha256": "b89167c65500f51e28e1268bf691cb6997b36532d1306604f719c7930a040f8e",
+      "size": 1311926
+    },
+    "docs/qwen21/task-refs/03-engine-place_768.png": {
+      "sha256": "f13fcde8e1bb7628be7bca6d7a3f861aafe14a42dda37a6d7a7310f29f373f91",
+      "size": 1289733
+    },
+    "docs/qwen21/task-refs/04-engine-wire_768.png": {
+      "sha256": "5c488ef4a858dd8b23b82d58a3f68f32d9d695ef53d55f2c19ad053ac7c5c9e6",
+      "size": 1149233
+    },
+    "docs/qwen21/task-refs/05-ecosys-pour_768.png": {
+      "sha256": "c69c8428a0d902bbeb2696a5fde238975dcd69a1be375844647778185505e4a4",
+      "size": 1154244
+    },
+    "docs/qwen21/task-refs/06-ecosys-pour_768.png": {
+      "sha256": "f9741ddbae80dd4f351922822fb5c0b1b60f3f2bd5a9f941fba78b919769ab80",
+      "size": 1222978
+    },
+    "docs/qwen21/task-refs/07-ecosys-sync_768.png": {
+      "sha256": "10548a12379049509868b209b07dc4525c525ce112edf8f302c70b7946f046d1",
+      "size": 1271510
+    },
+    "docs/qwen21/task-refs/08-power-wire_768.png": {
+      "sha256": "0ff188d88318680445a6606365663db51b3a6bc3e8e17cad5ab0edfac3ee5b30",
+      "size": 1044072
+    },
+    "docs/qwen21/task-refs/09-power-swap_768.png": {
+      "sha256": "0b831ca775416df37aaeaac6a10476af9da39eb528548843dff71e83990f72b1",
+      "size": 1128716
+    },
+    "docs/qwen21/task-refs/10-transit-sort_768.png": {
+      "sha256": "33e6e7c47cb2de70e03170928286300479a7ada93ce7d67f255e0d7085217f9f",
+      "size": 1170859
+    },
+    "docs/qwen21/task-refs/11-transit-sort_768.png": {
+      "sha256": "5d56972b09ef732fc6801d4371b395b63dacf54d5681a60f278cff8b0b8c8123",
+      "size": 1237443
+    },
+    "docs/qwen21/task-refs/12-fun-sequence_768.png": {
+      "sha256": "b527dc25188f61882c85b4ffcbc20fdc6671e1353df56ae5feb90c90d2ade8fd",
+      "size": 994685
+    },
+    "docs/qwen21/task-refs/13-fun-sequence_768.png": {
+      "sha256": "2964e7ddc1337da923523aea229047730954a8a33c3c5bd3b9d249958c865ab7",
+      "size": 1127821
+    },
+    "docs/qwen21/task-refs/14-med-align_768.png": {
+      "sha256": "28bb93636d60412e14f9afcf001c1b192ded3ef2cd1a8ee195e4a9cc3a516f45",
+      "size": 961730
+    },
+    "docs/qwen21/task-refs/15-med-match_768.png": {
+      "sha256": "cfc1ef2b808e223c1f2c30fbc9723033a850fb06c4cc460184399a74e95b4311",
+      "size": 923135
+    },
+    "docs/qwen21/task-refs/16-med-valve_768.png": {
+      "sha256": "a125dcfab6e9f59d3516bf2307375964576dc20c13d774b35d4b26662e1fb0bc",
+      "size": 1084173
+    },
+    "docs/qwen21/task-refs/17-armory-aim_768.png": {
+      "sha256": "40a8d77bc8b59c6e53da7b6f68ae89899259301ea5585c7770544dfd20e295f4",
+      "size": 1378398
+    },
+    "docs/qwen21/task-refs/18-armory-place_768.png": {
+      "sha256": "f200f3fe96aa7007a889436ee1faf8dc46374be02fa8272ccfe99f705f855b80",
+      "size": 1332851
+    },
+    "docs/qwen21/task-refs/19-armory-sort_768.png": {
+      "sha256": "5506459bd2ba5e7ed2071540c7e2015738505738a6fb72cf2071ee0be94907d9",
+      "size": 1362402
+    },
+    "docs/qwen21/task-refs/20-cam-code_768.png": {
+      "sha256": "4f086d18f306b98ef88e35ac3a07053ad74906c44a04ad33a2ec388ad3c1de3a",
+      "size": 1180362
+    },
+    "docs/qwen21/task-refs/21-cam-sequence_768.png": {
+      "sha256": "a2218b4e847f227a0aeb87f601ac10529a54975031e973354d2a491ec9ae3435",
+      "size": 1054541
+    },
+    "docs/qwen21/task-refs/22-cam-code_768.png": {
+      "sha256": "f49bb008f0b6dd55be23e42675e8feb0cea72d52999d8a55be8fff8598ce3c49",
+      "size": 1181900
+    },
+    "docs/qwen21/task-refs/23-warehouse-level_768.png": {
+      "sha256": "8a278981e10db0c939a6e39e910fe59d870a3d30ab142a1ffee7bf982a15dfb8",
+      "size": 1310165
+    },
+    "docs/qwen21/task-refs/24-warehouse-sort_768.png": {
+      "sha256": "254184db2652dd5ef6607d22d9b424eaa8c9a7faea91795db972bc5cd3764913",
+      "size": 1240578
+    },
+    "docs/qwen21/task-refs/25-warehouse-place_768.png": {
+      "sha256": "8cb66b5fa437e4a43a45c78bd9869a1c85cb4aa5170b0fc652629225c494577b",
+      "size": 1344636
+    },
+    "docs/qwen21/task-refs/26-warehouse-code_768.png": {
+      "sha256": "daa1a7f25cbfb4b0229e1743d0d61376262b34ae4827792a9d7c03a9ae376e97",
+      "size": 1407506
+    },
+    "docs/qwen21/task-refs/manifest.json": {
+      "sha256": "836f467693b647b9c51decab115dcc1d0353d30eb6ef15b203c0b4c54e6252f7",
+      "size": 24149
+    },
+    "docs/交付调研_重构后深度游玩与数据核查_20261105.md": {
+      "sha256": "e2eaa9612678b4f4cc4b2d1b4b2c5497c5ec5b7e67256a86f8a949a21ed18f6b",
+      "size": 11409
+    },
+    "docs/交接_深度游玩体验修复_20261103.md": {
+      "sha256": "26f8c5526f77bdd51052dfdbc1be512ef957eb4d9643fe4f7c922f959f11ab8d",
+      "size": 21891
+    },
+    "docs/交接_游戏本体新调整前_20261105.md": {
+      "sha256": "c6d786556e267865de02fad18244680bbdf4e8af26bb1286053ccbfc44c30dbf",
+      "size": 15899
+    },
+    "docs/审查报告_AI推理质量与补给站美术_20261101.md": {
+      "sha256": "4b83949f5a174875c92bf76742dbdffb0f6bf8704aec09aea5b852c7d34508f6",
+      "size": 26146
+    },
+    "docs/审计_证据集中到异形_20261106.md": {
+      "sha256": "7b71c51c750fe098e596b185fb4385d501c90bb256e948d1aa6a84d45f22c26d",
+      "size": 8824
+    },
+    "docs/模拟报告_会议消耗夜晚时间_20261101.md": {
+      "sha256": "ecf3162703da91f061a3ec2368d9d79e4cfb799fc2084feb3fbc1f3926841908",
+      "size": 6905
+    },
+    "docs/设计说明_理智兜底与正向信任_20261101.md": {
+      "sha256": "340c6a08a7614bd468a4c5f386b7028aebd47c780b45e90be1e6496791ed0f0c",
+      "size": 7571
+    },
+    "docs/调查报告_会议与夜晚计时_20261101.md": {
+      "sha256": "a1ebd482c618d64cfacc0616acb0ff5873476e6a1744e6e1f9a59a700b4a3dbe",
+      "size": 8822
+    },
+    "docs/调研报告_3D帧率优化_20261107.md": {
+      "sha256": "dc25339e49ec396d7c89a0d140de2c2bc5ff83def58ceff7683b4435db8eeffe",
+      "size": 8347
+    },
+    "docs/调研报告_Blender_Godot_AI_MCP插件_20261106.md": {
+      "sha256": "f5e7e5469a6aef6b88856712e3834ce002b0342301aeafe866dd70fc40d14248",
+      "size": 17742
+    },
+    "docs/调研报告_同类游玩体验对标与本项目实测_20261104.md": {
+      "sha256": "8dfdc00d4518eae3ccdb7d4f305f789bbfecccd48dc0faa41acafa7856cdea7b",
+      "size": 35332
+    },
+    "docs/调研报告_拉闸与AI重构_20261031.md": {
+      "sha256": "3665b75cb1f5247da8fd20334c12c1e51c10033ec4702d198abcb0d68299b68b",
+      "size": 19336
+    },
+    "docs/调研报告_拟真度与语料_20261101.md": {
+      "sha256": "c0aa645684b1f5624716ef732a56bb42bdb1fb14e37d41e84980f732d4b06d46",
+      "size": 12305
+    },
+    "docs/调研报告二_目击确定性与对话语料_20261101.md": {
+      "sha256": "d86f571e1bda9b4ed1a9be86c0ea9ad55fa035e0ce235bc27ba8256753b63916",
+      "size": 11215
+    },
+    "index.html": {
+      "sha256": "84d3ab4614628a11b3638fbd4ff94f69475247b33798d0b8f6fa23ad0a7772d6",
+      "size": 20030
+    },
+    "js/ai/sanity.js": {
+      "sha256": "f4fa6f705938544815893f8d7d27906ba74d43f0fc15aad6e89cd9592dfd06ca",
+      "size": 72318
+    },
+    "js/ai/traits.js": {
+      "sha256": "df511c87be743dad39fc29717e64e23fbb1aa466334cf1dde9864e68e4a72370",
+      "size": 8832
+    },
+    "js/config/version.js": {
+      "sha256": "8614b065ba5332c3f6ba857834054846ae3ec3f26107a32961b96e0a7f6fe16e",
+      "size": 1613
+    },
+    "js/data/lines.js": {
+      "sha256": "466f1aee5293b8a2c509043e017edd0cfffe897d55f7c6694fec02d5335a6206",
+      "size": 93130
+    },
+    "js/data/map.js": {
+      "sha256": "e40e6ac73b411ac60171bbfbfd889a792fb470892afa6842eb9908aed7dc1d11",
+      "size": 26553
+    },
+    "js/data/names.js": {
+      "sha256": "e23159df4d8a7b7c1b1ce502e8a148cf55243ccdf680d8c528a7406777db3fdd",
+      "size": 2028
+    },
+    "js/data/plates.js": {
+      "sha256": "31382b43a3e8eda766f0ae9112c68b3b177a4f80bc39a1fd6b2c6228d976704a",
+      "size": 3352
+    },
+    "js/engine/clock.js": {
+      "sha256": "42cffc9437594bfdd183bb82518a809bf873ed89dff1e3f2d5544715de57392a",
+      "size": 9503
+    },
+    "js/engine/geo.js": {
+      "sha256": "d431c23b5c888d173a4193b8fff23347572172ee00f0e0838b7b4ae0b90f9274",
+      "size": 7979
+    },
+    "js/engine/invariants.js": {
+      "sha256": "6c88911ae3e775bcb761f3fc90d2e60d5b77090b6f8deb50d5b1a65b07f82197",
+      "size": 9025
+    },
+    "js/game.js": {
+      "sha256": "264b3a66de1f26ae6aed9f92da5adbd51f1ec507367fa70e028b4e83021dadbe",
+      "size": 651429
+    },
+    "js/main.js": {
+      "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",
+      "size": 7547
+    },
+    "js/scene/const.js": {
+      "sha256": "9afa71f196bdf392c80bf60003c7e67d266f49efb6dd642c52a5d4876e55ecdc",
+      "size": 4825
+    },
+    "js/scene/crew.js": {
+      "sha256": "bbc1966d333e7732641a8e27959e949b35bd980c6f081718e22eff82127167f0",
+      "size": 4029
+    },
+    "js/scene/shell.js": {
+      "sha256": "65b3af217f4d8a90639e4d0c1f7c877cef1347b96a79eefb82d5e9068fefbd7e",
+      "size": 11268
+    },
+    "js/t2/ai.js": {
+      "sha256": "15d9928b1d5fa8598dd3b9df359d95d2fec747e298ad016d617f950793f45660",
+      "size": 33730
+    },
+    "js/t2/decision.js": {
+      "sha256": "fa337e9642eb1d69dd6de4c103c27555d13f2db706ca3b41ad7a6f2916edc8e0",
+      "size": 10567
+    },
+    "js/t2/minigame.js": {
+      "sha256": "7fa6101582453e8d09113072d05b83ad920564fedff77dba71f737eab4f1e116",
+      "size": 58888
+    },
+    "js/t2/space.js": {
+      "sha256": "855f757e148282b5c0e904217367a16cb641539f533e6cd3cfe7b9a994a79d1e",
+      "size": 5842
+    },
+    "js/ui/home.js": {
+      "sha256": "da28b31400a270025fb06f8c093d97c67ca38861bc979a4855583236b64c581c",
+      "size": 16266
+    },
+    "js/ui/replay.js": {
+      "sha256": "636ebd90a393c670c7c50a8c9adaeb3e308bb96c9b166d876c23de4569893c69",
+      "size": 21654
+    },
+    "js/ui/templates.js": {
+      "sha256": "626ec68bede68f3dd2c97359a6ad1a0658efcb6bbf8fd6d171019f8bd5bfe744",
+      "size": 22176
+    },
+    "tools/_qwen_refs/armory_floor.png": {
+      "sha256": "4e6252883b4f3dd578ff9c00648bb0589ddedb7f7710804fabc5e872d1a8dc26",
+      "size": 4205584
+    },
+    "tools/_qwen_refs/armory_wall.png": {
+      "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
+      "size": 3191808
+    },
+    "tools/_qwen_refs/bridge_floor.png": {
+      "sha256": "b3e52211549ab61eb5f43d4d017fae3e546ae7097263d756ae4ee1cdfc302e86",
+      "size": 5169446
+    },
+    "tools/_qwen_refs/bridge_wall.png": {
+      "sha256": "579a5d6d20308a0d5d41a1b3dcb4a413617f747ccc061f7683ccd1caad9ec01c",
+      "size": 976709
+    },
+    "tools/_qwen_refs/cam_floor.png": {
+      "sha256": "2e7b53ecfac716a9e99a6b9cdc7935134dff692a785ec81f9edb9c06896cbe3d",
+      "size": 4376019
+    },
+    "tools/_qwen_refs/cam_wall.png": {
+      "sha256": "3e3f3e3c5126f3336b475ce100378f396d42b77ed2d6a97a9c92e635b0d6e8c4",
+      "size": 3713217
+    },
+    "tools/_qwen_refs/ecosys_floor.png": {
+      "sha256": "5e8e744846eaaf31e8d7f5704e82be3327492ac40216d17770840320512c8ee8",
+      "size": 4663766
+    },
+    "tools/_qwen_refs/ecosys_wall.png": {
+      "sha256": "f7246f92ec5e3444fd76c689d5b6b094f986ce1b6c3a11448ceba6e20f7255b0",
+      "size": 1476037
+    },
+    "tools/_qwen_refs/engine_floor.png": {
+      "sha256": "3d6d860faeed9f1d304fd919b67e54cb302b8128fc1e31e6e12e602f16315fc1",
+      "size": 4653564
+    },
+    "tools/_qwen_refs/engine_wall.png": {
+      "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
+      "size": 3191808
+    },
+    "tools/_qwen_refs/fun_floor.png": {
+      "sha256": "78d1a4aeb647f4e73c6975daf1a68bca1ec83a5b9212cc381e2d3c2b35c671c8",
+      "size": 4175756
+    },
+    "tools/_qwen_refs/fun_wall.png": {
+      "sha256": "c8f64d71fc5b00985b8dc9adc5382b585cc711109e61a445194c394a5d6527e8",
+      "size": 1285210
+    },
+    "tools/_qwen_refs/med_floor.png": {
+      "sha256": "f3fe2da73289eadabf4e9880629dbd78e49e632c0f36b71e0dced958016b05fd",
+      "size": 2507638
+    },
+    "tools/_qwen_refs/med_wall.png": {
+      "sha256": "b1a0179d59176338675fb80d9c6a0fff1e4e72392e8cd60495e28cd8179210bd",
+      "size": 383398
+    },
+    "tools/_qwen_refs/power_floor.png": {
+      "sha256": "0f1bc8c13cf7292fc9d4d165d59a97ab866f827ec8b97c2f5c73517eb997c83c",
+      "size": 4633330
+    },
+    "tools/_qwen_refs/power_wall.png": {
+      "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
+      "size": 3191808
+    },
+    "tools/_qwen_refs/transit_floor.png": {
+      "sha256": "26e75f3738105c0f6b1bd30df60e4e130447e05716d1b0bfe72df39055bea070",
+      "size": 4692413
+    },
+    "tools/_qwen_refs/transit_wall.png": {
+      "sha256": "10088fd109799d5117dac445f8c4659177a60c5ca8f367c868241948a314b8b5",
+      "size": 742293
+    },
+    "tools/_qwen_refs/warehouse_floor.png": {
+      "sha256": "2fec00c972ebe7d0406a15d7f849dc1247acd95b628548733843fbcdccd6f67a",
+      "size": 4703289
+    },
+    "tools/_qwen_refs/warehouse_wall.png": {
+      "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
+      "size": 3191808
+    },
+    "tools/_style-report.txt": {
+      "sha256": "d32b5583226677fcbe1fe86ac328ffe1ac1a203309583047fb376c06e68292c5",
+      "size": 2909
+    },
+    "tools/align-tex-style.py": {
+      "sha256": "afb011b0202a6f1f052925bf454588054b32f924a85d7fa6ea4eb9ae2308d16a",
+      "size": 7729
+    },
+    "tools/assets-check.cjs": {
+      "sha256": "c7bb45bbea75d125b09b3ececb0a9fcc3b922215bcc5d4ee54ba23078c17b90a",
+      "size": 5068
+    },
+    "tools/bench-bench-all.json": {
+      "sha256": "99ef659b209fdf27ca91c65f1f9516d78d1b8aa39506c0e61c22156dc8406d7c",
+      "size": 382
+    },
+    "tools/bench-bench.json": {
+      "sha256": "50391cb9537801fb4fdcf466eeb266e75fdbb48c66ad0b81eb7cf75bab6d34c3",
+      "size": 370
+    },
+    "tools/bench-hires-bench-all.json": {
+      "sha256": "8753f9ce8c1813b2fe246b5b790cceb0305593c7a2663e387a06bec6c26116dc",
+      "size": 470
+    },
+    "tools/bench-hires-bench.json": {
+      "sha256": "c2248873f46272bbb0d7baf141bd6cce62fe17e4e6c59b2cf61de068bb201f62",
+      "size": 459
+    },
+    "tools/bench-qwen-rooms.json": {
+      "sha256": "78123b37b9f87348cb89fca8ef80e0f973f3316cd4aea4593efd30defdf50000",
+      "size": 458
+    },
+    "tools/blender-crew.py": {
+      "sha256": "58caec1767049ab731e5181b0da314724646bddd6e5742127c1a1e2789c075fd",
+      "size": 29893
+    },
+    "tools/blender-fx.py": {
+      "sha256": "6e7d424c583aa4e92583101b7842890001700efa0eb0df5b9de8d2b30985116b",
+      "size": 18520
+    },
+    "tools/blender-ship.py": {
+      "sha256": "34e36edb7dc949919828ddb00d007dd17e4b28edea1b59ebe0728f0c18add0fa",
+      "size": 80500
+    },
+    "tools/build-apk-assets.cjs": {
+      "sha256": "d1e84dac37d526954e92c78e2fa670075eea2cce261c260be51089ceff5df55c",
+      "size": 2432
+    },
+    "tools/check-blender.ps1": {
+      "sha256": "27b8c189c4755dade0d5fd3a375973b475e8f8f6a2474452456a05ec27da7c28",
+      "size": 3369
+    },
+    "tools/check-tex-style.py": {
+      "sha256": "b157dd36b7d9b536160973f3f6f5c2f7e81103e530b0b4eb64d63f01aacb10e5",
+      "size": 4570
+    },
+    "tools/crew-sheets.py": {
+      "sha256": "c703b141c72c1014c158954f0f26313ab8d5a772b798cd65df959965b71fa4bc",
+      "size": 2397
+    },
+    "tools/demo-video.cjs": {
+      "sha256": "1ab1176a9b7e5773ae3e649893a8c31502eabe37b42921bbfbd6fbb259ba8df4",
+      "size": 5586
+    },
+    "tools/deploy-pages.cjs": {
+      "sha256": "57175cd3bb55fbb4eb33dfca57e9dcce88d64de29267ba3e8bbb6f3639efbe69",
+      "size": 3114
+    },
+    "tools/fuse-tex-detail.py": {
+      "sha256": "08c1d46a8e369c339318ec0861b6668b6a0a054593768f20456ebeda0de139e6",
+      "size": 4590
+    },
+    "tools/fx-post.py": {
+      "sha256": "298a2828ab2257d11b1b278c54dd4f804c019d9ae613b53def6c0c76af256f9c",
+      "size": 3768
+    },
+    "tools/gen-apk-icon.py": {
+      "sha256": "eddb499648b0570d39ef3d878c35f1872fa97c3b48718c89defc265ac7bbe61f",
+      "size": 3491
+    },
+    "tools/gen-facility-sprites.py": {
+      "sha256": "7b4c867e96bc33fd5f85b81127e59749d192310189cf2fdcc1003d7309066db0",
+      "size": 26379
+    },
+    "tools/gen-hull.py": {
+      "sha256": "8ac52c79a2bf7afc5700a3f48702184f4a097c53b8d888b202155145ade2bb26",
+      "size": 5189
+    },
+    "tools/gen-materials.py": {
+      "sha256": "9925ce0341fabd7fe00717e14f69723d1c76e647aefc87cb9791b5ce69c5f6e1",
+      "size": 26457
+    },
+    "tools/gen-qr.py": {
+      "sha256": "1f3a69f71fbeb7d1ffb4ca5001896af412b4163b71ca17ca64d6ace09dab93aa",
+      "size": 1500
+    },
+    "tools/layout-reach-report.md": {
+      "sha256": "f616b9df2bf3c5fbf07b32885de93282baf8738c66f2f9047fb87e7ff9f8f4a9",
+      "size": 1019
+    },
+    "tools/layout-reach.cjs": {
+      "sha256": "1cf06b57ac3f1dc24588dbe1131268ec6b559b5e9083d6607eca19fe2aac6100",
+      "size": 24547
+    },
+    "tools/lib/wrangler.cjs": {
+      "sha256": "bb7c9f7efef3f13547b12e231c0505025cd724a5c51e73ad82cd8c01e05d39c0",
+      "size": 1262
+    },
+    "tools/lines-audit.cjs": {
+      "sha256": "26fefe93e973635a57e49aa346c0237bc79ea5b8120037ada25c748129d1f226",
+      "size": 36519
+    },
+    "tools/lines-report.md": {
+      "sha256": "168a162e6ff6dbbbdc1eed31f2d62bebac25450a1336ba5c41f533aa92009249",
+      "size": 10821
+    },
+    "tools/map-check.cjs": {
+      "sha256": "19e49a0f660556a4d6b683602d778b1f81288a810977b753e2793f728f77b0eb",
+      "size": 5739
+    },
+    "tools/master-sfx.py": {
+      "sha256": "1ca5f4ab38587208bac9393f5d64a5a0b2a5c9e9049b64004766b35e53d22370",
+      "size": 10113
+    },
+    "tools/mc-report-E.md": {
+      "sha256": "6a36d0886ac204540efa2b5c28d101386badf3a225ebf39040103869ff0799b2",
+      "size": 17437
+    },
+    "tools/mc-report.md": {
+      "sha256": "5310920f344d808578d14bfba3c0b066b8807067eb2a2e3309a57dd31c9fc822",
+      "size": 35769
+    },
+    "tools/mc-results-E.json": {
+      "sha256": "62a49e8188e2c26d6f495870d08f18629903ab77d7eaea91ab34f70f9a61eba1",
+      "size": 2735067
+    },
+    "tools/mc-results-E.json.gz": {
+      "sha256": "f48290782a336bf1e28ed41d1a7574db245ce1246e501dd6a2451fd81df85162",
+      "size": 171682
+    },
+    "tools/mc-results.json": {
+      "sha256": "788a00906ed23deba00e93e59c128f116a78e7bdffe930fc8594f72f686b5f2b",
+      "size": 3641764
+    },
+    "tools/mc-results.json.gz": {
+      "sha256": "7b9cef894862b2cf2fd88ad22b422bf1e901a6a1e939fd8086ba401c88de9959",
+      "size": 211400
+    },
+    "tools/minigame-preview.html": {
+      "sha256": "473553ac1515e59eaad39ce93a2d9244ef20d9da9dd2184620a48cbe1a9634e3",
+      "size": 31272
+    },
+    "tools/monte-carlo.cjs": {
+      "sha256": "bf1f31b18ba3cd268b7f16a3db852cb69c3269139167721483631e87a528b545",
+      "size": 49919
+    },
+    "tools/patch-qwen-policy.py": {
+      "sha256": "35bd9ddc5a12d66ff103ea430c938d40c4d26f21baec3f2e26b6467fe2750a9b",
+      "size": 9226
+    },
+    "tools/plate-demo.html": {
+      "sha256": "dd86a086f855208e5778991f2863e67d98e4f903c0ed569d07f66ddea3b6ce03",
+      "size": 1703176
+    },
+    "tools/plate/build.cjs": {
+      "sha256": "198f77bbd45e0e0c98870e9bc12f054d7705e0c76fac6425ab4fe826db2b9d60",
+      "size": 3502
+    },
+    "tools/plate/panel-fix.plate.json": {
+      "sha256": "28e9b7cac2c2d4d00a117aebbe67e7cbe596ae3c6d2727b295fcd92c493a4d3d",
+      "size": 1010
+    },
+    "tools/plate/plate.schema.json": {
+      "sha256": "c119ded84478aad3e2b133dfb405fcea1c834a18c48be535335c6a4a88d717dc",
+      "size": 2325
+    },
+    "tools/plate/probe.cjs": {
+      "sha256": "29c565509d4bbddba16d8cb75e20b13ebcf24f7f18fdacf40ac01457dd479a61",
+      "size": 3722
+    },
+    "tools/plate/snap.cjs": {
+      "sha256": "9a4bce14147cdbd45101619e59bc3f88925e77679b044ec8d76a217833e0f7c1",
+      "size": 4358
+    },
+    "tools/plate/template.html": {
+      "sha256": "5680bc7edbc24e1316b27da78a7d0f42b190685f76655f1a71b96a0de94df966",
+      "size": 10135
+    },
+    "tools/plate/validate.cjs": {
+      "sha256": "c1f2d77a5188714563d39bae6b4915140954d5b35066522035c9087f6135fe24",
+      "size": 6579
+    },
+    "tools/plate/zoom.cjs": {
+      "sha256": "63d0d9f69c01a07a45057663a947c7bb1a0eadb160b4d3a71b138658ae2555cd",
+      "size": 1413
+    },
+    "tools/qwen-rooms-report.json": {
+      "sha256": "3287b365a91d4896abd6bf234704090ae98d1df3e75ff007fbf92d2f5a3a0bb2",
+      "size": 5030
+    },
+    "tools/serve.cjs": {
+      "sha256": "de5635c9deb50cbed9a316ea19af32819632765f4e6d70d689ed0a444dd6a687",
+      "size": 2096
+    },
+    "tools/sfx-audit.py": {
+      "sha256": "1915fe0a3d83b6780aa6f0766a3ce1fadccc2e66aa24ba047179319dd00c79e6",
+      "size": 8280
+    },
+    "tools/sfx-report.md": {
+      "sha256": "bc416e22ba101a750d624933091197aa336d8df987fa56f6bd899ed0c6097131",
+      "size": 2324
+    },
+    "tools/ship-layout-build.cjs": {
+      "sha256": "4af0f11885baf2673c74a187ff8e2fe590114d86af24e0342a7ed839fd299c3d",
+      "size": 32439
+    },
+    "tools/ship-layout-check.cjs": {
+      "sha256": "257f41ba0e2c77f41e880c3f5fe65ef7a60a10170dcf0885e75b808313716918",
+      "size": 16992
+    },
+    "tools/ship-layout-current.json": {
+      "sha256": "a241ed49be73ef306a25adbe9f28caee737fd038629c2d502514155b89c38315",
+      "size": 28236
+    },
+    "tools/ship-layout-overview.html": {
+      "sha256": "15dc1161030f3b7668c456521e6a4eda3e4270cac34f6c1ab8cc203a53628335",
+      "size": 96190
+    },
+    "tools/ship-layout-plan.json": {
+      "sha256": "65b762831c86b52947d591c363bb59586efb061d7cccfd7d762a59a081618776",
+      "size": 109215
+    },
+    "tools/ship-layout-plan.md": {
+      "sha256": "93c813cb807725365623ad206acd27c9094dd46297463474950b244b9fe78582",
+      "size": 12016
+    },
+    "tools/ship-layout-report.md": {
+      "sha256": "4acefbc52bc27557d294d7d79700578bbafa4d6f3d44997541361f873af2a8fe",
+      "size": 11965
+    },
+    "tools/ship-layout-spec.cjs": {
+      "sha256": "5e9f86943c7727d8292a1b6e21791206fbc110044d6a4666a502ad4d9bb60331",
+      "size": 34751
+    },
+    "tools/ship.cjs": {
+      "sha256": "ad8909aea2c48f5cf7d5ce92b3144dd2faa108110cca8fdc91a672c1131b8696",
+      "size": 19466
+    },
+    "tools/shots-facility.cjs": {
+      "sha256": "27cb37dcae5641d165231ac862ed60826fff04d63f8db0a6ff990e139d9c391a",
+      "size": 3174
+    },
+    "tools/style-align-report.json": {
+      "sha256": "947b837553c2abc0971231a2b0a9c7eeb476aeb41d8b1857f4cb3961a1782dcd",
+      "size": 2727
+    },
+    "tools/sync-map-v2-cover.cjs": {
+      "sha256": "fb525657e6d76dfa1900d4252b27f09b93c4ade8bf43346363de3cd54ce5b576",
+      "size": 5518
+    },
+    "tools/test-v3.cjs": {
+      "sha256": "d1fcbc3bd4de45db7696622b34af03e9d6680776829f0eba6ac865ee75c8489d",
+      "size": 472760
+    },
+    "tools/tex-detail-fusion-report.json": {
+      "sha256": "ef34550dbc536609e2b2062bbc2741a2d19f71971ba1557e75ccf633e005e459",
+      "size": 1451
+    },
+    "tools/ux-audit.cjs": {
+      "sha256": "f7e6f8b97482e4c4bacb5d9ebb0ac94383dfb6f2943f3ce3a56911d0dabc416a",
+      "size": 36378
+    },
+    "tools/ux-report.md": {
+      "sha256": "cd5498b960af48bc92c10fc36e66735bdae23d4d75486b5cee6bc6fab1d48428",
+      "size": 5179
+    },
+    "tools/ux-results.json": {
+      "sha256": "2ccd067cb937dea643c5067e53874717b276ea5e6ee2f7c2fa2d7caa43bccd32",
+      "size": 21705
+    }
+  }
+}

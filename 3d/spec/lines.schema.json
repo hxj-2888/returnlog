@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "3D 台词语料契约（S 轨）",
+  "description": "由 3d/tools/export-lines.cjs 从 js/data/lines.js + js/ai/sanity.js + js/ai/traits.js 导出；3D 端只读，不在 GDScript 里抄台词或数值。",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "sources",
+    "placeholders",
+    "tone",
+    "tags",
+    "claim_act",
+    "room_words",
+    "cn_seat",
+    "when_words",
+    "speech_patterns",
+    "pools",
+    "why",
+    "combos",
+    "rules",
+    "stats"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "sources": {
+      "type": "object",
+      "description": "每个真源文件的 path + sha1（前 12 位）；校验器会重新算一遍，防止改了语料没重导。"
+    },
+    "placeholders": {
+      "type": "array",
+      "description": "与 js/game.js#fillTpl 逐项对齐的词槽名；{a|b} 组合槽由正则单独识别。",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 9
+    },
+    "tone": {
+      "type": "object",
+      "required": [
+        "hot_threshold",
+        "neutral",
+        "axes",
+        "bands"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claim_act": {
+      "type": "object",
+      "description": "行为词表：saw_knife → 出刀 等，供传闻句翻成人话。"
+    },
+    "pools": {
+      "type": "object",
+      "description": "category → {hot: string[], cold: string[], combo?: string[]}；MIDA 六类说服策略 + 扩充批次，共 62 类。",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "hot": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "cold": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "combo": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "why": {
+      "type": "object",
+      "description": "evidence kind → 证据短语数组；18 类（saw_knife / saw_pipe / heard_claim ...）。",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "combos": {
+      "type": "object"
+    },
+    "rules": {
+      "type": "object",
+      "description": "SKSanity 发言规则表快照：SPEECH / TESTIFY / RELIA / MIND / ATTN / MEET / VOTE / ALMOST / LEADER / FRAME / WARM / ALIBI / SOCIAL 等 21 张。",
+      "required": [
+        "SPEECH",
+        "TESTIFY",
+        "RELIA",
+        "MIND",
+        "ATTN",
+        "MEET",
+        "VOTE",
+        "ALMOST"
+      ]
+    },
+    "stats": {
+      "type": "object"
+    },
+    "room_words": {
+      "type": "array",
+      "description": "SKT2Decision.ROOM_WORDS：38 组 [中文舱室词, room_id]"
+    },
+    "cn_seat": {
+      "type": "object",
+      "description": "中文席位号 → 1..15"
+    },
+    "when_words": {
+      "type": "object",
+      "description": "whenWord：day→昨晚 / night→今晚"
+    },
+    "speech_patterns": {
+      "type": "object",
+      "description": "parseSpeech 的 JS 正则字符串；GDScript 用 RegEx 编译"
+    }
+  }
+}
