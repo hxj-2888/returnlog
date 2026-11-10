@@ -13,6 +13,11 @@
 # 用法：   python tools/gen-materials.py --mode sdxl --size 768 --steps 26
 #          python tools/gen-materials.py --mode sdxl --only panel-metal crate-steel
 #          python tools/gen-materials.py --mode reuse      # 无显卡兜底：场景素材派生
+# 高清重出（2026-11-07）：--size 1024 --out-size 2048 --steps 28
+#          只提高「出图边长 + 拼贴成品边长」，prompt / seed / NEG / guidance /
+#          grade / TINT / 四向镜像拼贴流程全部保持原样，保证风格不漂移。
+#          --out-size 默认 1024（老口径：四向镜像拼贴后回缩 1024），
+#          设为 2×size 可关闭有损回缩，得到真正无损的高清平铺图。
 # 依赖：   本地 SDXL（默认 D:\ai-models\sdxl-base），可用环境变量覆盖：
 #            SDXL_MODEL / SDXL_VAE
 # 关键实现：· SDXL 的 fp16 UNet 是 5.13GB，diffusers 默认走 safetensors mmap，
@@ -32,6 +37,11 @@ TEX = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
 MODEL = os.environ.get('SDXL_MODEL', r'D:\ai-models\sdxl-base')
 VAE = os.environ.get('SDXL_VAE', r'D:\ai-models\vae-fp16-fix')
 SIZE = 1024
+# 8GB 笔记本上「UNet fp16 5.13GB + VAE + 两个 CLIP」会把显存占满，
+# 编码完再 del CLIP 也收不回（transformers 仍持有引用），去噪只能反复换页，
+# 一张 768² 要跑 3 分钟以上。改成两个 CLIP 留在 CPU 编码（fp32，约 1.4GB 内存），
+# GPU 只放 UNet + VAE，腾出 ~2GB 激活空间。SDXL_GPU_TEXT=1 可恢复老行为。
+CPU_TEXT = os.environ.get('SDXL_GPU_TEXT', '0') != '1'
 
 # 与 assets/scene/v4/tex 现有地板/墙面一致的冷暗基调（线性 0~1）
 TINT = (0.80, 0.86, 0.98)
@@ -101,6 +111,19 @@ SPECS = {
         'seamless tileable texture, sci-fi security monitoring screen contents, very dark glass '
         'with faint teal grid lines, thin data traces and small glowing readout bars, subtle '
         'scanlines and vignette, no readable words, flat even lighting, no logo'),
+    # 2026-11-07 高清重出补齐：这两张原是更早批次的老图，没有留 prompt 记录。
+    # 语义严格照 assets/scene/v4/CREDITS.md 与 3d/tools/gen-hires-skins.py 的既有描述
+    # （生态舱斑驳绿 / 深色低反光地毯），并共用同一套 NEG、grade、TINT、seed 体系，
+    # 重出后再用 tools/check-tex-style.cjs 量测色温明度，确认没有跑出原风格。
+    'floor-eco': (
+        'seamless tileable texture, dark spacecraft hydroponics bay deck surface, weathered '
+        'olive green composite with mottled moss-like patina and fine condensation speckle, '
+        'charcoal undertones, matte and low sheen, flat even lighting, no text, no logo, '
+        'no perspective'),
+    'floor-carpet': (
+        'seamless tileable texture, dark slate grey spacecraft carpet tiles, tight low-sheen '
+        'loop pile with subtle foot wear and faint amber inlay seams, slightly dusty, '
+        'flat even lighting, no text, no logo, no perspective'),
 }
 # reuse 模式：家具直接派生自场景已有素材，天然同风格、同精度、同明度层级
 REUSE = {
@@ -120,35 +143,42 @@ REUSE = {
     'floor-engine': ('floor-grate.png', (1.06, 0.96, 0.84), 1.06, 0.026),
     'facility-panel': ('panel-metal.png', (1.00, 1.02, 1.10), 1.10, 0.020),
     'facility-screen': ('floor-monitor.png', (0.80, 1.06, 1.10), 0.96, 0.014),
+    'floor-eco': ('floor-eco.png', (0.96, 1.06, 0.92), 1.00, 0.018),
+    'floor-carpet': ('floor-carpet.png', (0.94, 0.99, 1.06), 1.00, 0.018),
 }
 NEG = ('text, letters, watermark, logo, photograph of a room, furniture object, '
        'strong perspective, glossy reflection, bright saturated color, blur, noise bands')
 
 
 # ---------------- 程序化贴图 ----------------
-def procedural_ao(path):
-    """接地软阴影：中间实、边缘羽化的圆角矩形 alpha 遮罩（黑色 RGB）。"""
+def procedural_ao(path, s=512):
+    """接地软阴影：中间实、边缘羽化的圆角矩形 alpha 遮罩（黑色 RGB）。
+
+    s 可按高清档位放大；所有几何/羽化参数按 s/512 等比缩放，视觉尺度不变。
+    """
     from PIL import Image, ImageDraw, ImageFilter
-    s = 512
+    k = s / 512.0
     img = Image.new('RGBA', (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     m = int(s * 0.16)
     d.rounded_rectangle([m, m, s - m, s - m], radius=int(s * 0.14), fill=(0, 0, 0, 210))
-    img = img.filter(ImageFilter.GaussianBlur(34))
+    img = img.filter(ImageFilter.GaussianBlur(34 * k))
     a = img.split()[3].point(lambda v: int(v * 0.85))
     img.putalpha(a)
     img.save(path)
     print('  wrote', os.path.basename(path))
 
 
-def procedural_hazard(path):
-    """琥珀警戒斜纹：45° 条纹 + 磨损噪点，整数周期保证可平铺。"""
-    import math
+def procedural_hazard(path, s=512):
+    """琥珀警戒斜纹：45° 条纹 + 磨损噪点，整数周期保证可平铺。
+
+    高清重出时 s 放大，条纹周期与低频噪声块等比放大，条纹的视觉宽度保持不变。
+    """
     import numpy as np
     from PIL import Image
-    s = 512
+    k = s / 512.0
     yy, xx = np.mgrid[0:s, 0:s].astype(np.float32)
-    period = 64.0
+    period = 64.0 * k
     t = ((xx + yy) % period) / period
     stripe = (t < 0.5)
     base = np.array([20, 19, 17], np.float32) / 255.0
@@ -157,7 +187,8 @@ def procedural_hazard(path):
     # 磨损：低频噪声 + 高频颗粒
     rng = np.random.default_rng(20261029)
     grain = rng.normal(0.0, 0.055, (s, s, 1)).astype(np.float32)
-    big = rng.normal(0.0, 1.0, (16, 16, 1)).astype(np.float32)
+    bs = max(4, int(16 * k))
+    big = rng.normal(0.0, 1.0, (bs, bs, 1)).astype(np.float32)
     from PIL import Image as I
     bigim = I.fromarray(((big[..., 0] * 0.5 + 0.5) * 255).astype('uint8')).resize((s, s), I.BICUBIC)
     lowc = (np.asarray(bigim, np.float32)[..., None] / 255.0 - 0.5) * 0.30
@@ -240,13 +271,20 @@ def build_pipe():
     vae.to('cuda'); vae.enable_slicing(); vae.enable_tiling()
     tok1 = AutoTokenizer.from_pretrained(MODEL, subfolder='tokenizer', use_fast=False)
     tok2 = AutoTokenizer.from_pretrained(MODEL, subfolder='tokenizer_2', use_fast=False)
+    # fp16 在 CPU 上跑 CLIP 的 LayerNorm 会炸，CPU 路径用 fp32；编码结果转 fp16 上 GPU。
+    te_dt = torch.float32 if CPU_TEXT else dt
     te1 = CLIPTextModel.from_pretrained(MODEL, subfolder='text_encoder',
-                                        torch_dtype=dt, variant='fp16', use_safetensors=True)
-    te1.to('cuda').eval()
+                                        torch_dtype=te_dt, variant='fp16', use_safetensors=True)
     te2 = CLIPTextModelWithProjection.from_pretrained(MODEL, subfolder='text_encoder_2',
-                                                      torch_dtype=dt, variant='fp16',
+                                                      torch_dtype=te_dt, variant='fp16',
                                                       use_safetensors=True)
-    te2.to('cuda').eval()
+    if not CPU_TEXT:
+        te1.to('cuda')
+        te2.to('cuda')
+    te1.eval()
+    te2.eval()
+    print('[materials] 文本编码器设备：%s' % ('CPU（腾显存）' if CPU_TEXT else 'CUDA'),
+          flush=True)
     gc.collect()
     cfg = UNet2DConditionModel.load_config(MODEL, subfolder='unet')
     with init_empty_weights():
@@ -259,9 +297,10 @@ def build_pipe():
                                      text_encoder_2=te2, tokenizer_2=tok2, unet=unet,
                                      scheduler=sched, add_watermarker=False)
     pipe.set_progress_bar_config(disable=True)
-    pipe.enable_attention_slicing()
+    # 最大切片只改 attention 的计算分块方式，不改数值结果（同 seed 逐像素一致）。
+    pipe.enable_attention_slicing('max')
     free, total = torch.cuda.mem_get_info()
-    print('[materials] 载入后 VRAM free %.2f / %.2f GB' % (free / 1e9, total / 1e9))
+    print('[materials] 载入后 VRAM free %.2f / %.2f GB' % (free / 1e9, total / 1e9), flush=True)
     return pipe
 
 
@@ -269,40 +308,58 @@ def drop_text_encoders(pipe):
     """提示词编码完就把两个文本编码器踢出显存，给去噪循环腾出激活空间。"""
     import gc
     import torch
+    # 直接 del 而不是置 None：transformers 的模块注册表可能仍持有引用，
+    # 置 None 时 gc 收不掉，显存依旧被两个 CLIP 占着，去噪只能换页。
+    te1, te2 = pipe.text_encoder, pipe.text_encoder_2
     pipe.text_encoder = None
     pipe.text_encoder_2 = None
+    del te1, te2
+    gc.collect()
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
     gc.collect()
     torch.cuda.empty_cache()
     free, total = torch.cuda.mem_get_info()
-    print('[materials] 释放文本编码器后 VRAM free %.2f / %.2f GB' % (free / 1e9, total / 1e9))
+    print('[materials] 释放文本编码器后 VRAM free %.2f / %.2f GB'
+          % (free / 1e9, total / 1e9), flush=True)
     return pipe
 
 
 def encode_all(pipe, jobs):
-    """一次性把所有正/负提示词编码好（此时文本编码器还在显存里）。"""
+    """一次性把所有正/负提示词编码好（CPU_TEXT 时在 CPU 上编码，输出留 CPU）。"""
+    import torch
+    dev = torch.device('cpu') if CPU_TEXT else torch.device('cuda')
     outs = []
     for prompt in jobs:
         pe, npe, pooled, npooled = pipe.encode_prompt(
-            prompt=prompt, prompt_2=None, device=__import__('torch').device('cuda'),
+            prompt=prompt, prompt_2=None, device=dev,
             num_images_per_prompt=1, do_classifier_free_guidance=True, negative_prompt=NEG)
-        outs.append(tuple(t.to('cpu') for t in (pe, npe, pooled, npooled)))
+        outs.append(tuple(t.detach().to('cpu') for t in (pe, npe, pooled, npooled)))
     return outs
 
 
-def gen_ai(pipe, name, prompt_embeds, seed, steps, size):
+def gen_ai(pipe, name, prompt_embeds, seed, steps, size, out_size=SIZE):
+    """风格锁死的唯一出图入口。
+
+    prompt_embeds / seed / steps / guidance / grade / TINT / mirror_tile 全部沿用
+    老管线；只有 size（SDXL 采样边长）与 out_size（拼贴成品边长）可以调。
+    out_size = 2 * size 时四向镜像拼贴不做有损回缩，成品无插值糊化。
+    """
     import numpy as np
     import torch
     from PIL import Image
-    pe, npe, pooled, npooled = [t.to('cuda') for t in prompt_embeds]
+    # CPU 文本编码器产出 fp32，UNet 是 fp16；统一转到 GPU + fp16（数值与老口径一致）
+    pe, npe, pooled, npooled = [t.to(device='cuda', dtype=torch.float16)
+                                for t in prompt_embeds]
     img = pipe(prompt_embeds=pe, negative_prompt_embeds=npe,
                pooled_prompt_embeds=pooled, negative_pooled_prompt_embeds=npooled,
                height=size, width=size, num_inference_steps=steps, guidance_scale=6.0,
                generator=torch.Generator('cuda').manual_seed(seed)).images[0]
     arr = np.asarray(img.convert('RGB'))
     arr = grade(arr)
-    arr = mirror_tile(arr, SIZE)
+    arr = mirror_tile(arr, out_size)
     Image.fromarray(arr).save(os.path.join(TEX, name + '.png'))
-    print('  wrote %s (SDXL %dpx)' % (name + '.png', size))
+    print('  wrote %s (SDXL %dpx -> %dpx tile)' % (name + '.png', size, out_size), flush=True)
 
 
 def detail_pass(name, a):
@@ -394,16 +451,23 @@ def main():
     ap.add_argument('--steps', type=int, default=28)
     ap.add_argument('--size', type=int, default=768,
                     help='SDXL 出图边长（8GB 显存建议 768；512 更稳，1024 需要更大显存）')
+    ap.add_argument('--out-size', type=int, default=0,
+                    help='四向镜像拼贴后的成品边长；0 = 沿用老口径 1024（有损回缩）。'
+                         '高清重出建议设为 2×--size，关闭回缩得到无损平铺图。')
     ap.add_argument('--seed', type=int, default=20261029)
     ap.add_argument('--mode', choices=('sdxl', 'reuse'), default='sdxl',
                     help='sdxl=本地 SDXL 出图（默认，失败自动退回派生）；'
                          'reuse=直接从场景已有素材派生（不吃显卡）')
     a = ap.parse_args()
     os.makedirs(TEX, exist_ok=True)
+    out_size = a.out_size or SIZE
+    proc_size = a.out_size or 512
 
     procedural_ao(os.path.join(TEX, 'ao-soft.png'))
-    procedural_hazard(os.path.join(TEX, 'hazard-stripe.png'))
+    procedural_hazard(os.path.join(TEX, 'hazard-stripe.png'), proc_size)
     names = [n for n in (a.only or list(SPECS)) if n in SPECS]
+    print('[materials] %d 张 · SDXL %dpx · 成品 %dpx · seed %d · steps %d'
+          % (len(names), a.size, out_size, a.seed, a.steps), flush=True)
 
     if a.mode == 'reuse':
         for n in names:
@@ -424,11 +488,12 @@ def main():
 
     embeds = encode_all(pipe, [SPECS[n] for n in names])
     drop_text_encoders(pipe)
-    for n, emb in zip(names, embeds):
+    for i, (n, emb) in enumerate(zip(names, embeds), 1):
+        print('  [%d/%d] %s ...' % (i, len(names), n), flush=True)
         try:
-            gen_ai(pipe, n, emb, a.seed + len(n), a.steps, a.size)
+            gen_ai(pipe, n, emb, a.seed + len(n), a.steps, a.size, out_size)
         except Exception as e:
-            print('  SDXL 出图失败 %s（%s），改用派生' % (n, e))
+            print('  SDXL 出图失败 %s（%s），改用派生' % (n, e), flush=True)
             gen_reuse(n)
     return 0
 

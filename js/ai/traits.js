@@ -96,6 +96,15 @@
     defendChance: a => Math.min(0.92, 0.55 + 0.30 * b(a, 'soc') + 0.10 * b(a, 'aggr')),
     /* 跟票概率（有人带头指控时，基线 0.60，见 startChatter 的 supporter 段） */
     followChance: a => Math.min(0.95, 0.60 + 0.28 * b(a, 'soc') + 0.15 * b(a, 'aggr')),
+    /* 异形「顺势踩」的概率（基线取 SKSanity.SOCIAL.pileOn，见 alienSocialPick）。
+       社交的人更会看场上、激进的人更敢当面踩一脚；谨慎的人不爱当第三个声音。
+       中性档必须回到基线，A/B 才可比 —— 所以这里是乘倍率，不是加减绝对值。 */
+    pileOn: a => {
+      const S = (global.SKSanity && global.SKSanity.SOCIAL) || {};
+      const base = S.pileOn == null ? 0.45 : S.pileOn;
+      return Math.max(0, Math.min(0.98,
+        base * (1 + 0.35 * b(a, 'soc') + 0.20 * b(a, 'aggr') - 0.15 * b(a, 'caut'))));
+    },
     /* 情绪：被指控后记仇的强度（见 grudgeAdd） */
     grudgeGain: a => 1 + 0.45 * b(a, 'aggr') + 0.20 * b(a, 'caut'),
     /* 情绪：被辩护后记恩的强度（见 trustAdd） */
