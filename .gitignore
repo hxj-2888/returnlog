@@ -11,6 +11,12 @@ tools/_mc-*.json
 tools/_mc-*.md
 3d/preview/scripts/_*.gd
 3d/preview/scripts/_*.gd.uid
+# 2026-11-10 真源清洁：字节码 / 工具备份不入库（2.5D main 与 3D 副分支同口径）
+__pycache__/
+*.pyc
+*_bak/
+_bak/
+*.blend1
 
 # 系统垃圾文件
 .DS_Store
