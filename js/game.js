@@ -1244,6 +1244,8 @@
     function playerMiniGame(a){
       if(a!==G.me||G.spectMode||G.simMode||SIM_RUN||TEST_RUN)return false;
       if(!global.SKMiniGame||!STAND_ACT[a._doing]||a._doing==='sab')return false;
+      /* 领单交互即领、补给纯站桩读秒：这三项不弹小游戏遮罩（2026-11-10 用户裁定）。 */
+      if(a._doing==='qual'||a._doing==='med'||a._doing==='ammo')return false;
       /* 收尾阈值：onDone 把 doing 置成 0.001 交给下一帧 finishDoing，
          这里必须放行，否则会被当成"新任务"立刻重开一局遮罩。 */
       if(a.doing<=0.05)return false;
@@ -2957,7 +2959,7 @@
         if(qd){
           if(Math.hypot(qd.x-a.x,qd.y-a.y)<1.8){
             a.path=null;a.moving=false;
-            a.doing=SKSanity.STAND.qual;a._dur=SKSanity.STAND.qual;a._doing='qual';return;
+            grantQual(a);return;
           }
           walkTo(a,qd.x,qd.y);stepMove(a,dt,moveSpeed(a));return;
         }
@@ -3551,7 +3553,7 @@
         const qd=roundTableClaimSpot();
         if(qd){
           if(Math.hypot(qd.x-a.x,qd.y-a.y)<1.8){
-            a.path=null;a.moving=false;a.doing=SKSanity.STAND.qual;a._dur=SKSanity.STAND.qual;a._doing='qual';return true;
+            a.path=null;a.moving=false;grantQual(a);return true;
           }
           if(!a.path||!a.path.length)walkTo(a,qd.x,qd.y);
           stepMove(a,dt,moveSpeed(a));return true;
@@ -4318,6 +4320,18 @@
       return true;
     }
     
+    /* 领申请单（2026-11-10 交互即领）：玩家与 AI 共用同一入口，无站桩、无小游戏。 */
+    function grantQual(a){
+      const actor=!G.spectMode&&a===G.me;
+      if(a.qualPending>0||G.designMode){
+        if(!G.designMode)a.qualPending--;
+        a.qual=Math.min(2,(a.qual||0)+1);
+        G.fx.push({type:'qual',x:a.x,y:a.y,t:1.5,dur:1.5,n:a.qual});
+        logEvent('qual',{actor:a.i,room:roomIdAt(a.x,a.y),
+          x:+a.x.toFixed(1),y:+a.y.toFixed(1),n:a.qual});
+        if(actor){toast('领取物资申请单 ×1 · 可去军械库/医疗间补给点兑换');pulseHud('ql');SND.qual();}
+      }else if(actor)toast('没有待领取的物资申请单');
+    }
     function finishDoing(a){
       const actor=!G.spectMode&&a===G.me;
       if(a._doing==='search'){
@@ -4378,14 +4392,7 @@
       }
       if(a._doing==='qual'){
         a._doing=null;
-        if(a.qualPending>0||G.designMode){
-          if(!G.designMode)a.qualPending--;
-          a.qual=Math.min(2,(a.qual||0)+1);
-          G.fx.push({type:'qual',x:a.x,y:a.y,t:1.5,dur:1.5,n:a.qual});
-          logEvent('qual',{actor:a.i,room:roomIdAt(a.x,a.y),
-            x:+a.x.toFixed(1),y:+a.y.toFixed(1),n:a.qual});
-          if(actor){toast('领取物资申请单 ×1 · 可去军械库/医疗间补给点兑换');pulseHud('ql');SND.qual();}
-        }else if(actor)toast('没有待领取的物资申请单');
+        grantQual(a);
         return;
       }
       if(a._doing==='breaker'){
@@ -7992,8 +7999,8 @@
        W 收集附近所有可交互项：只有 1 项直接执行，多项打开轮盘，避免按键语义重叠。 */
     function startClaim(me){
       me.path=null;me.moving=false;
-      me.doing=SKSanity.STAND.qual;me._dur=SKSanity.STAND.qual;me._doing='qual';
-      SND.interact();toast('领取物资申请单 3s · 移动会打断');
+      grantQual(me);
+      SND.interact();
     }
     function startSupply(me,sp){
       if(!sp)return false;
@@ -8004,7 +8011,7 @@
       const dur=sp.item==='ammo'?SUPPLY_AMMO_TIME:SUPPLY_MED_TIME;
       me.doing=dur;me._dur=dur;me._doing=sp.item==='ammo'?'ammo':'med';
       toast('消耗 1 张物资申请单领取'+(sp.item==='ammo'?'子弹 '+dur+'s':'医疗包 '+dur+'s')+
-        (miniGameOn()?' · 玩通即完成，中途退出要重做':' · 站桩，移动会打断'));
+        ' · 站桩，移动会打断');
       SND.interact();
       return true;
     }
@@ -9306,10 +9313,7 @@
           ctx.strokeStyle=tint.a('.85');ctx.lineWidth=1.4;
           ctx.beginPath();ctx.roundRect(x-0.75*s,y-0.55*s,1.5*s,1.1*s,0.12*s);ctx.fill();ctx.stroke();
         }
-        const k=(T*0.55+q.x*0.07)%1;
-        ctx.strokeStyle=tint.a((0.5*(1-k)).toFixed(2));ctx.lineWidth=1.2;
-        const pw=1.5*s*(0.6+0.7*k),ph=1.1*s*(0.6+0.7*k);
-        ctx.beginPath();ctx.roundRect(x-pw/2,y-ph/2,pw,ph,0.12*s);ctx.stroke();
+        /* 2026-11-10：不再画彩色脉冲外框（用户否决"突兀色框"）；精灵已按舱室地板色调分级。 */
       }
     }
     /* 圆桌上的物资申请单：有待领时显示金色单据与脉冲环 */
