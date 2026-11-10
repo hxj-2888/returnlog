@@ -2601,7 +2601,7 @@ function section(t) { console.log('\n== ' + t); }
   await shot('50_交互轮盘.png');
   const WH1 = await T(() => {
     const t = SKV3._t, g = t.G();
-    const w = t.wheel();
+    const w = t.wheel() || (t.openWheel(), t.wheel());
     const i = w.items.findIndex(x => x.id === 'task');
     const r = t.pickWheel(i);
     return { i, r, do: g.me._doing, doing: g.me.doing, wheel: t.wheel() };
@@ -2610,7 +2610,7 @@ function section(t) { console.log('\n== ' + t); }
   const WH2 = await T(() => {
     const t = SKV3._t, g = t.G();
     g.me.doing = 0; g.me._doing = null; g.me.path = null;
-    g.dmg = [];
+    g.dmg = [{ room: 'power', x: 49, y: 55.4, label: '测试故障', left: 60, dur: 60, by: 0 }];
     const pi = t.points().findIndex(p => p.label === '电路维修');
     g.me.tasks = [pi, 0, 1, 2]; g.me.tIdx = 0;
     t.tp(0, 49, 55.4);

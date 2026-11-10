@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://returnlog.local/3d/events.schema.json",
+  "title": "新返航录 3D 事件流信封（与 2.5D logEvent 对齐）",
+  "description": "只冻结信封与 kind 词表，不限制各 kind 的业务字段（additionalProperties=true）。2.5D 真源：js/game.js#logEvent；3D 真源：scripts/sim/sim_state.gd#_log。校验：node 3d/tools/check-events.cjs",
+  "type": "object",
+  "required": ["kind", "night", "pt", "t"],
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "account", "bot_down", "bot_hit", "breaker", "chat", "dawn", "detain",
+        "drag_away", "drag_end", "drag_start", "eject", "fix", "game_end", "game_start",
+        "kill", "knife", "meeting", "meeting_overtime", "night_start", "pipe", "qual",
+        "report", "revive", "sabotage", "search", "shoot", "supply", "task", "terminator",
+        "vote", "vote_change"
+      ]
+    },
+    "night": { "type": "integer", "minimum": 1 },
+    "pt": {
+      "type": "number",
+      "minimum": 0,
+      "description": "本局已过秒数（2.5D 的 G.playT，保留 2 位）"
+    },
+    "t": {
+      "type": "number",
+      "minimum": 0,
+      "description": "本夜剩余秒数（2.5D 的 G.t，保留 1 位）；不是已过秒数"
+    },
+    "actor": { "type": ["integer", "null"], "description": "行动者席位号；系统事件为 null" },
+    "victim": { "type": ["integer", "null"], "description": "受害者/目标席位号" },
+    "room": { "type": ["string", "null"], "description": "舱室 id（map_v2.json#rooms[].id）" },
+    "x": { "type": ["number", "null"] },
+    "y": { "type": ["number", "null"] }
+  },
+  "additionalProperties": true,
+  "x-kinds": {
+    "game_start": "开局；data: seed / me",
+    "night_start": "入夜",
+    "dawn": "天亮；data: night / prog",
+    "game_end": "结束；data: win / why / prog / night",
+    "task": "完成维修任务；data: label / room / pts / prog / ghost",
+    "fix": "修好故障；data: label / room",
+    "sabotage": "异形破坏；data: room / label",
+    "breaker": "拉闸/合闸；data: on / dur",
+    "knife": "出刀；data: killer / victim / cause",
+    "shoot": "开枪；data: shooter / victim / hit",
+    "kill": "死亡结算；data: cause / by",
+    "revive": "救起；data: method(medkit/medbot)",
+    "search": "搜尸/查伤；data: first / bullet / medkit / qual",
+    "drag_start": "开始拖尸；data: actor / victim",
+    "drag_end": "放下尸体",
+    "drag_away": "把尸体拖离医疗间（反常行为）",
+    "report": "报告尸体；data: actor / victim / room / x / y",
+    "meeting": "会议开始；data: reporter / victim / room / x / y。⚠ 2.5D 的 data.kind 会覆盖事件 kind，见 x-known-issues",
+    "meeting_overtime": "会议超时",
+    "vote": "投票；data: actor / target / seq",
+    "vote_change": "改票；data: by / from / to / chg",
+    "eject": "驱逐；data: actor / alien",
+    "qual": "领物资申请单；data: n",
+    "supply": "补给兑换；data: item(ammo/medkit)",
+    "pipe": "钻管道；data: from / to",
+    "detain": "保安拘留；data: actor / victim / sec",
+    "account": "追责结算；data: victim / alien / lead / voters",
+    "bot_hit": "机器人受击；data: kind / hp",
+    "bot_down": "机器人被摧毁；data: kind / by",
+    "terminator": "终结者时刻；data: night",
+    "chat": "发言；data: who / text / sys。S 轨事件；B2–B5 不应产生"
+  },
+  "x-known-issues": [
+    "2.5D logEvent('meeting',{kind,...}) 的 data.kind 会覆盖信封 kind，实际落盘为 pre/day/night；3D 端用 kind=meeting + mkind=pre/day/night，同 seed diff 时必须做这条映射。",
+    "2.5D 的 t 是本夜剩余秒数，不是已过秒数；已过秒数在 pt。3D 端不要写成 elapsed。",
+    "2.5D 的 logEvent 默认字段包含 actor/victim/room/x/y=null；3D 端同信封，便于 diff 时逐字段比对。"
+  ]
+}

@@ -672,6 +672,7 @@ for r in M['rooms']:
 
 for c in M['corridors']:
     pts = c['pts']
+    seg_norm = []
     for i in range(len(pts) - 1):
         a, b = pts[i], pts[i + 1]
         dx, dy = b[0] - a[0], b[1] - a[1]
@@ -682,12 +683,31 @@ for c in M['corridors']:
         # 去掉门连接处溢出到房间里的铁格栅。
         box('corr_%s_%d' % (c['id'], i), mx, my,
             L, CW, -0.02, 0.0, FLOOR_MATS['corridor'], rot=rot)
-        # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源
+        # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源。
+        # 2026-11-10：改为"连续偏移折线 + 拐角 miter"，两侧全覆盖、拐角收束，
+        # 不再每段缩 0.4 导致交叉飞出 / 缺边（生态舱-医疗舱拐角曾飞线、下段缺线）。
         ux, uy = dx / L, dy / L
-        for side in (-1, 1):
-            ox, oy = -uy * (CW / 2 - 0.22) * side, ux * (CW / 2 - 0.22) * side
-            box('corr_glow_%s_%d_%d' % (c['id'], i, side), mx + ox, my + oy,
-                L - 0.4, 0.07, 0.012, 0.030, CYAN, rot=rot)
+        seg_norm.append((-uy, ux))
+    off = CW / 2 - 0.45
+    for side in (-1, 1):
+        norms = seg_norm
+        P = []
+        for j, (px, py) in enumerate(pts):
+            if j == 0:
+                nx, ny = norms[0]
+            elif j == len(pts) - 1:
+                nx, ny = norms[-1]
+            else:
+                nx, ny = norms[j - 1][0] + norms[j][0], norms[j - 1][1] + norms[j][1]
+            P.append((px + nx * off * side, py + ny * off * side))
+        for j in range(len(P) - 1):
+            (x0, y0), (x1, y1) = P[j], P[j + 1]
+            Ll = math.hypot(x1 - x0, y1 - y0)
+            if Ll <= 0.01:
+                continue
+            rr = math.atan2(y1 - y0, x1 - x0)
+            box('corr_glow_%s_%d_%d' % (c['id'], j, side), (x0 + x1) / 2, (y0 + y1) / 2,
+                Ll, 0.09, 0.025, 0.050, CYAN, rot=rr)
 
 # 门槛灯：每条门缝一条琥珀色贴地灯，兼作"这里能过去"的视觉提示
 # 自动门门框也在这里烘焙：门板由游戏内动态绘制（扩散纹理），底座只留框与指示灯。
@@ -802,6 +822,7 @@ KIND_V2 = {
     'ecosys_growrack': 'rack',
     'ecosys_irrigation': 'machine',
     'ecosys_climate': 'machine',
+    'seedtray': 'seedtray',
     # 配电室
     'power_switchgear': 'switchgear',
     'power_transformer': 'transformer',
@@ -858,7 +879,7 @@ KIND_SHAPES = {
     'pond', 'reactor', 'engineblock', 'machine', 'arcade', 'jukebox', 'billiard',
     'crate', 'pallet', 'forklift', 'breaker', 'sofa', 'camera', 'chair', 'bed',
     'medbed', 'ventilator', 'ivstand', 'fridge', 'rack', 'gunrack', 'warehouse_rack',
-    'shelftall', 'plate_stack', 'pot',
+    'shelftall', 'plate_stack', 'pot', 'seedtray',
 }
 _flat = []          # 退化成铁板盒的掩体（kind 既不在形状表也不在 KIND_V2）
 
@@ -1119,7 +1140,8 @@ def furniture(c, deco=False):
         cyl(tag + '_body', cx, cy, r, 0.10, Z, PL, verts=20, bevel=0.02)
         cyl(tag + '_base', cx, cy, r * 1.22, 0.0, 0.12, DARK, verts=20)
         cyl(tag + '_cap', cx, cy, r * 1.14, Z - 0.02, Z + 0.06, TRIM, verts=20)
-        cyl(tag + '_band', cx, cy, r * 1.03, 0.42, 0.56, HZM, verts=20)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            cyl(tag + '_band', cx, cy, r * 1.03, 0.42, 0.56, HZM, verts=20)
         cyl(tag + '_ring', cx, cy, r * 1.05, Z * 0.76, Z * 0.76 + 0.04, L, verts=20)
         box(tag + '_plate', cx + r, cy, 0.10, r * 0.9, 0.62, 0.86, DARK)
     elif k == 'tank':
@@ -1220,7 +1242,8 @@ def furniture(c, deco=False):
                 w * 0.10, h * 0.10, Z * 0.76, Z * 0.765, L)
         led_strip(tag + '_led', cx, cy + h * 0.34, w * 0.62, Z - 0.16, L, n=4)
         vent(tag + '_vent', cx - w * 0.32, cy, h * 0.5, w * 0.22, 0.24, n=6)
-        box(tag + '_haz', cx, cy + h * 0.5, w * 1.01, h * 0.08, 0.16, 0.30, HZM)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            box(tag + '_haz', cx, cy + h * 0.5, w * 1.01, h * 0.08, 0.16, 0.30, HZM)
         if bt[0] % 2:
             cyl(tag + '_stack', cx + w * 0.30, cy + h * 0.22, min(w, h) * 0.12,
                 Z + 0.08, Z + 0.46, METAL, verts=14)
@@ -1347,7 +1370,8 @@ def furniture(c, deco=False):
         for sx in (-1, 1):
             box(tag + '_post_l%d' % sx, cx + sx * (w / 2 - 0.06), cy, 0.12, h * 1.01, 0.0, Z + 0.04, DARK)
             box(tag + '_post_w%d' % sx, cx, cy + sx * (h / 2 - 0.06), w * 1.01, 0.12, 0.0, Z + 0.04, DARK)
-        box(tag + '_band', cx, cy, w * 1.02, h * 0.20, 0.34, 0.42, HZM)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            box(tag + '_band', cx, cy, w * 1.02, h * 0.20, 0.34, 0.42, HZM)
         box(tag + '_latch', cx + w * 0.30, cy - h * 0.5, w * 0.18, 0.07, 0.44, 0.62, METAL)
         box(tag + '_plate', cx - w * 0.22, cy - h * 0.5, w * 0.30, 0.05, 0.50, 0.68, WHITE)
         if bt[0] % 2:                       # 半开箱盖：有的箱子是开着的
@@ -1460,10 +1484,10 @@ def furniture(c, deco=False):
         box(tag + '_frame', cx, cy, w, h, 0.0, 0.14, METAL, bevel=0.02)
         box(tag + '_body', cx, cy, w * 0.98, h * 0.98, 0.40, 0.52, MW, bevel=0.04)
         box(tag + '_mattress', cx, cy, w * 0.92, h * 0.94, 0.52, 0.62, WHITE, bevel=0.05)
-        box(tag + '_blanket', cx, cy + h * 0.14, w * 0.94, h * 0.66, 0.60, 0.665,
-            FABRIC_TEX_V[(ti + 3) % 5], bevel=0.03)
+        box(tag + '_blanket', cx, cy + h * 0.14, w * 0.94, h * (0.50 if k == 'medbed' else 0.66), 0.60, 0.665,
+            WHITE if k == 'medbed' else FABRIC_TEX_V[(ti + 3) % 5], bevel=0.03)
         box(tag + '_blanket_fold', cx, cy - h * 0.16, w * 0.94, h * 0.08, 0.62, 0.68, FB, bevel=0.02)
-        box(tag + '_pillow', cx, cy - h / 2 + 0.32, w * 0.58, 0.40, 0.62, 0.74, WHITE, bevel=0.07)
+        box(tag + '_pillow', cx, cy - h / 2 + 0.32, w * (0.70 if k == 'medbed' else 0.58), 0.50 if k == 'medbed' else 0.40, 0.62, 0.74, WHITE, bevel=0.07)
         for sx in (-1, 1):
             box(tag + '_rail%d' % sx, cx + sx * (w / 2 - 0.05), cy + h * 0.10, 0.05, h * 0.42,
                 0.52, 0.80, METAL, bevel=0.015)
@@ -1479,17 +1503,38 @@ def furniture(c, deco=False):
                 box(tag + '_ivbag', cx + w * 0.44, cy - h * 0.30, 0.16, 0.09, 1.30, 1.50, GLASS)
             box(tag + '_tag', cx, cy + h * 0.56, w * 0.30, 0.03, 0.52, 0.70, WHITE)
     elif k == 'ventilator':
-        # 呼吸机：立式机箱 + 圆形风机窗 + 呼吸管路 + 数值屏
+        # 呼吸机（2026-11-10 重做·直观可读）：机箱+波形屏+盘绕呼吸管+面罩，
+        # 去掉旧的对角直管（读成"斜杠方块"）。顶视=屏+软管圈+面罩三件套。
         Z = 1.18 * hs
         box(tag + '_body', cx, cy, w, h, 0.0, Z, MW, bevel=0.04)
-        cyl(tag + '_fan', cx, cy - h * 0.42, min(w, h) * 0.34, Z * 0.42, Z * 0.86, SCREEN, verts=18)
-        cyl(tag + '_fan_ring', cx, cy - h * 0.42, min(w, h) * 0.38, Z * 0.40, Z * 0.44, METAL, verts=18)
-        box(tag + '_disp', cx, cy + h * 0.30, w * 0.86, h * 0.30, Z - 0.20, Z - 0.02, SCREEN)
-        led_strip(tag + '_bar', cx, cy + h * 0.52, w * 0.7, Z, GREEN, n=3)
-        pipe_run(tag + '_tube', cx - w * 0.4, cy - h * 0.2, cx + w * 0.9, cy - h * 0.9,
-                 Z * 0.60, 0.05, GLASS)
+        box(tag + '_disp', cx, cy - h * 0.22, w * 0.80, h * 0.34, Z - 0.02, Z + 0.02, SCREEN)
+        for i in range(3):
+            box(tag + '_wave%d' % i, cx - w * 0.26 + i * w * 0.26, cy - h * 0.22,
+                w * 0.16, 0.02, Z + 0.02, Z + 0.03, GREEN if i % 2 else CYAN)
+        led_strip(tag + '_bar', cx, cy + h * 0.40, w * 0.7, Z, GREEN, n=3)
+        # 盘绕呼吸管（波纹管圈）+ 引出段 + 面罩
+        hr = min(w, h) * 0.26
+        for i in range(10):
+            a = i * math.tau / 10
+            ball(tag + '_coil%d' % i, cx - w * 0.22 + math.cos(a) * hr,
+                 cy + h * 0.16 + math.sin(a) * hr, Z * 0.55, 0.055, GLASS, subdiv=1)
+        pipe_run(tag + '_hoselead', cx + w * 0.02, cy + h * 0.16, cx + w * 0.26, cy + h * 0.20,
+                 Z * 0.55, 0.045, GLASS)
+        cyl(tag + '_mask', cx + w * 0.30, cy + h * 0.24, min(w, h) * 0.16, Z * 0.45, Z * 0.62, WHITE, verts=14)
+        box(tag + '_strap', cx + w * 0.30, cy + h * 0.24, min(w, h) * 0.34, 0.03, Z * 0.50, Z * 0.56, DARK)
         for i in (-1, 1):
             cyl(tag + '_wh%d' % i, cx + i * w * 0.34, cy + h * 0.40, 0.06, 0.0, 0.10, DARK, verts=10)
+    elif k == 'seedtray':
+        # 育苗 tray（decor·不阻挡）：浅盘+土面+成排幼苗，直观读成"种植/育苗"
+        box(tag + '_tray', cx, cy, w, h, 0.0, 0.16, PL, bevel=0.02)
+        box(tag + '_soil', cx, cy, w * 0.90, h * 0.86, 0.16, 0.20, DARK)
+        n = 4
+        for i in range(n):
+            for j in range(2):
+                px = cx - w * 0.33 + i * (w * 0.66 / (n - 1))
+                py = cy - h * 0.22 + j * h * 0.44
+                cyl(tag + '_seed%d%d' % (i, j), px, py, 0.03, 0.20, 0.34, GREEN, verts=8)
+                ball(tag + '_leaf%d%d' % (i, j), px, py, 0.36, 0.07, GREEN, subdiv=1)
     elif k == 'ivstand':
         cyl(tag + '_base', cx, cy, min(w, h) * 0.42, 0.0, 0.035, DARK, verts=14)
         cyl(tag + '_pole', cx, cy, 0.035, 0.03, 1.72, METAL, verts=10)

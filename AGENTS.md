@@ -76,6 +76,17 @@
     且**生成前必须先取公开设计参照**（例：军械库参照 SCP:SL 的武器柜 / 挂枪架 / 工作站分类）。
     所有来源必须留痕（URL / 作者 / 许可）进对应 `CREDITS.md` / `LICENSE`，二次分发同样适用。
     本地生成统一走**千问本地模型**（红线 6），SDXL 已退役。
+13. **分支策略：main 推 2.5D 主线，3D 版推副分支。**（2026-11-10 用户裁定，工程规范）
+    - `main` 只承载 **2.5D 主线**（`js/`、`index.html`、2.5D 底图/美术管线、共享数据与文档），
+      是 Pages 部署与对外发布的目标分支。
+    - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
+      （当前 `v1-preview`），**不得混入 main**。
+    - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
+      随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
+    - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
+      跑门禁绿后提交推送；避免整分支 merge 把 3D 客户端带进 main。
+    - 推送目标：`origin`(GitHub) 为主，`gitee` 为尽力镜像；分支同名歧义时用完整 ref
+      （`refs/heads/main:refs/heads/main`）。
 
 ## 二、命令
 
@@ -625,8 +636,10 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   玩家硬说“在配电室钻管道”会走 `impossible_claim`，AI 反过来怀疑发言者而不是记目标的证据。
   改地图管道时同步这 8 个房间与门禁，不能再生成“在别的房间钻管道”的台词。
   **管道绘制配色跟随舱室**：`PIPE_TINT[room]`（与 Blender 的 `ROOM_THEME[].mark` 同色）是唯一色源；
-  2.5D 用 Blender 渲染的 `assets/scene/v4/facility/pipe-port-<room>.png`（SDXL 管道贴图 + 8 舱配色），
-  3D 用 `prop_pipe_port.glb` + 同色边圈；旧菱形格栅只作图片未加载时的 fallback。
+  **2026-11-10 起管道口是矩形百叶通风口，不是圆形井盖**：2.5D 由 `drawPipes()` 矢量绘制
+  （矩形外框 + 横向百叶 + 四角螺栓 + 矩形气流脉冲，边色/叶片随 `PIPE_TINT`），不再加载圆形精灵；
+  3D 用 `prop_pipe_port.glb`（`build-3d-assets.py` 重建为矩形百叶风口 + 侧短管）+ 同色 `pipe_rim` 边圈。
+  旧 `assets/scene/v4/facility/pipe-port-<room>.png` 圆形井盖精灵保留为素材库，不进运行时。
   不要给单个舱室改形状语言。
 - **AI 异形管道机动**：`alienPipeMove(a,dt,tgt,td)` 必须在“没刀游荡”之前调用，否则刀用完的异形
   永远走不到管道口（2026-10-30 修复）。目标 >15 格、`_pipeCD<=0` 时先规划到能显著缩短距离的入口，
@@ -953,7 +966,9 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 2. 小步修改；涉及地图/寻路/会议/输入的改动，先 `npm start` 或直接 `file://` 冒烟。
 3. 跑 `npm test`，确认「X 通过 / 0 失败」，并抽查 `tools/screenshots/` 的截图（元素存在 ≠ 像素可见）。
 4. 更新 `CHANGELOG.md`（版本号 + 日期 + 实测读数）。
-5. 提交并推送：`origin`(GitHub) 是发布目标，`gitee` 是镜像（失败只警告、不拦停）；GitHub 走代理、Gitee 直连，两条互为兜底。仓库简介保持「新返航录 · 返航录V3」口径。
+5. 提交并推送：**分支按 §一.13 拆分**——2.5D 主线推 `main`，3D 客户端推副分支（`v1-preview`），
+   共享数据/美术管线随 main；不得整分支 merge 把 3D 客户端带进 main。
+   `origin`(GitHub) 是发布目标，`gitee` 是镜像（失败只警告、不拦停）；GitHub 走代理、Gitee 直连，两条互为兜底。仓库简介保持「新返航录 · 返航录V3」口径。
 
 ## 六、当前基线（返航录V3）
 

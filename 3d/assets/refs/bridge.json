@@ -1,0 +1,12 @@
+{
+  "room": "bridge",
+  "seed": 300102,
+  "steps": 18,
+  "size": [
+    768,
+    512
+  ],
+  "sec": 93.8,
+  "prompt": "game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, seven separate bridge pieces: a large circular command table with a central holographic column, an octagonal structural column, a low sideboard cabinet, a command chair, a navigation console with three angled screens, a long record desk with two monitors, a curved holo screen bank; amber and warm brass accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text",
+  "negative": "text, watermark, signature, blurry, low contrast, people, characters, clutter, fisheye, extreme perspective, oversaturated, cartoon, pixel art"
+}

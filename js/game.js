@@ -8801,8 +8801,8 @@
     loadImg('tool_wrench','v4/facility/tool-wrench.png');
     loadImg('fx_supply_ammo','v4/facility/supply-ammo.png');
     loadImg('fx_supply_med','v4/facility/supply-med.png');
-    /* 管道舱盖：Blender 5.2.2 渲染 + SDXL 金属贴图，按舱室主题色出 8 张 2.5D 精灵。
-       冷启动没加载完时 drawPipes 仍回退到原来的菱形格栅矢量画法。 */
+    /* 通风管道口（2026-11-10 写实版）：千问出百叶风口贴图 + Blender 渲染 8 舱精灵，
+       边圈按 PIPE_TINT 舱室配色；不再矢量直接画。冷启动未加载完时回退暗色矩形不留白。 */
     for(const q of M.pipes) loadImg('pipe_'+q.room,'v4/facility/pipe-port-'+q.room+'.png');
     /* 监控台 / 电闸的贴图不再进运行时：它们的本体由 Blender 底图烘出来，
        面板与屏幕材质走 assets/scene/v4/tex/facility-*.png（见 tools/blender-ship.py）。
@@ -9297,30 +9297,19 @@
       for(const q of M.pipes){
         const x=SX(q.x),y=SY(q.y);
         const tint=pipeTint(q.room);
-        const rad=ctx.createRadialGradient(x,y,0,x,y,1.05*s);
-        rad.addColorStop(0,tint.a('.24'));
-        rad.addColorStop(1,tint.a('0'));
-        ctx.fillStyle=rad;ctx.beginPath();ctx.arc(x,y,1.05*s,0,7);ctx.fill();
-        /* 新画风（2026-11-06）：Blender 渲染的圆形舱盖，边圈颜色由 PIPE_TINT 决定。
-           图片没就绪时保持旧菱形格栅，file:// 冷启动不会留白。 */
+        /* 写实通风口精灵（千问贴图 + Blender 渲染，边圈已按舱室染色）。 */
         const im=IMG['pipe_'+q.room], size=1.9*s;
         if(ready(im)){
           ctx.drawImage(im,x-size/2,y-size/2,size,size);
         }else{
-          ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);
-          ctx.fillStyle='rgba(12,12,20,.96)';
-          ctx.strokeStyle=tint.a('.8');ctx.lineWidth=1.3;
-          ctx.fillRect(-0.33*s,-0.33*s,0.66*s,0.66*s);
-          ctx.strokeRect(-0.33*s,-0.33*s,0.66*s,0.66*s);
-          ctx.strokeStyle=tint.dim('.55');ctx.lineWidth=1;
-          for(let i=-1;i<=1;i++){
-            ctx.beginPath();ctx.moveTo(-0.24*s,i*0.13*s);ctx.lineTo(0.24*s,i*0.13*s);ctx.stroke();
-          }
-          ctx.restore();
+          ctx.fillStyle='rgba(10,12,16,.96)';
+          ctx.strokeStyle=tint.a('.85');ctx.lineWidth=1.4;
+          ctx.beginPath();ctx.roundRect(x-0.75*s,y-0.55*s,1.5*s,1.1*s,0.12*s);ctx.fill();ctx.stroke();
         }
         const k=(T*0.55+q.x*0.07)%1;
-        ctx.strokeStyle=tint.a((0.55*(1-k)).toFixed(2));ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.ellipse(x,y,(0.42+0.72*k)*s,(0.28+0.46*k)*s,0,0,7);ctx.stroke();
+        ctx.strokeStyle=tint.a((0.5*(1-k)).toFixed(2));ctx.lineWidth=1.2;
+        const pw=1.5*s*(0.6+0.7*k),ph=1.1*s*(0.6+0.7*k);
+        ctx.beginPath();ctx.roundRect(x-pw/2,y-ph/2,pw,ph,0.12*s);ctx.stroke();
       }
     }
     /* 圆桌上的物资申请单：有待领时显示金色单据与脉冲环 */

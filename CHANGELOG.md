@@ -6,6 +6,69 @@
 本文件记录《新返航录》试玩版的所有可见变更。版本口径：**返航录V3.6**。
 格式参考 Keep a Changelog；日期使用本地时间（Asia/Shanghai）。
 
+## [未发布 · 美术第八批：走廊白线收束 + 任务点对齐 + 电脑位座椅 + 写实通风口 + 真源清洁] — 2026-11-10
+
+- **本批改动**：
+  ① **走廊白线**：改"连续偏移折线 + 拐角 miter"，所有走廊两侧全覆盖、拐角收束不再飞线；
+  内缩 0.45 + 抬高 z 解决贴边被遮（生态舱-医疗舱拐角曾交叉飞出、下段缺线）。像素复核两侧均亮。
+  ② **任务点对齐**：26 点按语义 snap 到对应掩体外缘 0.4 格（可行走且该掩体成为最近件→本体脉冲正确），
+  不再落在空地/错误掩体上；`map-check` pointBad/unreachable 全空。
+  ③ **娱乐室座椅**：高凳从球台旁移到街机/赛车机（电脑位）前。
+  ④ **写实通风口**：千问出写实百叶风口贴图（`assets/qwen-lib/vent-grille_768.png`）→
+  `build-3d-assets.py` 顶面贴该图 + 可染色外圈 → `render-pipe-port.py` 渲染 8 舱精灵；
+  `drawPipes()` 改回加载精灵（**不再矢量直接画**），冷启动回退暗矩形。
+  ⑤ **2.5D 真源清洁**：main 移除 3D 客户端（scripts/scenes/project.godot/screenshots）与
+  `__pycache__`/`_bak` 杂物，保留 3d/tools 建模管线 + 3d/preview/{assets,data} 共享真源；
+  `.gitignore` 补 `__pycache__/ *_bak/ *.pyc *.blend1`。main 本地提交 **477eda5**（**未推送**）。
+- **读数变化**：门禁实跑 **914 通过 / 0 失败**（首跑轮盘/藏尸夹具因点位移与随机种子抖动失败，
+  夹具改为自备第二交互项 + 重开轮盘后复跑绿）；`map-check` cover 123 / pointBad 空；重烘铁板退化=0。
+- **交付决策者**：`docs/qwen21/corr-miter-check.png`（拐角收束）、
+  `assets/scene/v4/facility/pipe-port-med.png`（写实通风口精灵）。
+- **下一批立项依据**：main 清洁提交待推送；v1-preview 本批改动待提交；gaps/dead 存量债待清；未跑蒙特卡洛。
+
+## [未发布 · 美术第七批：军械库真实甲板 + 空舱填充 + 物件直观可读] — 2026-11-10
+
+- **本批改动**（用户否决第六批军械库地板「蜂巢感/不像地板」；移除后舱室偏空需填充；
+  并立原则「**本次出图严格遵循直观可看出用途**」，呼吸机为反面例子）：
+  ① **军械库地板程序化重出**：新增 `tools/gen-armory-deck.py`（与 `gen-hull.py`/`gen-pbr-textures.py`
+  同类程序化顶视无缝甲板，非扩散出图）——钢底板+防滑菱形 tread+螺栓网格+两条平行橡胶通道+黄色边线
+  +同向步枪 stencil+弹药箱脚印；**无六边形/无透视收敛**，覆盖 `qwen/armory/floor.png`
+  （旧镜像/方向保持版备份 `_backup/armory-floor.*.png`）。千问概念图因蜂巢感被用户两次否决，故改程序化。
+  ② **呼吸机重做·直观可读**：去掉对角直管（旧"斜杠方块"），改机箱+**波形屏**+**盘绕波纹管圈**+**面罩**三件套；
+  医疗间床下补 2 台 + 2 根输液架（填充且读得出用途）。
+  ③ **空舱填充**：fun 右下角球台补 2 高凳；ecosys 顶角对称补 2 育苗盘（新 decor `seedtray`，不挡通道）。
+  ④ `seedtray` 同批登记 `KIND_V2` + `KIND_SHAPES`（铁板退化守卫口径）。
+- **读数变化**：`map-check` cover **124** / decor **20**、unreachable/pointBad/facBad **全空**
+  （gaps 185 / dead 24 为存量债+填充新增小间距，待单独清）；`blender-ship` 重烘 **铁板退化件数=0**；
+  门禁实跑 **914 通过 / 0 失败**。
+- **交付决策者**：`docs/qwen21/batch7-board.png`（armory / med / fun / ecosys 四舱对照）。
+- **下一批立项依据**：gaps/dead 存量债清零、main 分支字节码/备份清理仍待用户确认；未跑蒙特卡洛。
+
+## [未发布 · 美术第六批：通风管道口 + 床下/右下角清理 + 生态舱对称 + 警戒线收口] — 2026-11-10
+
+- **本批改动**（用户复核「上一批说全完成但仍有大量未做完」，结合置顶四条继续改进）：
+  ① **管道口改通风管道**：2.5D `drawPipes()` 改矢量**矩形百叶风口**（外框+横百叶+四角螺栓+矩形气流脉冲），
+  边色/叶片随 `PIPE_TINT` 舱室配色，**不再用圆形井盖精灵**；3D `build-3d-assets.py::build_prop_pipe_port()`
+  重建为矩形百叶风口+侧短管（1844 tris），保留 `pipe_rim` 命名供按舱换色。
+  旧 `pipe-port-<room>.png` 圆形井盖降为素材库、不进运行时（AGENTS §四同步改述）。
+  ② **医疗间**：移除 3 床下方的带斜杠呼吸机（2 件 cover `med_ventilator` + 3 件 decor `ventilator`，斜杠=呼吸管路）；
+  `medbed` 毯改白色临床被 + 加大枕头，顶视读得出病床。
+  ③ **娱乐室**：移除右下角杂物（decor `machine`/`chair` + cover `fun_coffeetable`），保留娱乐桌/街机/VR 舱。
+  ④ **生态舱对称化**：cover 整块重排为关于 x=28 镜像对称（浇灌/温控、双氧气柱、双灌木、双巨树、双育苗架、双培养罐），
+  中央十字通道（竖 x27-31 / 横 y52-55）留空，保证四门直通；删掉散乱灌木/水池/单侧黑方框。
+  ⑤ **警戒线收口**：`machine` 的 `_haz`、`crate` 的 `_band`、`pillar` 的 `_band` 三处无条件 HZM 色带
+  改为仅 `_HAZ_ROOMS={armory,engine,power}` 绘制（此前生态舱浇灌/温控台、仓库货箱、会议室柱会漏警戒线）。
+  ⑥ **军械库地板去镜像**：旧四向镜像把步枪 stencil 翻转、警戒通道收敛成金色波纹（读不出军械库）；
+  改为方向保持 2×2 平铺重出 `qwen/armory/floor.png`（备份 `_backup/armory-floor.mirrored.png`），
+  现底图可见同向步枪 stencil + 武器通道警戒线 + 脚印，军械库身份成立。
+- **读数变化**：`map-check` cover **127→120**、decor 22→16、gaps **189→178**、dead 23（存量债）、
+  unreachable/pointBad/facBad **全空**；`blender-ship` 重烘 4704×4413 **铁板退化件数=0**；
+  门禁 `node tools/test-v3.cjs` 实跑 **914 通过 / 0 失败**。
+  运行时通风口截图：`tools/screenshots/_shot-vent-med.png`（青）/ `_shot-vent-ecosys.png`（绿），确认非井盖且随舱配色。
+- **交付决策者**：`docs/qwen21/batch6-board.png`（med / fun / ecosys 三舱重烘对照）。
+- **下一批立项依据**：gaps/dead 存量债（178/23）与 main 分支字节码/备份清理仍待用户确认；
+  本批只动布局/造型/表现，**未跑蒙特卡洛**（用户裁定暂不跑）。
+
 ## [未发布 · 美术第二批（激进）：底图全千问 + SDXL 删除 + 素材库] — 2026-11-09
 
 - **本批改动**（用户裁定「除房间布局/走廊材质/门之外，底图全用千问；≥700²；过期 SDXL 全删只留走廊和门；千问图存单独素材库文件夹」）：
