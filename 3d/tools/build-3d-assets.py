@@ -362,33 +362,23 @@ def build_prop_pipe_run():
 
 
 def build_prop_pipe_port():
-    """地板管道舱盖：圆形格栅 + 四颗螺栓 + 短管口 + 可染色边圈。
-    贴图优先用 SDXL 的 pipe_hatch.png；边圈单独命名 pipe_rim，渲染时按舱室换色。"""
-    hatch_tex = os.path.join(NEW_TEX, 'pipe_hatch.png')
-    if not os.path.exists(hatch_tex):
-        hatch_tex = os.path.join(TEX, 'panel-metal.png')
-    body = material('pipe_hatch', hatch_tex, metallic=0.7, rough=0.45)
+    """地板通风管道口（2026-11-10 写实版）：顶面贴千问写实百叶风口贴图
+    （assets/qwen-lib/vent-grille_768.png）+ 可染色外圈 pipe_rim + 侧短管。
+    不再矢量直接画；2.5D 精灵由 render-pipe-port.py 从本模型渲染。"""
+    grille_tex = os.path.join(ROOT, 'assets', 'qwen-lib', 'vent-grille_768.png')
+    body = material('pipe_hatch', grille_tex, metallic=0.75, rough=0.38)
     dark = material('pipe_dark', os.path.join(TEX, 'facility-panel.png'), metallic=0.6, rough=0.42)
     rim = material('pipe_rim', None, color=(0.30, 0.75, 0.85, 1), metallic=0.25, rough=0.30,
                    emit=2.0, emit_color=(0.30, 0.75, 0.85, 1))
-    cyl('base', 0.78, 0.10, (0, 0, 0.05), body, axis='Z', verts=40)
-    cyl('inner', 0.62, 0.035, (0, 0, 0.108), dark, axis='Z', verts=40)
-    torus('rim', 0.76, 0.055, (0, 0, 0.11), rim, axis='Z')
-    # 格栅：四个方向各两条，交点留空
-    for i in range(3):
-        d = -0.36 + i * 0.36
-        box('grate_x_%d' % i, (1.08, 0.055, 0.022), (0, d, 0.13), dark, bevel=0.004, uv=False)
-        box('grate_y_%d' % i, (0.055, 1.08, 0.022), (d, 0, 0.132), dark, bevel=0.004, uv=False)
-    for i in range(4):
-        a = math.radians(45 + i * 90)
-        x = math.cos(a) * 0.69
-        y = math.sin(a) * 0.69
-        cyl('bolt_%d' % i, 0.045, 0.05, (x, y, 0.14), dark, axis='Z', verts=12)
-    # 两个短管口，给"这是管道不是圆桌"一个剪影
+    box('duct', (1.5, 1.1, 0.08), (0, 0, 0.04), dark, bevel=0.01)
+    box('face', (1.5, 1.1, 0.02), (0, 0, 0.09), body, bevel=0.005)
+    box('rim_n', (1.62, 0.06, 0.10), (0, -0.56, 0.05), rim, bevel=0.01)
+    box('rim_s', (1.62, 0.06, 0.10), (0, 0.56, 0.05), rim, bevel=0.01)
+    box('rim_w', (0.06, 1.18, 0.10), (-0.79, 0, 0.05), rim, bevel=0.01)
+    box('rim_e', (0.06, 1.18, 0.10), (0.79, 0, 0.05), rim, bevel=0.01)
     for sx in (-1, 1):
-        cyl('stub_%d' % sx, 0.085, 0.42, (sx * 0.86, 0, 0.22), dark, axis='X', verts=16)
-        torus('flange_%d' % sx, 0.10, 0.028, (sx * 0.68, 0, 0.22), body, axis='X')
-        box('saddle_%d' % sx, (0.16, 0.30, 0.12), (sx * 0.86, 0, 0.10), dark, bevel=0.01)
+        cyl('stub_%d' % sx, 0.085, 0.42, (sx * 0.98, 0, 0.18), dark, axis='X', verts=16)
+        torus('flange_%d' % sx, 0.10, 0.028, (sx * 0.80, 0, 0.18), body, axis='X')
 
 
 # ---------------------------------------------------------------- 导出

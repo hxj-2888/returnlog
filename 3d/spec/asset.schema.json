@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://xin-fan-hang-lu.local/3d/asset.schema.json",
+  "$id": "https://returnlog.local/3d/asset.schema.json",
   "title": "启航路 3D 版 · 资产清单 schema",
   "description": "3d/spec/assets.manifest.json 的结构约束。校验脚本 tools/validate-assets.cjs 按这份文件实现（不依赖 ajv）。",
   "type": "object",

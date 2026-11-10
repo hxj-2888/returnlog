@@ -1,0 +1,12 @@
+{
+  "room": "armory",
+  "seed": 300105,
+  "steps": 18,
+  "size": [
+    768,
+    512
+  ],
+  "sec": 96.6,
+  "prompt": "game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate armory pieces: a long rifle rack with three tiers of rifles, a gunsmith workbench with vise, a shooting lane barrier with paper target, stacked ammunition crates, an issue counter with steel grille, a bench vise station; amber warning accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text",
+  "negative": "text, watermark, signature, blurry, low contrast, people, characters, clutter, fisheye, extreme perspective, oversaturated, cartoon, pixel art"
+}

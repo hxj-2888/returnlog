@@ -1,0 +1,1196 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-08",
+  "note": "3D 移植准备清单（机器可读唯一真源）。status 只认已经能在 3D 里跑的行为与已落地的数据契约；校验：node 3d/tools/check-port-manifest.cjs game.js 的切片按函数起点维护；改动 game.js 后重跑校验，报未认领/重复认领时按新函数行号更新切片。 S 轨（2026-11-08）已开工：lines.json 是台词唯一真源，npm run 3d:lines:check 会逐字校验它与 js/data/lines.js 一致。 2026-11-08 用户裁定：推理/发言与 2.5D 同源，仅维度/美术/输入映射允许差异；spec/parity-map.json 为函数级对账真源。",
+  "scope": {
+    "goal": "把 2.5D 除美术素材外的全部内容移植到 3D；发言系统单列 S 轨，执行顺序最后",
+    "art": "excluded：assets/scene/**、assets/portfolio/**、assets/minigame/*.png 等美术素材不迁；3D 现有代理几何/贴图继续用",
+    "speech": "included-in-goal / deferred-in-execution：本轮只准备数据与接口，不写台词逻辑",
+    "authority": "网格权威（0.6m bake / 1 格 = 1 米）；sim 纯逻辑；view 只读；数值只从 data/*.json 进"
+  },
+  "targets": {
+    "root": "3d/preview",
+    "sim": "3d/preview/scripts/sim",
+    "view": "3d/preview/scripts",
+    "ui": "3d/preview/scripts/ui",
+    "data": "3d/preview/data"
+  },
+  "contracts": [
+    {
+      "file": "3d/preview/data/map_v2.json",
+      "schema_version": 2,
+      "generator": "3d/tools/build-map-v2.cjs",
+      "consumers": [
+        "3d/preview/scripts/map_builder.gd",
+        "3d/preview/scripts/sim/sim_state.gd"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/space.json",
+      "schema_version": 1,
+      "generator": "3d/tools/export-space.cjs",
+      "consumers": [
+        "3d/preview/scripts/space_data.gd",
+        "3d/preview/scripts/sim/sim_state.gd"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/minigames.json",
+      "schema_version": 1,
+      "generator": "3d/tools/export-minigames.cjs",
+      "consumers": [
+        "3d/preview/scripts/minigame/",
+        "3d/preview/scripts/device.gd"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/sim.json",
+      "schema_version": 1,
+      "generator": "3d/tools/export-sim.cjs",
+      "consumers": [
+        "3d/preview/scripts/sim/sim_state.gd"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/panels.json",
+      "schema_version": 1,
+      "generator": "3d/tools/bake-refs.py",
+      "consumers": [
+        "3d/preview/scripts/device.gd"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/floor_spec.json",
+      "schema_version": 1,
+      "generator": "3d/tools/export-floor-spec.cjs",
+      "consumers": [
+        "3d/preview/scripts/map_builder.gd",
+        "3d/tools/blender-ship.py"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/layout-v2.json",
+      "schema_version": 2,
+      "generator": "3d/tools/export-layout-v2.cjs",
+      "consumers": [
+        "3d/tools/build-scene-v2.py"
+      ],
+      "status": "stable"
+    },
+    {
+      "file": "3d/preview/data/cover_refs.json",
+      "schema_version": null,
+      "generator": "3d/tools/measure-cover-refs.py",
+      "consumers": [
+        "3d/preview/scripts/map_builder.gd"
+      ],
+      "status": "legacy-no-schema"
+    }
+  ],
+  "systems": [
+    {
+      "id": "D-MAP",
+      "name": "地图数据（房间 / 走廊 / 墙 / 掩体 / 任务点 / 设施 / 管道）",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/data/map.js"
+        }
+      ],
+      "target": [
+        "3d/preview/data/map_v2.json",
+        "3d/preview/data/layout-v2.json"
+      ],
+      "status": "ported",
+      "depends_on": [],
+      "gate": "npm run 3d:export:map / npm run 3d:export:layout / --tasktest 26/0",
+      "notes": "唯一真源；掩体布局 v2 由 tools/ship-layout-spec.cjs 生成。"
+    },
+    {
+      "id": "D-NAMES",
+      "name": "15 席默认名",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/data/names.js"
+        }
+      ],
+      "target": [
+        "3d/preview/data/sim.json#names"
+      ],
+      "status": "ported",
+      "depends_on": [],
+      "gate": "node 3d/tools/export-sim.cjs（名单必须 15 项且不重名）",
+      "notes": "只作显示与席位号，不参与判定。"
+    },
+    {
+      "id": "D-VERSION",
+      "name": "版本号单一真源",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/config/version.js"
+        }
+      ],
+      "target": [
+        "3d/version.json",
+        "3d/preview/data/version.json",
+        "3d/tools/export-version.cjs",
+        "3d/preview/scripts/config.gd"
+      ],
+      "status": "ported",
+      "depends_on": [],
+      "gate": "node 3d/tools/export-version.cjs（version 不符 V1P-<major>.<minor>、version 与 semver 数字不一致、SKConfig.version ≠ package.json.gameVersion，任一命中直接 FAIL）",
+      "notes": "3D 独立版本号 V1P-0.1 / 0.1.0（真源 3d/version.json），不占 2.5D 的 返航录V3.6 / 3.6.0；base 字段自动记录移植基线。主页品牌行读 config.gd，不再写死版本字符串。"
+    },
+    {
+      "id": "D-SPACE",
+      "name": "空间数值：门 / 视野 / 站桩 / 电闸 / 管道 / 拖尸",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/t2/space.js"
+        }
+      ],
+      "target": [
+        "3d/preview/data/space.json"
+      ],
+      "status": "ported",
+      "depends_on": [
+        "D-MAP"
+      ],
+      "gate": "npm run 3d:export:space / --powertest / --interacttest",
+      "notes": "门/视野/站桩/电闸/管道/shoot/bot 全部从 2.5D 具名导出，GDScript 不抄数值。"
+    },
+    {
+      "id": "D-TASKS",
+      "name": "任务配置：26 任务 / 14 型玩法 / 元素数与提示",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/t2/minigame.js",
+          "lines": [
+            1,
+            110
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/data/minigames.json#tasks"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "D-MAP",
+        "D-PLATES"
+      ],
+      "gate": "--tasktest 26/0 / --mgtest 10/10",
+      "notes": "10 型可玩；sequence/sort/valve/code 暂映射到 match/place/lever/sync。"
+    },
+    {
+      "id": "D-PLATES",
+      "name": "图内要素板断口（电线坐标）",
+      "group": "data",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/data/plates.js"
+        }
+      ],
+      "target": [
+        "3d/preview/data/minigames.json#plates",
+        "3d/preview/assets/plates/"
+      ],
+      "status": "partial",
+      "depends_on": [],
+      "gate": "npm run plate:check / --mgtest",
+      "notes": "panel-fix 已接；panel-breaker 的 lever 图内化仍未做。"
+    },
+    {
+      "id": "D-LINES",
+      "name": "会议台词语料库",
+      "group": "data",
+      "track": "speech",
+      "source": [
+        {
+          "file": "js/data/lines.js"
+        }
+      ],
+      "target": [
+        "3d/preview/data/lines.json",
+        "3d/spec/lines.schema.json",
+        "3d/tools/export-lines.cjs",
+        "3d/tools/check-lines.cjs"
+      ],
+      "status": "ported",
+      "depends_on": [],
+      "gate": "npm run 3d:lines:check → LINES OK（62 类 / 1221 模板 / 74 WHY / 21 规则表）",
+      "notes": "2,090 行语料已导出；含 ROOM_WORDS / CN_SEAT / parseSpeech 正则与 whenWord。另有 data/rules.json 导出 48 张规则表 + 70 函数指纹（同源唯一真源，npm run 3d:parity:check 校验）。"
+    },
+    {
+      "id": "E-GEO",
+      "name": "可行走网格 / A* / 视线（几何底座）",
+      "group": "spatial",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/engine/geo.js"
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/grid_nav.gd"
+      ],
+      "status": "ported",
+      "depends_on": [
+        "D-MAP"
+      ],
+      "gate": "--navtest 28/0 / walkable=5894（与 2.5D 一致）",
+      "notes": "已落地 scripts/sim/grid_nav.gd：0.6m 网格 + AStarGrid2D；26 任务点全部可达。"
+    },
+    {
+      "id": "E-CLOCK",
+      "name": "相位时钟（历史模块）",
+      "group": "spatial",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/engine/clock.js"
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#tick"
+      ],
+      "status": "reference",
+      "depends_on": [],
+      "gate": "不迁：文件头已注明“未接线历史模块，非现行相位真源”",
+      "notes": "3D 用自己的夜计时；只在需要复盘相位时参考。"
+    },
+    {
+      "id": "E-INVARIANTS",
+      "name": "运行时断言/不变量",
+      "group": "test",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/engine/invariants.js"
+        }
+      ],
+      "target": [
+        "planned:3d/preview/scripts/sim/sim_invariants.gd"
+      ],
+      "status": "reference",
+      "depends_on": [],
+      "gate": "3D 端用 --simtest 替代；不直接搬运行时断言",
+      "notes": "只读检查，不修状态。"
+    },
+    {
+      "id": "E-DOORS",
+      "name": "自动门 / 断电 2 秒扫描锁",
+      "group": "spatial",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            386,
+            473
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/scene_extras.gd#door_update"
+      ],
+      "status": "ported",
+      "depends_on": [
+        "D-MAP",
+        "D-SPACE"
+      ],
+      "gate": "--powertest（scan 2.0s 放行 / 离开重锁）",
+      "notes": "门声与开门动画音效未做（B6）。"
+    },
+    {
+      "id": "S-DEV",
+      "name": "DEV 横栏 / 运行时断言 / 暂停调试",
+      "group": "view",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            474,
+            655
+          ]
+        }
+      ],
+      "target": [
+        "excluded:2.5D 调试层"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；3D 用 --simtest / --devicetest 替代",
+      "notes": "DEV 面板是 2.5D 的调试 UI，不属于玩家系统。"
+    },
+    {
+      "id": "E-POWER",
+      "name": "电闸 / 断电 / 照明三态",
+      "group": "spatial",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            656,
+            748
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/main.gd#set_power",
+        "3d/preview/data/space.json#breaker"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "D-SPACE"
+      ],
+      "gate": "--powertest 全项",
+      "notes": "电闸/断电/照明三态；B6′ 起 main.set_power 同步到 sim.power_on 并记 breaker 事件。"
+    },
+    {
+      "id": "E-MOVE",
+      "name": "移动 / 拖尸 / 击杀加速 / 幽灵速度",
+      "group": "spatial",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            749,
+            859
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/player.gd",
+        "planned:3d/preview/scripts/sim/agent_move.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "E-GEO",
+        "D-SPACE"
+      ],
+      "gate": "--walktest 4.2m/s / --walktest --corridor --wall",
+      "notes": "移动/拖尸降速(move.drag_speed)/旁观自由飞行(9 格/秒，无碰撞)已接。"
+    },
+    {
+      "id": "S-STATE",
+      "name": "开局 / 15 席 / 4 异形 / 任务分配 / 申请单阈值",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            168,
+            385
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd",
+        "3d/preview/data/sim.json"
+      ],
+      "status": "ported",
+      "depends_on": [
+        "D-MAP",
+        "D-NAMES",
+        "D-TASKS"
+      ],
+      "gate": "--simtest 26/0（15 席 / 4 异形 / 每人 1 高难 + 3 普通）",
+      "notes": "开局/15 席/4 异形/任务分配/申请单阈值；B4 起支持\"玩家是异形\"（new_game 会把 me 钉进异形池），玩家位置每帧同步进 sim。"
+    },
+    {
+      "id": "S-INTERACT",
+      "name": "交互轮盘 / 管道 / 圆桌 / 补给 / 监控台",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            860,
+            1018
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/main.gd#_collect_offers",
+        "3d/preview/scripts/ui_wheel.gd",
+        "3d/preview/scripts/main.gd#_use_pipe"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "--interacttest 全项",
+      "notes": "轮盘/圆桌/补给/监控/故障/报告/搜尸/拖尸/管道出口/打机器人全部接通。"
+    },
+    {
+      "id": "S-SABOTAGE",
+      "name": "异形破坏 / 故障 30 秒窗口 / 连续维修 10 秒",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            1019,
+            1273
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#sabotage_room"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE",
+        "D-TASKS"
+      ],
+      "gate": "--aittest sab 0-1 / fix 事件",
+      "notes": "破坏登记 + 30 秒窗口 + 玩家/AI 站桩维修已接；故障落点/视觉未接。"
+    },
+    {
+      "id": "A-COGNITION",
+      "name": "AI 认知层：感知 / 记忆 / 嫌疑 / 关系 / 证言可信度",
+      "group": "ai",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/t2/ai.js"
+        },
+        {
+          "file": "js/ai/sanity.js"
+        },
+        {
+          "file": "js/ai/traits.js"
+        },
+        {
+          "file": "js/game.js",
+          "lines": [
+            1274,
+            2168
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/mind.gd",
+        "3d/preview/data/lines.json#rules"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE",
+        "E-GEO"
+      ],
+      "gate": "--speechtest 证词改 sus / --b6test / --aittest 投票走认知分",
+      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。parity-map 标 38 synced / 7 adapter / 25 pending；envEstimate / 时间线拆谎仍待接。"
+    },
+    {
+      "id": "S-LOOP",
+      "name": "主循环 update / 动作计时 / 帧采样",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            2169,
+            2265
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#tick"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "--simtest（夜计时 / 天亮）",
+      "notes": "B1 只有夜计时与 dawn；AI/战斗/会议的 tick 在后续批次接入。"
+    },
+    {
+      "id": "A-HUMAN",
+      "name": "人类 AI：做任务 / 领物资 / 搜尸 / 救人 / 躲异形",
+      "group": "ai",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            2266,
+            2978
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/ai_human.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "E-GEO",
+        "A-COGNITION",
+        "S-INTERACT",
+        "S-BODY"
+      ],
+      "gate": "--aittest 任务 23 / 申请单 11 / 补给 10",
+      "notes": "选任务→A*→站桩→完成→领申请单→换补给→修故障→报告尸体→持枪反制。社交/逃跑/完整计划层未接。"
+    },
+    {
+      "id": "A-SOCIAL",
+      "name": "藏尸 / 目击 / 伪装审计 / 暴露度",
+      "group": "ai",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            2979,
+            3335
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/mind.gd#note_sight",
+        "3d/preview/scripts/sim/sim_state.gd#release_drag"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "A-COGNITION",
+        "S-COMBAT"
+      ],
+      "gate": "--b6test 藏尸 / --aittest 暴露度收敛",
+      "notes": "藏尸/目击/暴露度(目击→exposure→异形收手)/跨夜衰减已接；构陷编排(planAlienDeception/planMateBus)、伪装审计完整版仍待接。"
+    },
+    {
+      "id": "A-ALIEN",
+      "name": "异形 AI：计划 / 追踪 / 出刀 / 破坏 / 钻管道 / 伪装",
+      "group": "ai",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            3336,
+            4134
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/ai_alien.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "E-GEO",
+        "A-COGNITION",
+        "S-COMBAT",
+        "S-SABOTAGE",
+        "A-SOCIAL"
+      ],
+      "gate": "--aittest knife 6 / kill 6 / sab 0-1",
+      "notes": "按 sim.json#rules.KNIFE 复现三条理智硬线 + 性格冒险率 + HUNT 挑落单目标；watchersAt 排除 doing>0（注意力不在线）。每夜 1 把刀的额度在 RUSH/管道突袭/异形开枪补齐前不启用（只搬限制会 0 胜）。"
+    },
+    {
+      "id": "S-COMBAT",
+      "name": "出刀 / 开枪 / 濒死 / 死亡 / 击杀加速",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            4135,
+            4441
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#knife",
+        "3d/preview/scripts/sim/sim_state.gd#shoot",
+        "3d/preview/scripts/main.gd#_handle_attack"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE",
+        "A-COGNITION"
+      ],
+      "gate": "--b4test 开枪断言 · --aittest knife/kill 事件",
+      "notes": "出刀/开枪/濒死/死亡/救起已接；玩家左键出刀、右键开枪；人类 AI 按 SHOT.chaseKnown/chaseSus 开枪反制；枪声证人按 2.5D 目击口径收窄到 7 格 + LOS。RUSH/击杀加速/红身表现/异形开枪未接。"
+    },
+    {
+      "id": "S-BOTS",
+      "name": "医疗无人机 / 保安机器人 / 保安拘留 / 反制",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            4442,
+            4726
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/bots.gd",
+        "3d/preview/data/space.json#bot",
+        "3d/preview/scripts/scene_extras.gd#bot_nodes"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE",
+        "E-GEO",
+        "S-COMBAT"
+      ],
+      "gate": "--bottest 6/0 + --b6test 机器人 HP",
+      "notes": "巡逻/抓捕/拘留/救人 + HP(保安2/医疗1)与打机器人反制。机器人 HP 从 js/t2/space.js#botHp 口径。"
+    },
+    {
+      "id": "S-WIN",
+      "name": "胜负判定 / 结算",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            4727,
+            4816
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#check_win",
+        "3d/preview/scripts/main.gd#_show_end"
+      ],
+      "status": "ported",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "--simtest（45 分 / 异形出局 / 人类全灭 三条）",
+      "notes": "胜负判定/结算 + 结束页复盘入口；3D 1000 局基线见 reports/3d-sim1000.md。"
+    },
+    {
+      "id": "S-REPORT",
+      "name": "报告尸体 / 事件播报 / 口供查询",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            4817,
+            4958
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#open_meeting"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-COMBAT",
+        "S-BODY"
+      ],
+      "gate": "--meetingtest ok=true",
+      "notes": "报告尸体→开会已接；报告额度/播报文案未接。"
+    },
+    {
+      "id": "S-SPEECH",
+      "name": "发言系统：台词调度 / 口供 / 质疑 / 作证 / 玩家自由发言",
+      "group": "social",
+      "track": "speech",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            4959,
+            6821
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/speech.gd",
+        "3d/preview/scripts/sim/lines_data.gd",
+        "3d/preview/scripts/main.gd#_meeting_feed_text"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-MEET",
+        "D-LINES",
+        "A-COGNITION"
+      ],
+      "gate": "--speechtest 11/0（讨论 13 条台词 / 玩家解析 saw_knife / 证词改 sus / 投票意向）",
+      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；talkScore/去重/排期系数全部读 rules.json#dispatch。未接：构陷编排 planAlienDeception / planMateBus、领袖型玩家剧本（parity-map 标 pending）。"
+    },
+    {
+      "id": "S-DECISION",
+      "name": "会议/报告/投票基础层：额度、消耗、时序",
+      "group": "social",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/t2/decision.js"
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#open_meeting"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "--meetingtest（5 秒投票）",
+      "notes": "报告额度/每夜会议上限/讨论快进/投票相位/改票/终结者/假说竞争弃权(MIND.hypGap/hypMinTop)/WARM.followChance/SOCIAL.pileOn 全部接通。settleAccountability 身份追责未迁。"
+    },
+    {
+      "id": "S-MEET",
+      "name": "会议结构：报告 → 讨论窗口 → 投票 → 驱逐 → 公布（含投票判断）",
+      "group": "social",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            6822,
+            7718
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#open_meeting",
+        "3d/preview/scripts/main.gd#_build_meeting_ui",
+        "3d/preview/scripts/main.gd#_meeting_result_text"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-REPORT",
+        "A-COGNITION",
+        "S-DECISION"
+      ],
+      "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetshot 三张实拍",
+      "notes": "discuss(发言流+玩家输入框) → vote → result(身份公布+投票矩阵)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮（独立意向→跟票/顺势→落票）。白天/开局会议与紧急按钮未迁。"
+    },
+    {
+      "id": "S-NIGHT",
+      "name": "夜晚循环 / 天亮 / 会议暂停 / 终结者",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            7719,
+            7938
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#tick",
+        "3d/preview/scripts/main.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE",
+        "S-MEET"
+      ],
+      "gate": "--simtest（75 秒天亮）/ B5 会议暂停",
+      "notes": "B1 只有夜计时与 dawn；会议暂停、终结者未接。"
+    },
+    {
+      "id": "S-ACTIONS",
+      "name": "玩家动作：领申请单 / 修任务 / 交互 / 攻击 / 搜尸 / 拖尸",
+      "group": "sim",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            7939,
+            8463
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/main.gd#_open_device",
+        "planned:3d/preview/scripts/sim/actions.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-INTERACT",
+        "S-COMBAT",
+        "S-BODY"
+      ],
+      "gate": "--taskflowtest ok=true / --devicetest open=true",
+      "notes": "领申请单/修任务/交互/出刀/开枪/钻管道/搜尸/拖尸/打机器人/拉闸全部接通。"
+    },
+    {
+      "id": "S-BODY",
+      "name": "尸体状态机：濒死 / 死亡 / 拖拽 / 搜尸取物资 / 收尸",
+      "group": "sim",
+      "track": "core",
+      "source": [],
+      "target": [
+        "3d/preview/scripts/sim/sim_state.gd#body_near",
+        "3d/preview/scripts/sim/sim_state.gd#search_body",
+        "3d/preview/scripts/main.gd#_on_search_done"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-COMBAT",
+        "S-STATE"
+      ],
+      "gate": "--b4test 搜尸 / --b6test 拖尸藏尸",
+      "notes": "尸体/报告/搜尸取物资/拖尸跟随(降速)/医疗间救起/非公共舱藏尸/收尸全部接通。"
+    },
+    {
+      "id": "X-AUDIO",
+      "name": "音效系统与 15 条采样",
+      "group": "audio",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            8464,
+            8683
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/audio.gd",
+        "3d/preview/assets/audio/",
+        "3d/preview/scripts/ui_panels.gd"
+      ],
+      "status": "partial",
+      "depends_on": [],
+      "gate": "--shot 无脚本错误 / --b6test",
+      "notes": "20 条 .ogg 从 2.5D audio/ 复制；事件流驱动播放 + 0.12s 同音效去重 + 音量走设置面板。BGM(m4a) Godot 不支持，未接；无 3D 空间衰减。"
+    },
+    {
+      "id": "V-RENDER",
+      "name": "2.5D 绘制：Canvas / 迷雾 / 精灵 / 小地图",
+      "group": "view",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            8684,
+            10669
+          ]
+        }
+      ],
+      "target": [
+        "excluded:3D 场景与光照已重写"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；3D 用镜头/光照/材质替代",
+      "notes": "约 2,000 行；这是 3D 不需要的那一层。"
+    },
+    {
+      "id": "V-HUD",
+      "name": "HUD / 任务列表 / 小地图 / 横幅",
+      "group": "view",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            10670,
+            10860
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/main.gd#_build_hud",
+        "3d/preview/scripts/main.gd#_refresh_sim_hud"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "B1 HUD 实拍 sim-b1-hud.png",
+      "notes": "夜/进度/自己的任务已上；小地图、申请单脉冲、结算表在 B5/B6。"
+    },
+    {
+      "id": "X-SIM",
+      "name": "蒙特卡洛 / 批量模拟",
+      "group": "test",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            10861,
+            11754
+          ]
+        }
+      ],
+      "target": [
+        "reference:tools/monte-carlo.cjs"
+      ],
+      "status": "reference",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "保留 JS 版作为平衡试验台；3D 侧 B5 后另做无头批量",
+      "notes": "同 seed 对比是移植期的行为护栏，不能删。"
+    },
+    {
+      "id": "X-BIND",
+      "name": "SKV3 全局绑定 / 门禁契约",
+      "group": "entry",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            11755,
+            11766
+          ]
+        }
+      ],
+      "target": [
+        "excluded:3D 用 --simtest / --taskflowtest 替代"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；window.SKV3._t 只属于 2.5D 门禁",
+      "notes": "3D 的断言入口在 main.gd 的测试分支。"
+    },
+    {
+      "id": "X-ENTRY",
+      "name": "2.5D 入口 / 加载链 / 开始页绑定",
+      "group": "entry",
+      "track": "core",
+      "source": [
+        {
+          "file": "index.html"
+        },
+        {
+          "file": "js/main.js"
+        }
+      ],
+      "target": [
+        "excluded:Godot 场景入口 3d/preview/scenes/main.tscn"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；file:// 红线不适用于 3D",
+      "notes": "开始页要在 B6 用 Control 重做。game.js 1–167 的 boot/start/stop 属于同一层，已计入 S-BOOT。"
+    },
+    {
+      "id": "S-BOOT",
+      "name": "IIFE 启动 / start / stop / 常量入口",
+      "group": "entry",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/game.js",
+          "lines": [
+            1,
+            167
+          ]
+        }
+      ],
+      "target": [
+        "excluded:3D 由 main.gd 的 _ready 替代"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁",
+      "notes": "2.5D 的启动/停止与 DOM 生命周期绑定，3D 不需要。"
+    },
+    {
+      "id": "UI-HOME",
+      "name": "开始页 / 设置 / 视角与音量",
+      "group": "ui",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/ui/home.js"
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/home_view.gd",
+        "3d/preview/scripts/home_ship_map.gd",
+        "3d/preview/scripts/main.gd#_show_home"
+      ],
+      "status": "partial",
+      "depends_on": [],
+      "gate": "--hometest 6/0 · --roletest 4/0 · --b6test 旁观 · --homeshot",
+      "notes": "版式照搬 2.5D；选人类/异形/旁观者都真的影响开局；设置面板已接。"
+    },
+    {
+      "id": "UI-REPLAY",
+      "name": "复盘页 / 时间轴 / 事件高亮",
+      "group": "ui",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/ui/replay.js"
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/ui_panels.gd",
+        "3d/preview/scripts/main.gd#_show_end"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "X-SIM",
+        "S-STATE"
+      ],
+      "gate": "--b6test 复盘渲染 / 结束页「查看复盘」按钮",
+      "notes": "事件流时间轴（kind/night/pt/actor）只读 sim.events；设置面板同文件。载入外部回放 JSON 未接。"
+    },
+    {
+      "id": "UI-TEMPLATES",
+      "name": "DOM 模板 / 会议与 HUD 结构",
+      "group": "ui",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/ui/templates.js"
+        }
+      ],
+      "target": [
+        "excluded:Godot Control 重写"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；结构可参考，DOM id 不保留",
+      "notes": "2.5D 的 DOM id 双处同步红线不适用于 3D。"
+    },
+    {
+      "id": "V-SCENE",
+      "name": "2.5D 场景层：图块 / 角色行走图 / 船舱外壳",
+      "group": "view",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/scene/const.js"
+        },
+        {
+          "file": "js/scene/crew.js"
+        },
+        {
+          "file": "js/scene/shell.js"
+        }
+      ],
+      "target": [
+        "excluded:3D 场景/角色代理"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "不迁；美术素材也不迁",
+      "notes": "3D 已有 127 掩体、73 GLB、角色 billboard 代理。"
+    },
+    {
+      "id": "V-MINIGAME",
+      "name": "小游戏玩法层（10 型可玩）",
+      "group": "view",
+      "track": "core",
+      "source": [
+        {
+          "file": "js/t2/minigame.js",
+          "lines": [
+            111,
+            1184
+          ]
+        }
+      ],
+      "target": [
+        "3d/preview/scripts/minigame/"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "D-TASKS",
+        "D-PLATES"
+      ],
+      "gate": "--mgtest 10/10 / --devicetest open=true",
+      "notes": "10 型已可玩；4 型待做。"
+    },
+    {
+      "id": "X-TEST",
+      "name": "2.5D 门禁 / 语料体检 / 截图",
+      "group": "test",
+      "track": "core",
+      "source": [
+        {
+          "file": "tools/test-v3.cjs"
+        },
+        {
+          "file": "tools/monte-carlo.cjs"
+        }
+      ],
+      "target": [
+        "reference:保留"
+      ],
+      "status": "reference",
+      "depends_on": [],
+      "gate": "2.5D 门禁 885/0（2026-11-08 实跑）",
+      "notes": "移植期作为行为对照，不要改。"
+    },
+    {
+      "id": "X-ART",
+      "name": "美术素材",
+      "group": "asset",
+      "track": "core",
+      "source": [
+        {
+          "file": "assets/scene/"
+        },
+        {
+          "file": "assets/portfolio/"
+        },
+        {
+          "file": "assets/minigame/"
+        }
+      ],
+      "target": [
+        "excluded"
+      ],
+      "status": "excluded",
+      "depends_on": [],
+      "gate": "按用户裁定：美术素材不迁；3D 现有代理与贴图继续用",
+      "notes": "素材署名与许可仍需保留（CC-BY / Qwen Research License）。"
+    },
+    {
+      "id": "V-CREW",
+      "name": "15 个 crew 的 3D 占位表现",
+      "group": "view",
+      "track": "core",
+      "source": [],
+      "target": [
+        "3d/preview/scripts/sim/crew_view.gd"
+      ],
+      "status": "partial",
+      "depends_on": [
+        "S-STATE"
+      ],
+      "gate": "--shot --wait 5 / --aittest",
+      "notes": "15 billboard+名牌；旁观模式下 0 号也显示。美术下一批优化。"
+    }
+  ]
+}
