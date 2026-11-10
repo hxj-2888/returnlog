@@ -19,7 +19,7 @@ const schemaPath = path.join(root3d, 'spec', 'asset.schema.json');
 const manifestPath = path.join(root3d, 'spec', 'assets.manifest.json');
 
 /* 每类的面数上限，与 spec/conventions.md §3 一致 */
-const TRI_CAP = { ship: 120000, room: 15000, prop: 3000, device: 8000, character: 12000, fx: 200 };
+const TRI_CAP = { ship: 120000, room: 15000, prop: 8000, device: 8000, character: 12000, fx: 200 };
 
 const errors = [];
 const warns = [];

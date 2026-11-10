@@ -1,0 +1,271 @@
+{
+  "schema_version": 1,
+  "generated_by": "3d/tools/bake-refs.py",
+  "source_model": "Qwen-Image 2.1 Turbo Q4_K_M GGUF + Qwen3-VL-8B UD-Q4_K_XL + qwen_image_2.1_vae_bf16",
+  "license": "Qwen Research License (non-commercial). 已进 res:// 运行时：与 assets/minigame/panel-*.png 同一裁定口径，转商用需换 SDXL。",
+  "size": 512,
+  "panels": {
+    "引擎组同步": "res://assets/textures/panel/01-engine-sync.png",
+    "零件台": "res://assets/textures/panel/02-engine-place.png",
+    "工具架": "res://assets/textures/panel/03-engine-place.png",
+    "备用配电盘": "res://assets/textures/panel/04-engine-wire.png",
+    "氧气循环": "res://assets/textures/panel/05-ecosys-pour.png",
+    "培养罐补液": "res://assets/textures/panel/06-ecosys-pour.png",
+    "温控面板": "res://assets/textures/panel/07-ecosys-sync.png",
+    "电路维修": "res://assets/textures/panel/08-power-wire.png",
+    "变压器换芯": "res://assets/textures/panel/09-power-swap.png",
+    "餐台清洁": "res://assets/textures/panel/10-transit-sort.png",
+    "后厨盘点": "res://assets/textures/panel/11-transit-sort.png",
+    "娱乐桌": "res://assets/textures/panel/12-fun-sequence.png",
+    "点唱机": "res://assets/textures/panel/13-fun-sequence.png",
+    "手术台校准": "res://assets/textures/panel/14-med-align.png",
+    "药柜": "res://assets/textures/panel/15-med-match.png",
+    "消毒循环": "res://assets/textures/panel/16-med-valve.png",
+    "靶道校准": "res://assets/textures/panel/17-armory-aim.png",
+    "工作台": "res://assets/textures/panel/18-armory-place.png",
+    "弹药清点": "res://assets/textures/panel/19-armory-sort.png",
+    "监控墙重连": "res://assets/textures/panel/20-cam-code.png",
+    "操作台": "res://assets/textures/panel/21-cam-sequence.png",
+    "录像归档": "res://assets/textures/panel/22-cam-code.png",
+    "货架校准": "res://assets/textures/panel/23-warehouse-level.png",
+    "库存盘点": "res://assets/textures/panel/24-warehouse-sort.png",
+    "货箱封条": "res://assets/textures/panel/25-warehouse-place.png",
+    "出库扫描": "res://assets/textures/panel/26-warehouse-code.png"
+  },
+  "provenance": [
+    {
+      "task": "引擎组同步",
+      "kind": "sync",
+      "accent": "#F5A64A",
+      "file": "res://assets/textures/panel/01-engine-sync.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\01-engine-sync_768.png",
+      "src_sha1": "0141b971f7c5",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "零件台",
+      "kind": "place",
+      "accent": "#73A7FF",
+      "file": "res://assets/textures/panel/02-engine-place.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\02-engine-place_768.png",
+      "src_sha1": "64d5aab755c5",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "工具架",
+      "kind": "place",
+      "accent": "#5AD1C0",
+      "file": "res://assets/textures/panel/03-engine-place.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\03-engine-place_768.png",
+      "src_sha1": "d569f0441ba3",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "备用配电盘",
+      "kind": "wire",
+      "accent": "#F0C674",
+      "file": "res://assets/textures/panel/04-engine-wire.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\04-engine-wire_768.png",
+      "src_sha1": "d3a9fa9ac0ad",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "氧气循环",
+      "kind": "pour",
+      "accent": "#57DB70",
+      "file": "res://assets/textures/panel/05-ecosys-pour.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\05-ecosys-pour_768.png",
+      "src_sha1": "884b6c399d89",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "培养罐补液",
+      "kind": "pour",
+      "accent": "#00E5B0",
+      "file": "res://assets/textures/panel/06-ecosys-pour.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\06-ecosys-pour_768.png",
+      "src_sha1": "01435729a48d",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "温控面板",
+      "kind": "sync",
+      "accent": "#3DC7F2",
+      "file": "res://assets/textures/panel/07-ecosys-sync.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\07-ecosys-sync_768.png",
+      "src_sha1": "eed3d9499ca5",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "电路维修",
+      "kind": "wire",
+      "accent": "#E0574F",
+      "file": "res://assets/textures/panel/08-power-wire.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\08-power-wire_768.png",
+      "src_sha1": "af343ece3d64",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "变压器换芯",
+      "kind": "swap",
+      "accent": "#B07CFF",
+      "file": "res://assets/textures/panel/09-power-swap.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\09-power-swap_768.png",
+      "src_sha1": "55f6126b92c9",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "餐台清洁",
+      "kind": "sort",
+      "accent": "#F5A64A",
+      "file": "res://assets/textures/panel/10-transit-sort.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\10-transit-sort_768.png",
+      "src_sha1": "7aa60b9c5d90",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "后厨盘点",
+      "kind": "sort",
+      "accent": "#F0C674",
+      "file": "res://assets/textures/panel/11-transit-sort.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\11-transit-sort_768.png",
+      "src_sha1": "c620a5503879",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "娱乐桌",
+      "kind": "sequence",
+      "accent": "#E052CC",
+      "file": "res://assets/textures/panel/12-fun-sequence.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\12-fun-sequence_768.png",
+      "src_sha1": "ee993bfc7c98",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "点唱机",
+      "kind": "sequence",
+      "accent": "#B07CFF",
+      "file": "res://assets/textures/panel/13-fun-sequence.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\13-fun-sequence_768.png",
+      "src_sha1": "fe0e87f9e66d",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "手术台校准",
+      "kind": "align",
+      "accent": "#00E5B0",
+      "file": "res://assets/textures/panel/14-med-align.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\14-med-align_768.png",
+      "src_sha1": "1b3b7884cfda",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "药柜",
+      "kind": "match",
+      "accent": "#5AD1C0",
+      "file": "res://assets/textures/panel/15-med-match.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\15-med-match_768.png",
+      "src_sha1": "d9851a1ecef2",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "消毒循环",
+      "kind": "valve",
+      "accent": "#00E5B0",
+      "file": "res://assets/textures/panel/16-med-valve.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\16-med-valve_768.png",
+      "src_sha1": "23b7efb21062",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "靶道校准",
+      "kind": "aim",
+      "accent": "#E0574F",
+      "file": "res://assets/textures/panel/17-armory-aim.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\17-armory-aim_768.png",
+      "src_sha1": "9f69be8936b9",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "工作台",
+      "kind": "place",
+      "accent": "#F5A64A",
+      "file": "res://assets/textures/panel/18-armory-place.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\18-armory-place_768.png",
+      "src_sha1": "b4a059f85a00",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "弹药清点",
+      "kind": "sort",
+      "accent": "#F0C674",
+      "file": "res://assets/textures/panel/19-armory-sort.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\19-armory-sort_768.png",
+      "src_sha1": "0757261ecbf0",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "监控墙重连",
+      "kind": "code",
+      "accent": "#3DC7F2",
+      "file": "res://assets/textures/panel/20-cam-code.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\20-cam-code_768.png",
+      "src_sha1": "00df28432aea",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "操作台",
+      "kind": "sequence",
+      "accent": "#73A7FF",
+      "file": "res://assets/textures/panel/21-cam-sequence.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\21-cam-sequence_768.png",
+      "src_sha1": "0d608880fc58",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "录像归档",
+      "kind": "code",
+      "accent": "#5AD1C0",
+      "file": "res://assets/textures/panel/22-cam-code.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\22-cam-code_768.png",
+      "src_sha1": "bba5bb8f8e9c",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "货架校准",
+      "kind": "level",
+      "accent": "#F0C674",
+      "file": "res://assets/textures/panel/23-warehouse-level.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\23-warehouse-level_768.png",
+      "src_sha1": "70d5666d816e",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "库存盘点",
+      "kind": "sort",
+      "accent": "#F5A64A",
+      "file": "res://assets/textures/panel/24-warehouse-sort.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\24-warehouse-sort_768.png",
+      "src_sha1": "4ab051900539",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "货箱封条",
+      "kind": "place",
+      "accent": "#F0C674",
+      "file": "res://assets/textures/panel/25-warehouse-place.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\25-warehouse-place_768.png",
+      "src_sha1": "c6827d6b1d17",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    },
+    {
+      "task": "出库扫描",
+      "kind": "code",
+      "accent": "#73A7FF",
+      "file": "res://assets/textures/panel/26-warehouse-code.png",
+      "src": "E:\\ai-models\\qwen-image-2.1\\output\\task-refs\\26-warehouse-code_768.png",
+      "src_sha1": "73bdd7ceb196",
+      "ops": "resize only（面板是整块构图，不镜像）"
+    }
+  ]
+}

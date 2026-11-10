@@ -21,6 +21,8 @@ const DEFAULT_MANIFEST = path.join(ROOT, 'assets', 'MANIFEST.json');
 const GLOBS = [
   { dir: path.join(ROOT, 'assets', 'scene', 'v4', 'tex'), skip: ['door-panel.png'] },
   { dir: path.join(ROOT, '3d', 'preview', 'assets', 'textures'), skip: [] },
+  // 2026-11-09 千问素材库（只登记 PNG，README/清单不入哈希清单）
+  { dir: path.join(ROOT, 'assets', 'qwen-lib'), skip: [], ext: '.png' },
 ];
 
 function sha256(file) {
@@ -32,6 +34,7 @@ function collect() {
     if (!fs.existsSync(g.dir)) continue;
     for (const name of fs.readdirSync(g.dir).sort()) {
       if (g.skip.includes(name)) continue;
+      if (g.ext && !name.endsWith(g.ext)) continue;
       const abs = path.join(g.dir, name);
       if (!fs.statSync(abs).isFile()) continue;
       out.push({

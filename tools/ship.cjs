@@ -25,7 +25,7 @@ const zlib = require('zlib');
 const { deployDir } = require('./lib/wrangler.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const PAGE_PROJECT = process.env.CF_PROJECT || 'space-kill-web';
+const PAGE_PROJECT = process.env.CF_PROJECT || 'returnlog';
 const PORTFOLIO_DIR = process.env.PORTFOLIO_DIR || path.resolve(ROOT, '..', 'portfolio');
 const PAGE_PORTFOLIO = process.env.CF_PORTFOLIO_PROJECT || 'portfolio-ji';
 const APK_TAG = 'returnlog-v3';
@@ -350,7 +350,7 @@ function main() {
   console.log('\n[ship] 全部完成');
   console.log('  主站   https://' + PAGE_PROJECT + '.pages.dev');
   if (DO('portfolio') && fs.existsSync(PORTFOLIO_DIR)) console.log('  作品集 https://' + PAGE_PORTFOLIO + '.pages.dev');
-  if (DO('apk')) console.log('  APK    https://github.com/hxj-2888/space-kill-web/releases/download/' + APK_TAG + '/ReturnLog.apk');
+  if (DO('apk')) console.log('  APK    https://github.com/hxj-2888/returnlog/releases/download/' + APK_TAG + '/ReturnLog.apk');
 }
 
 main();

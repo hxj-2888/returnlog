@@ -100,9 +100,11 @@
   function k1(p){return p<0.35?p/0.35*0.6:(0.6+(p-0.35)/0.65*0.4);}
 
   global.SKT2Space = Object.freeze({
-    /* 第一批：运行常量（数值与拆分前 game.js 完全一致） */
-    MOVE_SPEED: 4.2,
-    DRAG_SPEED: 2.7,
+    /* 第一批：运行常量（拆分前与 game.js 一致）
+       2026-11-07 用户裁定：全体移动速度 4.2 → 4.0，拖尸 2.7 → 2.5。
+       game.js 的 moveSpeed() 与 tools/test-v3.cjs 的断言都读这两个真源。 */
+    MOVE_SPEED: 4.0,
+    DRAG_SPEED: 2.5,
     GHOST_TASK_CAP: GHOST_TASK_CAP,
     SPECT_SPEED: 9,
     DOOR_OPEN_R: 3.0,

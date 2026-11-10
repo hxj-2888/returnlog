@@ -7,8 +7,14 @@
 | 文件 | 来源 | 许可 |
 |---|---|---|
 | `music-bgm.m4a` | 用户自有录音（2026-10-06），替换原 CC0 `music-space-ambience.ogg`（〔批次 38〕音乐资源清理时移除） | 用户自有素材 |
+| `3d/preview/assets/audio/music-bgm.ogg` | 同一份录音的**格式转换产物**（2026-11-09 本机 `ffmpeg -c:a libvorbis -qscale:a 4`，151.2s / 120kbps / 2.26MB）；Godot 4.6 不解码 m4a/AAC，3D 预演只能用 ogg | 用户自有素材（与源文件同许可） |
 
-（背景音乐文件目前仅留档，未接入游戏；当前版本只播放音效。）
+**接入状态（2026-11-09 校对，此前本节写「仅留档、未接入游戏」是过期的）**：
+
+- **2.5D**：`index.html` 的 `<audio id="bgm">` + `js/main.js` 的 `playBgm()`，
+  首次用户手势起播；音量走 `pow(music, 0.7)` 感知曲线（0.35 档 → 0.48，约 −6.4dB）。
+- **3D 预演**：`3d/preview/scripts/audio.gd::play_music()`，只在真的开局时播、循环由导入参数 `loop=true` 决定；
+  设置面板的「音乐」滑杆不再写 Master 总线（过去它一移动就把音效一起压小，而音乐仍然听不见）。
 
 ## 音效
 

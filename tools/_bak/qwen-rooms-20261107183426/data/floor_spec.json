@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "generated_by": "3d/tools/export-floor-spec.cjs",
+  "source": "tools/blender-ship.py（底图材质口径）",
+  "note": "地板口径单一真源。repeat_m = 贴图重复边长(米) = 底图 Mapping Scale 的倒数；tint 为底图的 MULTIPLY 染色。改这里再重跑本脚本，两边同时生效。",
+  "rooms": {
+    "bridge": {
+      "tex": "floor-carpet.png",
+      "repeat_m": 7.5,
+      "tint": [
+        0.46,
+        0.48,
+        0.54
+      ],
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "cam": {
+      "tex": "floor-monitor.png",
+      "repeat_m": 3,
+      "tint": [
+        0.86,
+        0.92,
+        1.04
+      ],
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "ecosys": {
+      "tex": "floor-eco.png",
+      "repeat_m": 2.8,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "power": {
+      "tex": "floor-power.png",
+      "repeat_m": 2.8,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "transit": {
+      "tex": "cafeteria-floor.png",
+      "repeat_m": 2.8,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "fun": {
+      "tex": "floor-lounge.png",
+      "repeat_m": 2.8,
+      "tint": [
+        0.92,
+        0.88,
+        0.98
+      ],
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "engine": {
+      "tex": "floor-engine.png",
+      "repeat_m": 3,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "med": {
+      "tex": "floor-lab.png",
+      "repeat_m": 3,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "armory": {
+      "tex": "floor-hazard.png",
+      "repeat_m": 3.2,
+      "tint": [
+        0.72,
+        0.72,
+        0.72
+      ],
+      "metallic": 0.22,
+      "roughness": 0.62
+    },
+    "warehouse": {
+      "tex": "warehouse-floor.png",
+      "repeat_m": 3.2,
+      "tint": null,
+      "metallic": 0.22,
+      "roughness": 0.62
+    }
+  },
+  "corridor": {
+    "tex": "floor-grate.png",
+    "repeat_m": 2.6,
+    "tint": [
+      0.72,
+      0.78,
+      0.9
+    ],
+    "metallic": 0.42,
+    "roughness": 0.5,
+    "emit": 0.14
+  }
+}

@@ -48,3 +48,23 @@ tools/mc-results-E.json
 # 只排除敏感信息：.env（上）、android/release.keystore（上）、
 # android/assets/www/（APK 打包副本，上）等既有条目保持有效。
 # 入库前须复核：不写 API key / token / 口令 / 私钥 / 凭据明文。
+# Blender 自动备份（同目录 .blend1），不入库
+*.blend1
+
+# 2026-11-09 铁板掩体暂关前的实际素材备份（GLB/blend/检查板/截图/高度表，175.7 MB）
+# 只在本机留档，不入库；恢复口径见 3d/CHANGELOG.md 同日条目。
+_backup/
+
+# ---- 2026-11-10 千问素材库载荷改造（沿用贴图出仓约定）----
+# 素材库 PNG 体积大，只在本机 + assets/MANIFEST.json 兜底，不入库；
+# README 与 素材库清单.json 入库（说明来源/许可）。
+assets/qwen-lib/*.png
+# 色调对齐参考（bake 用，本机留档）
+tools/_qwen_refs/
+# Python 字节码不入库
+3d/tools/__pycache__/
+# 一次性 bench / 对齐临时产物
+3d/preview/bench-result.json
+tools/bench-*.json
+tools/style-align-report.json
+tools/tex-detail-fusion-report.json

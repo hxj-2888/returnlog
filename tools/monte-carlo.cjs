@@ -47,6 +47,12 @@ const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
 const NO_DISCUSS = arg('no-discuss', '0') === '1';
 const HYP_GAP = arg('hypgap', null);
 const HYP_MODE = arg('hypmode', null);
+/* 2026-11-06：--social 0 关掉异形「社交顺势」（A/B 归因用），只作用于本次运行。 */
+const SOCIAL_ON = arg('social', '1') !== '0';
+/* 2026-11-06：--heard 0 关掉「传闻补证据种类」（A/B 用），只作用于本次运行。 */
+const HEARD_KINDS = arg('heard', null);
+/* 2026-11-07：--misid 0 关掉「目击认错人」（A/B 用），只作用于本次运行。 */
+const MISID_CHANCE = arg('misid', null);
 
 function mean(a, key) {
   const xs = a.map(r => +r[key]).filter(Number.isFinite);
@@ -90,6 +96,14 @@ const LABELS = {
   contradictions:'口供矛盾次数', falseContradictions:'旧量词会冤枉人的次数',
   contradictionOld:'旧量词诊断次数',
   knownWrites:'确证写入次数', knownVotes:'确证票数', ejectByKnown:'确证驱逐次数',
+  knownWritesAlien:'确证写入·目标是异形', knownWritesHuman:'确证写入·目标是人类',
+  knownVotesAlien:'确证票·投给异形', knownVotesHuman:'确证票·投给人类',
+  ejectByKnownAlien:'确证驱逐·逐出异形', ejectByKnownHuman:'确证驱逐·逐出人类',
+  almostAlien:'准-确证·目标是异形', almostHuman:'准-确证·目标是人类',
+  almostEjectAlien:'准-确证驱逐·逐出异形', almostEjectHuman:'准-确证驱逐·逐出人类',
+  fakeBreakerRolls:'当众合闸·掷骰次数', fakeBreakerPlans:'当众合闸·计划选中次数',
+  busAccusals:'异形指控队友次数',
+  mateFollowVotes:'异形伙同跟票数',
   detainWitness:'拘留被目击次数', detainEvictions:'被拘留者最终被逐次数',
   susCarry:'跨夜嫌疑存量',
   almostCount:'准-确证·敌次数', almostFriendCount:'准-确证·友次数',
@@ -106,14 +120,21 @@ const LABELS = {
   earlyVotes:'早投票数', voteChanges:'听到发言后改票次数', earlyKept:'早投保留到终局票数',
   reachImpossible:'不在场口供「走不到」次数', statementDamp:'指控与背书冲突压声次数',
   discussLines:'模拟讨论发言条数', vouchHeard:'听众收到背书次数',
-  hypothesisAbstain:'并列假说难分而弃权票数'
+  hypothesisAbstain:'并列假说难分而弃权票数',
+  alienPileOns:'异形顺势踩人次数', alienFrameFollow:'构陷顺着场上靶子次数',
+  almostHeard:'靠传闻补种类才成立的准-确证次数',
+  misIdWrites:'目击认错人次数（known 指向了另一个人）',
+  misIdToAlien:'认错后指到的其实是异形',
+  misIdToHuman:'认错后指到的是无辜人类',
+  misIdRealHuman:'认错时真凶本身也是人类（拉闸被看见）'
 };
 const LABEL_GROUPS = [
   ['一局有多长 / 胜负', 'nights prog steps meetings terminatorGames terminatorArms humans aliens downed'],
   ['打斗与物资', 'knives shots sabotages exiles humanExiles alienExiles searches loots bulletsLooted medkitsLooted qualsLooted humanLoots alienLoots humanShots alienShots sabHits sabFixed sabFixSec sabFixedByGhost'],
-  ['异形行动 / 伪装', 'fakeRepairs fakeTasks fakeBreaker realFixes realRevives alienTasks alienPipes alienPipePlans rushKills revives medbotRevives medkitRevives ghostTasks ghostFixes'],
+  ['异形行动 / 伪装', 'fakeRepairs fakeTasks fakeBreaker fakeBreakerRolls fakeBreakerPlans busAccusals mateFollowVotes alienPileOns alienFrameFollow realFixes realRevives alienTasks alienPipes alienPipePlans rushKills revives medbotRevives medkitRevives ghostTasks ghostFixes'],
   ['会议与发言', 'orders orderObey orderRefuse endorses credFollow credShieldVotes abstains streakCuts lineDups mutualFrames humanDefends reportDoubts discussLines vouchHeard'],
-  ['推理 · 确证与准-确证', 'knownWrites knownVotes ejectByKnown detainWitness detainEvictions almostCount almostFriendCount almostEject almostVotes overriddenFriends susCarry'],
+  ['推理 · 确证与准-确证', 'knownWrites knownVotes ejectByKnown detainWitness detainEvictions almostCount almostFriendCount almostHeard misIdWrites misIdToAlien misIdToHuman misIdRealHuman almostEject almostVotes overriddenFriends susCarry'],
+  ['证据命中目标（审计）', 'knownWritesAlien knownWritesHuman knownVotesAlien knownVotesHuman ejectByKnownAlien ejectByKnownHuman almostAlien almostHuman almostEjectAlien almostEjectHuman'],
   ['推理 · 口供与可信度', 'contradictions falseContradictions contradictionOld reliaWrites reliaSpread hedgeAgents sureAgents silentSus presenceDeny claimRecall retractCount'],
   ['推理 · 行为线索', 'avoidCount farSight allyRevealed friendShield avoidSus reportsUsed nightMeetFull'],
   ['推理 · 投票与判断结构', 'earlyVotes voteChanges earlyKept reachImpossible statementDamp hypothesisAbstain']
@@ -137,8 +158,16 @@ function readCfg() {
       winPts: W.pts, faultPenalty: W.faultPenalty,
       alienDarkR: SIGHT_R(S, 'alienDarkR'), humanDarkR: SIGHT_R(S, 'humanDarkR'),
       aiCapR: (S.SIGHT || {}).aiCapR, confirmNearR: (S.CONFIRM || {}).nearR,
+      almostFoeSus: (S.ALMOST || {}).foeSus, almostFriendCred: (S.ALMOST || {}).friendCred,
+      redBodyDur: (S.RED_BODY || {}).dur,
+      voteNeed: (S.VOTE || {}).need, voteLateNeed: (S.VOTE || {}).lateNeed,
+      voteLateAt: (S.VOTE || {}).lateAt,
       huntMemorySec: (S.HUNT || {}).memorySec, rushMul: (S.RUSH || {}).mul,
       terminatorNight: (S.TERMINATOR || {}).night, disguiseCooldown: D.cooldown,
+      breakerChance: D.breakerChance, busChance: (S.MISLEAD || {}).busChance,
+      almostHeardKinds: (S.ALMOST || {}).heardKinds,
+      misIdChance: (S.MISID || {}).chance,
+      socialPileOn: (S.SOCIAL || {}).pileOn, socialFrameFollow: (S.SOCIAL || {}).frameFollow,
     };
   } catch (e) { return { cfgError: e.message }; }
 }
@@ -189,7 +218,8 @@ function summarize(results) {
   const keys = ['nights', 'prog', 'steps', 'meetings', 'knives', 'shots', 'sabotages',
     'exiles', 'humanExiles', 'alienExiles', 'searches', 'loots', 'bulletsLooted',
     'medkitsLooted', 'qualsLooted', 'humanLoots', 'alienLoots', 'humanShots',
-    'alienShots', 'fakeRepairs', 'fakeTasks', 'fakeBreaker', 'rushKills', 'alienTasks', 'revives', 'alienPipes',
+    'alienShots', 'fakeRepairs', 'fakeTasks', 'fakeBreaker', 'fakeBreakerRolls',
+    'fakeBreakerPlans', 'busAccusals', 'mateFollowVotes', 'rushKills', 'alienTasks', 'revives', 'alienPipes',
     'alienPipePlans', 'humans', 'aliens', 'downed',
     /* 2026-11-03 新增：终结者时刻到达率与补枪数（均值即"多少比例的局打得进第 10 夜"） */
     'terminatorGames', 'terminatorArms',
@@ -206,6 +236,10 @@ function summarize(results) {
     /* 2026-11-01 推理质量：拆谎误判 / 确证触发 / 拘留证据 */
     'contradictions', 'falseContradictions', 'contradictionOld', 'knownWrites', 'knownVotes',
     'ejectByKnown', 'detainWitness', 'detainEvictions',
+    /* 2026-11-06 证据目标审计：确证/准-确证到底落在真异形还是人类身上 */
+    'knownWritesAlien', 'knownWritesHuman', 'knownVotesAlien', 'knownVotesHuman',
+    'ejectByKnownAlien', 'ejectByKnownHuman', 'almostAlien', 'almostHuman',
+    'almostEjectAlien', 'almostEjectHuman',
     /* 2026-11-01 推理引擎规范化：跨夜痕迹 / 准-确证 / 可信度 / 熵沉默 / 在场反驳 */
     'susCarry', 'almostCount', 'almostFriendCount', 'almostEject', 'almostVotes',
     'overriddenFriends', 'reliaWrites', 'reliaSpread', 'hedgeAgents', 'sureAgents',
@@ -217,6 +251,9 @@ function summarize(results) {
     /* 2026-11-05 会议中改票：早投 / 依发言改票 / 早投票最终保留 */
     'earlyVotes', 'voteChanges', 'earlyKept',
     'reachImpossible', 'statementDamp', 'discussLines', 'vouchHeard',
+    /* 2026-11-06 异形社交顺势（AI 拟人化）：顺势踩人 / 构陷顺着场上靶子 */
+    'alienPileOns', 'alienFrameFollow', 'almostHeard',
+    'misIdWrites', 'misIdToAlien', 'misIdToHuman', 'misIdRealHuman',
     'hypothesisAbstain'];
   const avg = {}, med = {};
   for (const k of keys) { avg[k] = +mean(results, k).toFixed(3); med[k] = +median(results, k).toFixed(3); }
@@ -252,12 +289,14 @@ function summarize(results) {
        ③ 交叉表：结束原因 × 胜者，回答「人类赢是靠修完还是靠清剿」。 */
   const REACH_KEYS = ['terminatorGames', 'orders', 'orderObey', 'orderRefuse', 'endorses',
     'credFollow', 'realFixes', 'realRevives', 'credShieldVotes', 'fakeRepairs', 'fakeTasks',
-    'fakeBreaker', 'rushKills', 'alienTasks', 'alienPipes', 'almostFriendCount', 'friendShield',
+    'fakeBreaker', 'fakeBreakerRolls', 'fakeBreakerPlans', 'busAccusals', 'mateFollowVotes', 'rushKills', 'alienTasks', 'alienPipes', 'almostFriendCount', 'friendShield',
     'almostCount', 'almostEject', 'presenceDeny', 'avoidSus', 'retractCount', 'allyRevealed',
     'humanDefends', 'reportDoubts', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
     'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives',
     'earlyVotes', 'voteChanges', 'earlyKept',
     'reachImpossible', 'statementDamp', 'discussLines', 'vouchHeard',
+    'alienPileOns', 'alienFrameFollow', 'almostHeard',
+    'misIdWrites', 'misIdToAlien', 'misIdToHuman', 'misIdRealHuman',
     'hypothesisAbstain'];
   const reach = {};
   for (const k of REACH_KEYS) {
@@ -341,9 +380,10 @@ function writeOut(results, finished) {
         '会议期间夜晚时钟暂停（SKSanity.MEET.pauseClock），白天会议不占夜；旧口径「夜会议按 30 秒扣夜」已作废。',
         '讨论台词不逐条播放，会议决策与传闻嫌疑在开会时同步结算。',
         '跳过渲染/HUD/音效/自动不变量；对局逻辑与正式版一致。',
-        '⚠ **配置快照里的 `aiCapR` 只封暗处**：F 轮（2026-11-03）起 `aiCanSee` 先走亮区整片可见' +
-        '（同亮舱整间 / 同亮走廊整条 / 亮舱看相连走廊要 LOS），命中不看这个上限，' +
-        '只有暗舱与「站在舱外看进亮舱」才受它约束。跨批比较视野相关读数（knownWrites / 目击 / 伪装）前先看这条。',
+        '⚠ **2026-11-06 起 `aiCapR` 已退役**：玩家 `visibleAt` 与 AI `aiCanSee` 共用' +
+        '`observerVisionAt`（同亮舱整间 / 同亮走廊整条 / 亮舱看相连走廊要 LOS / 近身圆 / 7 格 60° 手电锥），' +
+        'AI 不再有暗处 8 格全向、从舱外看进亮房、全亮时无视朝向这些玩家没有的视力。' +
+        '跨批比较视野相关读数（knownWrites / 目击 / 伪装）前先看这条。',
         '⚠ **2026-11-06 起模拟讨论发言会真正执行**：`startChatter` 在 simMode 下把 push 改为' +
         '按同一顺序立即执行（不排定时器），所以 `orders` / `endorses` / `vouchHeard` / ' +
         '`discussLines` / `silentSus` / `statementDamp` 不再是结构性 0。' +
@@ -403,12 +443,23 @@ function writeOut(results, finished) {
     '| 结果公布 | ' + cfg.reveal + ' | SKSanity.MEET.reveal |',
     '| 异形暗处视野 | ' + cfg.alienDarkR + ' | SKSanity.SIGHT.alienDarkR |',
     '| 人类暗处视野 | ' + cfg.humanDarkR + ' | SKSanity.SIGHT.humanDarkR |',
-    '| AI 视距上限 | ' + cfg.aiCapR + ' | SKSanity.SIGHT.aiCapR |',
+    '| AI 视距上限（已退役，不参与判定） | ' + cfg.aiCapR + ' | SKSanity.SIGHT.aiCapR |',
     '| 确证距离门槛 | ' + cfg.confirmNearR + ' | SKSanity.CONFIRM.nearR |',
+    '| 准-确证·异形阈值 | ' + cfg.almostFoeSus + ' | SKSanity.ALMOST.foeSus |',
+    '| 准-确证·人类阈值 | ' + cfg.almostFriendCred + ' | SKSanity.ALMOST.friendCred |',
+    '| 刀者红身（秒） | ' + cfg.redBodyDur + ' | SKSanity.RED_BODY.dur |',
+    '| 驱逐门槛（票） | ' + cfg.voteNeed + ' / ' + cfg.voteLateNeed +
+      '（可投票 ≤' + cfg.voteLateAt + '） | SKSanity.VOTE |',
     '| 追猎记忆时效（秒） | ' + cfg.huntMemorySec + ' | SKSanity.HUNT.memorySec |',
     '| 击杀加速倍率 | ' + cfg.rushMul + ' | SKSanity.RUSH.mul |',
     '| 终结者夜数 | ' + cfg.terminatorNight + ' | SKSanity.TERMINATOR.night |',
     '| 伪装冷却（秒） | ' + cfg.disguiseCooldown + ' | SKSanity.DISGUISE.cooldown |',
+    '| 当众合闸概率/异形/夜 | ' + (cfg.breakerChance == null ? '—' : cfg.breakerChance) + ' | SKSanity.DISGUISE.breakerChance |',
+    '| 异形指控队友概率/会议 | ' + (cfg.busChance == null ? '—' : cfg.busChance) + ' | SKSanity.MISLEAD.busChance |',
+    '| 异形顺势踩人概率/会议 | ' + (cfg.socialPileOn == null ? '—' : cfg.socialPileOn) + ' | SKSanity.SOCIAL.pileOn |',
+    '| 构陷顺着场上靶子 | ' + (cfg.socialFrameFollow == null ? '—' : cfg.socialFrameFollow) + ' | SKSanity.SOCIAL.frameFollow |',
+    '| 传闻可补证据种类 | ' + (cfg.almostHeardKinds == null ? '—' : cfg.almostHeardKinds) + ' | SKSanity.ALMOST.heardKinds |',
+    '| 目击认错概率 | ' + (cfg.misIdChance == null ? '—' : cfg.misIdChance) + ' | SKSanity.MISID.chance |',
     '',
     '## 结束原因',
     '',
@@ -444,12 +495,31 @@ function writeOut(results, finished) {
     row('detainWitness', s.avg.detainWitness, '保安拘留被看见的次数'),
     row('detainEvictions', s.avg.detainEvictions, '被拘留过的人最终被驱逐的次数'),
     '',
+    '## 证据命中目标（2026-11-06 审计 · 只统计不改判定）',
+    '',
+    '| 指标（中文 / 代码键） | 每局均值 | 说明 |',
+    '|---|---:|---|',
+    row('knownWritesAlien', s.avg.knownWritesAlien, '近距离目击异形专属行为，确证目标确实是异形'),
+    row('knownWritesHuman', s.avg.knownWritesHuman, '近距离目击「拉闸断电」但目标是人类：唯一的误确证入口'),
+    row('almostAlien', s.avg.almostAlien, '准-确证指向真异形'),
+    row('almostHuman', s.avg.almostHuman, '准-确证指向人类（统计噪声）'),
+    row('knownVotesAlien', s.avg.knownVotesAlien, '确证票投给真异形'),
+    row('knownVotesHuman', s.avg.knownVotesHuman, '确证票投给人类（误投）'),
+    row('ejectByKnownAlien', s.avg.ejectByKnownAlien, '确证驱动驱逐且逐出异形'),
+    row('ejectByKnownHuman', s.avg.ejectByKnownHuman, '确证驱动驱逐但逐出人类（误判）'),
+    row('almostEjectAlien', s.avg.almostEjectAlien, '准-确证驱动驱逐且逐出异形'),
+    row('almostEjectHuman', s.avg.almostEjectHuman, '准-确证驱动驱逐但逐出人类（误判）'),
+    '',
     '## 推理引擎规范化（2026-11-01：跨夜痕迹 / 准-确证 / 可信度 / 熵沉默）',
     '',
     '| 指标（中文 / 代码键） | 每局均值 | 说明 |',
     '|---|---:|---|',
     row('susCarry', s.avg.susCarry, '跨夜保留下来的嫌疑总量（验改动 A）'),
     row('almostCount', s.avg.almostCount, 'almost.foe 产生次数（准-确证 · 敌）'),
+    row('almostHeard', s.avg.almostHeard, '**靠传闻补种类**才凑够的几乎次数（`ALMOST.heardKinds`，0=旧行为）'),
+    row('misIdWrites', s.avg.misIdWrites, '**目击认错人**次数（`MISID.chance`，0=旧行为「目击 100% 准」）'),
+    row('misIdToHuman', s.avg.misIdToHuman, '认错后指到无辜人类的次数（这一项才是代价）'),
+    row('misIdToAlien', s.avg.misIdToAlien, '认错后碰巧指到异形的次数'),
     row('almostFriendCount', s.avg.almostFriendCount, 'almost.friend 产生次数（准-确证 · 友，异形伪装的兑现口）'),
     row('almostEject', s.avg.almostEject, '至少一票由准-确证驱动（≠确证）的驱逐次数'),
     row('almostVotes', s.avg.almostVotes, '投给 almost.foe 的票数'),
@@ -477,6 +547,19 @@ function writeOut(results, finished) {
     row('discussLines', s.avg.discussLines, '模拟局同步执行的讨论发言条数（2026-11-06 起不再是 0）'),
     row('vouchHeard', s.avg.vouchHeard, '听众收到 heard_vouch 的次数'),
     row('hypothesisAbstain', s.avg.hypothesisAbstain, '两个假说难分高下而弃权的票数（假设层）'),
+    '',
+    '## 异形社交顺势（2026-11-06 · AI 拟人化）',
+    '',
+    '> ⚠ **默认关闭**（`SKSanity.SOCIAL.pileOn/frameFollow = 0`）：300 局同 seed A/B 显示「跟票」',
+    '> 反而帮人类（关 75.00% → 开 81.33%），因为人类公开怀疑约 78% 准，跟着咬=咬自己人。',
+    '> 这一栏保留是为了复评：`--social 0` 关、默认配置即关；要看机制触达就把 `_t.setSocial(1,1)` 打开再跑。',
+    '',
+    '| 指标 | 数值 | 说明 |',
+    '|---|---:|---|',
+    row('alienPileOns', s.avg.alienPileOns, '异形顺势踩人的次数（每只每会议掷一次，性格修正概率）'),
+    row('alienFrameFollow', s.avg.alienFrameFollow, '编假口供时把矛头对向场上靶子的次数（否则随机挑）'),
+    row('humanExiles', s.avg.humanExiles, '误逐数（顺势要是没把票压到人类身上，这条不会动）'),
+    row('alienExiles', s.avg.alienExiles, '被逐异形数（顺势若变成"抱团送自己人"，这条会涨）'),
     '',
     '## 破坏技能探查（2026-11-01）',
     '',
@@ -633,13 +716,18 @@ if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
     try { SKV3.setSfxVolume(0); } catch (e) {}
     const g = SKV3._t.G(); if (g) g.paused = true;
   });
-  if (NO_DISCUSS || HYP_GAP !== null || HYP_MODE) {
+  if (NO_DISCUSS || HYP_GAP !== null || HYP_MODE || !SOCIAL_ON || HEARD_KINDS !== null || MISID_CHANCE !== null) {
     const ab = await page.evaluate(o => ({
       noDiscuss: o.noDiscuss ? SKV3._t.setSimNoDiscuss(true) : false,
       hypMode: o.hypMode ? SKV3._t.setHypMode(o.hypMode) : null,
-      hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap)
+      hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap),
+      social: o.social ? null : SKV3._t.setSocial(0),
+      heard: o.heard === null ? null : SKV3._t.setHeardKinds(o.heard),
+      misid: o.misid === null ? null : SKV3._t.setMisId(o.misid)
     }), { noDiscuss: NO_DISCUSS, hypMode: HYP_MODE,
-      hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP) });
+      hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP), social: SOCIAL_ON,
+      heard: HEARD_KINDS === null ? null : parseFloat(HEARD_KINDS),
+      misid: MISID_CHANCE === null ? null : parseFloat(MISID_CHANCE) });
     console.log('[A/B] ' + JSON.stringify(ab));
   }
 

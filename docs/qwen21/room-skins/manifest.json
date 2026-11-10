@@ -1,0 +1,141 @@
+{
+  "model": "Qwen-Image 2.1 Turbo Q4_K_M / Qwen3-VL-8B-Instruct UD-Q4_K_XL",
+  "runner": "sdcpp Vulkan sd-cli.exe",
+  "script": "3d/tools/gen-qwen-room-skins.ps1",
+  "pwsh_only": true,
+  "license": "Qwen Research License - NON-COMMERCIAL; 2026-11-07 user decision allows use in this non-commercial in-house build; commercial release requires replacement or separate licence.",
+  "generated": "2026-11-10 08:18:15",
+  "set": "room-skins",
+  "size": 768,
+  "seed_base": 20261107,
+  "steps": 8,
+  "cfg": 1.0,
+  "included_rooms": [
+    "bridge",
+    "cam",
+    "ecosys",
+    "transit",
+    "fun",
+    "med",
+    "power",
+    "engine",
+    "armory",
+    "warehouse"
+  ],
+  "excluded_iron_plate_rooms": [],
+  "sdxl_retired": true,
+  "count": 10,
+  "ok_count": 10,
+  "items": [
+    {
+      "slug": "bridge-floor",
+      "room": "bridge",
+      "kind": "floor",
+      "seed": 20261107,
+      "size": 768,
+      "ok": true,
+      "sec": 99.8,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\bridge-floor_768.png",
+      "prompt": "formal conference hall deck, dark charcoal woven carpet tiles with crisp warm amber concentric conference-ring inlay around a central round-table footprint, radial seat marker stitches, sharp tile edges, dignified dense fibre grain. accent colour #F29E38, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "cam-floor",
+      "room": "cam",
+      "kind": "floor",
+      "seed": 20261108,
+      "size": 768,
+      "ok": true,
+      "sec": 89.7,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\cam-floor_768.png",
+      "prompt": "surveillance room deck, dark navy anti-static tiles with crisp cyan console-footprint rectangles and screen-wall alignment seams, small perforated vent grids, cable-route inlay lines, sharp high-contrast edges. accent colour #29B8F2, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "ecosys-floor",
+      "room": "ecosys",
+      "kind": "floor",
+      "seed": 20261109,
+      "size": 768,
+      "ok": true,
+      "sec": 93.0,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\ecosys-floor_768.png",
+      "prompt": "bio-laboratory hydroponic deck, dark teal composite panels with crisp glowing cyan nutrient-channel seams and hexagonal grow-pad inlays, circular culture-tank footprints, fine anti-slip grit, sci-fi tech feel, no plain green grid. accent colour #3DD96B, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "transit-floor",
+      "room": "transit",
+      "kind": "floor",
+      "seed": 20261110,
+      "size": 768,
+      "ok": true,
+      "sec": 97.6,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\transit-floor_768.png",
+      "prompt": "galley deck, warm charcoal terrazzo with crisp amber serving-lane lines and queue-direction chevrons, stainless drain channel, tray-return footprint marks, dense steel flecks, sharp aggregate. accent colour #FAC26B, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "fun-floor",
+      "room": "fun",
+      "kind": "floor",
+      "seed": 20261111,
+      "size": 768,
+      "ok": true,
+      "sec": 98.1,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\fun-floor_768.png",
+      "prompt": "lounge deck, deep slate carpet tiles with crisp neon magenta game-lane inlays and billiard-table footprint rectangles, arcade pad markers, sharp fibre grain, retro-futurist leisure mood. accent colour #DB47C7, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "med-floor",
+      "room": "med",
+      "kind": "floor",
+      "seed": 20261112,
+      "size": 768,
+      "ok": true,
+      "sec": 98.5,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\med-floor_768.png",
+      "prompt": "medical bay deck, matte pale sterile tiles with crisp pale cyan bed-footprint rectangles and a central surgery cross inlay, clean grey joint grid, hygienic coved seams, high-contrast sterile detail. accent colour #6BDBFA, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "power-floor",
+      "room": "power",
+      "kind": "floor",
+      "seed": 20261113,
+      "size": 768,
+      "ok": true,
+      "sec": 103.8,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\power-floor_768.png",
+      "prompt": "switchgear room deck, grey epoxy with crisp cable-trench cover plates, bold yellow arc-flash safety zones and switchgear footprint outlines, sharp plate bolts, high-contrast scuff grain. accent colour #F2A829, dark unlit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "engine-floor",
+      "room": "engine",
+      "kind": "floor",
+      "seed": 20261114,
+      "size": 768,
+      "ok": true,
+      "sec": 99.9,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\engine-floor_768.png",
+      "prompt": "engine room deck, steel diamond grating with sharp cross holes and bolt heads, reactor maintenance-ring stencil, oil stains and heat scorch marks, pipe-trench lines, raised checker tread, high contrast. accent colour #F5662E, dark unlit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "armory-floor",
+      "room": "armory",
+      "kind": "floor",
+      "seed": 20261115,
+      "size": 768,
+      "ok": true,
+      "sec": 100.4,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\armory-floor_768.png",
+      "prompt": "armory deck, heavy steel checker plate with stenciled weapon-rack lane outlines and rifle silhouette stencils, ammo-crate footprint boxes, yellow-black ordnance loading lanes, rubber anti-fatigue matting strips, bolt heads, high contrast military storage feel. accent colour #FAB233, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    },
+    {
+      "slug": "warehouse-floor",
+      "room": "warehouse",
+      "kind": "floor",
+      "seed": 20261116,
+      "size": 768,
+      "ok": true,
+      "sec": 97.6,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\room-skins\\warehouse-floor_768.png",
+      "prompt": "cargo hold deck, steel grating with sharp cross holes, forklift traffic lanes and pallet footprint rectangles, cargo slot index stencils, pallet drag scratches, container corner marks, high contrast freight feel. accent colour #FABD3D, bright lit room, flat material swatch, top-down orthographic view of a floor surface, sci-fi spaceship interior deck, physically based texture reference for 3D modeling, uniform diffuse ambient lighting with no lamps and no glow hotspots, high-frequency micro-detail of scratches grain and panel seams, exact seamless repeat tile, sharp focus, no perspective"
+    }
+  ]
+}

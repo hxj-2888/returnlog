@@ -49,6 +49,16 @@
       rooms: ['bridge'], what: 'none', acc: '#7FD3F0',
       note: '<h4>旁观者 · 第 16 人</h4>不占 15 席，全知无迷雾，9 格/秒的相机幽灵。' +
         '能看不能动：不发言、不投票、不做任何局内动作，只能快进讨论。'
+    },
+    design: {
+      rooms: ['bridge', 'cam', 'ecosys', 'power', 'transit', 'fun', 'engine',
+        'med', 'armory', 'warehouse'],
+      what: 'all', acc: '#63E0A8',
+      note: '<h4>设计者 · 纯净视图</h4>给做地图和任务点的人用的静态沙盒：' +
+        '<b>15 个席位不绘制</b>，画面只剩船体、掩体、门、管道口与 <b>26 个任务点</b>。' +
+        '本人是幽灵，<b>直线穿墙</b>、全船无迷雾；夜钟不走、AI 不动、不开会、不结算。' +
+        '交互全部开放：任意任务点可开工（不占维修进度）、任意管道口可钻、' +
+        '电闸 / 监控 / 圆桌领单 / 补给点 / 破坏故障都能试。'
     }
   };
 
@@ -129,10 +139,10 @@
       el.classList.toggle('on', !!on[el.getAttribute('data-room')]);
     });
     idx.pts.forEach(function (el) {
-      el.classList.toggle('on', a.what === 'point' && !!on[el.getAttribute('data-room')]);
+      el.classList.toggle('on', (a.what === 'point' || a.what === 'all') && !!on[el.getAttribute('data-room')]);
     });
     idx.pipes.forEach(function (el) {
-      el.classList.toggle('on', a.what === 'pipe' && !!on[el.getAttribute('data-room')]);
+      el.classList.toggle('on', (a.what === 'pipe' || a.what === 'all') && !!on[el.getAttribute('data-room')]);
     });
     var note = document.getElementById('home-note');
     if (note) {

@@ -23,6 +23,7 @@
   var KEY = 'sk.settings.v1';
   var DEFAULTS = { music: 0.35, sfx: 0.8 };
   var S = load();
+  var bgmStarted = false;
 
   function load() {
     try {
@@ -49,9 +50,13 @@
 
   /* ---------------- 音乐 / 音效 ---------------- */
   function bgmEl() { return $('bgm'); }
+  /* 音量曲线：音乐滑杆 0.35 直接当线性音量用等于 −9dB，再乘旧的 0.7 就是 −12dB，
+     在音效 0.8 的旁边基本听不见。这里走 pow(v, 0.7) 的感知曲线，
+     0.35 → 0.47（约 −6.5dB），满档仍然是 1.0，不新增任何上限。 */
+  function bgmVol() { return Math.min(1, Math.pow(Math.max(0, S.music), 0.7)); }
   function apply() {
     var bgm = bgmEl();
-    if (bgm) bgm.volume = Math.max(0, Math.min(1, S.music * 0.7));
+    if (bgm) bgm.volume = bgmVol();
     if (window.SKV3 && SKV3.setSfxVolume) SKV3.setSfxVolume(S.sfx);
   }
   function playBgm() {
@@ -59,7 +64,8 @@
     if (!bgm || S.music <= 0) return;
     try {
       var p = bgm.play();
-      if (p && p.catch) p.catch(function () {});
+      if (p && p.then) p.then(function () { bgmStarted = true; }, function () {});
+      else bgmStarted = true;
     } catch (e) {}
   }
 
@@ -168,10 +174,12 @@
     bindRoles();
     bindSettings();
     apply();
-    // 浏览器要求用户手势后才能播放音频：首次点击页面时尝试启动 BGM
-    document.addEventListener('pointerdown', function once() {
-      playBgm();
-      document.removeEventListener('pointerdown', once);
+    // 浏览器要求用户手势后才能播放音频。
+    // 旧写法是「首次 pointerdown 试一次，不管成没成都摘掉监听」——
+    // 那一次如果因为自动播放策略被拒，音乐就永远起不来了（除非再点设置/进舱段）。
+    // 现在播成功才停监听，失败就继续等下一个手势。
+    document.addEventListener('pointerdown', function () {
+      if (!bgmStarted) playBgm();
     });
   }
 

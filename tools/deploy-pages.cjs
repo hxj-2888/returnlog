@@ -12,7 +12,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const PROJECT = process.env.CF_PROJECT || 'space-kill-web';
+const PROJECT = process.env.CF_PROJECT || 'returnlog';
 const DRY = process.argv.includes('--dry-run');
 
 const ENTRIES = ['index.html', 'LICENSE', 'README.md', 'js', 'audio', 'assets'];

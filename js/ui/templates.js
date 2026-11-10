@@ -49,6 +49,9 @@
   #tasks .tr.now{background:rgba(240,198,116,.08);border-radius:4px;padding-left:2px}
   #tasks .tr.done{opacity:.42}
   #tasks .tr.done .nm{text-decoration:line-through}
+  /* 设计者纯净模式：26 个任务点全列出来，必须可滚动，否则把左半屏盖满 */
+  #tasks.design{max-height:42vh;overflow-y:auto;scrollbar-width:thin}
+  #tasks.design .th{color:#63E0A8}
   .ov{position:fixed;inset:0;background:rgba(6,8,12,.86);display:flex;
     align-items:center;justify-content:center;backdrop-filter:blur(2px)}
   .card{background:#12161E;border:1px solid #2A3240;border-radius:14px;padding:22px 26px;
@@ -90,7 +93,14 @@
     display:flex;flex-direction:column;min-height:0}
   .mtg .ch{font-size:12px;color:#8A94A3;letter-spacing:2px;margin-bottom:10px}
   .mtg .mid h2{margin:0 0 4px}
-  #m-say{flex:1;overflow-y:auto;font-size:13px;line-height:1.9;padding-right:4px}
+  /* 2026-11-08：发言区包一层 wrapper，用来放"↓ N 条新发言"提示。
+     发言区不再强制滚底，玩家往上翻时新消息只提示条数。 */
+  .mtg .col.say .say-wrap{flex:1;position:relative;min-height:0;min-width:0;display:flex}
+  #m-say{flex:1;overflow-y:auto;font-size:13px;line-height:1.9;padding-right:4px;min-width:0}
+  #m-new{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);display:none;
+    padding:4px 12px;border-radius:999px;border:1px solid #F0C674;background:rgba(18,22,30,.96);
+    color:#F0C674;font-size:12px;cursor:pointer;z-index:5;white-space:nowrap}
+  #m-new.on{display:block}
   #m-say .ln{margin-bottom:6px;color:#C9D1DB;word-break:break-word}
   #m-say .ln b{color:#8FA6C0;font-weight:500;margin-right:8px}
   #m-say .ln.me b{color:#F0C674}
@@ -230,7 +240,7 @@
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
-<div id="tip">点击地面移动（W/A/S/D 不是移动） · W/E 交互 · A/Q 出刀 · S/X 搜尸 · D/G 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · P/ESC 暂停</div>
+<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · ESC 暂停</div>
 <div id="dragtag" class="hide">拖拽中 · 按 G 放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">
@@ -270,13 +280,16 @@
   </div>
   <canvas id="camcv" width="1080" height="620"></canvas>
   <div class="cam-foot"><span>画面只显示在场人员与倒地者，不显示身份 · 配电室拉闸会切断全部信号</span>
-    <button id="cam-close">关闭 (E / V / Esc)</button></div>
+    <button id="cam-close">关闭 (V / Esc)</button></div>
 </div></div>
 
 <div id="meet" class="ov hide"><div class="mtg">
   <div class="col say">
     <div class="ch">发言</div>
-    <div id="m-say"></div>
+    <div class="say-wrap">
+      <div id="m-say"></div>
+      <button id="m-new" title="有新发言，点击跳到最新">↓ 新消息</button>
+    </div>
     <div id="m-tpl" class="hide">
       <div class="tpl-row">
         <select id="m-tpl-target" title="指定玩家"></select>

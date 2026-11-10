@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-08T10:57:42.407Z",
+  "note": "本文件由 3d/tools/export-sim.cjs 生成，勿手改。只含\"一局怎么开始、多少分算赢、天亮怎么推进\"的非发言规则；台词另见 data/lines.json（S 轨，2026-11-08 已接）。",
+  "sources": {
+    "js/ai/sanity.js": "6906d094d6c4",
+    "js/t2/space.js": "9a4e8a8b9c26",
+    "js/data/names.js": "96414d4fb89c",
+    "3d/preview/data/map_v2.json": "5cf457423f9c",
+    "3d/preview/data/minigames.json": "50a9b77ff7b4"
+  },
+  "roles": {
+    "agents": 15,
+    "aliens": 4,
+    "tasks_per_agent": 4,
+    "hard_per_agent": 1,
+    "normal_per_agent": 3
+  },
+  "win": {
+    "pts": 45,
+    "fault_penalty": 5,
+    "task_pts": {
+      "hard": 2,
+      "normal": 1
+    },
+    "ghost_task_cap": 1
+  },
+  "night": {
+    "len": 75
+  },
+  "rules": {
+    "WIN": {
+      "pts": 45,
+      "faultPenalty": 5
+    },
+    "NIGHT": {
+      "len": 75
+    },
+    "MEET": {
+      "perNight": 2,
+      "reportsPerAgent": 2,
+      "pauseClock": true,
+      "discussDay": 60,
+      "discussPre": 50,
+      "discussNight": 35,
+      "voteDay": 5,
+      "voteNight": 5,
+      "reveal": 3,
+      "endPad": 2.2,
+      "minPlan": 5.2
+    },
+    "STAND": {
+      "fix": 10,
+      "revive": 5,
+      "search": 1.2,
+      "qual": 3,
+      "ammo": 7,
+      "med": 5,
+      "fault": 30
+    },
+    "REACH": {
+      "knife": 1.35,
+      "sabotage": 1.7,
+      "fix": 2
+    },
+    "PIPE": {
+      "cooldown": 20
+    },
+    "SIGHT": {
+      "humanLightR": 7,
+      "humanDarkR": 2.3,
+      "alienDarkR": 3.5,
+      "aiCapR": 8,
+      "corrR": 12,
+      "litRoomMul": 1.15,
+      "fog": {
+        "roomMask": 0.87,
+        "corridorMask": 0.5
+      }
+    },
+    "BREAKER": {
+      "witnessCap": 1,
+      "minConceal": 0.45,
+      "crowdR": 10,
+      "crowdN": 3
+    },
+    "SABOTAGE": {
+      "witnessCap": 1,
+      "minConceal": 0.58,
+      "crowdR": 10,
+      "crowdN": 3
+    },
+    "KNIFE": {
+      "witnessCap": 3,
+      "minConceal": 0.34,
+      "crowdR": 9,
+      "crowdN": 3,
+      "boldBase": 0.5,
+      "boldSpan": 0.16,
+      "lockAtStart": 0
+    },
+    "RED_BODY": {
+      "dur": 1.5
+    },
+    "RUSH": {
+      "dur": 2,
+      "mul": 1.5,
+      "alienOnly": true
+    },
+    "HUNT": {
+      "memorySec": 25
+    },
+    "SHOT": {
+      "range": 9,
+      "chaseKnown": 14,
+      "chaseSus": 10,
+      "alienFireP": 0.7
+    },
+    "VOTE": {
+      "need": 4,
+      "lateNeed": 3,
+      "lateAt": 7
+    },
+    "ALMOST": {
+      "foeSus": 0.5,
+      "foeKinds": 2,
+      "foeConf": 0.8,
+      "friendCred": 0.5,
+      "friendKinds": 2,
+      "friendConf": 0.7,
+      "freshNights": 2,
+      "foeVoteMul": 1.6,
+      "foeVoteTier": true,
+      "foeShootMul": 0.7,
+      "friendShootMul": 1.4,
+      "friendShieldAdd": 0.25,
+      "friendVoteShield": 0.45,
+      "heardKinds": 1
+    },
+    "CONFIRM": {
+      "nearR": 4.5,
+      "farSusMul": 1
+    },
+    "CARRY": {
+      "decaySight": 0.72,
+      "decayHear": 0.45,
+      "staleMul": 0.55,
+      "floor": 0.05,
+      "cap": 0.55,
+      "nightReadSec": 0.7,
+      "whyKeep": 4
+    },
+    "HUMANISH": {
+      "onSight": 0.28,
+      "pull": 6
+    },
+    "AVOID": {
+      "sus": 0.1,
+      "nearR": 6,
+      "nightCap": 1
+    },
+    "TERMINATOR": {
+      "night": 10,
+      "bullets": 1,
+      "reveal": true
+    }
+  },
+  "names": [
+    "星尘",
+    "银翼",
+    "北极",
+    "磷火",
+    "铁砧",
+    "罗盘",
+    "苍鹭",
+    "玄武岩",
+    "游隼",
+    "回声",
+    "子夜",
+    "砂岩",
+    "灯塔",
+    "青霜",
+    "归零"
+  ],
+  "points": {
+    "count": 26,
+    "rooms": [
+      "engine",
+      "engine",
+      "engine",
+      "engine",
+      "ecosys",
+      "ecosys",
+      "ecosys",
+      "power",
+      "power",
+      "transit",
+      "transit",
+      "fun",
+      "fun",
+      "med",
+      "med",
+      "med",
+      "armory",
+      "armory",
+      "armory",
+      "cam",
+      "cam",
+      "cam",
+      "warehouse",
+      "warehouse",
+      "warehouse",
+      "warehouse"
+    ],
+    "labels": [
+      "引擎组同步",
+      "零件台",
+      "工具架",
+      "备用配电盘",
+      "氧气循环",
+      "培养罐补液",
+      "温控面板",
+      "电路维修",
+      "变压器换芯",
+      "餐台清洁",
+      "后厨盘点",
+      "娱乐桌",
+      "点唱机",
+      "手术台校准",
+      "药柜",
+      "消毒循环",
+      "靶道校准",
+      "工作台",
+      "弹药清点",
+      "监控墙重连",
+      "操作台",
+      "录像归档",
+      "货架校准",
+      "库存盘点",
+      "货箱封条",
+      "出库扫描"
+    ]
+  },
+  "excluded": {
+    "reason": "2026-11-08 用户裁定：发言系统与美术不迁",
+    "speech_tables": [
+      "SPEECH",
+      "TESTIFY",
+      "RELIA",
+      "MIND",
+      "DESC",
+      "FRAME",
+      "WARM",
+      "LEADER",
+      "ALIBI",
+      "MISLEAD",
+      "SOCIAL",
+      "COFRAME",
+      "ACCOUNT"
+    ],
+    "speech_files": [
+      "js/data/lines.js",
+      "js/ui/templates.js#会议模板"
+    ]
+  }
+}
