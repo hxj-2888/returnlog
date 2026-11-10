@@ -1,6 +1,8 @@
 # 3D 子项目架构（预演版）
 
 > **架构边界声明（2026-11-04 · 档 1）**：本文件属于 **Godot 3D 独立子项目**，**不继承**主项目根 `ARCHITECTURE.md` 的三层架构（T1 工程大层 / T2 机制与执行层 / T3 验收层），也不占用其层号、不产生 `definedBy` / `serves[]` 边。主项目 `file://` / 经典 `<script>` 红线对本子项目不适用；素材许可、中文记录、数据单一真源、门禁留痕仍然适用。
+> **注意（2026-11-09 用户裁定，ADR-0011）**：这里是**工程**边界，不是产品边界 ——
+> 3D 是 2.5D 的**延伸**，模拟规则/数值/语料/AI 行为一律移植，不是另起一套。
 
 > 目标：把 2.5D 的**数据与美术**当作资产，把 3D 当作一个新的运行时；
 > 不把 DOM/Canvas 2D 的技术债带进来，也不假装 `game.js` 可以原地复用。
@@ -46,11 +48,14 @@
 3d/
   tools/          数据导出 / 资产同步 / 校验（Node，不参与运行时）
   preview/
-    data/         引擎无关 JSON（map.json，将来 sanity.json / lines.json）
+    data/         引擎无关 JSON（map.json / minigames.json，将来 sanity.json / lines.json）
     scripts/
       sim/        纯模拟：状态、规则、事件（不读节点、不读输入）
       view/       3D 节点、材质、灯光、动画
       ui/         Control / HUD / 会议界面
+      minigame/   玩家决策小游戏：遮罩层 + 10 型玩法（mg_*.gd）
+      device.gd   任务点设备：GLB 实例 / 朝向 / 镜头落点
+      scene_extras.gd  设施 / 管道 / 装饰 / 门框
       main.gd     装配与生命周期
 ```
 
@@ -61,7 +66,9 @@
 3. **数据只从 `data/*.json` 进**；不在 GDScript 里复制房间坐标、任务点、台词。
 4. **事件流只写不改**：`logEvent` 等价物只追加，不参与判定。
 5. **确定性**：模拟用显式 seed；`Math.random` 等价物只在 sim 的一处封装。
-6. **每个跨层契约有版本**：`map.json` 带 `schema_version`，变更写 ADR。
+6. **每个跨层契约有版本**：`map.json` / `minigames.json` 都带 `schema_version`，变更写 ADR。
+7. **小游戏数据只从 `minigames.json` 进**：任务名→玩法、提示、保底时长、板断口坐标
+   全部由 `3d/tools/export-minigames.cjs` 从 2.5D 真源导出；GDScript 不另抄一份映射表。
 
 ## 4. 坐标与尺度
 
@@ -104,6 +111,8 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
 - **移动**：`--walktest` 断言 1 秒位移 ≈ 4.2 米。
 - **碰撞**：`--walktest --corridor --wall` 断言在墙前停住（≈1.1 米）。
 - **视觉**：`--shot` / `--shot --corridor` 出图，人工检查比例、贴图、遮挡。
+- **小游戏**：`--mgtest`（10 型全过）、`--devicetest`（27 设备 / 10 玩法）、`--e2e`（真实 E 输入）。
+- **视觉批量**：`--mgshot all`、`--devshot 0,4,7,8,13,26`，出图在 `preview/screenshots/`。
 - 将来加 **golden screenshot**：固定机位、固定曝光、固定 seed，像素差异超过阈值就失败。
 - 所有决策写 `3d/DECISIONS.md`；所有可见变更写 `3d/CHANGELOG.md`。
 - 每次数据导出记录 `map.json` 的源文件哈希；每次下载模型记录仓库、文件、SHA256。
