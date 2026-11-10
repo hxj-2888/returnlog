@@ -2,11 +2,11 @@
   "schema_version": 1,
   "note": "2.5D / 3D 推理与发言的唯一规则真源快照。勿手改；改 js/ 后重跑 npm run 3d:export:rules，check-parity 会拦截漂移。玩家输入映射、地形/A*/碰撞/LOS、美术允许各自实现。",
   "sources": {
-    "js/ai/sanity.js": "6906d094d6c4",
+    "js/ai/sanity.js": "a2dd222adc5c",
     "js/ai/traits.js": "a6395c194def",
     "js/t2/ai.js": "3855ad5281d9",
     "js/t2/decision.js": "3db6ab20274c",
-    "js/game.js": "d2e38a6c0b18",
+    "js/game.js": "06d1546e1a89",
     "js/data/lines.js": "3e81434a06eb"
   },
   "tables": {
@@ -481,9 +481,9 @@
         "fix": 10,
         "revive": 5,
         "search": 1.2,
-        "qual": 3,
-        "ammo": 7,
-        "med": 5,
+        "qual": 0,
+        "ammo": 5,
+        "med": 3,
         "fault": 30
       },
       "REACH": {

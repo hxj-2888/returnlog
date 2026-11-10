@@ -372,10 +372,8 @@ def build_prop_pipe_port():
                    emit=2.0, emit_color=(0.30, 0.75, 0.85, 1))
     box('duct', (1.5, 1.1, 0.08), (0, 0, 0.04), dark, bevel=0.01)
     box('face', (1.5, 1.1, 0.02), (0, 0, 0.09), body, bevel=0.005)
-    box('rim_n', (1.62, 0.06, 0.10), (0, -0.56, 0.05), rim, bevel=0.01)
-    box('rim_s', (1.62, 0.06, 0.10), (0, 0.56, 0.05), rim, bevel=0.01)
-    box('rim_w', (0.06, 1.18, 0.10), (-0.79, 0, 0.05), rim, bevel=0.01)
-    box('rim_e', (0.06, 1.18, 0.10), (0.79, 0, 0.05), rim, bevel=0.01)
+    # 2026-11-10：不再加发光彩色外圈（用户否决"突兀色框"）；口体由 grade-pipe-ports.py
+    # 按舱室地板色调着色，使其与地面同图层。pipe_rim 材质保留供旧渲染脚本兼容但无几何使用。
     for sx in (-1, 1):
         cyl('stub_%d' % sx, 0.085, 0.42, (sx * 0.98, 0, 0.18), dark, axis='X', verts=16)
         torus('flange_%d' % sx, 0.10, 0.028, (sx * 0.80, 0, 0.18), body, axis='X')

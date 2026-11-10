@@ -87,6 +87,17 @@
       跑门禁绿后提交推送；避免整分支 merge 把 3D 客户端带进 main。
     - 推送目标：`origin`(GitHub) 为主，`gitee` 为尽力镜像；分支同名歧义时用完整 ref
       （`refs/heads/main:refs/heads/main`）。
+14. **必须按已写定的三层架构办事，不得违背。**（2026-11-10 用户裁定，红线级）
+    - 架构真源是根 `ARCHITECTURE.md`：层号只有 **T1 工程大层（三域并列）/ T2 机制与执行层 / T3 验收层**；
+      层外 R/P 与架构文档栏不占层号、不进依赖链。任何新增/改动**先归层贴标**
+      （`definedBy / truth / verify / flag`）再动代码，不得跳过归层直接写实现。
+    - **真源唯一、跨层只引用不复制**：数值/语料/地图真源在 T1/T2 对应模块
+      （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
+      不得另立第二份定义。**多父允许、多份定义禁止。**
+    - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
+    - 3D 子项目工程不占根层号（边界见 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
+      规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
+    - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
 
 ## 二、命令
 
@@ -636,10 +647,11 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   玩家硬说“在配电室钻管道”会走 `impossible_claim`，AI 反过来怀疑发言者而不是记目标的证据。
   改地图管道时同步这 8 个房间与门禁，不能再生成“在别的房间钻管道”的台词。
   **管道绘制配色跟随舱室**：`PIPE_TINT[room]`（与 Blender 的 `ROOM_THEME[].mark` 同色）是唯一色源；
-  **2026-11-10 起管道口是矩形百叶通风口，不是圆形井盖**：2.5D 由 `drawPipes()` 矢量绘制
-  （矩形外框 + 横向百叶 + 四角螺栓 + 矩形气流脉冲，边色/叶片随 `PIPE_TINT`），不再加载圆形精灵；
-  3D 用 `prop_pipe_port.glb`（`build-3d-assets.py` 重建为矩形百叶风口 + 侧短管）+ 同色 `pipe_rim` 边圈。
-  旧 `assets/scene/v4/facility/pipe-port-<room>.png` 圆形井盖精灵保留为素材库，不进运行时。
+  **2026-11-10 起管道口是矩形百叶通风口，不是圆形井盖**：千问出写实百叶贴图
+  （`assets/qwen-lib/vent-grille_768.png`）→ `build-3d-assets.py` 建模（**无发光彩色外圈**）→
+  `render-pipe-port.py` 渲染 8 舱精灵 → `tools/grade-pipe-ports.py` 按各舱地板平均色做同色调分级，
+  使风口读成"嵌在地板里"（用户否决突兀色框/不同图层）；2.5D `drawPipes()` 加载该精灵，**不画彩色脉冲外框**。
+  3D 用同一 `prop_pipe_port.glb`。旧圆形井盖精灵已废。
   不要给单个舱室改形状语言。
 - **AI 异形管道机动**：`alienPipeMove(a,dt,tgt,td)` 必须在“没刀游荡”之前调用，否则刀用完的异形
   永远走不到管道口（2026-10-30 修复）。目标 >15 格、`_pipeCD<=0` 时先规划到能显著缩短距离的入口，
@@ -853,8 +865,10 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
   目标、会议指控和投票都不能按 `alien` 阵营过滤。允许的唯一“队友”来源是 `a.mates`（亲眼目击异形专属行为推断）；
   未识别的同类仍可能被攻击/投票。人类只有目击异形专属行为（出刀 / 钻管道 / 破坏设备 / 停摆机器人 / 开枪）才写入 `suspect`；
   `witnessAlienAction()` 仍只服务人类目击，禁止恢复盟友表或队友透视。
-- **物资申请单**：任务积分到 3 / 5 → `qualPending` 待领取 → 中央会议室**圆桌** `_doing='qual'` 站桩 3 秒领取
-  1 张申请单 → 军械 / 医疗**专用补给点**消耗 `qual` 换子弹 / 医疗包。未领取时补给点必须拒绝。
+- **物资申请单**：任务积分到 3 / 5 → `qualPending` 待领取 → 中央会议室**圆桌** **交互即领**
+  （2026-11-10 用户裁定：`grantQual()` 单一入口，无站桩、无小游戏；`STAND.qual=0`）
+  1 张申请单 → 军械 / 医疗**专用补给点**消耗 `qual` 换子弹 / 医疗包，**纯站桩读秒不弹小游戏**：
+  子弹 **5s** / 医疗包 **3s**（`SKSanity.STAND.ammo/med`，玩家与 AI 共用）。未领取时补给点必须拒绝。
   圆桌判定半径 **2.3 格**；`qualPending>0` 时 HUD 常驻「回圆桌领取」提示，小地图圆桌有金色脉冲；
   AI 人类完成 3/5 分后同样会自己走回圆桌领取（门禁有真实节奏断言）。
 - **硬掩体布局**：`M.cover` 是硬阻挡。任何掩体改动必须满足：房间连通、任务点可命中、
