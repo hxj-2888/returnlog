@@ -163,7 +163,25 @@ func _anim_name(ap: AnimationPlayer, want: String) -> String:
 	return ""
 
 
-## 只染 crew_suit 材质；crew_gear / crew_accent / crew_skin 保持不变。
+## 千问本地模型出的材质（3d/tools/gen-qwen-materials.ps1 → crop-materials.gd）。
+## 缺图时自动跳过，退回纯色，保证没跑过生成脚本的机器也能跑。
+const MAT_TEX := {
+	"suit": "res://assets/models/crew_tex/crew-fabric.png",
+	"accent": "res://assets/models/crew_tex/crew-webbing.png",
+	"gear": "res://assets/models/crew_tex/crew-leather.png",
+	"skin": "res://assets/models/crew_tex/crew-skin.png",
+}
+const MAT_UV := {
+	"suit": 2.0,
+	"accent": 2.0,
+	"gear": 1.5,
+	"skin": 1.0,
+}
+var _tex_cache: Dictionary = {}
+
+
+## 只染 crew_suit 材质；其余材质按名字挂千问贴图。
+## 2026-11-11：四个材质槽从纯色改为「贴图 × tint」，写实度靠布纹/织带/皮革/皮肤。
 func _tint_model(root: Node, color: Color) -> void:
 	var stack: Array = [root]
 	while not stack.is_empty():
@@ -174,13 +192,51 @@ func _tint_model(root: Node, color: Color) -> void:
 				for s in mi.mesh.get_surface_count():
 					var mat := mi.mesh.surface_get_material(s)
 					if mat is StandardMaterial3D:
-						var mat_name := (mat as StandardMaterial3D).resource_name.to_lower()
-						if mat_name.contains("suit") or (mat_name == "" and s == 0):
-							var dup := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-							dup.albedo_color = color
+						var m := mat as StandardMaterial3D
+						var mat_name := m.resource_name.to_lower()
+						var key := ""
+						if mat_name.contains("suit"):
+							key = "suit"
+						elif mat_name.contains("accent"):
+							key = "accent"
+						elif mat_name.contains("gear"):
+							key = "gear"
+						elif mat_name.contains("skin"):
+							key = "skin"
+						if key != "" or (mat_name == "" and s == 0):
+							if key == "":
+								key = "suit"
+							var dup := m.duplicate() as StandardMaterial3D
+							var tex := _mat_tex(key)
+							if tex != null:
+								dup.albedo_texture = tex
+								var uv := float(MAT_UV.get(key, 1.0))
+								dup.uv1_scale = Vector3(uv, uv, 1.0)
+								# 布料本身是浅灰，tint 要提亮一档，否则 15 个席位全糊成黑块。
+								dup.albedo_color = color.lightened(0.50) if key == "suit" \
+									else Color(1.0, 1.0, 1.0)
+							else:
+								dup.albedo_color = color if key == "suit" else m.albedo_color
+							if key == "gear":
+								dup.roughness = 0.82
+							elif key == "accent":
+								dup.roughness = 0.78
+							elif key == "skin":
+								dup.roughness = 0.62
 							mi.set_surface_override_material(s, dup)
 		for c in n.get_children():
 			stack.append(c)
+
+
+func _mat_tex(key: String) -> Texture2D:
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var path := String(MAT_TEX.get(key, ""))
+	var tex: Texture2D = null
+	if path != "" and ResourceLoader.exists(path):
+		tex = load(path) as Texture2D
+	_tex_cache[key] = tex
+	return tex
 
 
 func sync(sim, delta: float) -> void:

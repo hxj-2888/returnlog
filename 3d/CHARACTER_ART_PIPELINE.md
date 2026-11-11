@@ -32,13 +32,27 @@
 - 4 个槽在图集里分区：`suit` 占 50%（面积最大）、`gear` 20%、`accent` 15%、`skin` 15%。
 - 关键：**UV 岛不许重叠**，否则烘焙会串色；`crew_suit` 的接缝放在腋下/内侧，正面看不到。
 
-### 2. 贴图来源（沿用现有 SDXL 管线）
+### 2. 贴图来源（千问本地模型 · SDXL 已退役）
 
-现有 `3d/WORKFLOW_SDXL_BLENDER.md` 已经能把 SDXL 出图投影到模型上，人物只需换材质球：
+> 2026-11-11 用户裁定：**材质与刀一律用千问本地模型出图，不用 SDXL**。`gen-qwen-room-skins.ps1` 的头部也记着同一条口径（SDXL 于 2026-11-09 退役）。
 
-1. SDXL 出 4 组材质：`fabric-twill`（勤务服斜纹布）、`webbing`（胸带织带）、`leather-boot`（靴子/护具）、`skin-hand`（手部皮肤）。
-2. 每组出 1024² 平铺图，接缝用 `offset + 修补` 做成可平铺。
-3. Blender 里按 UV 区域 **投影/平铺** 到模型，再用 `Bake` 烘成最终图集。
+现有链路：`sdcpp Vulkan sd-cli.exe` + `Qwen-Image 2.1 Turbo Q4_K_M` + `Qwen3-VL-8B-Instruct` 文本编码器，8 步 / CFG 1.0 / euler / qwen-image-2.1-turbo sigmas，512² 单张约 47 秒。
+
+**已落地脚本**：`3d/tools/gen-qwen-materials.ps1`（生成 6 张原始方图）+ `3d/tools/crop-materials.gd`（裁掉四周、缩到 384² 运行时贴图）。
+
+| 用途 | 原始 prompt 主题 | 运行时文件 |
+|---|---|---|
+| 制服布 | light grey twill service-uniform fabric | `assets/models/crew_tex/crew-fabric.png` |
+| 胸带织带 | coral red nylon webbing strap | `assets/models/crew_tex/crew-webbing.png` |
+| 靴/背包皮革 | black leather, pebbled grain | `assets/models/crew_tex/crew-leather.png` |
+| 皮肤 | human skin surface, pores and fine lines | `assets/models/crew_tex/crew-skin.png` |
+| 刀身 | brushed stainless steel, grind marks | `assets/weapons/knife-blade.png` |
+| 刀柄 | black rubber grip, cross-hatch knurling | `assets/weapons/knife-grip.png` |
+
+出图要点（prompt 尾缀固定）：`seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable`。缺了这个尾缀，千问会画成「一块有透视和投影的金属板」，不能当材质用。
+
+**许可证**：Qwen Research License，**非商用**，仅本地生成；商用发布需换权重或单独授权（与 `gen-qwen-room-skins.ps1` 记录一致）。
+
 
 ### 3. 贴图规格（按现有配额倒推）
 
@@ -89,7 +103,16 @@
 
 ## 六、风险
 
-1. **风格漂移**：SDXL 出的 4 组材质如果光照方向不一致，拼在一张图集上会「脏」。解决：统一在 `albedo` 阶段去掉高光与阴影，只留固有色。
+1. **风格漂移**：六张千问图如果光照方向不一致，拼在一起会「脏」。解决：prompt 里固定 `evenly lit with no shadow`，并在裁切时只取画面中心（四周渐变最强）。
 2. **法线过强**：布纹法线强度建议 0.8~1.2，超过 1.5 在低照度下会像塑料褶皱。
 3. **两仓体积**：3D 仓本来就有 250 MB 级资产，加 3 MB 可接受；但 `main` 仓的 `3d/` 快照也会同步到，需在 P1 后重新评估 `main` 的体积配额。
 4. **不要动骨骼与动画**：本次只换表面，`idle/walk/knife/down` 与 17 根骨的绑定关系保持不变，避免牵动已有的动作自测。
+5. **UV 是当前瓶颈**：现在 4 个材质槽直接吃平铺图（每个盒子面 0..1 UV），近看会有拉伸；P1 的 UV 展开就是解决这个。
+
+## 七、已落地（2026-11-11 第一版）
+
+- 6 张材质已用千问生成并裁成 384²，`.import` 已提交，Godot 直接可加载。
+- `crew_view.gd::_tint_model()` 已改为「按材质名挂贴图 + tint 乘色」：`suit` 用布料、`accent` 用织带、`gear` 用皮革、`skin` 用肤质；缺图自动退回纯色。
+- 第一人称刀已换成千问刀身/刀柄贴图，并补了护手与刀尖两段几何。
+- 效果核对：`crew_facing_ab.png`（正反面对照）、`knife_check.png`（第一人称刀）。两张图在 2026-11-11 的会话产物中，未入库。
+- **还没做**：UV 展开与法线烘焙（P1）。当前是「平铺贴图直接上盒子」，1 m 内近看仍能看出拉伸，这是下一版要解决的。

@@ -50,6 +50,24 @@
   Research License 非商用，模型/seed/prompt 见 manifest；三视图、三配色、制服细节各 1 张。
 - 动画：`walk` 为 24fps / 1 秒循环；Godot 侧按移速 4.2 m/s 播 2.9 倍速，避免脚底滑动。
   `knife` 由 `sim.events#knife` 一次性触发，`down` 由 `downed` 状态触发；V-CREW 已标 `ported`（full）。
+
+**材质贴图（2026-11-11 · 千问本地生成，SDXL 已退役）**：
+
+| 用途 | 运行时文件 | 尺寸 | 生成脚本 |
+|---|---|---|---|
+| 制服布 | `preview/assets/models/crew_tex/crew-fabric.png` | 384² | `gen-qwen-materials.ps1` |
+| 胸带织带 | `preview/assets/models/crew_tex/crew-webbing.png` | 384² | 同上 |
+| 靴/背包皮革 | `preview/assets/models/crew_tex/crew-leather.png` | 384² | 同上 |
+| 皮肤 | `preview/assets/models/crew_tex/crew-skin.png` | 384² | 同上 |
+| 刀身金属 | `preview/assets/weapons/knife-blade.png` | 384² | 同上 |
+| 刀柄橡胶 | `preview/assets/weapons/knife-grip.png` | 384² | 同上 |
+
+- 原始 512² 方图在 `3d/assets/renders/qwen-materials/`（`.gitignore` 已忽略），manifest 同目录。
+- 裁切/缩放：`3d/tools/crop-materials.gd`（取画面中心 70~78%，去掉白边与光照渐变）。
+- 装配：`crew_view.gd::_tint_model()` 按材质名挂图（`suit/accent/gear/skin`），tint 仍用于 15 席换色；
+  `player.gd::_build_knife_view()` 给第一人称刀挂刀身/刀柄图。缺图自动退回纯色。
+- 许可证：Qwen Research License **非商用**，仅本地生成；商用发布需替换权重或单独授权。
+- 当前限制：贴图直接按盒子面 UV 平铺，未做 UV 展开与法线烘焙（见 `CHARACTER_ART_PIPELINE.md` §四 P1）。
 - 验收命令：`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`；`--probetest`
   会断言 `moving=true → walk`、`moving=false → idle`。
 **设备原点约定**：`device_*` 统一用 `base_center`（底面中心），便于按地面/掩体顶面摆放；

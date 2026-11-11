@@ -34,8 +34,8 @@ var _base_speed := 4.2
 var knife_view: Node3D
 var _knife_swing := 0.0
 const KNIFE_SWING_LEN := 0.46
-var _knife_rest := Vector3(0.30, -0.26, -0.52)
-var _knife_rest_rot := Vector3(-0.18, 0.42, -0.22)
+var _knife_rest := Vector3(0.26, -0.24, -0.40)
+var _knife_rest_rot := Vector3(-0.30, 0.14, -0.16)
 var _bob := 0.0
 ## 命中冲击：FOV 收一档 + 轻微抖动，比纯音效更能确认「打到了」。
 var _punch := 0.0
@@ -125,6 +125,8 @@ func _exit_tree() -> void:
 
 
 ## 第一人称刀：刀身 + 刀柄两个盒子，位置固定在右下，靠 _animate_view 做挥砍。
+## 贴图来自千问本地模型（3d/tools/gen-qwen-materials.ps1 → crop-materials.gd），
+## 缺图时退回纯色，保证任何机器上都能跑。
 func _build_knife_view() -> void:
 	knife_view = Node3D.new()
 	knife_view.name = "knife_view"
@@ -135,28 +137,66 @@ func _build_knife_view() -> void:
 	steel.albedo_color = Color(0.80, 0.82, 0.86)
 	steel.metallic = 0.85
 	steel.roughness = 0.26
+	var blade_tex := _load_knife_tex("res://assets/weapons/knife-blade.png")
+	if blade_tex != null:
+		steel.albedo_texture = blade_tex
+		steel.uv1_scale = Vector3(2.0, 2.0, 1.0)
+		steel.albedo_color = Color(0.60, 0.62, 0.66)
+		steel.metallic = 0.55
+		steel.roughness = 0.48
+
 	var grip := StandardMaterial3D.new()
 	grip.albedo_color = Color(0.11, 0.11, 0.13)
 	grip.roughness = 0.88
+	var grip_tex := _load_knife_tex("res://assets/weapons/knife-grip.png")
+	if grip_tex != null:
+		grip.albedo_texture = grip_tex
+		grip.uv1_scale = Vector3(3.0, 3.0, 1.0)
+		grip.albedo_color = Color(0.78, 0.78, 0.82)
+		grip.roughness = 0.92
 
 	var blade := MeshInstance3D.new()
 	var bm := BoxMesh.new()
-	bm.size = Vector3(0.020, 0.007, 0.26)
+	bm.size = Vector3(0.038, 0.006, 0.21)
 	blade.mesh = bm
 	blade.material_override = steel
 	blade.position = Vector3(0.0, 0.0, -0.16)
 	knife_view.add_child(blade)
 
+	# 刀尖：再叠一个更薄更短的盒子，避免整把刀是一块方板。
+	var tip := MeshInstance3D.new()
+	var tm := BoxMesh.new()
+	tm.size = Vector3(0.028, 0.005, 0.05)
+	tip.mesh = tm
+	tip.material_override = steel
+	tip.position = Vector3(0.0, 0.0, -0.253)
+	tip.rotation = Vector3(0.0, 0.0, 0.0)
+	knife_view.add_child(tip)
+
 	var handle := MeshInstance3D.new()
 	var hm := BoxMesh.new()
-	hm.size = Vector3(0.026, 0.030, 0.10)
+	hm.size = Vector3(0.034, 0.038, 0.11)
 	handle.mesh = hm
 	handle.material_override = grip
-	handle.position = Vector3(0.0, 0.0, 0.02)
+	handle.position = Vector3(0.0, 0.0, 0.025)
 	knife_view.add_child(handle)
+
+	var guard := MeshInstance3D.new()
+	var gm := BoxMesh.new()
+	gm.size = Vector3(0.052, 0.014, 0.02)
+	guard.mesh = gm
+	guard.material_override = steel
+	guard.position = Vector3(0.0, 0.0, -0.045)
+	knife_view.add_child(guard)
 
 	knife_view.position = _knife_rest
 	knife_view.rotation = _knife_rest_rot
+
+
+func _load_knife_tex(path: String) -> Texture2D:
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
 
 
 ## 只有「异形 + 本夜还有刀」才显示；死了 / 濒死 / 缴械都收起来。

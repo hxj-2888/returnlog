@@ -1,5 +1,16 @@
 # 3D 修改记录
 
+## 2026-11-11 · 材质改用千问本地模型（人物四槽 + 第一人称刀）
+
+**用户口径**：不要 SDXL 出材质，人物与刀都用千问本地模型出图。
+
+- **出图管线**：新增 `3d/tools/gen-qwen-materials.ps1`（sdcpp Vulkan + Qwen-Image 2.1 Turbo Q4_K_M + Qwen3-VL-8B，8 步 / CFG 1.0，512² 单张约 47 s）；新增 `3d/tools/crop-materials.gd`（取中心 70~78% 去白边/光照渐变，缩到 384²）。
+- **产物**：`crew-fabric` / `crew-webbing` / `crew-leather` / `crew-skin` → `preview/assets/models/crew_tex/`；`knife-blade` / `knife-grip` → `preview/assets/weapons/`；原始图在 `3d/assets/renders/qwen-materials/`（已忽略）。
+- **装配**：`crew_view.gd::_tint_model()` 从「纯色染色」改为「按材质名挂贴图 + tint 乘色」，缺图自动退回纯色；`player.gd::_build_knife_view()` 给刀身/刀柄挂千问贴图，并补护手与刀尖两段几何、调平持刀角度。
+- **文档**：`CHARACTER_ART_PIPELINE.md` 的贴图来源由 SDXL 改为千问（含 prompt 尾缀要求与许可证口径）；`ASSETS.md` 登记 6 张贴图与生成脚本。
+- **验证**：`--import` 生成 `.import`；对照渲染确认 4 槽贴图全部生效（`tex=true`）、模型正面 = -Z；第一人称刀渲染确认刀形/护手/防滑柄可见；headless 编译无错。
+- **未做**：UV 展开与法线烘焙（P1），当前平铺贴图近看有拉伸。
+
 ## 2026-11-11 · 出刀反馈补齐 + 人物「倒着走」修复
 
 **用户反馈**：① 人物建模粗糙，想走「骨骼驱动 + 贴图写实」；② 出刀没有反馈（无动作、无击倒特效、无红色提示）；③ 人物行走时会倒着走。
