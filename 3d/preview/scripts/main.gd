@@ -85,6 +85,10 @@ var red_flash: ColorRect
 var hit_mark: HitMark
 var _hit_t := 0.0
 var _red_t := 0.0
+## 白天会议「全员回会议室」的视图侧同步（2026-11-11）。
+## 2.5D dawn() 先把全员 randIn(bridge) 再 openMeeting('day')；3D 的 sim.dawn()
+## 只改了 agent.pos，玩家相机没搬 —— 会议结束 _sync_player_pos 还会把位置反写回原地。
+var _last_meet_seq := 0
 
 var meeting_panel: ColorRect
 var meeting_title: Label
@@ -5708,6 +5712,8 @@ func _process(delta: float) -> void:
 	if sim != null and not sim.agents.is_empty():
 		_sync_player_pos()
 		sim.tick(delta)
+		# 白天会议开场（dawn）后必须把相机搬回会议室，否则玩家留在原地开会。
+		_sync_day_meeting_teleport()
 		if crew_view != null:
 			crew_view.sync(sim, delta)
 		_sync_bots()
@@ -6938,6 +6944,33 @@ func _audio_tick(delta: float) -> void:
 func _on_door_auto(pos: Vector3) -> void:
 	if audio != null:
 		audio.play_at("door", Vector2(pos.x, pos.z), 0.65)
+
+## 2.5D dawn()：白天会议先把全员刷到 bridge 再开会（js/game.js:4513-4526）。
+## sim 侧已改 pos，这里把玩家节点同步过去；夜里的远程会议不搬人（只清路径）。
+func _sync_day_meeting_teleport() -> void:
+	if sim == null or player == null:
+		return
+	var seq := int(sim.meet_seq)
+	if seq == _last_meet_seq:
+		return
+	_last_meet_seq = seq
+	if sim.meeting.is_empty():
+		return
+	if String(sim.meeting.get("kind", "")) != SimStateScript.MEET_DAY:
+		return
+	var me: Dictionary = sim.me()
+	if me.is_empty() or not bool(me.get("alive", true)):
+		return
+	var p: Vector2 = me.get("pos", Vector2.ZERO)
+	player.global_position = Vector3(p.x, 0.05, p.y)
+	var c: Vector2 = sim.room_center("bridge")
+	var d: Vector2 = c - p
+	if d.length() > 0.15:
+		# Node3D 前方是 -Z：yaw = atan2(-dx, -dz)
+		player.rotation.y = atan2(-d.x, -d.y)
+	me["aimAng"] = atan2(c.y - p.y, c.x - p.x)
+	_probe("白天会议 · 全员回会议室 (%0.1f, %0.1f)" % [p.x, p.y])
+
 
 func _sync_player_pos() -> void:
 	if player == null:

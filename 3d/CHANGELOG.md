@@ -1,5 +1,11 @@
 # 3D 修改记录
 
+## 2026-11-11 · 修 P0：白天会议回舱 + 异形互刀
+
+- **白天会议回舱（`main.gd` 新增 `_sync_day_meeting_teleport()`）**：2.5D `dawn()`（`js/game.js:4513-4526`）先全员 `randIn(bridge)` 再 `openMeeting('day')`；3D 的 `sim.dawn()` 只改了 `agent.pos`，玩家相机从未搬过，会议结束 `_sync_player_pos` 还会反写回原地 → 玩家实际没回会议室。现按 `sim.meet_seq` 监听白天会议开场，把相机搬到 `sim.me().pos` 并朝向会议室中心。断言：从 (8,8) → (31,33.5)，`kind=day`，PASS。
+- **异形互刀（`sim_state.knife()`）**：2.5D `knife()`（`js/game.js:4226`）只判「有刀 / 目标存活且未倒地」，**没有阵营限制**；3D 多写的 `or v.alien` 是移植时凭空加的规则，已删。断言：`KNIFE_ALIEN_TEST ok=true victim_downed=true killer_knife=0` → PASS。
+- 同步更新 `AUDIT_CORE_MECHANICS_20261111.md` 的修复状态；`baseline:check` 仍 OK 443。
+
 ## 2026-11-11 · 材质改用千问本地模型（人物四槽 + 第一人称刀）
 
 **用户口径**：不要 SDXL 出材质，人物与刀都用千问本地模型出图。

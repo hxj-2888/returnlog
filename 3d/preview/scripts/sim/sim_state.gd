@@ -817,8 +817,11 @@ func knife(killer_i: int, victim_i: int) -> bool:
 		return false
 	if not bool(k.get("alive", false)) or bool(k.get("downed", false)):
 		return false
-	if not bool(v.get("alive", false)) or bool(v.get("alien", false)):
+	if not bool(v.get("alive", false)):
 		return false
+	# 2026-11-11 用户纠正：2.5D knife()（js/game.js:4226）只判目标存活且未倒地，
+	# **没有任何阵营限制** —— 异形可以互刀。此前这里多写的 `or v.alien` 是移植时
+	# 凭空加的规则，已删。同阵营命中照常记危险行为 / 红身 / 目击。
 	# 2.5D knife()（js/game.js:4225 `if(killer.knife<1)return` / :4232 `killer.knife--`）：
 	# 每夜 1 把刀是硬 gate，先扣刀再结算；额度由 startNight(:7801 `a.knife=1`) 每夜补发。
 	# 第七批拨乱反正：此前 3D 以「进攻链未齐、只搬限制会 0 胜」为由人为不启用该 gate，

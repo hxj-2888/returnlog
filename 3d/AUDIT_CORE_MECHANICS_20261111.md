@@ -41,6 +41,7 @@ if(!victim||!victim.alive||victim.downed)return;  // 目标活着且未倒地
 | 2.5D 真源 | `js/game.js:4226-4230`：只判 `killer.knife>=1` / `victim.alive` / `!victim.downed` |
 | 影响 | 异形玩家与 AI 都被禁刀同阵营；**玩家与 AI 用的是同一条错规则**（不是不公平，是规则本身多了一条） |
 | 修法 | 删掉 `or bool(v.alien)`；同阵营命中照 2.5D 走"危险行为记账 + 红身 + 目击"，不额外拦截 |
+| 状态 | **已修（2026-11-11）**：`sim_state.knife()` 已删阵营判断。headless 断言 `KNIFE_ALIEN_TEST ok=true victim_downed=true killer_knife=0` → PASS |
 | 验收 | 新增 `--knifetest` 用例：异形 A 刀异形 B → B 必须进入濒死，A 扣刀、`redT` 生效 |
 
 ### 3.2 天亮回舱：只改了 sim，玩家没被传送（你反馈的「没回中央会议室」）
@@ -50,7 +51,8 @@ if(!victim||!victim.alive||victim.downed)return;  // 目标活着且未倒地
 | 3D 位置 | `sim_state.gd:1502 dawn()`：把每个存活 agent 的 `pos` 设到 bridge 随机点 |
 | 漏的一环 | 玩家相机/角色节点没跟着改。`main._sync_player_pos()` 在会议结束后会用**相机位置反向覆盖** `me.pos` |
 | 结果 | AI 会走/瞬移到会议室，玩家留在原地；会议结束一帧后 sim 里玩家位置又被拉回原处 |
-| 修法 | `dawn()` 触发时，若 `sim.meeting.kind == day`，把 `player.global_position` 设到 bridge 落点并重置 `rotation.y`；同时给 `_sync_player_pos` 加"会议刚结束的 0.5 s 内不反向写"的抑制窗口 |
+| 修法 | 视图侧新增 `_sync_day_meeting_teleport()`：监听 `sim.meet_seq`，当会议 kind==day 时把相机搬到 `sim.me().pos`（dawn 已随机分配）并朝向会议室中心 |
+| 状态 | **已修（2026-11-11）**：headless 断言从 (8,8) → (31,33.5)，`kind=day`，`DAWN_TEST result=PASS` |
 | 验收 | `--uitest` 加断言：`dawn()` 后 `player.global_position` 与 `sim.me().pos` 距离 < 0.5 m；会议结束后 1 s 仍在 bridge |
 
 ### 3.3 暗房没有"暗"的表现（你反馈的引擎/配电室）
@@ -75,7 +77,7 @@ if(!victim||!victim.alive||victim.downed)return;  // 目标活着且未倒地
 
 ### 3.5 顺带确认的两条（不是 bug，但要知道）
 
-- **夜间会议不传送**：2.5D `openMeeting('night')` 只清路径、不挪人（`js/game.js:6936`）；只有 `dawn()` 的白天会议才全员回 bridge。3D 的 `dawn()` 逻辑方向正确，坏在 §3.2。
+- **夜间会议不传送**：2.5D `openMeeting('night')` 只清路径、不挪人（`js/game.js:6936`）；**白天会议（唯一入口就是 `dawn()`，`js/game.js:4513-4526`）先全员 `randIn(bridge)` 再开会**。3D 的 `dawn()` 只搬了 sim 坐标、没搬玩家相机 → 已按 §3.2 修好。
 - **会议期间玩家被锁**：`main.gd:5484` 设 `player.ui_locked=true`，与 2.5D 一致。
 
 ## 四、机制对照表（抽检 13 项）
@@ -120,7 +122,7 @@ if(!victim||!victim.alive||victim.downed)return;  // 目标活着且未倒地
 
 ## 七、本轮声明
 
-本文只做审阅与定位，**没有修改任何游戏代码**（`baseline:check` 仍 OK 443）。上面每条的修法都已落到函数/行号，确认后可直接按序执行。
+本轮修了 §3.1 与 §3.2 两个 P0（各 1 处与 1 个函数），其余仍是方案。`baseline:check` 仍 OK 443；两条断言均 headless PASS。
 
 ---
 
