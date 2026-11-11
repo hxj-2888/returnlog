@@ -1,0 +1,2330 @@
+{
+  "version": 1,
+  "note": "2.5D → 3D 玩法函数映射。status: ported / adapter / auto / pending / not-applicable。凡标 adapter 必须在 note 写清差异（只允许输入映射与表现层）。",
+  "entries": [
+    {
+      "src": "js/ai/sanity.js:alibiReach",
+      "target": "sim/mind.gd:alibi_reach",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:alibiTimeWord",
+      "target": "sim/mind.gd:alibi_time_word",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:beliefEntropy",
+      "target": "sim/mind.gd:belief_entropy",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:checkAlibi",
+      "target": "sim/mind.gd:check_alibi",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:credTestimony",
+      "target": "sim/mind.gd:cred_testimony",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:credVoteShield",
+      "target": "sim/mind.gd:cred_vote_shield",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:disguiseRisk",
+      "target": "sim/mind.gd:disguise_risk",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:disguiseScore",
+      "target": "sim/mind.gd:disguise_score",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:escapeCost",
+      "target": "sim/mind.gd:escape_cost",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:exposure",
+      "target": "sim/mind.gd:exposure",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:reliaMul",
+      "target": "sim/mind.gd:relia_mul",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:rollCharisma",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:trustEndorseAt",
+      "target": "sim/mind.gd:trust_endorse_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:trustObeyGate",
+      "target": "sim/mind.gd:trust_obey_gate",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/sanity.js:witnessWeight",
+      "target": "sim/mind.gd:witness_weight",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/traits.js:b",
+      "target": "sim/rules_data.gd:b",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/traits.js:pick",
+      "target": "sim/speech.gd:_pick",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/ai/traits.js:roll",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:C",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:accuseLine",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:actOffset",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:actWord",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:agentAimAng",
+      "target": "sim/sim_state.gd:agent_aim_ang",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiAlien",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiCanSee",
+      "target": "sim/sim_state.gd:ai_can_see",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiGhost",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiHear",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiHuman",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiIdleRoam",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiScanBodies",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:aiWantsLoot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alibiLine",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alibiOf",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienAudienceInfo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienFrameTarget",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienMateRevive",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienPackLead",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienPipeMove",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienPlan",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienReportWorth",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienSocialPick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:alienSupport",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:attack",
+      "target": "main.gd:_handle_attack",
+      "status": "adapter",
+      "note": "输入层：左键/右键分发"
+    },
+    {
+      "src": "js/game.js:attention",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:audienceHotRooms",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:beep",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bestVoteTarget",
+      "target": "sim/sim_state.gd:best_vote_target",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bindEntry",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyHasLoot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyInfo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyItemsText",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyNear",
+      "target": "sim/sim_state.gd:body_near",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyPos",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:bodyWound",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:boot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:botLabelText",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:botPos",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:botTick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:breakerOffTime",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:breakerOnTime",
+      "target": "sim/sim_state.gd:breaker_on_time",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:breakerPullTime",
+      "target": "sim/sim_state.gd:breaker_pull_time",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:breakerPuller",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:buildDoors",
+      "target": "scene_extras.gd:_build_doors",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:buildMeetCtx",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:buildSeatNames",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:camFocus",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:camMonitor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:canReportBody",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:canSee",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:castEarlyVotes",
+      "target": "sim/sim_state.gd:cast_early_votes",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:causeName",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:challengeText",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:checkTerminator",
+      "target": "sim/sim_state.gd:check_terminator",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:checkWin",
+      "target": "sim/sim_state.gd:check_win",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:clearNewLines",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:clickAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closeBodyCard",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closeCams",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closePipePick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closeSabPick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closeVote",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:closeWheel",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:collectInteractions",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:counterfactualReach",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:coverAudit",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:coverOutline",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:credAdd",
+      "target": "sim/mind.gd:cred_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:credBroadcast",
+      "target": "sim/mind.gd:cred_broadcast",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:crowdAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:damageBot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:damageRoom",
+      "target": "sim/sim_state.gd:sabotage_room",
+      "status": "ported",
+      "note": "异形幽灵破坏分支未接"
+    },
+    {
+      "src": "js/game.js:dawn",
+      "target": "sim/sim_state.gd:dawn",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:decideAlienDoubt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:decideHumanDefend",
+      "target": "sim/speech.gd:decide_human_defend",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:defenseClause",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:defenseNote",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:deliverTestimony",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:descDistort",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:die",
+      "target": "sim/sim_state.gd:die",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:disguiseOptions",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:disguiseRiskParts",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:dmgOfRoom",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:dmgTick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:doorAutoSound",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:doorBlockedSegment",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:doorTick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:dragAwayNotice",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:dragSound",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:draggerOf",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:draw",
+      "target": "home_ship_map.gd:_draw",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawBotLabel",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawCams",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawCorridorLights",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawDoors",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawFacilities",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawFog",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawFx",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawFxSprite",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawIcon",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawLegacyMap",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawMedDrone",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawMini",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawNameTag",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawPipes",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawReqTable",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawRobotBody",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawTaskCoverFlash",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawTaskMarkers",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawWaves",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawWeapon",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawWork",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:drawWrenchShape",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:dropStaleFix",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:endGame",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:envNotice",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:evClause",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:evRoomName",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:evidenceCore",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:evidenceLead",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:exitDistAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:exitToMenu",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:exposureAt",
+      "target": "sim/ai_alien.gd:_exposure_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:fillTpl",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:findHideBody",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:finishDoing",
+      "target": "sim/sim_state.gd:_finish_doing",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:finishFix",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:finishMeeting",
+      "target": "sim/sim_state.gd:_close_meeting",
+      "status": "ported",
+      "note": "白天会议后的下一夜在 _after_meeting"
+    },
+    {
+      "src": "js/game.js:fireShot",
+      "target": "sim/sim_state.gd:shoot",
+      "status": "ported",
+      "note": "2.5D 的 fireShot 对应 3D sim.shoot；随机/视听表现由事件层生成"
+    },
+    {
+      "src": "js/game.js:fireShotBot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:flavor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:fleeTask",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:freeFly",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:grantQual",
+      "target": "sim/sim_state.gd:claim_qual",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:grudgeAdd",
+      "target": "sim/mind.gd:grudge_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hasIdEvidence",
+      "target": "sim/mind.gd:has_id_evidence",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hear",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hideRoomFor",
+      "target": "sim/ai_alien.gd:_hide_room",
+      "status": "adapter",
+      "note": "3D 改为按离人距离评分选房"
+    },
+    {
+      "src": "js/game.js:hideSpotFor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hostileProb",
+      "target": "sim/mind.gd:hostile_prob",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hostileTo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hostileWeight",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:humanishAdd",
+      "target": "sim/mind.gd:humanish_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:humanishOf",
+      "target": "sim/mind.gd:humanish_of",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:huntSpotFor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:hypothesisCompeting",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:identityAlien",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:identityAxis",
+      "target": "sim/mind.gd:identity_axis",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:identityPrior",
+      "target": "sim/mind.gd:identity_prior",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:inCamRoom",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:inMedRoom",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:interact",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:isMate",
+      "target": "sim/mind.gd:_is_mate",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:isPatron",
+      "target": "sim/mind.gd:is_patron",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:isPipeRoom",
+      "target": "main.gd:_is_pipe_room",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:killRushStart",
+      "target": "sim/sim_state.gd:_kill_rush_start",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:knife",
+      "target": "sim/sim_state.gd:knife",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:knifeBot",
+      "target": "sim/sim_state.gd:knife_bot",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:knifeLockLeft",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:knownBump",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:leadingAccused",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:litZoneAt",
+      "target": "sim/sim_state.gd:lit_zone_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:loadImg",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:logEvent",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:loop",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:lootBody",
+      "target": "sim/sim_state.gd:search_body",
+      "status": "adapter",
+      "note": "3D 把 loot 合并进 search_body 结算"
+    },
+    {
+      "src": "js/game.js:lootRun",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:lootText",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:losNow",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:markMate",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:markNewLines",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:mateFollowChance",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:medDropSpot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:medbotFlyTo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:medbotHome",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:medbotTick",
+      "target": "sim/bots.gd:_tick_med",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:medbotUsable",
+      "target": "sim/ai_human.gd:_medbot_usable",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:meetTemplateText",
+      "target": "main.gd:_meet_template_text",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:meetingTimer",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:miniGameOn",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:misIdBump",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:misIdPick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:moveBot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:moveSpeed",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearDmg",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearMedBot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearMonitor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearPipe",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearPipeXY",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearPoint",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearRoundTable",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearSupply",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearestDowned",
+      "target": "sim/sim_state.gd:nearest_downed",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:nearestLootBody",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:newGame",
+      "target": "sim/sim_state.gd:new_game",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:noise",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:noiseLp",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:note",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:noticeAction",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:noticeTaskAbandon",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:obeyTrustMul",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:observeBody",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:observerVisionAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openBodyCard",
+      "target": "main.gd:_open_body_card",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openCams",
+      "target": "main.gd:_open_cams",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openMeeting",
+      "target": "sim/sim_state.gd:open_meeting_kind",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openPipePick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openSabPick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openWheel",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:openingLine",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:patFor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickChallenge",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickLine",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickPipe",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickResponder",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickSabRoom",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pickWheel",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pill",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pipeOpts",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pipeRoomIds",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:planAlienDeception",
+      "target": "sim/speech.gd:plan_alien_deception",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:planFirstAccuse",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:planMateBus",
+      "target": "sim/speech.gd:plan_mate_bus",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:play",
+      "target": "audio.gd:play",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:playerMiniGame",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:playerTalk",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:prep",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:publicAccuseHeat",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pullBreaker",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pulseHud",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:pushEndorse",
+      "target": "sim/speech.gd:push_endorse",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:qualDesk",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:randIn",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:recentWitness",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:reconsiderVotes",
+      "target": "sim/sim_state.gd:reconsider_votes",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:recordClaim",
+      "target": "sim/mind.gd:record_claim",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:recordFrame",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:refreshLight",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:releaseAllDrags",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:releaseDrag",
+      "target": "sim/sim_state.gd:release_drag",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:releaseDragBy",
+      "target": "sim/sim_state.gd:release_drag",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:reliaAdd",
+      "target": "sim/mind.gd:relia_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:reliaOf",
+      "target": "sim/mind.gd:relia_of",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:renderDevPanel",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:renderEndTables",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:renderTally",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:renderTaskList",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:renderVoteButtons",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:replayData",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:reportAlibiSpot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:rescue",
+      "target": "sim/sim_state.gd:player_revive",
+      "status": "adapter",
+      "note": "输入/动作层：医疗包施救"
+    },
+    {
+      "src": "js/game.js:resetBots",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:resize",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:respondText",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:restartGame",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roomIdAt",
+      "target": "sim/sim_state.gd:room_at",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roomIdOfName",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roomNameAt",
+      "target": "main.gd:_room_name_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roomNameById",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roundTableClaimSpot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:roundTableCover",
+      "target": "main.gd:_round_table_cover",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:runInvariants",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sabRoomOk",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sabSpot",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sabTick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sabotage",
+      "target": "main.gd:_on_sabotage",
+      "status": "adapter",
+      "note": "输入层"
+    },
+    {
+      "src": "js/game.js:sabotageBot",
+      "target": "sim/sim_state.gd:hit_bot",
+      "status": "adapter",
+      "note": "玩家打机器人：3D 走 E 交互，2.5D 走枪/刀目标"
+    },
+    {
+      "src": "js/game.js:say",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:scheduleLeaderOrders",
+      "target": "sim/speech.gd:schedule_leader_orders",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:screamFor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:searchBody",
+      "target": "sim/sim_state.gd:search_body",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secArcOk",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secCatchStart",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secCatchTick",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secJail",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secbotRaidOk",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:secbotWouldSee",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:seenNames",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sendPlayerSpeech",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:setAct",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:settleAccountability",
+      "target": "sim/mind.gd:settle_accountability",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:shoot",
+      "target": "main.gd:_player_fire",
+      "status": "adapter",
+      "note": "输入层：目标选择按 2.5D shoot() 的最近+visibleAt"
+    },
+    {
+      "src": "js/game.js:shuffle",
+      "target": "sim/sim_state.gd:_shuffle",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sightRangeAt",
+      "target": "sim/sim_state.gd:sight_range_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:simGame",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:simResolveMeeting",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:simRng",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:stab",
+      "target": "main.gd:_player_knife",
+      "status": "adapter",
+      "note": "输入层：2.5D 的 bot 目标分支尚未接"
+    },
+    {
+      "src": "js/game.js:start",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startChatter",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startClaim",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startDrag",
+      "target": "sim/sim_state.gd:start_drag",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startFix",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startLootSearch",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startNight",
+      "target": "sim/sim_state.gd:_reset_agent_night",
+      "status": "adapter",
+      "note": "夜计数/时长在 _start_night；逐字段重置在 _reset_agent_night"
+    },
+    {
+      "src": "js/game.js:startSupply",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startTask",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:startVote",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:stepMove",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:stepSpect",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:stop",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:supplyPoints",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:supplyTargetFor",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:syncDevUi",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:syncDragOf",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:syncHud",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:syncMeetTemplates",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:sysSay",
+      "target": "sim/speech.gd:sys_say",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:targetDistMul",
+      "target": "sim/mind.gd:target_dist_mul",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:taskThreat",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:tickActs",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:tickAgents",
+      "target": "sim/sim_state.gd:tick_agents",
+      "status": "ported",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:tickDoing",
+      "target": "main.gd:_tick_station",
+      "status": "adapter",
+      "note": "3D 站桩计时在 UI 层，判定在 _finish_doing"
+    },
+    {
+      "src": "js/game.js:tintedSheet",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:toast",
+      "target": "main.gd:_toast",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:toggleDev",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:toggleDrag",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:togglePause",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:topCred",
+      "target": "sim/ai_human.gd:_top_cred",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:trackNight",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:trustAdd",
+      "target": "sim/mind.gd:trust_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:trustProb",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:tryReport",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:update",
+      "target": "minigame/mg_valve.gd:_update",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:updateCamera",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:victimInfo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:visibleAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:volAt",
+      "target": "audio.gd:vol_at",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:voteLean",
+      "target": "sim/sim_state.gd:vote_lean",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:votePressure",
+      "target": "sim/sim_state.gd:vote_pressure",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:voteThreshold",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:walkTo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:walkableNear",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:warmAdd",
+      "target": "sim/mind.gd:warm_add",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:warmMate",
+      "target": "sim/ai_human.gd:_warm_mate",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:watchersAt",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:weightedHostileTarget",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:witnessAlienAction",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:witnessConfMul",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:witnessCtxMul",
+      "target": "sim/mind.gd:_witness_ctx_mul",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/game.js:witnessDetain",
+      "target": "sim/bots.gd:_witness_detain",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:bodyReported",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:markBodyReported",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:meetLater",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:nameOf",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:nightMeetLeft",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:parseSpeech",
+      "target": "sim/lines_data.gd:parse_speech",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:sayStreakOK",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:seatIndex",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:seatNo",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:stopChatter",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:tagByName",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:tagName",
+      "target": "main.gd:_tag_name",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/decision.js:whenWord",
+      "target": "sim/lines_data.gd:when_word",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:botDead",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:botHp",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:corrJoinsRoom",
+      "target": "sim/sim_state.gd:corr_joins_room",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:corridorLampPos",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:dirAng",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:ghostTaskAllowed",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:ghostTaskCap",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:ghostTaskPts",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:k1",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:pipeTint",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:ready",
+      "target": "sim/crew_view.gd:_ready",
+      "status": "auto",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:rowForAng",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    },
+    {
+      "src": "js/t2/space.js:workStyle",
+      "target": "",
+      "status": "pending",
+      "note": ""
+    }
+  ],
+  "ignore": [],
+  "budget": {
+    "pending": 278,
+    "guard_gap": 12,
+    "write_gap": 6,
+    "extras": 9,
+    "hardcoded": 0
+  }
+}

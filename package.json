@@ -45,7 +45,11 @@
     "3d:poc:ui": "node 3d/tools/poc-meeting-ui.cjs",
     "3d:floor:check": "node 3d/tools/check-floor-spec.cjs",
     "3d:refs:cabin": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set cabin",
-    "3d:refs:tasks": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set tasks"
+    "3d:refs:tasks": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set tasks",
+    "audit:parity": "node 3d/tools/check-gameplay-parity.cjs",
+    "audit:parity:strict": "node 3d/tools/check-gameplay-parity.cjs --strict",
+    "port:stub": "node 3d/tools/gen-port-stubs.cjs",
+    "audit:parity:baseline": "node 3d/tools/check-gameplay-parity.cjs --update-baseline"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

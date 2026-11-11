@@ -27,6 +27,10 @@ var spectator := false
 const SPECT_MIN_Y := 0.35
 const SPECT_MAX_Y := 60.0
 var _base_speed := 4.2
+## 幽灵态（2.5D：alive=false 且 ghost=true）：穿墙、全视，仍可移动去做剩余任务。
+var ghost := false
+## 濒死：不能移动（可以被别人拖走），但仍然能看、能听。
+var downed := false
 
 ## ---- 第一人称出刀视图（2026-11-11 用户反馈「出刀时自己视角没有动作」）----
 ## 只用两个盒子（刀身 / 刀柄）挂在相机下，不引入外部模型；
@@ -103,6 +107,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	# Esc 释放 / 点击收回鼠标统一由 main.gd 管理：这里只做视角。
 	# （旧实现在这里设 VISIBLE，但 main 的 `_refresh_mouse_mode()` 每帧又会
 	#  CAPTURED，Esc 实际无效 —— 用户反馈「鼠标被框在窗口里」的根因。）
+
+
+## 2.5D die() 之后的状态：穿墙（collision 全关）、可上下飞、全视（不遮暗）。
+## 与旁观者的差别只有速度和"能不能做任务"，所以复用同一套飞行移动。
+func set_ghost(on: bool) -> void:
+	if ghost == on:
+		return
+	ghost = on
+	collision_layer = 0 if on else 1
+	collision_mask = 0 if on else 1
+	gravity = 0.0 if on else 18.0
+	if flashlight != null:
+		flashlight.visible = not on
+	if not on:
+		global_position.y = maxf(global_position.y, spawn_point.y)
+
+
+func set_downed(on: bool) -> void:
+	downed = on
 
 
 func set_spectator(on: bool) -> void:
@@ -274,7 +297,11 @@ func _physics_process(delta: float) -> void:
 	if ui_locked:
 		velocity = Vector3.ZERO
 		return
-	if spectator:
+	# 濒死：原地不能动（2.5D 倒地后只能等救援 / 被拖），但视角照常。
+	if downed:
+		velocity = Vector3.ZERO
+		return
+	if spectator or ghost:
 		# 用相机 basis（含抬头/低头）而不是 body 朝向，才能真的"往看到的方向飞"
 		var fly := Vector3.ZERO
 		var cb := camera.global_transform.basis

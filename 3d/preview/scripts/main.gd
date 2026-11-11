@@ -133,6 +133,11 @@ var pipe_buttons: VBoxContainer
 var pipe_hint: Label
 var _pipe_open := false
 
+## 幽灵态：死亡后不弹结算面板，改为提示一次并继续以幽灵身份玩。
+var _ghost_toast := false
+## 交互键位拆分的按键边沿状态（F/R/G/Q/V/B/C + 1-9 直选）
+var _keys_down: Dictionary = {}
+
 var power_on := true
 
 ## ---- 站桩（对应 2.5D 的 _doing + doing 计时；一移动就打断）----
@@ -1225,6 +1230,9 @@ func _run_knifetest() -> void:
 	me["downed"] = false
 	me["detained"] = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 夹具口径：真实游玩从「已捕获」开始；测试里 mouse_released 还是开始页的 true，
+	# 不重置的话第一下左键会被当成「从 UI 夺回鼠标」，攻击链根本不会被调用。
+	mouse_released = false
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -3615,11 +3623,28 @@ func _player_room_lit() -> bool:
 
 
 ## 暗房遮罩：DEV / 旁观者不遮；进暗房 0.62，出暗房 0。
+## 2.5D die() 之后：alive=false 且 ghost=true —— 穿墙、全视、仍可做自己的剩余任务。
+## 3D 之前只把 alive 置 false 就弹「你已阵亡 / 按 R 重开」，等于把幽灵态整段丢了。
+func _tick_player_state() -> void:
+	if player == null or sim == null or sim.agents.is_empty():
+		return
+	var me: Dictionary = sim.me()
+	var dead := not bool(me.get("alive", true))
+	player.set_ghost(dead)
+	player.set_downed(bool(me.get("downed", false)))
+	if dead and not _ghost_toast:
+		_ghost_toast = true
+		var left := maxi(0, sim.ghost_cap() - int(me.get("ghostPts", 0)))
+		_toast("你已阵亡 · 幽灵态：穿墙、全视，仍可做自己剩下的任务（额度 %d 分）" % left)
+		_probe("幽灵态 · 穿墙/全视 · 任务额度 %d" % left)
+
+
 func _tick_darkness(delta: float) -> void:
 	if dark_rect == null or sim == null:
 		return
 	var target := 0.0
-	if not bool(sim.dev) and not bool(sim.spectator) and not _player_room_lit():
+	if not bool(sim.dev) and not bool(sim.spectator) \
+			and not bool(sim.me().get("ghost", false)) and not _player_room_lit():
 		target = 0.62
 	_dark_alpha = lerpf(_dark_alpha, target, clampf(delta * 4.0, 0.0, 1.0))
 	dark_rect.modulate.a = _dark_alpha
@@ -3711,7 +3736,8 @@ func _build_hud() -> void:
 
 	## 操作提示必须把**攻击键**写出来：3D 用鼠标左右键出刀/开枪，
 	## 不写的话从 2.5D 过来的玩家（按 A/B）会以为「异形不能出手」。
-	var help := _label("WASD 移动 · E 交互/出刀 · 左键出刀 · 右键开枪 · F2 DEV · P 设置 · Esc 释放/收回鼠标", Vector2(22, 50), 15, font)
+	var help := _label("WASD 移动 · E 交互 · F 任务/设施 · R 报告 · G 拖拽 · Q 管道 · V 电闸 · B 破坏 · C 监控 · 左键出刀 · 右键开枪 · F2 DEV · P 设置",
+		Vector2(22, 50), 15, font)
 	help.add_theme_color_override("font_color", Color(0.78, 0.84, 0.92))
 	layer.add_child(help)
 
@@ -5830,6 +5856,7 @@ func _process(delta: float) -> void:
 	if sim != null and not sim.agents.is_empty():
 		_sync_player_pos()
 		sim.tick(delta)
+		_tick_player_state()
 		# 白天会议开场（dawn）后必须把相机搬回会议室，否则玩家留在原地开会。
 		_sync_day_meeting_teleport()
 		_tick_darkness(delta)
@@ -5953,10 +5980,12 @@ func _update_interaction(_delta: float) -> void:
 	if sim != null and not sim.meeting.is_empty():
 		prompt_label.text = ""
 		_e_down = Input.is_physical_key_pressed(KEY_E)
+		_keys_down.clear()
 		return
 	if _pipe_open or (mg_layer != null and mg_layer.is_open()) or (wheel != null and wheel.is_open()):
 		prompt_label.text = ""
 		_e_down = Input.is_physical_key_pressed(KEY_E)
+		_keys_down.clear()
 		return
 	var e_now := Input.is_physical_key_pressed(KEY_E)
 	var pressed := e_now and not _e_down
@@ -5969,23 +5998,46 @@ func _update_interaction(_delta: float) -> void:
 		if pressed and station.is_empty():
 			_probe("E · 交互项 0")
 			_toast(_no_offer_hint())
+		_keys_down.clear()
 		return
 	_near = offers[0].get("dev", null)
 	if station.is_empty():
+		# 键位拆分后的提示：每项前面写它自己的键，E 只做兜底 / 轮盘。
+		var parts: Array = []
+		var shown := mini(offers.size(), 4)
+		for i in shown:
+			parts.append("[%s] %s" % [_offer_key(String(offers[i].get("id", ""))),
+				String(offers[i].get("label", ""))])
+		var line := " · ".join(PackedStringArray(parts))
+		if offers.size() > shown:
+			line += " · 共 %d 项（E 展开）" % offers.size()
+		prompt_label.text = line
+	# 每帧都把全部拆分键的边沿更新一遍，避免"只读了命中的那个键"导致下一帧假触发。
+	var edges: Dictionary = {}
+	for kk: String in _OFFER_KEY_KEYS:
+		edges[kk] = _key_edge(kk)
+	var digits: Array = []
+	for ni in 9:
+		digits.append(_num_edge(ni))
+	var picked: Dictionary = {}
+	# 1) 专用键：F 设施/任务、R 报告、G 拖拽、Q 管道、V 电闸、B 破坏、C 监控
+	for kk2: String in _OFFER_KEY_KEYS:
+		if not bool(edges[kk2]):
+			continue
+		picked = _offer_by_key(offers, kk2)
+		if picked.is_empty():
+			_toast("附近没有 [%s] 对应的操作" % kk2)
+		break
+	# 2) 数字 1-9 直选（与轮盘里的编号一致）
+	if picked.is_empty():
+		for ni2 in 9:
+			if bool(digits[ni2]) and ni2 < offers.size():
+				picked = offers[ni2]
+				break
+	# 3) E：唯一项直接执行，多项展开轮盘（兜底，避免功能丢失）
+	if picked.is_empty() and pressed:
 		if offers.size() == 1:
-			var hint1 := String(offers[0].get("hint", ""))
-			prompt_label.text = "[E] %s%s" % [String(offers[0].get("label", "")),
-				(" · " + hint1) if hint1 != "" else ""]
-		else:
-			prompt_label.text = "[E] 附近 %d 项交互（1-%d 直接选）" % [offers.size(), offers.size()]
-	if pressed:
-		var ids: Array = []
-		for o: Dictionary in offers:
-			ids.append(String(o.get("id", "")))
-		_probe("E · 交互项 %d [%s]" % [offers.size(), ", ".join(PackedStringArray(ids))])
-		if offers.size() == 1:
-			_probe("E → " + String(offers[0].get("label", "")))
-			(offers[0]["act"] as Callable).call()
+			picked = offers[0]
 		else:
 			_probe("E → 轮盘 %d 项" % offers.size())
 			player.ui_locked = true
@@ -5997,6 +6049,69 @@ func _update_interaction(_delta: float) -> void:
 				func() -> void:
 					player.ui_locked = false
 					_probe("轮盘 → 取消"))
+			return
+	if not picked.is_empty():
+		_probe("交互 → [%s] %s" % [_offer_key(String(picked.get("id", ""))),
+			String(picked.get("label", ""))])
+		(picked["act"] as Callable).call()
+
+
+## 键位拆分真源：一个交互项只认一个专用键，E 只兜底。
+## 2.5D 的现实是「交互不多但全塞在 E 上」，3D 按距离手边最近的语义拆开。
+const _OFFER_KEY_KEYS := ["F", "R", "G", "Q", "V", "B", "C"]
+
+
+func _offer_key(id: String) -> String:
+	if id.begins_with("task-") or id.begins_with("fix-"):
+		return "F"
+	if id.begins_with("report"):
+		return "R"
+	if id.begins_with("drag"):
+		return "G"
+	if id.begins_with("pipe-"):
+		return "Q"
+	if id.begins_with("breaker"):
+		return "V"
+	if id.begins_with("sabotage-"):
+		return "B"
+	if id.begins_with("cams"):
+		return "C"
+	if id.begins_with("attack"):
+		return "左键"
+	return "E"
+
+
+func _offer_by_key(offers: Array, key: String) -> Dictionary:
+	for o: Dictionary in offers:
+		if _offer_key(String(o.get("id", ""))) == key:
+			return o
+	return {}
+
+
+func _key_edge(k: String) -> bool:
+	var code := 0
+	match k:
+		"F": code = KEY_F
+		"R": code = KEY_R
+		"G": code = KEY_G
+		"Q": code = KEY_Q
+		"V": code = KEY_V
+		"B": code = KEY_B
+		"C": code = KEY_C
+		_:
+			return false
+	var now := Input.is_physical_key_pressed(code)
+	var was := bool(_keys_down.get(k, false))
+	_keys_down[k] = now
+	return now and not was
+
+
+func _num_edge(n: int) -> bool:
+	var key := "N%d" % n
+	var now := Input.is_physical_key_pressed(KEY_1 + n)
+	var was := bool(_keys_down.get(key, false))
+	_keys_down[key] = now
+	return now and not was
 
 
 ## 按 E 却没有任何交互项时的具体解释。2.5D 也要求「点错要有反馈」；
@@ -6006,7 +6121,7 @@ func _no_offer_hint() -> String:
 		return "附近没有可交互的东西 —— 走近设备 / 尸体 / 电闸 / 圆桌再按 E"
 	var me: Dictionary = sim.me()
 	if not bool(me.get("alien", false)):
-		return "人类没有刀 —— 右键开枪（子弹在军械库领）；E 只做维修 / 搜尸 / 报告等交互"
+		return "人类没有刀 —— 右键开枪（子弹在军械库领）；F 做任务 / R 报告 / G 拖拽 / E 其它交互"
 	var reach := SpaceData.num(space, "reach", "knife")
 	var me_pos: Vector2 = me.get("pos", Vector2.ZERO)
 	# 刀程内有人却没有交互项：只可能是墙/掩体挡住了（2.5D stab() 的 losNow）。
@@ -6174,17 +6289,25 @@ func _collect_offers() -> Array:
 			})
 		else:
 			for dead2: Dictionary in sim.agents:
-				if bool(dead2.get("alive", false)) or bool(dead2.get("bodyGone", false)) \
-						or bool(dead2.get("bodyReported", false)):
+				if int(dead2.get("i", -1)) == int(sim.me_idx):
 					continue
-				var bp2: Vector2 = dead2.get("bodyPos", Vector2.ZERO)
+				# 2.5D bodyPos()：濒死（还活着）用本人坐标，死亡用固定尸体坐标 —— 两种都能拖。
+				var is_downed: bool = bool(dead2.get("alive", false)) \
+					and bool(dead2.get("downed", false))
+				if not is_downed:
+					if bool(dead2.get("alive", false)) or bool(dead2.get("bodyGone", false)) \
+							or bool(dead2.get("bodyReported", false)):
+						continue
+				var bp2: Vector2 = dead2.get("pos", Vector2.ZERO) if is_downed \
+					else dead2.get("bodyPos", Vector2.ZERO)
 				if bp2.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "body"):
 					continue
 				var body_i2 := int(dead2.get("i", -1))
 				out.append({
 					"id": "drag-%d" % body_i2,
-					"label": "拖走尸体 · " + String(dead2.get("name", "?")),
-					"hint": "移动变慢 · 再按 E 放下",
+					"label": ("拖走伤员 · " if is_downed else "拖走尸体 · ") \
+						+ String(dead2.get("name", "?")),
+					"hint": ("拖进医疗间可救活 · 移动变慢" if is_downed else "移动变慢 · 再按 G 放下"),
 					"accent": Color("#C7B6E8"),
 					"act": func() -> void: _on_drag_start(body_i2),
 				})
@@ -6324,7 +6447,7 @@ func _collect_offers() -> Array:
 		out.append({
 			"id": "cams",
 			"label": "全船监控 · " + String(mfac.get("label", "监控台")),
-			"hint": "%d 路在线 · V / ESC 退出" % (map_data.get("rooms", []) as Array).size(),
+			"hint": "%d 路在线 · C / ESC 退出" % (map_data.get("rooms", []) as Array).size(),
 			"accent": Color("#B9F5DA"),
 			"act": func() -> void: _open_cams(),
 		})
@@ -6371,6 +6494,14 @@ func _collect_offers() -> Array:
 				int(sim.bot_hp.get(bk2, 0)),
 				"在线" if int(sim.bot_hp.get(bk2, 0)) > 0 else "已停摆"]),
 		})
+	# 2.5D 幽灵口径：不能修故障 / 报告 / 搜尸 / 拖尸 / 破坏 / 领补给，只能做自己的剩余任务。
+	if sim != null and not sim.agents.is_empty() and bool(sim.me().get("ghost", false)):
+		var ghost_out: Array = []
+		for o2: Dictionary in out:
+			var oid := String(o2.get("id", ""))
+			if oid.begins_with("task-"):
+				ghost_out.append(o2)
+		out = ghost_out
 	return out
 
 
@@ -6530,8 +6661,17 @@ func _on_drag_start(body_i: int) -> void:
 
 
 func _on_drag_drop() -> void:
-	if sim != null and sim.release_drag(int(sim.me_idx)):
-		_toast("已放下尸体")
+	if sim == null:
+		return
+	var carried: Dictionary = sim.agent(int(sim.me().get("drag", -1)))
+	var was_downed := bool(carried.get("downed", false))
+	if sim.release_drag(int(sim.me_idx)):
+		if not was_downed:
+			_toast("已放下尸体")
+		elif bool(carried.get("downed", false)):
+			_toast("已放下伤员（还在濒死 —— 拖进医疗间才能救活）")
+		else:
+			_toast("伤员已送进医疗间 · 已被救起")
 
 
 func _on_hit_bot(kind: String) -> void:
@@ -6829,9 +6969,12 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 	if player != null:
 		player.play_knife_swing()
 	# E 轮盘带的是「2.5D stab() 的最近目标」；左键没带目标才走准星。
+	# 2.5D stab()：射程内取**最近**且 losNow 的活人，没有任何准星锥。
+	# 3D 之前用相机点积 0.55 当额外门槛，贴脸（<0.4m）时垂直分量把点积压下去，
+	# 就是「明明在脸上却刀不到」的根因 —— 这条限制是 3D 自加的，删掉。
 	var tgt: Dictionary = forced
 	if tgt.is_empty():
-		tgt = _aim_target(SpaceData.num(space, "reach", "knife"), 0.55)
+		tgt = _nearest_knife_target()
 	if tgt.is_empty():
 		_probe("出刀 × 刀程内没有目标")
 		_toast("刀锋够不到 —— 再靠近、把人对准屏幕中央")
@@ -6878,7 +7021,9 @@ func _player_fire(me: Dictionary) -> void:
 		_probe("开枪 × 冷却 %.1fs" % _shot_cd)
 		_toast("开枪冷却中（%.1fs）" % _shot_cd)
 		return
-	var tgt := _aim_target(SpaceData.num(space, "shoot", "range"), 0.90)
+	# 2.5D shoot()：射程内取最近、losNow、且 visibleAt 的目标 —— 同样是「最近」，
+	# 不是准星锥。3D 之前的 dot>0.90 让贴脸目标（垂直分量）打不中。
+	var tgt := _nearest_shot_target(SpaceData.num(space, "shoot", "range"))
 	if tgt.is_empty():
 		_probe("开枪 × 射程内没有对准的目标")
 		_toast("射程内没有对准的目标")
@@ -6891,6 +7036,33 @@ func _player_fire(me: Dictionary) -> void:
 	_probe("开枪 → %s · 濒死 · 剩余弹 %d" % [String(tgt.get("name", "")),
 		int(me.get("bullet", 0))])
 	_toast("开枪击中 " + String(tgt.get("name", "")))
+
+
+## 2.5D shoot() 的目标选择：射程内最近、无遮挡、且「看得见」的活人。
+## visibleAt 与 aiCanSee 同源（observerVisionAt），所以这里复用 sim.ai_can_see。
+func _nearest_shot_target(max_d: float) -> Dictionary:
+	if sim == null or sim.agents.is_empty():
+		return {}
+	var me: Dictionary = sim.me()
+	var p: Vector2 = me.get("pos", Vector2.ZERO)
+	var best: Dictionary = {}
+	var best_d := max_d
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) == int(sim.me_idx):
+			continue
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		var d := p.distance_to(ap)
+		if d >= best_d:
+			continue
+		if sim.nav != null and not sim.nav.los(p, ap):
+			continue
+		if not sim.ai_can_see(me, ap):
+			continue
+		best_d = d
+		best = a
+	return best
 
 
 ## 在给定距离内挑「最贴近准星」的活人：点积越大越接近屏幕中央。
@@ -7098,8 +7270,13 @@ func _sync_player_pos() -> void:
 	var me: Dictionary = sim.me()
 	if me.is_empty() or not bool(me.get("alive", true)):
 		return
-	if bool(me.get("detained", false)) or bool(me.get("downed", false)) \
-			or not sim.meeting.is_empty():
+	if bool(me.get("downed", false)):
+		# 濒死：本人不能走，但会被别人拖 —— 镜头必须跟着 sim 里的身体位置，
+		# 否则「被拖进医疗间」在玩家视角是完全看不出来的。
+		var bp: Vector2 = me.get("pos", Vector2.ZERO)
+		player.global_position = Vector3(bp.x, player.global_position.y, bp.y)
+		return
+	if bool(me.get("detained", false)) or not sim.meeting.is_empty():
 		return
 	me["pos"] = Vector2(player.global_position.x, player.global_position.z)
 	## 2.5D agentAimAng 对玩家取鼠标朝向（js/game.js:1805）；3D 由 view 层把朝向
@@ -7169,6 +7346,9 @@ func _refresh_sim_hud() -> void:
 	var role_text := "旁观 · 全知视角" if bool(sim.spectator) else \
 		("异形 · 假装维修不给进度" if bool(a.get("alien", false)) else "人类")
 	role_text += " · 弹 %d · 包 %d" % [int(a.get("bullet", 0)), int(a.get("medkit", 0))]
+	if bool(a.get("ghost", false)):
+		role_text = "幽灵 · 穿墙全视 · 任务额度 %d 分" % maxi(0,
+			sim.ghost_cap() - int(a.get("ghostPts", 0)))
 	if bool(a.get("detained", false)):
 		role_text = "被保安机器人拘留 · 等待释放"
 	if bool(sim.spectator):
@@ -7189,13 +7369,14 @@ func _refresh_sim_hud() -> void:
 	if sim.over:
 		_show_end()
 	elif not bool(a.get("alive", true)):
-		_player_dead = true
-		end_panel.visible = true
-		end_label.text = "你已阵亡\n第 %d 夜 · 维修 %d/%d\n\n按 R 重开一局" % [
-			int(sim.night), int(sim.prog), int(sim.win_pts())]
+		# 2.5D：死亡=幽灵，不弹「你已阵亡」结算面板（面板只在对局结束时出现）。
+		# 之前这里把 _player_dead 置 true 并全屏盖住，玩家以为对局结束了。
+		_player_dead = false
+		if end_panel != null and end_panel.visible and not sim.over:
+			end_panel.visible = false
 	elif bool(a.get("downed", false)) and not _down_toast:
 		_down_toast = true
-		_toast("你已濒死，12 秒内没人救就会死")
+		_toast("你已濒死 · 天亮前没人救就会死（可被拖进医疗间 / 医疗包 / 无人机救起）")
 
 
 func _alive_count() -> int:
@@ -7387,10 +7568,15 @@ func _input(event: InputEvent) -> void:
 	# 攻击输入：左键出刀（异形）/ 右键开枪（人类），都要在鼠标已被捕获时才生效，
 	# 否则第一次点击是"从 UI 夺回鼠标"，不该顺带打一枪。
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		# headless 下 DisplayServer 不支持捕获鼠标（Input.mouse_mode 恒为 VISIBLE），
+		# 门禁/自测会因此永远走不进攻击分支 —— 只在 headless 放行，真实游玩仍要求捕获。
+		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+				or DisplayServer.get_name() == "headless":
 			_handle_attack((event as InputEventMouseButton).button_index)
 		return
-	if not bool(sim.over) and bool(sim.me().get("alive", true)):
+	# R 只在对局结束时重开。幽灵（alive=false 但局没结束）还要继续做任务，
+	# 之前这条判定用 alive，导致阵亡后按 R 直接把幽灵态的新局重开了。
+	if not bool(sim.over):
 		return
 	if event is InputEventKey:
 		var key := event as InputEventKey
@@ -7413,6 +7599,8 @@ func _restart_sim() -> void:
 	if settle_panel != null:
 		settle_panel.visible = false
 	_player_dead = false
+	_ghost_toast = false
+	_keys_down.clear()
 	_down_toast = false
 	# 新一局从「鼠标已被捕获」开始：结算页可能按过 Esc 释放，不能带进下一局。
 	mouse_released = false

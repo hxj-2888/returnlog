@@ -1,5 +1,17 @@
 # 3D 修改记录
 
+## 2026-11-11 · 核心机制对齐批 + 自动化审阅
+
+- **濒死口径改成 2.5D**：删掉 3D 自造的 `downedT=12` 失血计时与 tick 里的 `die()`；濒死持续到天亮，`dawn()` 统一判 `bled`。第二刀不再直接致死（2.5D `knife()` 对已倒地目标直接 return）。
+- **死亡转幽灵**：`die()` 设 `ghost=true`，玩家穿墙 / 全视 / 可做剩余任务（额度 `space.json#move.ghost_task_cap`，由 `SKT2Space.GHOST_TASK_CAP` 导出）；不再弹「你已阵亡」全屏面板；`R` 只在对局结束时重开。
+- **拖拽濒死者**：`_collect_offers` 允许拖 `alive && downed` 的伤员（2.5D `bodyPos` 口径），拖进医疗间由 `release_drag` 救起；放下提示区分伤员/尸体。
+- **刀/枪目标选择改回 2.5D**：`stab()` / `shoot()` 都是「最近 + LOS（枪再加 visibleAt）」，删掉 3D 自加的相机准星锥（0.55 / 0.90）。这是「贴脸刀不到/打不中」的根因。
+- **状态清理补齐**：枪击清 `searched`；`die()` 清 `searched/detained/redT/stunT` 并双向解除拖拽；`sabotage_room` 自己记 `sabUsed`（2.5D `damageRoom`）；`dawn()` 清 `draggedBy`；`search_body` 增加 over/会议守卫。
+- **交互键拆分**：`E` 通用兜底、`F` 任务/设施、`R` 报告、`G` 拖拽、`Q` 管道、`V` 电闸、`B` 破坏、`C` 监控，`1-9` 直选；HUD 按项显示对应键。
+- **自动化审阅（新增）**：`3d/tools/check-gameplay-parity.cjs` + `spec/gameplay-parity.json` + `npm run audit:parity(:strict)`；扫 385 个 2.5D 函数，检查映射、守卫、状态写入、3D 独有逻辑、数值真源漂移。首份报告：`docs/agent/PARITY_REPORT.md`。
+- **移植规程（新增）**：`3d/PORTING_PROTOCOL.md` + `3d/tools/gen-port-stubs.cjs`（2.5D 原文逐字桩）+ `3d/port/` 参照件；AGENTS §二 增加硬约束第 7 条「规则同源」。
+- **验证**：`B4TEST 8/0`、`INTERACT` 全项、`KNIFETEST OK`、`baseline:check OK 443`、`guard PASS`；审阅读数 26 显式 + 81 自动 / 278 pending / 12 守卫缺口 / 6 写入缺口 / 9 个 3D 独有。
+
 ## 2026-11-11 · 核心机制修复批（P0×2 + P1×3 + P3×2）
 
 - **暗房（P0）**：`LIT_AMBIENT 0.55→0.30`、`_fill 0.28→0.06`、`_ceil_fill 0.16→0.04`；`main._tick_darkness()` 按 `light_state` + 房间 `light` 给暗房叠 62% 径向遮罩（中心保留手电视野），DEV/旁观不遮。断言 `DARK_TEST power_lit=false bridge_lit=true PASS`。

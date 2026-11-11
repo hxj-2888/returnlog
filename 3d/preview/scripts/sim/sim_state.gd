@@ -360,11 +360,20 @@ func remaining_tasks(agent_i: int = -1) -> Array:
 
 ## 这个点是不是该 agent「现在可以修」的任务。2.5D 的判定是
 ## `ml.indexOf(point) >= 0`，即只认 tIdx 之后的剩余任务；乱序修也会在结算时换位。
+## 幽灵任务额度：单一真源是 space.json#move.ghost_task_cap
+## （由 3d/tools/export-space.cjs 从 SKT2Space.GHOST_TASK_CAP 导出，不在 GDScript 里写死）。
+func ghost_cap() -> int:
+	return int(SpaceData.num(space, "move", "ghost_task_cap"))
+
+
 func can_do_task(point_i: int, agent_i: int = -1) -> bool:
 	var a: Dictionary = me() if agent_i < 0 else agent(agent_i)
 	if a.is_empty() or over:
 		return false
-	if not bool(a.get("alive", false)) or bool(a.get("ghost", false)):
+	var is_ghost := bool(a.get("ghost", false))
+	if not bool(a.get("alive", false)) and not is_ghost:
+		return false
+	if is_ghost and int(a.get("ghostPts", 0)) + task_pts(point_i) > ghost_cap():
 		return false
 	return remaining_tasks(agent_i).has(point_i)
 
@@ -377,8 +386,11 @@ func complete_task(agent_i: int, point_i: int) -> Dictionary:
 		fail["reason"] = "对局已结束"
 		return fail
 	var a := agent(agent_i)
-	if a.is_empty() or not bool(a.get("alive", false)):
-		fail["reason"] = "角色不存在或已死亡"
+	if a.is_empty():
+		fail["reason"] = "角色不存在"
+		return fail
+	if not bool(a.get("alive", false)) and not bool(a.get("ghost", false)):
+		fail["reason"] = "角色已死亡"
 		return fail
 	var p := point(point_i)
 	if p.is_empty():
@@ -406,6 +418,11 @@ func complete_task(agent_i: int, point_i: int) -> Dictionary:
 	if v <= 0:
 		fail["reason"] = "任务分值取不到（sim.json win.task_pts）"
 		return fail
+	if bool(a.get("ghost", false)):
+		if int(a.get("ghostPts", 0)) + v > ghost_cap():
+			fail["reason"] = "幽灵任务额度已用尽（最多 %d 分）" % ghost_cap()
+			return fail
+		a["ghostPts"] = int(a.get("ghostPts", 0)) + v
 
 	prog = mini(win_pts(), prog + v)
 	a["progress"] = int(a.get("progress", 0)) + v
@@ -527,9 +544,8 @@ func tick_agents(dt: float) -> void:
 		if float(a.get("redT", 0.0)) > 0.0:
 			a["redT"] = maxf(0.0, float(a.get("redT", 0.0)) - dt)
 		if bool(a.get("downed", false)):
-			a["downedT"] = float(a.get("downedT", 0.0)) - dt
-			if float(a.get("downedT", 0.0)) <= 0.0:
-				die(a)
+			# 2.5D 没有「12 秒失血」这条规则：濒死一直持续到天亮（dawn 统一判 bled），
+			# 期间可以被医疗包 / 医疗无人机 / 拖进医疗间救起。
 			continue
 		if float(a.get("doing", 0.0)) > 0.0:
 			a["doing"] = float(a.get("doing", 0.0)) - dt
@@ -810,7 +826,7 @@ func kill(agent_i: int, cause: String, by: int = -1) -> bool:
 	return true
 
 
-## 出刀：先把人放倒（12 秒流血窗口），已倒地的直接死。
+## 出刀：把人放倒（濒死持续到天亮 / 被救），已倒地的人不能再被刀。
 func knife(killer_i: int, victim_i: int) -> bool:
 	var k := agent(killer_i)
 	var v := agent(victim_i)
@@ -842,10 +858,14 @@ func knife(killer_i: int, victim_i: int) -> bool:
 		_dev_note("DEV 无敌：%s 的出刀没有生效" % String(k.get("name", "?")),
 			{"actor": killer_i, "victim": victim_i})
 		return false
+	# 2.5D knife()：`if(!victim||!victim.alive||victim.downed)return;`
+	# 濒死者不能再被刀。3D 之前这里直接 die()，等于「第二刀必死」——
+	# 这就是「被刀就说死亡」的来源，与 2.5D 的濒死口径完全相反。
 	if bool(v.get("downed", false)):
-		return die(v)
+		return false
 	v["downed"] = true
-	v["downedT"] = 12.0
+	# 2.5D 没有倒地计时：濒死持续到天亮（dawn 才判 bled），期间可被拖/被救。
+	v["downedT"] = 0.0
 	v["downedBy"] = killer_i
 	v["medTried"] = false
 	v["bodyPos"] = v.get("pos", Vector2.ZERO)
@@ -853,6 +873,8 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	v["downRoom"] = room_at(v.get("pos", Vector2.ZERO))
 	v["deathCause"] = "knife"
 	v["killedBy"] = killer_i
+	# 2.5D knife()：`victim.searched=false`（每次倒下都是新一次可搜）
+	v["searched"] = false
 	# 目击者：7m 内、真实视线不被墙/掩体挡住的人记一笔"我看见他动手"。
 	# 这是 B3 的最小理智线；B5 再换成完整的 sus/mind。
 	_witness_action(k, "saw_knife", v.get("pos", Vector2.ZERO))
@@ -885,7 +907,7 @@ func _kill_rush_start(a: Dictionary) -> void:
 	a["rushT"] = float(R.get("dur", 2.0))
 
 
-## 开枪：与出刀同一个结算入口（放倒 12 秒 → 流血死），只是消耗子弹、射程 9 格。
+## 开枪：与出刀同一个结算入口（放倒 → 天亮前没人救则失血死），只是消耗子弹、射程 9 格。
 ## 2.5D 的 SHOT.range = 9；这里只做「命中/未命中」两态，不做弹道散布。
 func shoot(shooter_i: int, target_i: int) -> bool:
 	var k := agent(shooter_i)
@@ -913,13 +935,15 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 			{"actor": shooter_i, "victim": target_i})
 		return false
 	v["downed"] = true
-	v["downedT"] = 12.0
+	v["downedT"] = 0.0
 	v["downedBy"] = shooter_i
 	v["medTried"] = false
 	v["bodyPos"] = vp
 	v["downRoom"] = room_at(vp)
 	v["deathCause"] = "shot"
 	v["killedBy"] = shooter_i
+	# 2.5D fireShot()：target.searched=false（与刀同一个「每次倒下可重搜」口径）
+	v["searched"] = false
 	# 2.5D fireShot：目击者按 noticeAction(7 格) 记 **saw_shot**（目击证据 0.55），
 	# 不是听来的传闻；枪声另走 aiHear(20 格) 的 heard 通道（权重 0.16）。
 	_witness_action(k, "saw_shot", vp)
@@ -974,8 +998,33 @@ func die(v: Dictionary) -> bool:
 		return false
 	v["alive"] = false
 	v["downed"] = false
+	# 2.5D die()：`a.alive=false; a.ghost=true;` —— 死亡即幽灵（穿墙 / 全视 /
+	# 仍可做自己剩下的任务，额度 ghost_cap() 分），不是直接踢出对局。
+	v["ghost"] = true
 	v["deathAt"] = elapsed
+	# 2.5D die() 的状态清理，逐条对齐：
+	# bodyGone=(cause==='vote') / searched=false / detained=false / redT=0 / stunT=0
+	# 以及两个方向的拖拽关系解除。
+	v["bodyGone"] = false
+	v["searched"] = false
+	v["detained"] = false
+	v["detainedT"] = 0.0
+	v["redT"] = 0.0
+	v["stunT"] = 0.0
+	v["path"] = PackedVector2Array()
+	v["pathI"] = 0
+	v["moving"] = false
+	v["doing"] = 0.0
+	v["_doing"] = ""
 	v["bodyPos"] = v.get("pos", Vector2.ZERO)
+	var dragged_by: Variant = v.get("draggedBy", -1)
+	if dragged_by != null and int(dragged_by) >= 0:
+		release_drag(int(dragged_by))
+	v["draggedBy"] = -1
+	var dragging: Variant = v.get("drag", -1)
+	if dragging != null and int(dragging) >= 0:
+		release_drag(int(v.get("i", -1)))
+	v["drag"] = -1
 	# 2.5D deathRoom：优先用倒地房间；没有就按尸体位置补。
 	v["deathRoom"] = String(v.get("downRoom", ""))
 	if String(v.get("deathRoom", "")) == "":
@@ -1250,6 +1299,9 @@ func _track_pass() -> void:
 ## 搜尸：把死者身上的子弹 / 医疗包 / 申请单转给搜的人，一具尸体只搜一次。
 ## 对应 2.5D `lootBody`（js/game.js），口径是"只转移、不凭空生成"。
 func search_body(body_i: int, by: int) -> bool:
+	# 2.5D searchBody()：`if(G.over||G.meet||G.inspect)return`
+	if over or not meeting.is_empty():
+		return false
 	var b := agent(body_i)
 	var a := agent(by)
 	if b.is_empty() or a.is_empty():
@@ -1315,6 +1367,11 @@ func sabotage_room(room_id: String, by: int) -> bool:
 			px = float(p.get("x", 0.0))
 			py = float(p.get("y", 0.0))
 			break
+	# 2.5D damageRoom()：`if(!G.designMode)a.sabUsed=true;` —— 每夜一次的账
+	# 记在破坏入口本身，而不是调用方；否则 AI 走 sabotage_room 时不会记账。
+	var sab_by := agent(by)
+	if not sab_by.is_empty() and not dev:
+		sab_by["sabUsed"] = true
 	dmg.append({"room": room_id, "by": by, "left": 30.0, "x": px, "y": py})
 	_log("sabotage", {"actor": by, "room": room_id})
 	_broadcast_noise(Vector2(px, py), 14.0)
@@ -1523,6 +1580,7 @@ func dawn() -> void:
 			a2["doing"] = 0.0
 			a2["_doing"] = ""
 			a2["drag"] = -1
+			a2["draggedBy"] = -1
 	# 开白天全员会议。
 	open_meeting_kind(MEET_DAY, -1, -1)
 
