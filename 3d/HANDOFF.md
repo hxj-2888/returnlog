@@ -98,7 +98,8 @@ node 3d/tools/sync-cover-height.cjs --check
   `char_crew_lowpoly`：1.75 m / 1812 tris / 4 材质 / 17 形变骨 / idle+walk；
   正常对局默认使用，`--crew-billboard` 回退旧 billboard，`char_crew_blockout`
   是第二级回退。`walk` 1 秒循环、Godot 侧 2.9× 播放以匹配 4.2 m/s 移速；
-  `knife/down` 仍待补。人物仍属美术栏，不在判定层加状态；外观不得泄露异形身份。
+  `knife/down` 已补（事件/倒地触发），V-CREW 已标 `ported`（full）。人物仍属美术栏，
+  不在判定层加状态；外观不得泄露异形身份。
 - **鬼魂模式（2026-11-11 登记）**：2.5D `die()` 会 `ghost=true`，死亡后可穿墙、
   修剩余任务（1.6× 时长 / `GHOST_TASK_CAP` 额度）、异形幽灵可破坏一次；
   3D `die()` 只置 `alive=false`，玩家死亡直接出结算页。用户裁定**先做人物模型，鬼魂后置**，

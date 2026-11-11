@@ -1182,19 +1182,19 @@
     },
     {
       "id": "V-CREW",
-      "name": "15 个 crew 的 3D 表现（billboard / blockout）",
+      "name": "15 个 crew 的 3D 表现（full：idle / walk / knife / down）",
       "group": "view",
       "track": "core",
       "source": [],
       "target": [
         "3d/preview/scripts/sim/crew_view.gd"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-STATE"
       ],
-      "gate": "--crewshot / --crew-billboard / --aittest",
-      "notes": "默认 15 个 char_crew_lowpoly（1.75m/1812 tris/17 骨/idle+walk）+名牌（旁观模式下 0 号也显示）；walk 2.9× 匹配 4.2m/s，moving 切换 walk/idle；--crew-billboard 回退旧 billboard，--crewshot 出同框图。knife/down 待补；外观不得承载阵营信息。"
+      "gate": "--crewanimtest / --probetest / --crewshot / --crew-billboard",
+      "notes": "full：15 个 char_crew_lowpoly（1.75m/1812 tris/17 骨/4 动作 idle+walk+knife+down）+名牌（旁观模式下 0 号也显示）；walk 2.9× 匹配 4.2m/s；knife 由 sim.events 一次性触发，down 由 downed 状态触发；--crew-billboard 回退旧 billboard。外观不得承载阵营信息。"
     }
   ]
 }

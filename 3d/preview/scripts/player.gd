@@ -14,6 +14,8 @@ const SpaceData := preload("res://scripts/space_data.gd")
 
 ## 小游戏遮罩打开时，玩家输入交给 UI；否则点击遮罩会被当成“重新捕获鼠标”。
 var ui_locked := false
+## 截图/机位自测不应抢系统鼠标；main 在 add_child 之前设置。
+var capture_mouse_on_ready := true
 
 var camera: Camera3D
 var flashlight: SpotLight3D
@@ -41,7 +43,10 @@ func apply_space_cfg(space: Dictionary) -> void:
 func _ready() -> void:
 	_build_collision()
 	_build_camera()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if capture_mouse_on_ready:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	else:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _build_collision() -> void:
@@ -97,6 +102,11 @@ func set_spectator(on: bool) -> void:
 	gravity = 0.0 if on else 18.0
 	if flashlight != null:
 		flashlight.visible = not on
+
+
+func _exit_tree() -> void:
+	# 自测/截图进程退出时也释放全局鼠标，避免把系统光标留在捕获态。
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _physics_process(delta: float) -> void:

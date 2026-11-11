@@ -2,7 +2,8 @@
 
 > 状态：**2.5D 的完整功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
 > 33 项 Godot 自测全绿、`npm run check` 6/0、parity 0 WARN）。仍是本地预演、不发行。
-> **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**。
+> **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**；
+> 红线/继承审查见 **`REDLINE-AUDIT.md`**（2026-11-11：红线 1–10 通过，11/12 未全过）。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
 > 2026-11-04 早补：完整版（含 .NET / `GodotSharp`）已装，GDScript 工程两份编辑器读数一致，见 §3。
 > 主项目 2.5D 的 `file://` 红线**不适用**于本目录；这里不通过 `index.html` 加载。
@@ -395,7 +396,8 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
 - 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理。
 - 角色默认已切 `char_crew_lowpoly`（1.75 m / 1812 tris / 17 骨 / idle+walk）；
   参考图在 `docs/qwen21/crew-refs/`。`--crew-billboard` 回退旧单帧 billboard，
-  `char_crew_blockout` 只作模型缺失时的第二级回退；knife/down 待补。
+  `char_crew_blockout` 只作模型缺失时的第二级回退；四动作 idle/walk/knife/down 已齐，
+  V-CREW 标 `ported`（full）。
 - 事件词表静态 31/31/31 全覆盖，但**同 seed 一局内不一定 31 种都触发**；
   `--simdiff` 报告会如实列出该局两边的 kind 差与首个分歧点。
 - 灯光是预演级；**SDXL 新贴图只有 256² 低步数版**（内存余量不足），

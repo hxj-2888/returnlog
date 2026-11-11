@@ -232,7 +232,6 @@ func build() -> void:
 	_build_device_pedestals()
 	_build_lights()
 	_build_corridor_lamps()
-	_build_preview_actor()
 	_build_environment()
 
 
@@ -867,32 +866,6 @@ func light_stats() -> Dictionary:
 	}
 
 
-func _build_preview_actor() -> void:
-	var atlas := AtlasTexture.new()
-	atlas.atlas = load("res://assets/crew/crew-01.png")
-	atlas.region = Rect2(0, 0, 96, 160)
-
-	var sprite := Sprite3D.new()
-	sprite.texture = atlas
-	sprite.pixel_size = 0.012
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.shaded = false
-	sprite.double_sided = true
-	sprite.position = Vector3(36.0, 0.96, 34.5)
-	add_child(sprite)
-
-	var label := Label3D.new()
-	label.text = "02 银翼"
-	label.font = _system_font()
-	label.font_size = 48
-	label.outline_size = 10
-	label.outline_modulate = Color(0.0, 0.0, 0.0, 1.0)
-	label.modulate = Color(1.0, 1.0, 1.0, 1.0)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0.0, 1.5, 0.0)
-	sprite.add_child(label)
-
-
 func _build_environment() -> void:
 	var we := WorldEnvironment.new()
 	var env := Environment.new()
@@ -1160,7 +1133,3 @@ func _build_device_pedestals() -> void:
 		_add_box(Vector3(px, 0.42, py - 0.462), Vector3(0.70, 0.025, 0.02), 0.0, accent_mat, false)
 		_add_box(Vector3(px, 0.575, py), Vector3(0.34, 0.03, 0.20), 0.0, trim_mat, false)
 
-func _system_font() -> SystemFont:
-	var font := SystemFont.new()
-	font.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
-	return font

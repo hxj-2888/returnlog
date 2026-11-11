@@ -5,6 +5,26 @@
 > 中文记录与提交格式 `type(scope): 摘要` 见 `AGENTS.md` §一.10；
 > 门禁报告必须写本次实跑的「X 通过 / Y 失败」（§一.4）。
 
+## 2026-11-11 · 第 20 批：knife/down + V-CREW full + 音频同步 + 红线审查
+
+- **触发**：用户要求补 knife/down、把 V-CREW 标 full；同时发现会议室圆桌旁仍有
+  “银翼”2.5D 贴图、截图会抢鼠标、3D 声音系统未同步 2.5D。
+- **银翼贴图**：删除 `map_builder._build_preview_actor()` 与 `_system_font()`；
+  圆桌旁不再有预览 Sprite3D/Label3D。
+- **声音**：`audio.gd` 对齐 2.5D `SND`：`volAt`（18 格 / 保底 0.14）、`TONE`、
+  多采样、脚步声/工作声/门自动声/win-lose/刀枪血肉喊叫；补 `sfx-work.ogg`；
+  `M` 键开关音效。`--audiotest` 实跑 `d=0→1.00 / 9→0.57 / 18→0.14`。
+- **动作**：Blender 补 `knife` + `down`（4 动作 full）；`crew_view` 由
+  `sim.events#knife` 触发 knife、`downed` 触发 down；新增无窗口 `--crewanimtest`。
+  `port-manifest.json#V-CREW` → **ported（full）**；`char_crew_lowpoly` → **done**。
+- **截图鼠标**：所有 `--shot/--crewshot/--doorshot/...` 走 `_screenshot_mode`，
+  强制 `MOUSE_MODE_VISIBLE`，不转视角/不误触；退出 `_exit_tree()` 再释放。
+  实测 `CREW_MOUSE mode=0`；遗留 Godot 测试进程已清理。
+- **红线审查**：新增 `3d/REDLINE-AUDIT.md`；结论 **红线 1–10 通过，11/12 未全过**
+  （鬼魂模式、医疗无人机救起行为、1000 局基线、公开设计参照留痕）。
+- **门禁**：`npm run check` **6 通过 / 0 失败**；`baseline:check` 454；
+  `3d:port:check` 13 ported / 23 partial；`--crewanimtest` / `--simtest` / `--audiotest` 全过。
+
 ## 2026-11-11 · 人物参考建模 + walk + 门扇闭合；GitHub 首版
 
 - **触发**：用户 2026-11-11 裁定人物从 billboard 走向 3D 建模；同日现场「仍然是贴图」、

@@ -4,6 +4,9 @@ extends Node3D
 ## 几何优先用 3d/assets/export 里 Blender 生成的 GLB；缺失时程序化兜底。
 ## 只读 map.json，不碰对局状态；设备交互由 main.gd 调 nearest_device()。
 
+## 自动门完全开/完全关时发一次；main 接成 2.5D SND.doorAuto 的音效。
+signal door_auto(pos: Vector3)
+
 const DeviceScript := preload("res://scripts/device.gd")
 const MGData := preload("res://scripts/minigame/mg_data.gd")
 const MapBuilder := preload("res://scripts/map_builder.gd")
@@ -119,12 +122,16 @@ func door_update(dt: float, player_pos: Vector3, power_on: bool, agents: Array =
 			d["scan_t"] = minf(scan_sec, float(d["scan_t"]) + dt)
 			target = 1.0 if float(d["scan_t"]) >= scan_sec else 0.0
 		var open := float(d["open"])
+		var prev_open := open
 		if open < target:
 			open = minf(target, open + dt * speed)
 		elif open > target:
 			open = maxf(target, open - dt * speed)
 		d["open"] = open
 		_apply_door_state(d, open, pass_r, power_on, scan_sec)
+		# 2.5D doorAutoSound：完全打开 / 完全关闭各响一次，滑动中途不响。
+		if (prev_open < 1.0 and open >= 1.0) or (prev_open > 0.0 and open <= 0.0):
+			door_auto.emit(center)
 
 
 func door_stats() -> Dictionary:

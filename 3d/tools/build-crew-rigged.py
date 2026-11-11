@@ -132,12 +132,12 @@ def make_armature():
     return arm
 
 
-WALK_BONES = ['thigh.L', 'thigh.R', 'shin.L', 'shin.R', 'foot.L', 'foot.R',
+ANIM_BONES = ['root', 'thigh.L', 'thigh.R', 'shin.L', 'shin.R', 'foot.L', 'foot.R',
               'upper_arm.L', 'upper_arm.R', 'forearm.L', 'forearm.R']
 
 
 def key_pose(arm, frame, pose):
-    for bone in WALK_BONES:
+    for bone in ANIM_BONES:
         pb = arm.pose.bones[bone]
         pb.rotation_mode = 'XYZ'
         pb.rotation_euler = pose.get(bone, (0.0, 0.0, 0.0))
@@ -188,13 +188,65 @@ def make_actions(arm):
         'forearm.L': (0.16, 0, 0), 'forearm.R': (0.16, 0, 0),
     })
 
+    # 出刀：右手从后摆到前，带一点弓步；刀是隐藏的，不把“谁有刀”做进模型。
+    knife = bpy.data.actions.new('knife')
+    knife.use_fake_user = True
+    arm.animation_data.action = knife
+    key_pose(arm, 1, {})
+    key_pose(arm, 4, {
+        'thigh.L': (0.14, 0, 0), 'thigh.R': (-0.14, 0, 0),
+        'shin.L': (-0.10, 0, 0), 'shin.R': (-0.30, 0, 0),
+        'upper_arm.R': (-0.95, 0, 0), 'forearm.R': (-0.55, 0, 0),
+        'upper_arm.L': (0.18, 0, 0), 'forearm.L': (0.25, 0, 0),
+    })
+    key_pose(arm, 8, {
+        'thigh.L': (0.25, 0, 0), 'thigh.R': (-0.25, 0, 0),
+        'shin.L': (-0.06, 0, 0), 'shin.R': (-0.38, 0, 0),
+        'upper_arm.R': (0.95, 0, 0), 'forearm.R': (-0.20, 0, 0),
+        'upper_arm.L': (-0.25, 0, 0), 'forearm.L': (0.30, 0, 0),
+    })
+    key_pose(arm, 12, {
+        'thigh.L': (0.22, 0, 0), 'thigh.R': (-0.22, 0, 0),
+        'shin.L': (-0.08, 0, 0), 'shin.R': (-0.35, 0, 0),
+        'upper_arm.R': (1.15, 0, 0), 'forearm.R': (-0.15, 0, 0),
+        'upper_arm.L': (-0.20, 0, 0), 'forearm.L': (0.25, 0, 0),
+    })
+    key_pose(arm, 16, {})
+
+    # 倒地：根骨绕 X 后仰，身体沿 -Y 躺下；四肢松掉。循环关闭，播完保持末帧。
+    down = bpy.data.actions.new('down')
+    down.use_fake_user = True
+    arm.animation_data.action = down
+    key_pose(arm, 1, {})
+    key_pose(arm, 6, {
+        'root': (0.55, 0, 0),
+        'thigh.L': (0.18, 0, 0), 'thigh.R': (-0.18, 0, 0),
+        'shin.L': (-0.25, 0, 0), 'shin.R': (-0.25, 0, 0),
+        'upper_arm.L': (-0.35, 0, 0), 'upper_arm.R': (0.35, 0, 0),
+        'forearm.L': (0.25, 0, 0), 'forearm.R': (0.25, 0, 0),
+    })
+    key_pose(arm, 14, {
+        'root': (1.57, 0, 0),
+        'thigh.L': (0.22, 0, 0), 'thigh.R': (-0.22, 0, 0),
+        'shin.L': (-0.35, 0, 0), 'shin.R': (-0.35, 0, 0),
+        'upper_arm.L': (-0.45, 0, 0), 'upper_arm.R': (0.45, 0, 0),
+        'forearm.L': (0.30, 0, 0), 'forearm.R': (0.30, 0, 0),
+    })
+    key_pose(arm, 32, {
+        'root': (1.57, 0, 0),
+        'thigh.L': (0.22, 0, 0), 'thigh.R': (-0.22, 0, 0),
+        'shin.L': (-0.35, 0, 0), 'shin.R': (-0.35, 0, 0),
+        'upper_arm.L': (-0.45, 0, 0), 'upper_arm.R': (0.45, 0, 0),
+        'forearm.L': (0.30, 0, 0), 'forearm.R': (0.30, 0, 0),
+    })
+
     arm.animation_data.action = None
-    for act in (idle, walk):
+    for act in (idle, walk, knife, down):
         track = arm.animation_data.nla_tracks.new()
         track.name = act.name
         strip = track.strips.new(act.name, 1, act)
         strip.name = act.name
-    return idle, walk
+    return idle, walk, knife, down
 
 
 def build():

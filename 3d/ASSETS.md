@@ -41,7 +41,7 @@
 
 - `char_crew_lowpoly`：按 `docs/qwen21/crew-refs/crew-turnaround_768.png` 建模的
   1.75 m / 1812 tris / 4 材质（`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin`）/
-  17 形变骨 / **idle + walk** 已导出；脚本 `3d/tools/build-crew-rigged.py`。
+  17 形变骨 / **idle + walk + knife + down** 已导出；脚本 `3d/tools/build-crew-rigged.py`。
   正常对局默认使用它；`--crew-billboard` 回退旧 billboard。
 - `char_crew_blockout`：864 tris / 3 材质 / 无骨骼的体块验证件，保留作 fallback 与对比；
   脚本 `3d/tools/build-crew-blockout.py`。
@@ -49,7 +49,7 @@
   （640px 预览 + `manifest.json`，随仓入库）；Qwen-Image 2.1 本地生成，
   Research License 非商用，模型/seed/prompt 见 manifest；三视图、三配色、制服细节各 1 张。
 - 动画：`walk` 为 24fps / 1 秒循环；Godot 侧按移速 4.2 m/s 播 2.9 倍速，避免脚底滑动。
-  `knife` / `down` 仍待补，补齐前 V-CREW 只算 partial。
+  `knife` 由 `sim.events#knife` 一次性触发，`down` 由 `downed` 状态触发；V-CREW 已标 `ported`（full）。
 - 验收命令：`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`；`--probetest`
   会断言 `moving=true → walk`、`moving=false → idle`。
 **设备原点约定**：`device_*` 统一用 `base_center`（底面中心），便于按地面/掩体顶面摆放；

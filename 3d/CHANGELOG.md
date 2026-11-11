@@ -1,5 +1,60 @@
 # 3D 修改记录
 
+## 2026-11-11 · 第 20 批：knife/down + V-CREW full + 音频同步 + 鼠标/银翼清理
+
+用户现场：会议室圆桌旁“银翼”贴图去掉；同步 2.5D 声音系统；全面审查红线继承；
+截图时不能抢鼠标；补 knife/down 并把 V-CREW 标 full。
+
+### 1. 圆桌“银翼”贴图
+
+- 删除 `map_builder.gd` 的 `_build_preview_actor()`（36.0, 34.5 的 `Sprite3D` +
+  “02 银翼”`Label3D`）及无用的 `_system_font()`；圆桌旁不再有 2.5D 预览人偶。
+
+### 2. 2.5D 声音系统同步
+
+- `audio.gd` 按 2.5D `SND` 对齐：
+  - `volAt`：d=0→1.00、d=9→0.57、d=18→0.14（线性、保底 0.14）；
+  - `TONE` 音量上限 / 随机音高；`knife/step/scream` 多采样随机；
+  - `step / scream / flesh / door / work / win / lose` 采样接入；`M` 键开关音效；
+- `main.gd`：事件按位置播放；刀/枪叠血肉+喊叫；脚步声遍历近处移动者；
+  玩家站桩/小游戏时播 work；门完全开/关发 `door_auto`；`game_end` 按 win/lose 分流；
+- 新增 `sfx-work.ogg`（恢复已登记但缺失的采样）。
+
+### 3. knife / down 动作与 V-CREW full
+
+- Blender 四动作：`idle / walk / knife / down`；`knife` 由 `sim.events#knife`
+  一次性触发，`down` 由 `downed` 状态触发；down 根骨后仰躺地，不靠视图层旋转。
+- 新增 `--crewanimtest`（无窗口、无鼠标）：断言 4 个 clip 存在且 knife/down 能触发。
+- `port-manifest.json#V-CREW`：**partial → ported（full）**；
+  `assets.manifest.json#char_crew_lowpoly`：**wip → done**。
+
+### 4. 截图不再抢鼠标
+
+- `player.capture_mouse_on_ready` + `main._screenshot_mode`：`--shot / --crewshot /
+  --doorshot / --mgshot / --devshot / --covershot / --ceilshot / --pipeshot /
+  --meetshot / --endshot / --minishot / --homeshot` 全部保持 `VISIBLE`；
+  不转视角、不误触攻击；退出时 `_exit_tree()` 再次释放。
+- 实测 `CREW_MOUSE mode=0（0=VISIBLE）`；遗留 Godot 测试进程已清理。
+
+### 5. 红线审查
+
+- 新增 `3d/REDLINE-AUDIT.md`：红线 1–10 通过；**红线 11 未全过**（鬼魂模式未迁、
+  医疗无人机救起行为未闭环、1000 局基线过期）；**红线 12 流程缺口**（角色参考来自
+  项目自绘 2.5D sprite，未留痕公开设计参照检索）。
+- 本批不把“2.5D 全量玩法已迁完”写成结论。
+
+### 6. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `npm run baseline:check` | **454 文件 OK** |
+| `--crewanimtest` | `clips=["down","idle","knife","walk"] knife=knife down=down` · **OK 0 项失败** |
+| `--audiotest` | `volAt 0→1.00 / 9→0.57 / 18→0.14`；work/step/scream/door 采样全在 |
+| `--simtest` / `--aittest` | `26/0` / 无失败 |
+| `3d:assets` / `3d:import:check` | 0 错误 / 3 旧提醒；76 个 `.glb.import` 0 差异 |
+| `3d:port:check` | 0 错误 / 1 legacy 警告；**ported 13 / partial 23**（V-CREW 已 full） |
+
 ## 2026-11-11 · 第 19 批：千问参考图 → 参考建模 → idle/walk
 
 用户指令：先用本地生图模型生成示例图，再按示例图建模并加行走动作；当前人物是“漂移状态”。

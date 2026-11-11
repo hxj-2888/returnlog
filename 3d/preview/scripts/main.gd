@@ -138,6 +138,11 @@ var _info_open := false
 var spectator_mode := false
 var audio
 var _last_event_n := 0
+## 2.5D SND.step / SND.work 的节流
+var _step_cd := 0.0
+var _work_cd := 0.0
+## 截图/机位自测：不捕获系统鼠标、不响应鼠标视角；正常游玩保持原捕获行为。
+var _screenshot_mode := false
 
 ## ---- DEV（2.5D F2，js/game.js:594-676）：全知卡片栏 + 无敌开关 ----
 ## 开关状态放在 sim.dev（判定层要读），这里只做表现与探针记录。
@@ -154,6 +159,7 @@ var _dev_log_n := 0
 ## 玩家探针：最近 8 条「按了什么 / 交互项 / 结果」，DEV 面板底部实时显示。
 var _probe_lines: Array = []
 var _probetest_ok := false
+var _crewanimtest_ok := false
 
 var room_label: Label
 var fps_label: Label
@@ -164,6 +170,10 @@ var report_label: Label
 var minimap
 var _hud_timer: float = 0.0
 var _toast_t: float = 0.0
+
+
+func _exit_tree() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
 func _notification(what: int) -> void:
@@ -203,6 +213,7 @@ func _ready() -> void:
 	add_child(wheel)
 
 	var args := OS.get_cmdline_user_args()
+	_screenshot_mode = _has_screenshot_arg(args)
 	# 2026-11-11 用户裁定：人物默认走 3D 体块；--crew-billboard 只作回退/对比。
 	var crew_model_mode := not args.has("--crew-billboard")
 	## 先建模拟核心，再把玩家放进它的席位。地图直接注入 builder 已读的那份，
@@ -235,8 +246,14 @@ func _ready() -> void:
 		var face: Vector3 = dev.face_dir()
 		player.position = Vector3(dev.global_position.x, 0.05, dev.global_position.z) + face * 2.0
 		player.rotation.y = atan2(face.x, face.z)
+	player.capture_mouse_on_ready = not _screenshot_mode
 	add_child(player)
 	player.apply_space_cfg(space)
+	if _screenshot_mode:
+		# 截图期间把系统鼠标还给用户：不捕获、不转视角、不误触攻击。
+		player.ui_locked = true
+		mouse_released = true
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 	if args.has("--devicelist"):
 		for i in extras.devices.size():
@@ -273,6 +290,9 @@ func _ready() -> void:
 	ui_panels.music_changed.connect(func(v: float) -> void: audio.set_music_volume(v))
 	ui_panels.sfx_changed.connect(func(v: float) -> void: audio.set_volume(v))
 	audio.set_music_volume(ui_panels.get_music())
+	audio.set_listener(Vector2(player.global_position.x, player.global_position.z))
+	if extras != null:
+		extras.door_auto.connect(_on_door_auto)
 
 	## ---- 开始页（版式照搬 2.5D `js/ui/home.js`）----
 	## 门禁 / 截图要的是对局中的画面与读数，一律跳过开始页直接进局。
@@ -437,6 +457,12 @@ func _ready() -> void:
 	if args.has("--probetest"):
 		await _run_probetest()
 		get_tree().quit(0 if _probetest_ok else 1)
+		return
+
+	## 无鼠标、无窗口的动作自测：knife / down / walk / idle 四个 clip 的触发。
+	if args.has("--crewanimtest"):
+		var ca_ok := _run_crewanimtest()
+		get_tree().quit(0 if ca_ok else 1)
 		return
 
 	if args.has("--uitest"):
@@ -887,10 +913,67 @@ func _run_specttest() -> void:
 	_specttest_ok = fails.is_empty()
 
 
+## 无窗口动作自测：AI 出刀 → knife，受害者倒地 → down；不依赖鼠标。
+func _run_crewanimtest() -> bool:
+	var fails: Array = []
+	started = false
+	if sim == null or crew_view == null:
+		print("CREWANIMTEST FAIL sim/crew_view 缺失")
+		return false
+	sim.meeting = {}
+	crew_view.set_model_mode(true)
+	crew_view.build(sim)
+	var actor_i := -1
+	var victim_i := -1
+	for a: Dictionary in sim.agents:
+		var i := int(a.get("i", -1))
+		if i == int(sim.me_idx):
+			continue
+		if bool(a.get("alien", false)) and actor_i < 0:
+			actor_i = i
+		elif not bool(a.get("alien", false)) and victim_i < 0:
+			victim_i = i
+	if actor_i < 0 or victim_i < 0 or not crew_view._anims.has(actor_i) 			or not crew_view._anims.has(victim_i):
+		print("CREWANIMTEST FAIL 没有可用的 AI 动作模型")
+		return false
+	var a: Dictionary = sim.agent(actor_i)
+	var v: Dictionary = sim.agent(victim_i)
+	a["alive"] = true
+	a["downed"] = false
+	a["knife"] = 1
+	v["alive"] = true
+	v["downed"] = false
+	if not sim.knife(actor_i, victim_i):
+		fails.append("sim.knife 没有成功")
+	crew_view.sync(sim, 0.016)
+	var ap_a := crew_view._anims[actor_i] as AnimationPlayer
+	var ap_v := crew_view._anims[victim_i] as AnimationPlayer
+	var knife_now := String(ap_a.current_animation)
+	var down_now := String(ap_v.current_animation)
+	var names := ap_a.get_animation_list()
+	print("CREWANIMTEST clips=%s knife=%s down=%s" % [str(names), knife_now, down_now])
+	for need: String in ["idle", "walk", "knife", "down"]:
+		var has := false
+		for n in names:
+			if String(n).to_lower().contains(need):
+				has = true
+				break
+		if not has:
+			fails.append("缺动画 " + need)
+	if not knife_now.to_lower().contains("knife"):
+		fails.append("knife 没有触发（=%s）" % knife_now)
+	if not down_now.to_lower().contains("down"):
+		fails.append("down 没有触发（=%s）" % down_now)
+	print("CREWANIMTEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL",
+		fails.size(), str(fails)])
+	return fails.is_empty()
+
+
 ## 人物 blockout 同框验收（2026-11-11）：在真实会议室并排摆
 ## 2.5D billboard / 3D blockout / 1.75 m 标尺，只做表现核对，不参与判定。
 func _run_crewshot() -> void:
 	started = false
+	print("CREW_MOUSE mode=%d（0=VISIBLE，2=CAPTURED）" % Input.mouse_mode)
 	if player != null:
 		player.ui_locked = true
 		player.camera.current = false
@@ -1010,6 +1093,7 @@ func _run_crewshot() -> void:
 ## 验收「关闭时两扇中线合拢、打开时让出整段门洞」，不是半开。
 func _run_doorshot() -> void:
 	started = false
+	print("DOOR_MOUSE mode=%d（0=VISIBLE，2=CAPTURED）" % Input.mouse_mode)
 	if player != null:
 		player.ui_locked = true
 		player.camera.current = false
@@ -1383,6 +1467,37 @@ func _run_probetest() -> void:
 		fails.append("F2 第二次没有关闭 DEV")
 	if dev_panel != null and dev_panel.visible:
 		fails.append("DEV 关闭后面板还在")
+
+	# ⑥ knife / down 动作：AI 出刀 → actor 播 knife；受害者倒地 → 播 down。
+	var actor_i := -1
+	var victim2 := -1
+	for a: Dictionary in sim.agents:
+		var ai := int(a.get("i", -1))
+		if ai == int(sim.me_idx):
+			continue
+		if bool(a.get("alien", false)) and actor_i < 0:
+			actor_i = ai
+		elif not bool(a.get("alien", false)) and victim2 < 0:
+			victim2 = ai
+	if actor_i >= 0 and victim2 >= 0 and crew_view != null 			and crew_view._anims.has(actor_i) and crew_view._anims.has(victim2):
+		var aa: Dictionary = sim.agent(actor_i)
+		var vv: Dictionary = sim.agent(victim2)
+		aa["alive"] = true
+		aa["downed"] = false
+		aa["knife"] = 1
+		vv["alive"] = true
+		vv["downed"] = false
+		sim.knife(actor_i, victim2)
+		crew_view.sync(sim, 0.016)
+		var knife_now := String((crew_view._anims[actor_i] as AnimationPlayer).current_animation)
+		var down_now := String((crew_view._anims[victim2] as AnimationPlayer).current_animation)
+		print("PROBE ⑥ knife=%s down=%s" % [knife_now, down_now])
+		if not knife_now.to_lower().contains("knife"):
+			fails.append("出刀事件没有触发 knife 动作（=%s）" % knife_now)
+		if not down_now.to_lower().contains("down"):
+			fails.append("倒地没有触发 down 动作（=%s）" % down_now)
+	else:
+		fails.append("knife/down 夹具没找到可用模型")
 
 	print("PROBETEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL", fails.size(),
 		str(fails)])
@@ -2973,6 +3088,13 @@ func _run_audiotest() -> void:
 		linear_to_db(maxf(0.001, float(st.get("gain", 0.0))))])
 	print("AUDIOTEST 总线 Master=%.1fdB（音乐滑杆不再写总线）· 音效档=%.2f" % [
 		AudioServer.get_bus_volume_db(0), ui_panels.get_sfx()])
+	audio.set_listener(Vector2.ZERO)
+	print("AUDIOTEST volAt d=0→%.2f d=9→%.2f d=18→%.2f（2.5D: 1.00 / 0.57 / 0.14）" % [
+		audio.vol_at(Vector2.ZERO), audio.vol_at(Vector2(9, 0)), audio.vol_at(Vector2(18, 0))])
+	print("AUDIOTEST 音效开关 M=%s（2.5D SND.setOn 同义）" % str(audio.is_on()))
+	print("AUDIOTEST 采样 work=%s step=%s scream=%s door=%s（与 2.5D FILE 表对齐）" % [
+		str(audio.has_kind("work")), str(audio.has_kind("step")),
+		str(audio.has_kind("scream")), str(audio.has_kind("door"))])
 
 
 ## 门禁夹具：new_game 会开 MEET_PRE（开局公开讨论）、dawn 会开 MEET_DAY（全员会）。
@@ -4626,6 +4748,15 @@ func _run_hometest() -> bool:
 
 ## ---- 开始页（2.5D 版式照搬）----
 ## 任何 `--xxx` 门禁参数都跳过开始页；`--seed` / `--role` 属于正常游玩参数，不算门禁。
+func _has_screenshot_arg(args: PackedStringArray) -> bool:
+	for a in args:
+		if a in ["--shot", "--crewshot", "--doorshot", "--mgshot", "--devshot",
+				"--covershot", "--ceilshot", "--pipeshot", "--meetshot",
+				"--endshot", "--minishot", "--homeshot"]:
+			return true
+	return false
+
+
 func _has_gate_arg(args: PackedStringArray) -> bool:
 	for a in args:
 		if a.begins_with("--") and a != "--seed" \
@@ -4692,9 +4823,9 @@ func _on_start(p_role: String) -> void:
 	player.global_position = Vector3(p.x, 0.05, p.y)
 	player.rotation.y = -PI * 0.5 + 0.05
 	player.process_mode = Node.PROCESS_MODE_INHERIT
-	# 新一局从「鼠标已被捕获」开始；上一局按 Esc 释放过的状态不能带进来。
-	mouse_released = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 新一局从「鼠标已被捕获」开始；截图模式则保持可见，不能抢用户鼠标。
+	mouse_released = _screenshot_mode
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _screenshot_mode else Input.MOUSE_MODE_CAPTURED
 	_refresh_sim_hud()
 	_toast("你是 %s · %s · 第 %d 夜" % [
 		String(sim.me().get("name", "")),
@@ -5330,6 +5461,7 @@ func _process(delta: float) -> void:
 		if crew_view != null:
 			crew_view.sync(sim, delta)
 		_sync_bots()
+		_audio_tick(delta)
 		_play_new_events()
 		# 会议盖住小游戏：AI 报告时如果玩家正在解题，先收卡片，避免两层 UI 叠在一起。
 		if not sim.meeting.is_empty() and mg_layer != null and mg_layer.is_open():
@@ -5431,6 +5563,10 @@ func _want_mouse_visible() -> bool:
 
 func _refresh_mouse_mode() -> void:
 	if player == null or not started:
+		return
+	if _screenshot_mode:
+		if Input.mouse_mode != Input.MOUSE_MODE_VISIBLE:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		return
 	var want := Input.MOUSE_MODE_VISIBLE if (mouse_released or _want_mouse_visible()) else Input.MOUSE_MODE_CAPTURED
 	if Input.mouse_mode != want:
@@ -6418,9 +6554,122 @@ func _play_new_events() -> void:
 	if evs.size() < _last_event_n:
 		_last_event_n = 0     # 重开一局
 	for i in range(_last_event_n, evs.size()):
-		audio.play(String((evs[i] as Dictionary).get("kind", "")))
+		var e: Dictionary = evs[i]
+		var kind := String(e.get("kind", ""))
+		var pos := _event_pos(e)
+		match kind:
+			"knife":
+				# 2.5D knife(): 刀风 + 血肉 + 受害者喊叫，各响一次。
+				audio.play_at("knife", pos, 0.95)
+				audio.play_at("flesh", pos, 0.34)
+				audio.play_at("scream", pos, 0.85)
+			"shoot":
+				audio.play_at("shoot", pos, 0.95)
+				audio.play_at("flesh", pos, 0.50)
+				audio.play_at("scream", pos, 0.85)
+			"kill":
+				audio.play_at("kill", pos, 0.80)
+			"revive":
+				audio.play_at("revive", pos, 0.90)
+			"fix", "task", "qual", "supply":
+				audio.play_at("fix", pos, 0.85)
+			"sabotage":
+				audio.play_at("sabotage", pos, 0.85)
+			"report", "meeting":
+				audio.play("report", 0.75)
+			"vote":
+				audio.play("vote", 0.55)
+			"vote_change":
+				audio.play("vote_change", 0.55)
+			"eject":
+				audio.play("eject", 0.90)
+			"drag_start", "drag_end":
+				audio.play_at(kind, pos, 0.70)
+			"search":
+				audio.play_at("search", pos, 0.60)
+			"bot_hit":
+				audio.play_at("bot_hit", pos, 0.80)
+			"bot_down":
+				audio.play_at("bot_down", pos, 0.90)
+				audio.play("detain", 0.55)
+			"breaker":
+				audio.play_at("breaker", pos, 0.80)
+				audio.play_at("bot_hit", pos, 0.55)
+			"pipe":
+				audio.play_at("pipe", pos, 0.50)
+			"detain":
+				audio.play("detain", 0.75)
+			"chat":
+				audio.play("chat", 0.60)
+			"game_end":
+				audio.play("win" if bool(e.get("win", false)) else "lose", 0.90)
+			_:
+				audio.play(kind)
 	_last_event_n = evs.size()
 
+
+## 2.5D volAt 的听者：玩家位置；事件没有 x/y 时按 victim/actor 当前位置回退。
+func _event_pos(e: Dictionary) -> Vector2:
+	if sim == null:
+		return Vector2(player.global_position.x, player.global_position.z)
+	var xv: Variant = e.get("x", null)
+	var yv: Variant = e.get("y", null)
+	if (xv is float or xv is int) and (yv is float or yv is int):
+		return Vector2(float(xv), float(yv))
+	var vi: Variant = e.get("victim", null)
+	if vi is int and int(vi) >= 0:
+		var v: Dictionary = sim.agent(int(vi))
+		if not v.is_empty():
+			var p: Variant = v.get("bodyPos", null)
+			if p is Vector2:
+				var bpv: Vector2 = p
+				if bpv != Vector2.ZERO:
+					return bpv
+			p = v.get("pos", null)
+			if p is Vector2:
+				var ppv: Vector2 = p
+				return ppv
+	var ai: Variant = e.get("actor", null)
+	if ai is int and int(ai) >= 0:
+		var a: Dictionary = sim.agent(int(ai))
+		if not a.is_empty():
+			var p2: Variant = a.get("pos", null)
+			if p2 is Vector2:
+				return p2
+	return Vector2(player.global_position.x, player.global_position.z)
+
+
+## 2.5D SND.step（所有近处移动的人）与玩家做任务时的 SND.work。
+func _audio_tick(delta: float) -> void:
+	if audio == null or player == null:
+		return
+	var me_pos := Vector2(player.global_position.x, player.global_position.z)
+	audio.set_listener(me_pos)
+	if sim == null or not sim.meeting.is_empty() or sim.over:
+		return
+	_step_cd -= delta
+	if _step_cd <= 0.0:
+		_step_cd = 0.36
+		if player.velocity.length() > 0.5:
+			audio.play_at("step", me_pos, 0.42)
+		for a: Dictionary in sim.agents:
+			if int(a.get("i", -1)) == int(sim.me_idx):
+				continue
+			if not bool(a.get("alive", false)) or bool(a.get("downed", false)) 					or bool(a.get("detained", false)) or not bool(a.get("moving", false)):
+				continue
+			var ap: Vector2 = a.get("pos", Vector2.ZERO)
+			if ap.distance_to(me_pos) < 8.0:
+				audio.play_at("step", ap, 0.60)
+	_work_cd -= delta
+	if _work_cd <= 0.0:
+		_work_cd = 0.9
+		if not station.is_empty() or (mg_layer != null and mg_layer.is_open()):
+			audio.play_at("work", me_pos, 0.55)
+
+
+func _on_door_auto(pos: Vector3) -> void:
+	if audio != null:
+		audio.play_at("door", Vector2(pos.x, pos.z), 0.65)
 
 func _sync_player_pos() -> void:
 	if player == null:
@@ -6655,6 +6904,8 @@ func _settle_votes_text() -> String:
 
 
 func _input(event: InputEvent) -> void:
+	if _screenshot_mode:
+		return
 	if sim == null or not started:
 		return
 	## 设置 / 复盘面板在最上层（2.5D 的 SKSettings.isOpen() 守卫）：
@@ -6687,6 +6938,11 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and (event as InputEventKey).pressed:
+		if (event as InputEventKey).keycode == KEY_M 				and not (event as InputEventKey).echo and audio != null:
+			audio.set_on(not audio.is_on())
+			_toast("音效：开" if audio.is_on() else "音效：关")
+			get_viewport().set_input_as_handled()
+			return
 		if (event as InputEventKey).keycode == KEY_P and started:
 			if ui_panels.any_open():
 				ui_panels.close_all()

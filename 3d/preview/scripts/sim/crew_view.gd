@@ -31,6 +31,8 @@ var _models: Dictionary = {}
 var _labels: Dictionary = {}
 var _anims: Dictionary = {}
 var _anim_state: Dictionary = {}
+var _action_t: Dictionary = {}
+var _event_n := 0
 var _font: Font
 var _use_models := false
 var _anim_reported := false
@@ -55,6 +57,8 @@ func build(sim) -> void:
 	_labels.clear()
 	_anims.clear()
 	_anim_state.clear()
+	_action_t.clear()
+	_event_n = sim.events.size() if sim != null else 0
 	if sim == null:
 		return
 	var glb_path := CREW_GLB
@@ -93,9 +97,10 @@ func build(sim) -> void:
 					_anim_state[i] = "idle"
 					# glTF 不记录循环；walk/idle 必须显式设循环，否则播一次就停在半途。
 					for n in ap.get_animation_list():
+						var an := String(n).to_lower()
 						var anim := ap.get_animation(String(n))
 						if anim != null:
-							anim.loop_mode = Animation.LOOP_LINEAR
+							anim.loop_mode = Animation.LOOP_LINEAR if (an.contains("idle") or an.contains("walk")) else Animation.LOOP_NONE
 					if not _anim_reported:
 						_anim_reported = true
 						print("CREW_ANIM %s -> %s" % [glb_path, str(ap.get_animation_list())])
@@ -135,6 +140,21 @@ func _make_label(txt: String) -> Label3D:
 	return lb
 
 
+## 出刀一次性动作：视图层从 sim.events 触发，时长取动画本身。
+func _trigger_action(i: int, want: String) -> void:
+	if not _anims.has(i):
+		return
+	var ap: AnimationPlayer = _anims[i]
+	var anim_name := _anim_name(ap, want)
+	if anim_name == "":
+		return
+	var anim := ap.get_animation(anim_name)
+	_action_t[i] = anim.length if anim != null else 0.6
+	_anim_state[i] = want
+	ap.play(anim_name, 0.08)
+	ap.speed_scale = 1.0
+
+
 ## 动画名兼容 Blender 导出的 "Armature|walk" 之类前缀。
 func _anim_name(ap: AnimationPlayer, want: String) -> String:
 	for n in ap.get_animation_list():
@@ -169,6 +189,14 @@ func sync(sim, delta: float) -> void:
 	## DEV / 旁观全知（2.5D canSee / drawNameTag）：名字旁直接标阵营。
 	## 不开 DEV 时保持原样，不把「谁是异形」泄露给正常对局。
 	var omniscient: bool = bool(sim.dev) or bool(sim.spectator)
+	# 视图层只读事件：出刀事件触发一次 knife，不往 sim 加状态。
+	if sim.events.size() < _event_n:
+		_event_n = 0
+	for k in range(_event_n, sim.events.size()):
+		var ev: Dictionary = sim.events[k]
+		if String(ev.get("kind", "")) == "knife":
+			_trigger_action(int(ev.get("actor", -1)), "knife")
+	_event_n = sim.events.size()
 	for a: Dictionary in sim.agents:
 		var i := int(a.get("i", -1))
 		if _models.has(i):
@@ -209,22 +237,41 @@ func _sync_model(a: Dictionary, i: int, delta: float, omniscient: bool) -> void:
 	var tgt := _pos3_floor(a)
 	m.position = m.position.lerp(tgt, clampf(delta * 12.0, 0.0, 1.0))
 	if downed or not alive:
-		## 没有倒地动作：整体放倒，尸体/濒死都躺在地上；停掉 walk/idle。
+		## down 动作会把根骨后仰放倒；没有 down 才退回整体旋转。
 		if _anims.has(i):
-			(_anims[i] as AnimationPlayer).stop()
-			_anim_state[i] = "down"
-		m.rotation = Vector3(-PI * 0.5, float(a.get("aimAng", 0.0)), 0.0)
-		m.position.y = 0.12
+			var dap: AnimationPlayer = _anims[i]
+			var dname := _anim_name(dap, "down")
+			if dname != "":
+				if String(_anim_state.get(i, "")) != "down":
+					_anim_state[i] = "down"
+					_action_t.erase(i)
+					dap.play(dname, 0.08)
+					dap.speed_scale = 1.0
+				m.position.y = 0.0
+			else:
+				dap.stop()
+				m.rotation = Vector3(-PI * 0.5, float(a.get("aimAng", 0.0)), 0.0)
+				m.position.y = 0.12
+		else:
+			m.rotation = Vector3(-PI * 0.5, float(a.get("aimAng", 0.0)), 0.0)
+			m.position.y = 0.12
 	else:
 		## Blender +Y 前 → glTF/Godot -Z 前；look_at 正好把 -Z 指向目标。
 		var ang := float(a.get("aimAng", 0.0))
 		var f := Vector3(cos(ang), 0.0, sin(ang))
 		if f.length_squared() > 0.0001:
 			m.look_at(m.global_position + f, Vector3.UP)
-		# 只在状态切换时 play，避免每帧重置动画导致“原地漂移”。
-		var want := "walk" if bool(a.get("moving", false)) else "idle"
 		if _anims.has(i):
 			var ap: AnimationPlayer = _anims[i]
+			# 出刀是一次性覆盖；播完再回到 walk/idle。
+			if _action_t.has(i):
+				_action_t[i] = maxf(0.0, float(_action_t[i]) - delta)
+				if float(_action_t[i]) > 0.0:
+					return
+				_action_t.erase(i)
+				_anim_state[i] = ""
+			# 只在状态切换时 play，避免每帧重置动画导致“原地漂移”。
+			var want := "walk" if bool(a.get("moving", false)) else "idle"
 			if String(_anim_state.get(i, "")) != want:
 				_anim_state[i] = want
 				var anim_name := _anim_name(ap, want)

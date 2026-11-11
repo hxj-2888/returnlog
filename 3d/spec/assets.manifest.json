@@ -654,7 +654,7 @@
       "id": "char_crew_lowpoly",
       "name": "船员低模（待机/行走/出刀/倒地）",
       "category": "character",
-      "status": "wip",
+      "status": "done",
       "source": "models/char_crew_lowpoly.blend",
       "export": "export/char_crew_lowpoly.glb",
       "budget": {
@@ -674,7 +674,7 @@
         1
       ],
       "license": "原创",
-      "notes": "2026-11-11 按 docs/qwen21/crew-refs 三视图建模：1812 tris / 17 形变骨 / 4 材质 / idle+walk 已导出；normal 对局默认使用，walk 2.9x 匹配 4.2m/s；knife/down 待补。浅灰勤务服 + 珊瑚红胸带/护膝、短黑发、背包、黑靴。"
+      "notes": "2026-11-11 按 docs/qwen21/crew-refs 三视图建模：1812 tris / 17 形变骨 / 4 材质 / 4 动作 idle+walk+knife+down；normal 对局默认使用，walk 2.9x 匹配 4.2m/s，knife 事件触发，down 倒地触发。浅灰勤务服 + 珊瑚红胸带/护膝、短黑发、背包、黑靴。"
     },
     {
       "id": "char_crew_rig",
