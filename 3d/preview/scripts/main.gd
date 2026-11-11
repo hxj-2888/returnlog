@@ -7825,6 +7825,25 @@ func _run_navtest() -> bool:
 		else:
 			fail_n += 1
 			fails.append("任务点不可达 %s(%d)" % [String(p.get("label", "")), i])
+		# 2.5D smoothPath 的不变量：平滑后每一段都必须 path_clear（网格可行走 + 0.16 贴墙余量）。
+		# 少了这条断言，AI 会贴着墙角走 → 下一格判成不可走 → 原地卡死（"偶现卡墙"）。
+		for k in range(pts.size() - 1):
+			var a2: Vector2 = pts[k]
+			var b2: Vector2 = pts[k + 1]
+			# 只查"跳格直线段"（>1.5 格）：相邻格/斜格是 A* 本身的步进，
+			# 2.5D 也允许它们贴墙（smoothPath 只约束它主动跳的那几段）。
+			if a2.distance_to(b2) < 0.9:
+				continue
+			# 最后一段单独放过：2.5D smoothPath 的兜底分支（j=i+1）会把最后一格
+			# 换成精确目标点而不校验 pathClear —— 3D 同构，不算偏离。
+			if k == pts.size() - 2:
+				continue
+			if not sim.nav.path_clear(a2, b2):
+				fail_n += 1
+				fails.append("路径段不贴墙余量 %s(%d) 段%d (%.2f,%.2f)→(%.2f,%.2f) d=%.2f" % [
+					String(p.get("label", "")), i, k, a2.x, a2.y, b2.x, b2.y,
+					a2.distance_to(b2)])
+				break
 	print("NAVTEST pass=%d fail=%d walkable=%d cells=%dx%d" % [
 		pass_n, fail_n, int(sim.nav.walkable), int(sim.nav.gw), int(sim.nav.gh)])
 	for f: String in fails:

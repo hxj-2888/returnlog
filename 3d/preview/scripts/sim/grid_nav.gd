@@ -124,8 +124,10 @@ func path(from: Vector2, to: Vector2) -> PackedVector2Array:
 	if pts.is_empty():
 		return PackedVector2Array([t])
 	pts[pts.size() - 1] = t
-	# 2.5D geo.smoothPath / pathClear：能直达就跳过中间点。
-	# 不做会沿网格走出折线，AI 贴墙、绕角时尤其明显。
+	# 2.5D geo.smoothPath（js/engine/geo.js:81）：能直达就跳过中间点。
+	# 判据必须是 pathClear（网格可行走 + 0.16 格贴墙余量），**不是 los()** ——
+	# los() 只判墙/掩体相交，会把"贴墙角擦过去"的直线判成可走，
+	# AI 贴着墙角走时下一格判成不可走 → 原地卡死（2.5D 注释原文：*会从墙角擦过去*）。
 	if pts.size() > 2:
 		var out := PackedVector2Array()
 		var i := 0
@@ -133,7 +135,7 @@ func path(from: Vector2, to: Vector2) -> PackedVector2Array:
 			out.append(pts[i])
 			var j := pts.size() - 1
 			while j > i + 1:
-				if los(pts[i], pts[j]):
+				if path_clear(pts[i], pts[j]):
 					break
 				j -= 1
 			if j <= i:
@@ -141,6 +143,30 @@ func path(from: Vector2, to: Vector2) -> PackedVector2Array:
 			i = j
 		pts = out
 	return pts
+
+
+## 2.5D geo.pathClear（js/engine/geo.js:74）逐行：沿路径每 0.12 格采样一次，
+## 每次同时判「中线点」与「垂直方向 ±0.16 格的两个点」都可走 —— 后者就是贴墙余量。
+## 采样步长 0.12、余量 0.16 都写死在这里，与 2.5D 同值（真源里也是字面量）。
+func path_clear(a: Vector2, b: Vector2) -> bool:
+	var d := a.distance_to(b)
+	var n := maxi(2, int(ceil(d / 0.12)))
+	var px := 0.0
+	var py := 0.0
+	if d > 0.0:
+		px = -(b.y - a.y) / d * 0.16
+		py = (b.x - a.x) / d * 0.16
+	for i in range(1, n):
+		var t := float(i) / float(n)
+		var x := a.x + (b.x - a.x) * t
+		var y := a.y + (b.y - a.y) * t
+		if not is_free(Vector2(x, y)):
+			return false
+		if not is_free(Vector2(x + px, y + py)):
+			return false
+		if not is_free(Vector2(x - px, y - py)):
+			return false
+	return true
 
 
 func world_to_cell(p: Vector2) -> Vector2i:
