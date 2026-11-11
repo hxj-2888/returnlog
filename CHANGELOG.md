@@ -5,22 +5,26 @@
 > 中文记录与提交格式 `type(scope): 摘要` 见 `AGENTS.md` §一.10；
 > 门禁报告必须写本次实跑的「X 通过 / Y 失败」（§一.4）。
 
-## 2026-11-11 · 人物 blockout / 默认化 + 门扇闭合
+## 2026-11-11 · 人物参考建模 + walk + 门扇闭合；GitHub 首版
 
-- **触发**：用户 2026-11-11 裁定人物从 billboard 走向 3D 建模，先做 blockout 验证；
-  首批目标 15 crew + 4 动作，鬼魂模式后置。同日现场：人物「仍然是贴图」、门半开。
-- **新增**：`3d/tools/build-crew-blockout.py`（Blender 5.2.2）→
-  `char_crew_blockout.blend/.glb`（1.75 m / 864 tris / 3 材质 / 无骨骼）；
-  已登记 `3d/spec/assets.manifest.json` 与 `3d/ASSETS.md`。
-- **接入**：`crew_view.gd` **默认使用 3D 体块**，模型缺失/实例化失败逐人回退；
-  `--crew-billboard` 保留旧 billboard 对比，`--crewshot` 出同框图
-  `preview/screenshots/crew-blockout.png`。
+- **触发**：用户 2026-11-11 裁定人物从 billboard 走向 3D 建模；同日现场「仍然是贴图」、
+  「门半开」、「现在是漂移状态」，并要求做完上传 GitHub。
+- **参考图**：本地千问 `-Set crew` 生成三视图 / 三配色 / 制服细节 3 张（768²，
+  Qwen-Image 2.1 Research License 非商用）；完整图在 `docs/qwen21/crew-refs/`，
+  随仓 640px 预览 + `manifest.json` 在 `3d/assets/crew_refs/`。
+- **建模**：`3d/tools/build-crew-rigged.py` → `char_crew_lowpoly`：
+  1.75 m / 1812 tris / 4 材质 / 17 形变骨 / **idle+walk**；浅灰勤务服 + 珊瑚红胸带/护膝、
+  短黑发、背包、黑靴，按三视图建。
+- **接入**：`crew_view.gd` 默认 lowpoly；`moving=true` 切 walk、静止切 idle，
+  walk 1 秒循环按 4.2 m/s 移速播 2.9×；`--crew-billboard` 回退旧 billboard；
+  `char_crew_blockout` 是第二级回退；`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`。
 - **门扇**：按 2.5D `doorTick` 修正关闭/打开几何（中线合拢、完全打开让出 1.8 m），
-  触发范围改为所有活人；会议/结算期间冻结。
-- **契约**：`V-CREW` 状态仍 `partial`（骨架/动画未完成）；README/HANDOFF/CHANGELOG 已同步。
-- **门禁**：`npm run check` **6 通过 / 0 失败**；`3d:import:check` 0 差异；
-  `--probetest` 默认模型 / `--crew-billboard` 回退均 **PROBETEST OK 0 项失败**；
-  `--powertest` 门扇 `closed_gap=0.000 open_gap=1.800`。
+  触发范围改为所有活人；会议/结算期间冻结；`--doorshot` 出 closed/open 对照。
+- **GitHub**：`https://github.com/hxj-2888/returnlog-3d`（**private**，master）；
+  首次提交 `5b13dc2`（含 1–19 批未提交快照）。
+- **门禁**：`npm run check` **6 通过 / 0 失败**；`3d:assets` 0 错误 / 3 旧提醒；
+  `3d:import:check` 76 个 `.glb.import` 0 差异；`--probetest` **OK 0 项失败**，
+  `CREW_ANIM_SWITCH walk=walk idle=idle`；`--powertest` 门扇 `closed_gap=0.000 / open_gap=1.800`。
 
 ## 2026-11-10 · 第 17 批工具：玩家探针 + DEV 契约状态
 
