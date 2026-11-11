@@ -21,6 +21,25 @@ const AudioScript := preload("res://scripts/audio.gd")
 const KINDS := ["wire", "place", "lever", "sync", "pour", "swap", "align", "aim",
 	"match", "level", "sequence", "sort", "valve", "code"]
 
+
+## 命中标记：屏幕中心四条斜线，命中瞬间向外弹一下再淡出。
+## 2.5D 的击中有「红身 + 音效」，3D 之前只剩音效，手上和屏幕上都没有确认。
+class HitMark extends Control:
+	var t := 0.0
+
+	func _draw() -> void:
+		if t <= 0.0:
+			return
+		var k := clampf(t / 0.28, 0.0, 1.0)
+		var col := Color(1.0, 0.36, 0.28, k)
+		var ctr := size * 0.5
+		var r := lerpf(20.0, 13.0, k)
+		for i in 4:
+			var ang := PI * 0.25 + float(i) * PI * 0.5
+			var d := Vector2(cos(ang), sin(ang))
+			draw_line(ctr + d * (r * 0.45), ctr + d * r, col, 2.5, true)
+
+
 var builder
 var player: CharacterBody3D
 var map_data: Dictionary = {}
@@ -57,6 +76,16 @@ var _sim_hud_timer: float = 0.0
 var _player_dead := false
 var _down_toast := false
 var hud_layer: CanvasLayer
+
+## ---- 出刀反馈层（2026-11-11）----
+## 命中：屏幕中心命中标记 + 红色边缘闪 + 镜头 FOV 收缩 + 受害者血花。
+## 之前只有音效和一行 toast，玩家「出了刀却不知道自己有没有打到」。
+var fx_layer: CanvasLayer
+var red_flash: ColorRect
+var hit_mark: HitMark
+var _hit_t := 0.0
+var _red_t := 0.0
+
 var meeting_panel: ColorRect
 var meeting_title: Label
 var meeting_time: Label
@@ -264,6 +293,7 @@ func _ready() -> void:
 		return
 
 	_build_hud()
+	_build_fx()
 
 	## 人物 blockout 同框验收：真实会议室里并排摆 2.5D billboard / 3D 体块 + 1.75m 标尺。
 	if args.has("--crewshot"):
@@ -3450,6 +3480,101 @@ func _run_meetshot() -> void:
 	print("MEETSHOT_PATH=", ProjectSettings.globalize_path(path))
 
 
+## 出刀反馈层：命中标记 + 红色边缘闪。放在 hud_layer 之上，不拦鼠标。
+func _build_fx() -> void:
+	fx_layer = CanvasLayer.new()
+	fx_layer.layer = 2
+	add_child(fx_layer)
+
+	red_flash = ColorRect.new()
+	red_flash.color = Color(0.72, 0.05, 0.05, 0.0)
+	red_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	red_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.add_child(red_flash)
+
+	hit_mark = HitMark.new()
+	hit_mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hit_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.add_child(hit_mark)
+
+
+## 出刀反馈总入口：hit=true 走命中（标记 + 红闪 + 镜头冲击 + 血花），
+## false 只做轻微镜头回弹（挥空也要有手感，但不能假装命中）。
+func _knife_hit_fx(hit: bool, at: Vector3 = Vector3.ZERO) -> void:
+	if hit:
+		_hit_t = 0.28
+		_red_t = 0.30
+		if player != null:
+			player.punch(1.0)
+		if at != Vector3.ZERO:
+			_spawn_blood(at)
+	else:
+		if player != null:
+			player.punch(0.3)
+		# 挥空也要有刀风：命中时音效由事件层播，这里只补「空挥」这一下。
+		if audio != null:
+			audio.play("knife", 0.45)
+
+
+## 受害者血花：一次性粒子，0.5 秒散完。用 CPUParticles3D 而不是贴图，
+## 保证不给发布包加资产，也不依赖渲染后端。
+func _spawn_blood(pos: Vector3) -> void:
+	var p := CPUParticles3D.new()
+	p.amount = 16
+	p.lifetime = 0.5
+	p.one_shot = true
+	p.explosiveness = 0.95
+	p.direction = Vector3(0.0, 0.55, 0.0)
+	p.spread = 55.0
+	p.initial_velocity_min = 1.1
+	p.initial_velocity_max = 3.0
+	p.gravity = Vector3(0.0, -6.5, 0.0)
+	p.scale_amount_min = 0.6
+	p.scale_amount_max = 1.4
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.022
+	mesh.height = 0.044
+	mesh.radial_segments = 4
+	mesh.rings = 2
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.045, 0.045)
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh.material = mat
+	p.mesh = mesh
+	add_child(p)
+	p.global_position = pos
+	p.emitting = true
+	get_tree().create_timer(1.0, false).timeout.connect(p.queue_free)
+
+
+## 每帧衰减命中标记与红闪；不给每个效果单独建 Tween，避免状态互相打架。
+func _tick_fx(delta: float) -> void:
+	if _hit_t > 0.0:
+		_hit_t = maxf(0.0, _hit_t - delta)
+		if hit_mark != null:
+			hit_mark.t = _hit_t
+			hit_mark.queue_redraw()
+	if _red_t > 0.0:
+		_red_t = maxf(0.0, _red_t - delta)
+		if red_flash != null:
+			red_flash.color.a = 0.26 * (_red_t / 0.30)
+
+
+## 手上的刀只在「异形 + 本夜还有刀 + 活着且没倒地 + 不在会议」时出现。
+## 人类拿刀会直接泄露身份，所以这里必须严格跟着 sim 状态走。
+func _tick_knife_view() -> void:
+	if player == null or sim == null:
+		return
+	var me: Dictionary = sim.me()
+	var show := false
+	if not me.is_empty() and bool(me.get("alive", true)) \
+			and not bool(me.get("downed", false)) and not bool(me.get("detained", false)) \
+			and (role == "alien" or bool(me.get("alien", false))) \
+			and int(me.get("knife", 0)) > 0 and sim.meeting.is_empty():
+		show = true
+	player.set_knife_visible(show)
+
+
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -5576,6 +5701,8 @@ func _process(delta: float) -> void:
 	_knife_cd = maxf(0.0, _knife_cd - delta)
 	_shot_cd = maxf(0.0, _shot_cd - delta)
 	_pipe_cd = maxf(0.0, _pipe_cd - delta)
+	_tick_fx(delta)
+	_tick_knife_view()
 	_tick_detained()
 	_tick_station(delta)
 	if sim != null and not sim.agents.is_empty():
@@ -6571,6 +6698,10 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 		_probe("出刀 × 本夜刀已用完")
 		_toast("本夜的刀已用完（每夜 1 把，天亮补）")
 		return
+	# 刀数校验通过就先把手上动作播出去：挥空也要有动作，
+	# 否则玩家从自己视角看就是「按了左键什么也没发生」（2026-11-11 反馈）。
+	if player != null:
+		player.play_knife_swing()
 	# E 轮盘带的是「2.5D stab() 的最近目标」；左键没带目标才走准星。
 	var tgt: Dictionary = forced
 	if tgt.is_empty():
@@ -6578,6 +6709,7 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 	if tgt.is_empty():
 		_probe("出刀 × 刀程内没有目标")
 		_toast("刀锋够不到 —— 再靠近、把人对准屏幕中央")
+		_knife_hit_fx(false)
 		return
 	# 轮盘可能停留了几秒：目标已经倒下/出局就不要再补刀（2.5D stab 也排除 downed）。
 	if not bool(tgt.get("alive", false)) or bool(tgt.get("downed", false)) \
@@ -6591,19 +6723,24 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 	if me_pos.distance_to(tgt_pos) > SpaceData.num(space, "reach", "knife"):
 		_probe("出刀 × 目标已离开刀程")
 		_toast("目标离开了刀程 —— 再靠近")
+		_knife_hit_fx(false)
 		return
 	if sim.nav != null and not sim.nav.los(me_pos, tgt_pos):
 		_probe("出刀 × 中间有墙/掩体")
 		_toast("中间有墙 / 掩体挡着，刀够不到")
+		_knife_hit_fx(false)
 		return
 	if not sim.knife(int(sim.me_idx), int(tgt.get("i", -1))):
 		_probe("出刀 × 结算拒绝（目标已倒下 / 刀数不足）")
 		_toast("出刀没有生效（目标已倒下 / 刀数不足）")
+		_knife_hit_fx(false)
 		return
 	_knife_cd = 1.2
 	_probe("出刀 → %s · 濒死 · 剩余刀 %d" % [String(tgt.get("name", "")),
 		int(me.get("knife", 0))])
 	_toast("出刀 · " + String(tgt.get("name", "")) + " 濒死")
+	# 血花由事件层统一生成（AI 出刀 / 自己出刀同一条路径），这里不做第二次。
+	_knife_hit_fx(true)
 
 
 func _player_fire(me: Dictionary) -> void:
@@ -6686,6 +6823,14 @@ func _play_new_events() -> void:
 				audio.play_at("knife", pos, 0.95)
 				audio.play_at("flesh", pos, 0.34)
 				audio.play_at("scream", pos, 0.85)
+				# 击倒特效：受害者位置溅一次血。走事件而不是出刀函数，
+				# 这样 AI 互杀、玩家出刀、E 轮盘出刀都只有一条实现。
+				var vi := int(e.get("victim", -1))
+				if vi >= 0 and sim != null:
+					var va: Dictionary = sim.agent(vi)
+					if not va.is_empty():
+						var vp: Vector2 = va.get("pos", Vector2.ZERO)
+						_spawn_blood(Vector3(vp.x, 1.0, vp.y))
 			"shoot":
 				audio.play_at("shoot", pos, 0.95)
 				audio.play_at("flesh", pos, 0.50)

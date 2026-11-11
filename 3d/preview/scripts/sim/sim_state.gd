@@ -504,9 +504,15 @@ func tick_agents(dt: float) -> void:
 		# path 走完后手电锥仍朝最后的移动方向（js/game.js:1805 _aimAng）。
 		var aim_path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if aim_path.size() > 0:
-			var nxt: Vector2 = aim_path[0]
+			# 必须取「当前正在走的那一段」= path[pathI]，不是 path[0]。
+			# 2026-11-11 用户反馈「人倒着走出去」：pathI 已推进到第 2、3 段时，
+			# 朝向仍指着起点，走过第一个路点后整段路都是背对行进方向。
+			var ai := clampi(int(a.get("pathI", 0)), 0, aim_path.size() - 1)
+			var nxt: Vector2 = aim_path[ai]
 			var cur: Vector2 = a.get("pos", Vector2.ZERO)
-			a["aimAng"] = atan2(nxt.y - cur.y, nxt.x - cur.x)
+			var step := nxt - cur
+			if step.length_squared() > 0.000001:
+				a["aimAng"] = atan2(step.y, step.x)
 		# 2.5D MEDBOT_REVIVE_STUN：救起后短时间只禁移动，
 		# 不跳过站桩 / 濒死结算（"只禁移动，不禁交互/发言"）。
 		if float(a.get("stunT", 0.0)) > 0.0:
@@ -1056,9 +1062,14 @@ func ai_can_see(observer: Dictionary, p: Vector2) -> bool:
 func agent_aim_ang(a: Dictionary) -> float:
 	var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 	if path.size() > 0:
-		var p0: Vector2 = path[0]
+		# 与 tick_agents 同一口径：朝向 = 下一段路点的方向（path[pathI]），
+		# 不是路径起点 path[0]（否则人一过首个路点就倒着走）。
+		var pi := clampi(int(a.get("pathI", 0)), 0, path.size() - 1)
+		var p0: Vector2 = path[pi]
 		var ap: Vector2 = a.get("pos", Vector2.ZERO)
-		return atan2(p0.y - ap.y, p0.x - ap.x)
+		var step := p0 - ap
+		if step.length_squared() > 0.000001:
+			return atan2(step.y, step.x)
 	return float(a.get("aimAng", 0.0))
 
 
