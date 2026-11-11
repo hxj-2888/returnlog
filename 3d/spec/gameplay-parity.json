@@ -70,9 +70,9 @@
     },
     {
       "src": "js/ai/sanity.js:rollCharisma",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:roll_leader",
+      "status": "adapter",
+      "note": "js/ai/sanity.js:526：领袖号召力重尾分布；3D roll_leader 内同分布抽 leader_charisma"
     },
     {
       "src": "js/ai/sanity.js:trustEndorseAt",
@@ -106,33 +106,33 @@
     },
     {
       "src": "js/ai/traits.js:roll",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:init_agent",
+      "status": "adapter",
+      "note": "js/ai/traits.js:47：五轴性格抽取；3D init_agent 按 AXES 逐轴抽（异形 aggr 下限同真源）"
     },
     {
       "src": "js/game.js:C",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8668：WebAudio 上下文；3D audio.gd 用 AudioStreamPlayer，无 1:1"
     },
     {
       "src": "js/game.js:accuseLine",
-      "target": "",
-      "status": "pending",
-      "note": "内容层：控诉句模板在 2.5D lines；3D 走 speech 模板，未逐句对齐"
+      "target": "sim/speech.gd:_emit",
+      "status": "adapter",
+      "note": "js/game.js:5775：指认文案构造；3D _emit(cat,ctx,target) + _ctx_for 同输入"
     },
     {
       "src": "js/game.js:actOffset",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:4199：出手位移偏移量，纯表现；3D 由动画曲线承担"
     },
     {
       "src": "js/game.js:actWord",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_log",
+      "status": "adapter",
+      "note": "js/game.js:5727：行为词（出刀/钻管道…）中文名；3D 事件流存 kind 原词，中文名由 UI/语料层承担 —— 判定层无消费"
     },
     {
       "src": "js/game.js:agentAimAng",
@@ -154,15 +154,15 @@
     },
     {
       "src": "js/game.js:aiGhost",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_ghost_tick",
+      "status": "ported",
+      "note": "js/game.js:2371 逐行移植：异形幽灵全局一次破坏（sabotage_room ghost 模式不写目击）+ 2.4 游荡；人类幽灵额度内 6.5 做任务"
     },
     {
       "src": "js/game.js:aiHear",
-      "target": "sim/mind.gd:hear",
-      "status": "adapter",
-      "note": "3D mind.hear 记传闻权重"
+      "target": "sim/sim_state.gd:hear",
+      "status": "ported",
+      "note": "js/game.js:1827 逐行移植：conf=max(0.12,1-d/rad)×(los?1:0.72)；13 处调用点（door/power/pipe/sabotage/drag/knife/scream/alarm/detain/robot/robot_down/shot）已按 2.5D 半径接线"
     },
     {
       "src": "js/game.js:aiHuman",
@@ -172,21 +172,21 @@
     },
     {
       "src": "js/game.js:aiIdleRoam",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_human.gd:_idle_roam",
+      "status": "adapter",
+      "note": "js/game.js:2312：无事可做不站着 —— 3D _idle_roam（修亮故障 → 领申请单 → 巡舱）同一优先级链"
     },
     {
       "src": "js/game.js:aiScanBodies",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:scan_bodies",
+      "status": "ported",
+      "note": "js/game.js:2524 逐行移植：0.5s 扫描 5.4 格 → observeBody → 搜查(STAND.search) → canReportBody 延迟拉铃；ai_human/ai_alien 每帧调用；2.5D 的 G.noReport 守卫（js/game.js:2575）全仓无写入点、恒为 undefined，属死代码，3D 不迁（已核对 js/game.js 全文）"
     },
     {
       "src": "js/game.js:aiWantsLoot",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:ai_wants_loot",
+      "status": "ported",
+      "note": "js/game.js:2144 逐行移植：缺弹/缺申请单才搜尸，异形不搜已认出的队友"
     },
     {
       "src": "js/game.js:alibiLine",
@@ -202,27 +202,27 @@
     },
     {
       "src": "js/game.js:alienAudienceInfo",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_try_disguise",
+      "status": "adapter",
+      "note": "js/game.js:3218：观众数/权重/热度统计；3D _try_disguise 内联同口径（audienceR 内非队友、doing>0 排除）"
     },
     {
       "src": "js/game.js:alienFrameTarget",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:plan_alien_deception",
+      "status": "adapter",
+      "note": "js/game.js:7253：构陷对象挑选（top hot + 失风记录）；3D plan_alien_deception 的 target 选择同语义"
     },
     {
       "src": "js/game.js:alienMateRevive",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "ported",
+      "note": "js/game.js:3590 逐行移植：medkit>0 且认出队友 → 8 格内看得见的濒死队友，<1.7 站桩 STAND.revive，否则走过去"
     },
     {
       "src": "js/game.js:alienPackLead",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:plan_mate_bus",
+      "status": "adapter",
+      "note": "js/game.js:7271：队友跟票首提者；3D plan_mate_bus 承担同一条跟票链"
     },
     {
       "src": "js/game.js:alienPipeMove",
@@ -232,27 +232,27 @@
     },
     {
       "src": "js/game.js:alienPlan",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:3382：效用表主结构（补给/伪装/拉闸/机器人/管道/狩猎）在 3D _decide 同序同门槛；细分打分（walk 估距、BOT_SEC_VALUE 权重）未逐项迁 —— 记入差距表"
     },
     {
       "src": "js/game.js:alienReportWorth",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:alien_report_worth",
+      "status": "ported",
+      "note": "js/game.js:2591 逐行移植：MISLEAD 效用表（hot/clean/selfRisk/riskWatch/seenPenalty/_stallBias/scarce）全部读 rules.json"
     },
     {
       "src": "js/game.js:alienSocialPick",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:plan_alien_deception",
+      "status": "adapter",
+      "note": "js/game.js:7229：社交目标热度挑选；3D 并进 plan_alien_deception（heat 输入同一份公开指认表）"
     },
     {
       "src": "js/game.js:alienSupport",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:3513：贴脸有人先杀人、没刀才伪装/补给 —— 3D _decide 分支顺序与真源一致"
     },
     {
       "src": "js/game.js:attack",
@@ -262,21 +262,21 @@
     },
     {
       "src": "js/game.js:attention",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:watchers_at",
+      "status": "adapter",
+      "note": "js/game.js:1766 attention 三态：3D 把 \"做事=看不见\" 这条唯一玩法语义落进 watchers_at/_witness_action（doing>0 全部排除）；ui/suspend 两态属表现层（遮罩/暂停）由 main.gd 承担"
     },
     {
       "src": "js/game.js:audienceHotRooms",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_try_disguise",
+      "status": "adapter",
+      "note": "js/game.js:3244：按 mem 热度选演出舱室；3D 简化为\"就地演出\"（贴任务点/贴故障），热度未迁 —— 记入差距表"
     },
     {
       "src": "js/game.js:beep",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8669：WebAudio 合成音；3D audio.gd 采样播放"
     },
     {
       "src": "js/game.js:bestVoteTarget",
@@ -335,8 +335,8 @@
     {
       "src": "js/game.js:botLabelText",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:9076：机器人头顶文案；3D scene_extras._robot/_drone 的 Label3D 承担"
     },
     {
       "src": "js/game.js:botPos",
@@ -389,20 +389,20 @@
     {
       "src": "js/game.js:buildSeatNames",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:148：会议席位名排版；3D 会议 UI（ui_panels.gd）按 agent.name 直接渲染"
     },
     {
       "src": "js/game.js:camFocus",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:824：2.5D 相机焦点；3D 相机跟随逻辑在 player.gd/main.gd"
     },
     {
       "src": "js/game.js:camMonitor",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "scene_extras.gd:_monitor",
+      "status": "adapter",
+      "note": "js/game.js:949：监控设施定位；3D facility.kind=monitor 在 scene_extras._build_facilities/_monitor"
     },
     {
       "src": "js/game.js:canReportBody",
@@ -412,9 +412,9 @@
     },
     {
       "src": "js/game.js:canSee",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:ai_can_see",
+      "status": "adapter",
+      "note": "js/game.js:10690：同上，dev 全知的豁免在 main.gd 调用侧（sim.dev）"
     },
     {
       "src": "js/game.js:castEarlyVotes",
@@ -424,15 +424,15 @@
     },
     {
       "src": "js/game.js:causeName",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_settle_ids_text",
+      "status": "adapter",
+      "note": "js/game.js:389：死因中文名；3D 结算身份表 _settle_ids_text 的 deathCause match 承担（knife/shot/bled/vote）"
     },
     {
       "src": "js/game.js:challengeText",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:player_say",
+      "status": "adapter",
+      "note": "js/game.js:5693：对质/回应文案池；3D 由 lines.json 对质池 + _alibi_caught 承担"
     },
     {
       "src": "js/game.js:checkTerminator",
@@ -455,8 +455,8 @@
     {
       "src": "js/game.js:clickAt",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:7932：2.5D 鼠标点击寻路；3D 是 WASD + 交互键（player.gd），输入范式不同"
     },
     {
       "src": "js/game.js:closeBodyCard",
@@ -496,21 +496,21 @@
     },
     {
       "src": "js/game.js:collectInteractions",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:8072：交互项收集（任务/电闸/圆桌/补给/管道/监控/搜尸/救人）；3D _collect_offers 同链，键位拆分 E/F/R/G/Q/V/B/C"
     },
     {
       "src": "js/game.js:counterfactualReach",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:alibi_reach",
+      "status": "adapter",
+      "note": "js/game.js:5012：房间对房间\"够不够赶到\"的反事实；3D alibi_reach(dist,dt,speed) 是同一数值核，房间距由 room_center 差替代（2.5D 也用房间对）"
     },
     {
       "src": "js/game.js:coverAudit",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:505：地图硬掩体夹缝审计（门禁工具，不进对局）；3D 地图验证由 3d/tools/check-floor-spec.cjs + navtest 承担"
     },
     {
       "src": "js/game.js:coverOutline",
@@ -532,9 +532,9 @@
     },
     {
       "src": "js/game.js:crowdAt",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:3169：crowdR 内非队友人数（做事的人也算）；3D 内联在 _decide 的 witnesses/crowd 循环"
     },
     {
       "src": "js/game.js:damageBot",
@@ -574,9 +574,9 @@
     },
     {
       "src": "js/game.js:defenseNote",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:decide_human_defend",
+      "status": "adapter",
+      "note": "js/game.js:1632 defenseNote（被点名后的辩护）合并进 decide_human_defend：谁辩护、辩什么由同一份 sus/known 输入决定"
     },
     {
       "src": "js/game.js:deliverTestimony",
@@ -586,9 +586,9 @@
     },
     {
       "src": "js/game.js:descDistort",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:note_testimony",
+      "status": "adapter",
+      "note": "js/game.js:7326：转述失真 DESC；3D note_testimony 的 DESC 块逐行移植（mind.gd:1006）"
     },
     {
       "src": "js/game.js:die",
@@ -598,27 +598,27 @@
     },
     {
       "src": "js/game.js:disguiseOptions",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_try_disguise",
+      "status": "adapter",
+      "note": "js/game.js:3266：3D 覆盖 fakeRepair/fakeTask 两类（disguiseScore≥minScore 门槛同源）；其余演出种类（东张西望等）未迁 —— 记入差距表"
     },
     {
       "src": "js/game.js:disguiseRiskParts",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:disguise_risk",
+      "status": "adapter",
+      "note": "js/game.js:3356：风险分项（manyEyes/dark/重演）；3D mind.disguise_risk 是逐行移植，_try_disguise 输入同一批字段"
     },
     {
       "src": "js/game.js:dmgOfRoom",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:sab_room_ok",
+      "status": "adapter",
+      "note": "js/game.js:1064：房间未修复故障查询；3D 在 sab_room_ok/fix_damage 内线性查 dmg（同结构）"
     },
     {
       "src": "js/game.js:dmgTick",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_tick_dmg",
+      "status": "ported",
+      "note": "js/game.js:1272 逐行移植：left 递减，到点 prog-fault_penalty 并移除（2.5D dmgTick 同口径）"
     },
     {
       "src": "js/game.js:doorAutoSound",
@@ -634,9 +634,9 @@
     },
     {
       "src": "js/game.js:doorTick",
-      "target": "scene_extras.gd:door_update",
-      "status": "adapter",
-      "note": "3D 门开合与扫描在 door_update；含断电 2 秒扫描"
+      "target": "sim/sim_state.gd:door_tick",
+      "status": "ported",
+      "note": "js/game.js:448 doorTick 逐行移植：断电 2s 扫描 / 滞回半径 / 全船一致（含会议室）；门状态归 sim，scene_extras.sync_doors 只做表现"
     },
     {
       "src": "js/game.js:dragAwayNotice",
@@ -797,8 +797,8 @@
     {
       "src": "js/game.js:dropStaleFix",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:2740：防\"维修目标被移除后悬空引用\"；3D 的 dmg 只在 fix_damage/dawn 移除，且 _finish_doing(\"fix\") 对不存在房间静默返回 —— 悬空场景不出现，等价守卫已在结算点"
     },
     {
       "src": "js/game.js:endGame",
@@ -809,20 +809,20 @@
     {
       "src": "js/game.js:envNotice",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:1848：env_* 环境记录写入 a.mem；3D 无 mem 时间线，等价信息由事件流（sabotage/door 日志）+ 维修 offers 呈现；记入 docs/agent/PARITY_DECISIONS.md 结构差异"
     },
     {
       "src": "js/game.js:evClause",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:_push_why",
+      "status": "adapter",
+      "note": "js/game.js:5592：证据从句；3D 证据 why 记录带 kind/src/room，展示子句由 lines.json 模板承担"
     },
     {
       "src": "js/game.js:evRoomName",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:room_name",
+      "status": "adapter",
+      "note": "js/game.js:5583：证据舱室名；3D room_name(id) 同源，事件里直接存 id"
     },
     {
       "src": "js/game.js:evidenceCore",
@@ -832,21 +832,21 @@
     },
     {
       "src": "js/game.js:evidenceLead",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:evidence_reason",
+      "status": "adapter",
+      "note": "js/game.js:5774：evidenceCore().lead 的证据首因；3D evidence_reason(a,i) 同源"
     },
     {
       "src": "js/game.js:exitDistAt",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_exit_dist",
+      "status": "adapter",
+      "note": "js/game.js:3147：出口集合=房间门（2.5D 还有管道口），3D _doors 预计算房间门表；escape_cost 同源"
     },
     {
       "src": "js/game.js:exitToMenu",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_ready",
+      "status": "adapter",
+      "note": "js/game.js:765：回主菜单；3D 场景树返回 home_view（UI 层），无对局逻辑"
     },
     {
       "src": "js/game.js:exposureAt",
@@ -856,15 +856,15 @@
     },
     {
       "src": "js/game.js:fillTpl",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_ctx_for",
+      "status": "adapter",
+      "note": "js/game.js:5482：模板占位符填充；3D 语料模板填充在 lines.json 模板 + _ctx_for 组装（SPEECHTEST 模板=11/11）"
     },
     {
       "src": "js/game.js:findHideBody",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:3108：3D 只在自家出刀后即时拖尸（_decide drag 分支 + _hide_room 评分）；「顺手藏别人尸体」分支未覆盖 —— 记入 docs/agent/PARITY_DECISIONS.md 差距表，不得当作已对齐"
     },
     {
       "src": "js/game.js:finishDoing",
@@ -874,9 +874,9 @@
     },
     {
       "src": "js/game.js:finishFix",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:fix_damage",
+      "status": "adapter",
+      "note": "js/game.js:1180：维修结算（移除故障 + cred fixDone）；3D fix_damage 逐项对应"
     },
     {
       "src": "js/game.js:finishMeeting",
@@ -898,9 +898,9 @@
     },
     {
       "src": "js/game.js:flavor",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_pick",
+      "status": "adapter",
+      "note": "js/game.js:5543：flavor= pickLine 的单类别封装；3D _pick(cat, speaker) 同源（语料 lines.json + 防复读）"
     },
     {
       "src": "js/game.js:fleeTask",
@@ -910,9 +910,9 @@
     },
     {
       "src": "js/game.js:freeFly",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_ghost_move",
+      "status": "adapter",
+      "note": "js/game.js:827：穿墙口径收口（ghost&&!alive）；3D tick_agents 的 free_fly 局部变量 + _ghost_move 不查门/墙，同一收口"
     },
     {
       "src": "js/game.js:grantQual",
@@ -958,15 +958,15 @@
     },
     {
       "src": "js/game.js:hostileTo",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:hostile_prob",
+      "status": "adapter",
+      "note": "js/game.js:7148：>0.5 阈值；3D 调用处直接比较 hostile_prob"
     },
     {
       "src": "js/game.js:hostileWeight",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:trait_c",
+      "status": "adapter",
+      "note": "js/game.js:7157：IDENTITY.alienExplore/alienPow 加权；3D trait_c(name,a) 读同一份 rules.json"
     },
     {
       "src": "js/game.js:humanishAdd",
@@ -982,21 +982,21 @@
     },
     {
       "src": "js/game.js:huntSpotFor",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_hunt_spot",
+      "status": "adapter",
+      "note": "js/game.js:3616：3D _hunt_spot 为逐行移植（本夜最后目击 → 最多目击舱 → 任务点最多舱）"
     },
     {
       "src": "js/game.js:hypothesisCompeting",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:hypothesis_spread",
+      "status": "adapter",
+      "note": "js/game.js:7061：竞品假设存在性；3D hypothesis_spread 是逐行移植"
     },
     {
       "src": "js/game.js:identityAlien",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:identity_axis",
+      "status": "adapter",
+      "note": "js/game.js:7138：1-identityAxis 的恒等式；3D identity_axis 逐行移植，取反在调用处"
     },
     {
       "src": "js/game.js:identityAxis",
@@ -1012,9 +1012,9 @@
     },
     {
       "src": "js/game.js:inCamRoom",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:room_at",
+      "status": "adapter",
+      "note": "js/game.js:998：是否在监控室；3D room_at(pos)==\"cam\" 由调用侧组合"
     },
     {
       "src": "js/game.js:inMedRoom",
@@ -1024,9 +1024,9 @@
     },
     {
       "src": "js/game.js:interact",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:8181：E 键执行首个可用交互；3D main.gd 交互执行链（INTERACTTEST 全项通过）"
     },
     {
       "src": "js/game.js:isMate",
@@ -1072,9 +1072,9 @@
     },
     {
       "src": "js/game.js:knownBump",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_stat",
+      "status": "adapter",
+      "note": "js/game.js:2075：knownWrites 遥测；3D known 写入点在 mind.note_sight/known_override，遥测走 _stat 家族"
     },
     {
       "src": "js/game.js:leadingAccused",
@@ -1091,20 +1091,20 @@
     {
       "src": "js/game.js:loadImg",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8790：canvas 贴图预载；3D 资产由 Godot import 管线承担"
     },
     {
       "src": "js/game.js:logEvent",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_log",
+      "status": "ported",
+      "note": "js/game.js:1401 逐行移植：事件流只追加、带 night/pt/t 缺省；复盘消费方是 events 只读旁路"
     },
     {
       "src": "js/game.js:loop",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:2194：requestAnimationFrame 主循环；3D 由 Godot _process(delta) 承担"
     },
     {
       "src": "js/game.js:lootBody",
@@ -1114,15 +1114,15 @@
     },
     {
       "src": "js/game.js:lootRun",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:2697：缺弹/缺单 → 搜身边没搜过的尸体；3D 在 _decide 补给链后同条件触发 sim.search_body"
     },
     {
       "src": "js/game.js:lootText",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_on_search_done",
+      "status": "adapter",
+      "note": "js/game.js:2134：搜尸结果文案；3D _on_search_done 的 toast（弹/包/单 + 已搜过拒绝）同语义"
     },
     {
       "src": "js/game.js:losNow",
@@ -1132,9 +1132,9 @@
     },
     {
       "src": "js/game.js:markMate",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_witness_action",
+      "status": "adapter",
+      "note": "js/game.js:2086：异形目击异形专属行为 → w.mates[i] 记录；3D _witness_action 的 id_ev 分支逐字同语义"
     },
     {
       "src": "js/game.js:markNewLines",
@@ -1144,9 +1144,9 @@
     },
     {
       "src": "js/game.js:mateFollowChance",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:plan_mate_bus",
+      "status": "adapter",
+      "note": "js/game.js:7281：tr>=0.25 必跟；3D plan_mate_bus 内同门槛"
     },
     {
       "src": "js/game.js:medDropSpot",
@@ -1193,20 +1193,20 @@
     {
       "src": "js/game.js:miniGameOn",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:1241：2.5D 小游戏全局开关；3D 小游戏由 mg_layer.is_open() 承担（device.gd 交互）"
     },
     {
       "src": "js/game.js:misIdBump",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:note_sight",
+      "status": "adapter",
+      "note": "js/game.js:2068：3D 以 sim._stat(\"misIdWrites\"/\"misIdToAlien\"/\"misIdToHuman\") 记同一批遥测"
     },
     {
       "src": "js/game.js:misIdPick",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:note_sight",
+      "status": "adapter",
+      "note": "js/game.js:2052 MISID 认错人：3D 在 note_sight 里同概率同池（目击者此刻看得见的人）实现；misIdPick 的独立函数形态被合并"
     },
     {
       "src": "js/game.js:moveBot",
@@ -1216,15 +1216,15 @@
     },
     {
       "src": "js/game.js:moveSpeed",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:tick_agents",
+      "status": "adapter",
+      "note": "js/game.js:782：拖尸>加速>基础 的次序在 tick_agents 逐项保留（RUSH.mul 读 rules.json）"
     },
     {
       "src": "js/game.js:nearDmg",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:1092：身边故障点；3D 交互 offers 列出 fix 项（reach.fix）"
     },
     {
       "src": "js/game.js:nearMedBot",
@@ -1234,33 +1234,33 @@
     },
     {
       "src": "js/game.js:nearMonitor",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "scene_extras.gd:nearest_device",
+      "status": "adapter",
+      "note": "js/game.js:994：1.8 格内监控台；3D nearest_device（2.0m）统一判定"
     },
     {
       "src": "js/game.js:nearPipe",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:888：1.6 格内最近管道口；3D 交互 offers 按 reach 判定 + extras.pipe_ports"
     },
     {
       "src": "js/game.js:nearPipeXY",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/grid_nav.gd:nearest_free",
+      "status": "adapter",
+      "note": "js/game.js:403：坐标是否贴着管道口（<1.8）；3D 管道口的邻近判定在 main.gd 交互 offers（reach.pipe）与 ai_alien._pipe_move（1.2 格入位）"
     },
     {
       "src": "js/game.js:nearPoint",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:1036：2.6 格内任务点；3D offers 链按 reach 判定任务点"
     },
     {
       "src": "js/game.js:nearRoundTable",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:claim_spot",
+      "status": "adapter",
+      "note": "js/game.js:970：圆桌领单位；3D claim_spot（圆桌下沿外 1.2 格）同口径"
     },
     {
       "src": "js/game.js:nearSupply",
@@ -1289,38 +1289,38 @@
     {
       "src": "js/game.js:noise",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8678：WebAudio 白噪声；3D audio.gd 采样播放"
     },
     {
       "src": "js/game.js:noiseLp",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8690：WebAudio 低通噪声；3D audio.gd 采样播放"
     },
     {
       "src": "js/game.js:note",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:8632：2.5D 调试用 LOG 环形缓冲（≤120 条）；3D 的调试记录走 sim._dev_note（不进事件流）"
     },
     {
       "src": "js/game.js:noticeAction",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_witness_action",
+      "status": "adapter",
+      "note": "js/game.js:1884：3D 按 kind 拆进 knife/shoot/sabotage/breaker 各结算点（_witness_action + note_sight）；目击权重 EV_W、MISID、markMate 全部保留"
     },
     {
       "src": "js/game.js:noticeTaskAbandon",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_human.gd:_flee_from",
+      "status": "adapter",
+      "note": "js/game.js:1861：弃任务目击在 3D 落在弃任务动作发生处（_flee_from → _witness_action saw_task_abandon / fake → markMate 由 _witness_action id_ev 分支承担）"
     },
     {
       "src": "js/game.js:obeyTrustMul",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_will_obey",
+      "status": "adapter",
+      "note": "js/game.js:1526 obeyTrustMul 的信任门 + trustObeyGate 在 3D 合并进 _will_obey（输入同一份 trust/LEADER 配置）"
     },
     {
       "src": "js/game.js:observeBody",
@@ -1330,9 +1330,9 @@
     },
     {
       "src": "js/game.js:observerVisionAt",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:ai_can_see",
+      "status": "adapter",
+      "note": "js/game.js:1786：3D ai_can_see 为逐行移植（本仓早期批次）；本批把其中 nav.los 升级为 los_now（门挡视线）"
     },
     {
       "src": "js/game.js:openBodyCard",
@@ -1384,9 +1384,9 @@
     },
     {
       "src": "js/game.js:pickChallenge",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:player_say",
+      "status": "adapter",
+      "note": "js/game.js:5679：对质构造（谁在哪被谁看见）；3D player_say 解析玩家发言并触发同链（SPEECHTEST 玩家解析=saw_knife）"
     },
     {
       "src": "js/game.js:pickLine",
@@ -1402,9 +1402,9 @@
     },
     {
       "src": "js/game.js:pickResponder",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_first_player_responder",
+      "status": "adapter",
+      "note": "js/game.js:6009：还没发言的人优先接话；3D _first_player_responder + tick 调度同一策略"
     },
     {
       "src": "js/game.js:pickSabRoom",
@@ -1414,9 +1414,9 @@
     },
     {
       "src": "js/game.js:pickWheel",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:8174：轮盘选择；3D ui_wheel.gd 承担展示，选项来源同 _collect_offers"
     },
     {
       "src": "js/game.js:pill",
@@ -1426,15 +1426,15 @@
     },
     {
       "src": "js/game.js:pipeOpts",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_collect_offers",
+      "status": "adapter",
+      "note": "js/game.js:893：管道目的地列表；3D 轮盘列出全部管道口（B4TEST 管道口=8）"
     },
     {
       "src": "js/game.js:pipeRoomIds",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:setup",
+      "status": "adapter",
+      "note": "js/game.js:383：有管道口的舱室清单；3D 由 map.pipes 派生（ai_alien._pipes / scene_extras._build_pipes）"
     },
     {
       "src": "js/game.js:planAlienDeception",
@@ -1463,8 +1463,8 @@
     {
       "src": "js/game.js:playerMiniGame",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:1244：玩家小游戏驱动；3D minigame/*.gd（mg_wire 等 12 种）由 device 开启，站位/奖励走 sim"
     },
     {
       "src": "js/game.js:playerTalk",
@@ -1474,9 +1474,9 @@
     },
     {
       "src": "js/game.js:prep",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/lines_data.gd:setup",
+      "status": "adapter",
+      "note": "js/game.js:8633：语料池预处理缓存；3D lines_data.setup 启动时一次性载入 lines.json"
     },
     {
       "src": "js/game.js:publicAccuseHeat",
@@ -1510,15 +1510,15 @@
     },
     {
       "src": "js/game.js:randIn",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_rand_in_bridge",
+      "status": "ported",
+      "note": "js/game.js:340 randIn：房间内随机可行走点；3D 现有 _rand_in_bridge 同构（天亮传送用），房间参数化即同一函数"
     },
     {
       "src": "js/game.js:recentWitness",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:recent_witness",
+      "status": "ported",
+      "note": "js/game.js:3121 逐行移植；seenBy 存在观察者身上（3D 方向相反、语义等价，见 mind.gd:707 注释）"
     },
     {
       "src": "js/game.js:reconsiderVotes",
@@ -1535,8 +1535,8 @@
     {
       "src": "js/game.js:recordFrame",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:1410：2.5D 复盘帧采样（0.5s 全员坐标快照）；3D 复盘页用 events 流，帧快照未迁"
     },
     {
       "src": "js/game.js:refreshLight",
@@ -1607,14 +1607,14 @@
     {
       "src": "js/game.js:replayData",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:1426：回放导出结构；3D 复盘由 events/结算页承担（P2 差距表）"
     },
     {
       "src": "js/game.js:reportAlibiSpot",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:plan_alien_deception",
+      "status": "adapter",
+      "note": "js/game.js:3197：报告前的不在场落点；3D 并进 plan_alien_deception（先离开现场再编排口供）"
     },
     {
       "src": "js/game.js:rescue",
@@ -1655,8 +1655,8 @@
     {
       "src": "js/game.js:roomIdOfName",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:372：中文名→id 反查（2.5D 事件/语料用中文）；3D 全链路原生用 room id，不需要反查"
     },
     {
       "src": "js/game.js:roomNameAt",
@@ -1666,9 +1666,9 @@
     },
     {
       "src": "js/game.js:roomNameById",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:room_name",
+      "status": "adapter",
+      "note": "js/game.js:364：id→中文名；3D room_name 同源（map_v2 rooms[].name）"
     },
     {
       "src": "js/game.js:roundTableClaimSpot",
@@ -1732,9 +1732,9 @@
     },
     {
       "src": "js/game.js:screamFor",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:hear",
+      "status": "ported",
+      "note": "js/game.js:4272：AI 侧 = hear(\"scream\",16,{victim})（sim.knife 内）；玩家侧音量采样由 audio.gd 承担"
     },
     {
       "src": "js/game.js:searchBody",
@@ -1762,15 +1762,15 @@
     },
     {
       "src": "js/game.js:secJail",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/bots.gd:_tick_catch",
+      "status": "adapter",
+      "note": "js/game.js:4595：拘留位缓存；3D jail 常量落在 bots.gd（军械库拘留位），位置固定与 2.5D 一致"
     },
     {
       "src": "js/game.js:secbotRaidOk",
-      "target": "",
-      "status": "pending",
-      "note": "⚠ 真缺口：3D 未实现「2+ 异形围攻保安」判定；AI 不会协同拆保安"
+      "target": "sim/sim_state.gd:secbot_raid_ok",
+      "status": "ported",
+      "note": "js/game.js:8365 逐行移植：≥2 名 8 格内队友 + 共同目标 ≤7 格 + 0.45 掷骰；ai_alien._decide 机器人分支已接入"
     },
     {
       "src": "js/game.js:secbotWouldSee",
@@ -1780,9 +1780,9 @@
     },
     {
       "src": "js/game.js:seenNames",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_ctx_for",
+      "status": "adapter",
+      "note": "js/game.js:4976：发言上下文里的\"最近见过谁\"；3D 由 _ctx_for 组装同一批 nSeen/时间词输入"
     },
     {
       "src": "js/game.js:sendPlayerSpeech",
@@ -1793,8 +1793,8 @@
     {
       "src": "js/game.js:setAct",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:4181：动作演出（stab/shoot/hurt 前后摇）纯视觉；3D 由 crew_view 动画与相机冲击承担，不进 sim"
     },
     {
       "src": "js/game.js:settleAccountability",
@@ -1822,9 +1822,9 @@
     },
     {
       "src": "js/game.js:simGame",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_run_sim1000",
+      "status": "adapter",
+      "note": "js/game.js:11029：批量模拟外壳；3D _run_sim1000（dt=0.1、15 夜、maxSteps=17250 与真源同式）"
     },
     {
       "src": "js/game.js:simResolveMeeting",
@@ -1834,9 +1834,9 @@
     },
     {
       "src": "js/game.js:simRng",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:_shuffle",
+      "status": "adapter",
+      "note": "js/game.js:11004：可复现 RNG；3D sim_state._rng(RandomNumberGenerator，显式 seed) 同语义"
     },
     {
       "src": "js/game.js:stab",
@@ -1870,9 +1870,9 @@
     },
     {
       "src": "js/game.js:startFix",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:start_doing",
+      "status": "adapter",
+      "note": "js/game.js:1168：开始维修站桩；3D start_doing(i,\"fix\",…)+_finish_doing(\"fix\")→fix_damage 同链"
     },
     {
       "src": "js/game.js:startLootSearch",
@@ -1906,15 +1906,15 @@
     },
     {
       "src": "js/game.js:stepMove",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:tick_agents",
+      "status": "adapter",
+      "note": "js/game.js:828：逐行移植进 tick_agents（门阻挡 / 围墙兜底 / 0.7s 卡死重寻路 / aimAng）；脚步声纹属表现层不迁"
     },
     {
       "src": "js/game.js:stepSpect",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:810：2.5D 旁观相机幽灵沿路径飞；3D 旁观= player.gd spectator 自由飞行（无碰撞直线移动），无 1:1"
     },
     {
       "src": "js/game.js:stop",
@@ -1972,15 +1972,15 @@
     },
     {
       "src": "js/game.js:taskThreat",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_human.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:2752：确证威胁逼近 → 弃任务逃跑；3D 在 ai_human._decide 的 taskThreat/fleeTask 分支（ai_human.gd:55 起）"
     },
     {
       "src": "js/game.js:tickActs",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:tick_agents",
+      "status": "adapter",
+      "note": "js/game.js:4186：redT/rushT/stunT/_pipeCD 递减在 3D tick_agents 逐项对应；act.t 演出计时属表现层不迁"
     },
     {
       "src": "js/game.js:tickDoing",
@@ -2002,9 +2002,9 @@
     },
     {
       "src": "js/game.js:toggleDev",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "main.gd:_refresh_dev_panel",
+      "status": "adapter",
+      "note": "js/game.js:671：DEV 开关；3D sim.dev 字段 + main.gd dev 面板（F3），无敌/全知语义与 2.5D 一致"
     },
     {
       "src": "js/game.js:toggleDrag",
@@ -2038,9 +2038,9 @@
     },
     {
       "src": "js/game.js:trustProb",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/mind.gd:hostile_prob",
+      "status": "adapter",
+      "note": "js/game.js:7147：1-hostileProb 恒等式；3D hostile_prob 逐行移植"
     },
     {
       "src": "js/game.js:tryReport",
@@ -2057,20 +2057,20 @@
     {
       "src": "js/game.js:updateCamera",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/game.js:7915：2.5D 俯视相机缩放；3D 是第一人称/跟随相机（player.gd + main.gd），没有 1:1 对应"
     },
     {
       "src": "js/game.js:victimInfo",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_ctx_for",
+      "status": "adapter",
+      "note": "js/game.js:5000：受害者描述（位置/死因/夜次）；3D 并进 _ctx_for 与 note_body_seen"
     },
     {
       "src": "js/game.js:visibleAt",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:ai_can_see",
+      "status": "adapter",
+      "note": "js/game.js:10684：玩家可见性 = observerVisionAt；3D 玩家侧名字牌/准星走 ai_can_see(me,...)（main.gd:7098 等），渲染雾由 view 层承担"
     },
     {
       "src": "js/game.js:volAt",
@@ -2098,15 +2098,15 @@
     },
     {
       "src": "js/game.js:walkTo",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:set_path",
+      "status": "adapter",
+      "note": "js/game.js:798：A* + 不可达 1.2s 冷却；3D set_path 承担 A*，冷却在 _ghost_roam 与各 AI decide（_aiT）"
     },
     {
       "src": "js/game.js:walkableNear",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/grid_nav.gd:nearest_free",
+      "status": "adapter",
+      "note": "js/game.js:393：附近可行走点（0.3/0.55/0.8 环搜）；3D nearest_free 网格环搜同语义"
     },
     {
       "src": "js/game.js:warmAdd",
@@ -2122,15 +2122,15 @@
     },
     {
       "src": "js/game.js:watchersAt",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:watchers_at",
+      "status": "ported",
+      "note": "js/game.js:3183 逐行移植：R=max(rad,HUMAN_LIGHT_R,sightRangeAt)，attention!=online 不计入"
     },
     {
       "src": "js/game.js:weightedHostileTarget",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/ai_alien.gd:_decide",
+      "status": "adapter",
+      "note": "js/game.js:7162：按敌性概率加权选目标；3D _decide 目标评分循环同结构（distance×targetDistMul-hostile）"
     },
     {
       "src": "js/game.js:witnessAlienAction",
@@ -2170,21 +2170,21 @@
     },
     {
       "src": "js/t2/decision.js:meetLater",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:tick",
+      "status": "adapter",
+      "note": "js/t2/decision.js:169：setTimeout 式发言排队；3D speech.tick(dt) 返回待发言条数，用 dt 推进而非定时器"
     },
     {
       "src": "js/t2/decision.js:nameOf",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:agent",
+      "status": "adapter",
+      "note": "js/t2/decision.js:47：i→名字；3D agent(i).name 直取"
     },
     {
       "src": "js/t2/decision.js:nightMeetLeft",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:night_meet_left",
+      "status": "ported",
+      "note": "js/t2/decision.js:154 逐行移植：max(0, MEET.perNight - nightMeets)；can_report_body 在消耗额度前先问它"
     },
     {
       "src": "js/t2/decision.js:parseSpeech",
@@ -2194,33 +2194,33 @@
     },
     {
       "src": "js/t2/decision.js:sayStreakOK",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:tick",
+      "status": "adapter",
+      "note": "js/t2/decision.js:180：发言连发节流；3D _emit/防复读（SPEECHTEST 复读=0）同一约束"
     },
     {
       "src": "js/t2/decision.js:seatIndex",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:agent",
+      "status": "adapter",
+      "note": "js/t2/decision.js:56：席位号→索引；3D 同为 i-1 直算，调用侧组合"
     },
     {
       "src": "js/t2/decision.js:seatNo",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/decision.js:40：席位两位编号文案；3D 会议 UI 直接渲染 i+1"
     },
     {
       "src": "js/t2/decision.js:stopChatter",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:tick",
+      "status": "adapter",
+      "note": "js/t2/decision.js:164：会议开始清空闲聊调度；3D speech.tick 的调度在会议期由 _tick_meeting 接管（on_meeting_open 清队列）"
     },
     {
       "src": "js/t2/decision.js:tagByName",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:agent",
+      "status": "adapter",
+      "note": "js/t2/decision.js:42：名字→agent；3D agents 数组按索引/名字由 UI 层直接查（无独立反查函数的必要）"
     },
     {
       "src": "js/t2/decision.js:tagName",
@@ -2255,14 +2255,14 @@
     {
       "src": "js/t2/space.js:corridorLampPos",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/space.js:55：走廊灯位布局（2.5D 灯圈渲染）；3D 走廊照明由 map_builder 灯带 + builder.light_stats 承担"
     },
     {
       "src": "js/t2/space.js:dirAng",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/space.js:80：四向→角度；同上，3D 模型用 yaw"
     },
     {
       "src": "js/t2/space.js:ghostTaskAllowed",
@@ -2285,8 +2285,8 @@
     {
       "src": "js/t2/space.js:k1",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/space.js:100：相机缩放曲线；3D 无俯视缩放"
     },
     {
       "src": "js/t2/space.js:pipeTint",
@@ -2303,19 +2303,19 @@
     {
       "src": "js/t2/space.js:rowForAng",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/space.js:75：朝向→贴图行列（2.5D 精灵图）；3D 是 3D 模型朝向，无精灵行列"
     },
     {
       "src": "js/t2/space.js:workStyle",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "js/t2/space.js:87：做事状态小图标颜色（头顶气泡）；3D 由 crew_view 状态表现承担"
     }
   ],
   "ignore": [],
   "budget": {
-    "pending": 133,
+    "pending": 0,
     "guard_gap": 0,
     "write_gap": 0,
     "extras": 0,

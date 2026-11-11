@@ -186,6 +186,8 @@ func trait_c(name: String, a: Dictionary) -> float:
 
 ## 开局心智档案：性格轴按 SKTrait.AXES / BANDS 三档抽（28/50/72，30/40/30）。
 func init_agent(a: Dictionary) -> void:
+	# 2.5D aiInit（js/game.js:7864）：每只异形的报告倾向 0.8~1.2（避免同一只永远同一套）
+	a["_stallBias"] = 0.8 + sim._rng.randf() * 0.4
 	var axes: Array = ["aggr", "caut", "soc", "cur"]
 	var bands: Array = [[28, 0.3], [50, 0.4], [72, 0.3]]
 	var neutral := 50
@@ -934,7 +936,7 @@ func note_sight(witness_i: int, actor_i: int, kind: String, at: Vector2) -> void
 			var op: Vector2 = o.get("pos", Vector2.ZERO)
 			if op.distance_to(at) > sight_r:
 				continue
-			if sim.nav != null and not sim.nav.los(wp, op):
+			if not sim.los_now(wp.x, wp.y, op.x, op.y):
 				continue
 			pool.append(oi)
 		if not pool.is_empty():
@@ -1496,7 +1498,7 @@ func cred_broadcast(actor_i: int, kind: String, at: Vector2) -> void:
 		var wp: Vector2 = w.get("pos", Vector2.ZERO)
 		if wp.distance_to(at) > sight_r:
 			continue
-		if sim.nav != null and not sim.nav.los(wp, at):
+		if not sim.los_now(wp.x, wp.y, at.x, at.y):
 			continue
 		if bool(w.get("alien", false)):
 			# 已认出的队友不计入（异形知道自己人，这不是读心）

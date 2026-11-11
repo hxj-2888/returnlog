@@ -224,6 +224,8 @@ func _teleport_pipe(a: Dictionary, from: Vector2, to: Vector2, cd: float) -> voi
 	a["_pipeSeeks"] = int(a.get("_pipeSeeks", 0)) + 1
 	sim._stat("alienPipes", 1)
 	sim._log("pipe", {"actor": int(a.get("i", -1)), "x": to.x, "y": to.y})
+	# 2.5D aiPipeMove：落点 aiHear('pipe',out,12,{actor}) —— 管道两端都会漏声
+	sim.hear("pipe", to, 12.0, {"actor": int(a.get("i", -1))})
 	sim._witness_action(a, "saw_pipe", from)
 	sim._witness_action(a, "saw_pipe", to)
 
@@ -234,36 +236,10 @@ func tick(dt: float) -> void:
 	for a: Dictionary in sim.agents:
 		if not bool(a.get("alien", false)):
 			continue
-		# 异形报告（2.5D alienReportWorth 简化）：看到未报告尸体 35% 概率排误导报告。
-		# 报告把人类聚到现场、把票压向好栽赃的人 —— 收益由会议链结算。
-		if bool(a.get("alive", false)) and not bool(a.get("downed", false)) \
-				and float(a.get("_reportT", 0.0)) <= 0.0 and int(a.get("reportLeft", 0)) > 0:
-			var apx: Vector2 = a.get("pos", Vector2.ZERO)
-			for v: Dictionary in sim.agents:
-				if bool(v.get("alive", false)) or bool(v.get("bodyReported", false)):
-					continue
-				var bpx: Vector2 = v.get("bodyPos", Vector2.ZERO)
-				# 5.4 = 2.5D js/game.js:2505/2513 的硬编码尸体发现半径（真源同样没有进
-				# rules.json，此处按行号同源，改动必须两边一起动）。
-				if apx.distance_to(bpx) < 5.4 and sim.ai_can_see(a, bpx):
-					if int(a.get("_alienReports", 0)) < 1 and sim._rng.randf() < 0.20:
-						a["_alienReports"] = 1
-						a["_reportBody"] = int(v.get("i", -1))
-						a["_reportT"] = 2.0 + sim._rng.randf() * 2.0
-					break
-		var rt := float(a.get("_reportT", 0.0))
-		if rt > 0.0:
-			a["_reportT"] = rt - dt
-			if float(a.get("_reportT", 0.0)) <= 0.0:
-				var rbi := int(a.get("_reportBody", -1))
-				a["_reportBody"] = -1
-				var rb: Dictionary = sim.agent(rbi)
-				if not rb.is_empty() and not bool(rb.get("bodyReported", false)):
-					var rbp: Vector2 = rb.get("bodyPos", Vector2.ZERO)
-					# 5.8 = 2.5D js/game.js:2489 的远程拉铃半径（同源硬编码，见上一条）
-					if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(rbp) <= 5.8 \
-							and sim.ai_can_see(a, rbp):
-						sim.open_meeting(int(a.get("i", -1)), rbi)
+		# 2.5D aiScanBodies（js/game.js:2524）：扫描尸体 → 观察 → 搜查 → 按
+		# canReportBody / alienReportWorth 决定拉铃。每帧都跑（不进 _decide 的节流）。
+		sim.scan_bodies(a, dt)
+
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
 			continue
 		if float(a.get("_avoid_t", 0.0)) > 0.0:
@@ -332,6 +308,28 @@ func _decide(a: Dictionary) -> void:
 	if not bool(a.get("_sabDone", false)) and float(a.get("_sabT", 999.0)) <= 0.0:
 		if sim._rng.randf() < 0.35 and _try_sabotage(a):
 			return
+
+	# 救队友（2.5D alienMateRevive，js/game.js:3590）：有医疗包且认得出队友时，
+	# 8 格内看得见的濒死队友 → 走过去站桩救（STAND.revive，结算走 _finish_doing revive 链）。
+	if int(a.get("medkit", 0)) > 0 and sim.mind != null:
+		var mv: Dictionary = {}
+		var mvd := 8.0
+		for w4: Dictionary in sim.agents:
+			var wi4 := int(w4.get("i", -1))
+			if w4 == a or not bool(w4.get("alive", false)) or not bool(w4.get("downed", false)) \
+					or not sim.mind._is_mate(a, wi4):
+				continue
+			var wd4 := ap0.distance_to(w4.get("pos", Vector2.ZERO))
+			if wd4 < mvd and sim.ai_can_see(a, w4.get("pos", Vector2.ZERO)):
+				mvd = wd4
+				mv = w4
+		if not mv.is_empty():
+			if mvd < 1.7:
+				sim.start_doing(i, "revive", SpaceData.num(space, "stand", "revive"), -1, "")
+				a["_rv"] = int(mv.get("i", -1))
+				return
+			if sim.set_path(i, mv.get("pos", Vector2.ZERO)):
+				return
 
 	# ---- 拖尸中：先把尸体送到藏尸点再谈别的（2.5D dragAway 链）----
 	if int(a.get("drag", -1)) >= 0:
@@ -601,14 +599,35 @@ func _decide(a: Dictionary) -> void:
 			# 早先为截图擅自加的长冷却已移除（它把异形削到 79/17.5 的主因之一）。
 			a["_aiT"] = 2.0
 		return
-	# 拆机器人（2.5D aiAlien 的 bot 分支）：有刀且贴身 → 用刀（消耗刀数按 HP 结算）。
-	# 保安机器人只在 secbotRaidOk（认出 2+ 队友围捕）时才列为候选 —— 简化版只打医疗机。
-	if int(a.get("knife", 0)) > 0 and float(a.get("_botCD", 0.0)) <= 0.0:
-		var mb: Vector2 = sim.bot_pos_of("medbot")
-		if not sim.bots.is_dead("medbot") and (a.get("pos", Vector2.ZERO) as Vector2).distance_to(mb) < 1.8:
-			if sim.knife_bot("medbot", i):
-				a["_botCD"] = 10.0
-				a["_aiT"] = 1.5
+	# 拆机器人（2.5D aiAlien:4048 的 bot 候选）：有刀才列入候选（机器人只能被刀/枪瘫痪）。
+	# 保安默认不碰，必须先过 secbotRaidOk（认出 2+ 名 8 格内队友 + 共同捕杀目标 + 0.45 掷骰）；
+	# 医疗无人机是高价值目标（它挡救援），照常列入。贴身 1.8 格用刀，否则走过去。
+	if int(a.get("knife", 0)) > 0 and float(a.get("_botCD", 0.0)) <= 0.0 and real_d > 5.0:
+		var bot_kind := ""
+		var bot_pos := Vector2.ZERO
+		var bot_bd := 8.0
+		if not sim.bots.is_dead("secbot"):
+			var sq: Vector2 = sim.bot_pos_of("secbot")
+			if sim.secbot_raid_ok(a, sq):
+				var sd := ap0.distance_to(sq)
+				if sd < bot_bd:
+					bot_bd = sd
+					bot_kind = "secbot"
+					bot_pos = sq
+		if not sim.bots.is_dead("medbot"):
+			var mq: Vector2 = sim.bot_pos_of("medbot")
+			var md := ap0.distance_to(mq)
+			if md < bot_bd:
+				bot_bd = md
+				bot_kind = "medbot"
+				bot_pos = mq
+		if bot_kind != "":
+			if bot_bd < 1.8:
+				if sim.knife_bot(bot_kind, i):
+					a["_botCD"] = 10.0
+					a["_aiT"] = 1.5
+					return
+			elif sim.set_path(i, bot_pos):
 				return
 	# 2.5D aiAlien:4095「管道是核心位移能力」：排在补给/伪装之后、没刀游荡之前 ——
 	# 目标 >15 格且管道能省 5 格以上就走管道，而不是永远贴地跑。

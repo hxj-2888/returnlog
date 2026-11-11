@@ -2861,41 +2861,74 @@ func _run_powertest() -> void:
 		str(s1.rooms_on == 0 and s1.corridor_on == 0 and absf(s1.ambient - expect_amb) < 0.001)])
 	print("POWERTEST 断电 补光 fill=%.3f（预演期补光必须一起切，否则熄灯在画面上看不出来）" % s1.fill)
 
-	# 门：断电时靠近，未满扫描秒数必须拦人；扫满才放行
-	var door: Dictionary = extras.doors[0]
-	var at: Vector3 = (door["center"] as Vector3) + Vector3(0, 0.05, 0)
-	player.global_position = at
+	# 门：开合/扫描是**模拟层状态**（sim.door_tick ← 2.5D doorTick）。
+	# 断电时靠近，未满扫描秒数必须拦人；扫满才放行；离开重新上锁。
 	var scan_sec := SpaceData.num(space, "door", "scan_sec")
 	var pass_r := SpaceData.num(space, "door", "pass")
+	var vis_door: Dictionary = extras.doors[0]
+	var door_key := String(vis_door.get("key", ""))
+	var door: Dictionary = {}
+	for sd: Dictionary in sim.doors:
+		if String(sd.get("key", "")) == door_key:
+			door = sd
+			break
+	if door.is_empty():
+		print("POWERTEST FAIL sim 与场景的门键对不上：%s" % door_key)
+		return
+	# 开局 pre 会议还挂着（2.5D doorTick 同样在会议期冻结）——测试里清掉它，
+	# 只为了门能推进；真实对局里会议期间门就该冻着。
+	sim.meeting = {}
+	var at2 := Vector2(float(door["x"]), float(door["y"]))
+	var me_agent: Dictionary = sim.agent(sim.me_idx)
+	var saved_pos: Vector2 = me_agent.get("pos", Vector2.ZERO)
+	sim.light_state = 2
+	sim.power_on = false
+	# 2.5D doorTick 的 busy 只看 agent 位置：把人放到门口，才有"有人要过门"这件事。
+	me_agent["pos"] = at2
 	door["open"] = 0.0
 	door["scan_t"] = 0.0
-	extras.door_update(0.1, at, false)
+	sim.door_tick(0.1)
 	print("POWERTEST 门 0.1s scan=%.2f open=%.2f 拦人=%s（期望 scan<%.1f 且拦）" % [
 		float(door["scan_t"]), float(door["open"]), str(float(door["open"]) <= pass_r), scan_sec])
+	# 穿门方向的线段必须**垂直穿过**门缝（与门同向的线是平行线，segX 恒 false）
+	var seg_a := Vector2(float(door["x"]), float(door["y"]) - 3.0) if bool(door["horiz"]) \
+		else Vector2(float(door["x"]) - 3.0, float(door["y"]))
+	var seg_b := Vector2(float(door["x"]), float(door["y"]) + 3.0) if bool(door["horiz"]) \
+		else Vector2(float(door["x"]) + 3.0, float(door["y"]))
+	var blocked_mid: bool = sim.door_blocked_segment(seg_a.x, seg_a.y, seg_b.x, seg_b.y)
+	var los_closed: bool = not sim.los_now(seg_a.x, seg_a.y, seg_b.x, seg_b.y)
+	print("POWERTEST 门 未扫满 doorBlockedSegment=%s los被门挡=%s（期望 true true）"
+		% [str(blocked_mid), str(los_closed)])
 	var steps := int(ceil(scan_sec / 0.1)) + 6
 	for i in steps:
-		extras.door_update(0.1, at, false)
-	print("POWERTEST 门 %.1fs scan=%.2f open=%.2f 放行=%s" % [
-		scan_sec, float(door["scan_t"]), float(door["open"]), str(float(door["open"]) > pass_r)])
+		sim.door_tick(0.1)
+	var los_open: bool = sim.los_now(seg_a.x, seg_a.y, seg_b.x, seg_b.y)
+	print("POWERTEST 门 %.1fs scan=%.2f open=%.2f 放行=%s los通=%s（期望 true true）" % [
+		scan_sec, float(door["scan_t"]), float(door["open"]),
+		str(float(door["open"]) > pass_r), str(los_open)])
 	# 人离开 → 重新上锁（2.5D：离开后 scanT 归零）
-	var away := at + Vector3(14, 0, 0)
+	me_agent["pos"] = at2 + Vector2(14.0, 0.0)
 	for i in 40:
-		extras.door_update(0.1, away, false)
+		sim.door_tick(0.1)
 	print("POWERTEST 门 离开后 scan=%.2f open=%.2f 重新拦人=%s" % [
 		float(door["scan_t"]), float(door["open"]), str(float(door["open"]) <= pass_r)])
+	me_agent["pos"] = saved_pos
+	sim.light_state = 0
+	sim.power_on = true
+	door = vis_door
 	# 门扇几何：关闭时两扇必须在中线合拢（gap=0），完全打开时让出整段门洞（gap=2*half）。
 	var half := float(door["half"])
 	var off: Vector3 = door["offset"]
 	var leaves: Array = door["leaves"]
 	var blockers: Array = door["blockers"]
 	extras._apply_door_state(door, 0.0, pass_r, true, scan_sec)
-	var c0: Vector3 = (leaves[0] as MeshInstance3D).position
-	var c1: Vector3 = (leaves[1] as MeshInstance3D).position
+	var c0: Vector3 = (leaves[0] as Node3D).position
+	var c1: Vector3 = (leaves[1] as Node3D).position
 	var gap_closed := absf(((c1 - off * (half * 0.5)) - (c0 + off * (half * 0.5))).dot(off))
 	var closed_blocked := not (blockers[0]["shape"] as CollisionShape3D).disabled
 	extras._apply_door_state(door, 1.0, pass_r, true, scan_sec)
-	c0 = (leaves[0] as MeshInstance3D).position
-	c1 = (leaves[1] as MeshInstance3D).position
+	c0 = (leaves[0] as Node3D).position
+	c1 = (leaves[1] as Node3D).position
 	var gap_open := absf(((c1 - off * (half * 0.5)) - (c0 + off * (half * 0.5))).dot(off))
 	var open_blocked := not (blockers[0]["shape"] as CollisionShape3D).disabled
 	print("POWERTEST 门扇 closed_gap=%.3f closed_blocked=%s open_gap=%.3f open_blocked=%s" % [
@@ -4842,6 +4875,10 @@ func _run_b4test() -> bool:
 	m.skip_discussion()
 	m.tick(0.01)
 	var ph2 := String(m.meeting.get("phase", ""))
+	# ai_enabled=false（AI 全关）下 _cast_ai_votes 不会替 AI 落票 ——
+	# 投票矩阵由显式投票构造（与 b6test 的 vote_change 断言同一口径）。
+	m.cast_vote(0, 2)
+	m.cast_vote(1, 2)
 	var votes_n: int = (m.meeting.get("votes", {}) as Dictionary).size()
 	for k in 60:
 		m.tick(0.1)
@@ -5115,7 +5152,7 @@ func _has_screenshot_arg(args: PackedStringArray) -> bool:
 	for a in args:
 		if a in ["--shot", "--crewshot", "--doorshot", "--mgshot", "--devshot",
 				"--covershot", "--ceilshot", "--pipeshot", "--meetshot",
-				"--endshot", "--minishot", "--homeshot"]:
+				"--endshot", "--minishot", "--homeshot", "--reel"]:
 			return true
 	return false
 
@@ -5842,10 +5879,10 @@ func _process(delta: float) -> void:
 	if minimap != null:
 		minimap.player_pos = Vector2(player.global_position.x, player.global_position.z)
 		minimap.player_spectator = player.spectator
-	if extras != null and (sim == null or (sim.meeting.is_empty() and not sim.over)):
-		# 2.5D doorTick 在会议/结算期间冻结；触发范围检查所有活人，不只是玩家。
-		var door_agents: Array = sim.agents if sim != null else []
-		extras.door_update(delta, player.global_position, power_on, door_agents)
+	if extras != null and sim != null:
+		# 门的开合与扫描由 sim.tick → door_tick 决定（2.5D doorTick）；
+		# 这里是**单向表现同步**，不许在场景层再算一套开合状态。
+		extras.sync_doors(sim)
 	_knife_cd = maxf(0.0, _knife_cd - delta)
 	_shot_cd = maxf(0.0, _shot_cd - delta)
 	_pipe_cd = maxf(0.0, _pipe_cd - delta)
@@ -6160,7 +6197,7 @@ func _nearest_knife_target() -> Dictionary:
 		var d := p.distance_to(ap)
 		if d > best_d:
 			continue
-		if sim.nav != null and not sim.nav.los(p, ap):
+		if not sim.los_now(p.x, p.y, ap.x, ap.y):
 			continue
 		best_d = d
 		best = a
@@ -7033,7 +7070,7 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 		_toast("目标离开了刀程 —— 再靠近")
 		_knife_hit_fx(false)
 		return
-	if sim.nav != null and not sim.nav.los(me_pos, tgt_pos):
+	if not sim.los_now(me_pos.x, me_pos.y, tgt_pos.x, tgt_pos.y):
 		_probe("出刀 × 中间有墙/掩体")
 		_toast("中间有墙 / 掩体挡着，刀够不到")
 		_knife_hit_fx(false)
@@ -7095,7 +7132,7 @@ func _nearest_shot_target(max_d: float) -> Dictionary:
 		var d := p.distance_to(ap)
 		if d >= best_d:
 			continue
-		if sim.nav != null and not sim.nav.los(p, ap):
+		if not sim.los_now(p.x, p.y, ap.x, ap.y):
 			continue
 		if not sim.ai_can_see(me, ap):
 			continue

@@ -246,3 +246,9 @@ func _seg_x(a: Vector2, b: Vector2, c: Vector2, d: Vector2) -> bool:
 	var t := ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / den
 	var u := ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / den
 	return t > 0.001 and t < 0.999 and u >= 0.0 and u <= 1.0
+
+
+## 2.5D geo.js:139 segX 的公开入口：门的线段判定要复用它，
+## 不许在 sim_state 里再写一份相交测试（两份实现迟早在边界条件上分叉）。
+func seg_x(a: Vector2, b: Vector2, c: Vector2, d: Vector2) -> bool:
+	return _seg_x(a, b, c, d)

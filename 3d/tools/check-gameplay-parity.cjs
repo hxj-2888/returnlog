@@ -193,6 +193,16 @@ function autoTarget(jsFn) {
 }
 
 const rows = [];
+/* 2.5D 全仓的「左值」集合：用于识别死守卫（如 G.noReport 全仓无任何写入点，
+ * 恒为 undefined —— 要求 3D 复刻一个永远为假的守卫才是真正的偏离）。 */
+const assigned = new Set();
+for (const fn of jsFns) {
+  for (const m of fn.body.matchAll(/([A-Za-z_$][\w$.]*)\s*=(?!=)/g)) {
+    const name = m[1].replace(/^(?:G|global\.SKV3\._t\.G\(\))\./, '');
+    assigned.add(name.split('.').pop());
+  }
+  for (const m of fn.body.matchAll(/([A-Za-z_$][\w$]*)\s*:/g)) assigned.add(m[1]);
+}
 for (const fn of jsFns) {
   const key = fn.file + ':' + fn.name;
   if (ignore.has(key) || ignore.has(fn.name)) continue;
@@ -236,6 +246,12 @@ for (const fn of jsFns) {
     for (const g of guards) {
       const toks = identTokens(g.cond);
       if (toks.length === 0) continue;
+      // 死守卫：条件里引用的标识符在 2.5D 全仓从未被赋值（恒 undefined），
+      // 复刻它才是偏离 —— 跳过并计数。
+      if (toks.every((t) => !assigned.has(t))) {
+        row.dead_guards = (row.dead_guards || 0) + 1;
+        continue;
+      }
       // 空集合守卫在 2.5D 常写 `!arr.length`，3D 用 is_empty()：语义等价，直接放过
       const emptiness = /!\s*[\w.$]+\.length|\b\.length\s*===?\s*0/.test(g.cond);
       const hit = toks.some((t) => gdBody.includes(t)) || (emptiness && gdBody.includes('is_empty()'));

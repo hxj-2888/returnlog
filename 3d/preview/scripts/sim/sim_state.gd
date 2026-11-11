@@ -74,6 +74,12 @@ var stats: Dictionary = {}
 var _track_t: float = 0.0
 var point_done: Dictionary = {}
 var dmg: Array = []
+## 2.5D G.doors（js/game.js:415 buildDoors）：门是**模拟层状态**，不是场景装饰。
+## 开合 / 断电 2 秒扫描都会改变移动与视线（doorBlockedSegment / losNow），
+## 所以必须和 2.5D 一样放在 sim 里；scene_extras 只按这里的 open/scan_t 摆门扇。
+var doors: Array = []
+## 2.5D G.alienGhostSabUsed（js/game.js:2380）：异形幽灵的全局一次性破坏已发动。
+var alien_ghost_sab_used := false
 var meeting: Dictionary = {}
 ## 2.5D G.meetSeq：每场会议一个全局序号，结算页的投票矩阵按它分组。
 var meet_seq := 0
@@ -161,6 +167,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	breaker_pulls = 0
 	bot_hp = {"secbot": 2, "medbot": 1}
 	terminator_on = false
+	alien_ghost_sab_used = false
 
 	var names: Array = cfg.get("names", []) as Array
 	var n: int = int((cfg.get("roles", {}) as Dictionary).get("agents", 0))
@@ -287,6 +294,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	_ai_alien.setup(self, space)
 	bots = BotsScript.new()
 	bots.setup(self, space)
+	_build_doors()
 	_log("game_start", {"night": 1, "seed": p_seed, "me": me_idx})
 	# 2.5D：开局公开讨论（pre 会议，不投票），讨论完直接进第 1 夜。
 	open_meeting_kind(MEET_PRE, -1, -1)
@@ -487,8 +495,12 @@ func tick(dt: float) -> void:
 		return
 	if not meeting.is_empty():
 		_tick_meeting(dt)
+		# 2.5D doorTick 的守卫是 `if(!G||!G.doors||G.meet||G.over)return`：
+		# 会议期间门冻结（不扫、不开、不关），所以这里直接 return，不推进门。
 		return
 	elapsed += dt
+	# 2.5D doorTick 在每帧 AI 之前：门先决定开/关，AI 与移动再读同一份状态。
+	door_tick(dt)
 	if ai_enabled:
 		if _ai_human != null:
 			_ai_human.tick(dt)
@@ -515,6 +527,9 @@ func tick_agents(dt: float) -> void:
 	var drag_speed := SpaceData.num(space, "move", "drag_speed")
 	for a: Dictionary in agents:
 		if not bool(a.get("alive", false)):
+			# 2.5D aiGhost：AI 死者变幽灵继续做事/游荡；玩家幽灵由 player.gd 自己驱动
+			if int(a.get("i", -1)) != me_idx or spectator:
+				_ghost_tick(a, dt)
 			continue
 		if bool(a.get("detained", false)):
 			continue
@@ -557,6 +572,11 @@ func tick_agents(dt: float) -> void:
 			var body: Dictionary = agent(int(a.get("drag", -1)))
 			if not body.is_empty():
 				body["bodyPos"] = a.get("pos", Vector2.ZERO)
+			# 2.5D dragTick：拖尸每 1.6 秒 aiHear('drag',a,8,{actor}) —— 拖行是藏不住的
+			a["_dragAiT"] = float(a.get("_dragAiT", 0.0)) + dt
+			if float(a.get("_dragAiT", 0.0)) >= 1.6:
+				a["_dragAiT"] = 0.0
+				hear("drag", a.get("pos", Vector2.ZERO), 8.0, {"actor": int(a.get("i", -1))})
 		var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if path.size() == 0:
 			continue
@@ -566,21 +586,59 @@ func tick_agents(dt: float) -> void:
 		if int(a.get("drag", -1)) < 0 and float(a.get("rushT", 0.0)) > 0.0 \
 				and bool(a.get("alien", false)):
 			mul = float((cfg.get("rules", {}) as Dictionary).get("RUSH", {}).get("mul", 1.5))
-		var remain := (drag_speed if int(a.get("drag", -1)) >= 0 else speed * mul) * dt
+		var sp := drag_speed if int(a.get("drag", -1)) >= 0 else speed * mul
+		var remain := sp * dt
 		var pi := int(a.get("pathI", 0))
 		var pos: Vector2 = a.get("pos", Vector2.ZERO)
+		var from_pos := pos
+		var free_fly := bool(a.get("ghost", false)) and not bool(a.get("alive", false))
 		while remain > 0.0 and pi < path.size():
 			var tgt: Vector2 = path[pi]
 			var d := pos.distance_to(tgt)
 			if d <= remain:
+				# 2.5D stepMove（js/game.js:828）：门挡住就**停在原地**并结束本帧移动，
+				# 路径保留（下一拍 AI 重规划 / 等门开），不穿门也不绕路。
+				if not free_fly and door_blocked_segment(pos.x, pos.y, tgt.x, tgt.y):
+					a["moving"] = false
+					break
 				pos = tgt
 				pi += 1
 				remain -= d
 			else:
-				pos += (tgt - pos).normalized() * remain
+				var nx := pos + (tgt - pos).normalized() * remain
+				if not free_fly and door_blocked_segment(pos.x, pos.y, nx.x, nx.y):
+					a["moving"] = false
+					remain = 0.0
+					break
+				pos = nx
 				remain = 0.0
+		# 2.5D 围墙兜底：活人永远留在可行走面内（幽灵才允许穿墙）
+		if not free_fly and nav != null and not nav.is_free(pos):
+			pos = nav.nearest_free(pos)
+		# 2.5D 拐角卡死兜底：路径还在但连续 0.7 秒没有位移 ⇒ 从最近可走点重寻路。
+		# 3D 之前只有 ai_human 里有 _stuck()，被门/拐角卡住的 AI 会一直原地踏步。
+		if not free_fly and pi < path.size() and nav != null:
+			if pos.distance_to(from_pos) < 0.004:
+				a["_stuckT"] = float(a.get("_stuckT", 0.0)) + dt
+			else:
+				a["_stuckT"] = 0.0
+			if float(a.get("_stuckT", 0.0)) > 0.7:
+				var dest: Vector2 = path[path.size() - 1]
+				pos = nav.nearest_free(pos)
+				a["_stuckT"] = 0.0
+				var np: PackedVector2Array = nav.path(pos, dest)
+				a["path"] = np
+				a["pathI"] = 0
+				a["pos"] = pos
+				a["moving"] = np.size() > 0
+				continue
+		else:
+			a["_stuckT"] = 0.0
 		a["pos"] = pos
 		a["pathI"] = pi
+		# 2.5D：记住最后一次真实位移方向，停下后仍作为"手电朝向"
+		if pos.distance_to(from_pos) > 0.002:
+			a["aimAng"] = atan2(pos.y - from_pos.y, pos.x - from_pos.x)
 		if pi >= path.size():
 			a["path"] = PackedVector2Array()
 			a["pathI"] = 0
@@ -874,7 +932,9 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	# 目击者：7m 内、真实视线不被墙/掩体挡住的人记一笔"我看见他动手"。
 	# 这是 B3 的最小理智线；B5 再换成完整的 sus/mind。
 	_witness_action(k, "saw_knife", v.get("pos", Vector2.ZERO))
-	_broadcast_noise(v.get("pos", Vector2.ZERO), 16.0)
+	# 2.5D aiHear('knife',victim,14,{actor,victim}) + screamFor → aiHear('scream',16,{victim})
+	hear("knife", v.get("pos", Vector2.ZERO), 14.0, {"actor": killer_i, "victim": victim_i})
+	hear("scream", v.get("pos", Vector2.ZERO), 16.0, {"victim": victim_i})
 	# 刀者红身（2.5D RED_BODY.dur=1.5）：刚出刀的人身上带红光，
 	# 1.5 秒内被看见 → saw_red（EV_W 最高权重 0.85）。
 	_witness_action(k, "saw_red", k.get("pos", Vector2.ZERO))
@@ -920,7 +980,7 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	var vp: Vector2 = v.get("pos", Vector2.ZERO)
 	if kp.distance_to(vp) > SpaceData.num(space, "shoot", "range"):
 		return false
-	if nav != null and not nav.los(kp, vp):
+	if not los_now(kp.x, kp.y, vp.x, vp.y):
 		return false
 	k["bullet"] = int(k.get("bullet", 0)) - 1
 	# 2.5D fireShot()（js/game.js:8270-8282）：先扣子弹、先记危险行为，再进 DEV 免伤。
@@ -943,7 +1003,8 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	# 2.5D fireShot：目击者按 noticeAction(7 格) 记 **saw_shot**（目击证据 0.55），
 	# 不是听来的传闻；枪声另走 aiHear(20 格) 的 heard 通道（权重 0.16）。
 	_witness_action(k, "saw_shot", vp)
-	_broadcast_noise(vp, 20.0)
+	# 2.5D fireShot：枪声在**射手**位置广播（aiHear('shot',shooter,20,{actor,victim})）
+	hear("shot", kp, 20.0, {"actor": shooter_i, "victim": target_i})
 	# 开枪者红身：与出刀同一个 RED_BODY 窗口
 	k["redT"] = float((cfg.get("rules", {}) as Dictionary).get("RED_BODY", {}).get("dur", 1.5))
 	_witness_action(k, "saw_red", kp)
@@ -1092,10 +1153,10 @@ func ai_can_see(observer: Dictionary, p: Vector2) -> bool:
 			var rid := oz.substr(2)
 			var c := corridor_by_id(tz.substr(2))
 			if not c.is_empty() and corr_joins_room(rid, c) \
-					and nav != null and nav.los(wp, p):
+					and los_now(wp.x, wp.y, p.x, p.y):
 				return true
 	var d := wp.distance_to(p)
-	var los_ok: bool = nav != null and nav.los(wp, p)
+	var los_ok: bool = los_now(wp.x, wp.y, p.x, p.y)
 	if d <= dark_r and los_ok:
 		return true
 	if d > light_r or not los_ok:
@@ -1352,7 +1413,7 @@ func player_sabotage(room_id: String) -> bool:
 	return true
 
 
-func sabotage_room(room_id: String, by: int) -> bool:
+func sabotage_room(room_id: String, by: int, ghost: bool = false) -> bool:
 	if room_id == "" or room_id == "bridge":
 		return false
 	for d: Dictionary in dmg:
@@ -1372,7 +1433,12 @@ func sabotage_room(room_id: String, by: int) -> bool:
 		sab_by["sabUsed"] = true
 	dmg.append({"room": room_id, "by": by, "left": 30.0, "x": px, "y": py})
 	_log("sabotage", {"actor": by, "room": room_id})
-	_broadcast_noise(Vector2(px, py), 14.0)
+	# 2.5D damageRoom：aiHear('sabotage',sp,20,{actor})
+	hear("sabotage", Vector2(px, py), 20.0, {"actor": by})
+	# 2.5D damageRoom：活人破坏写目击（witnessAlienAction 6 格）；
+	# 幽灵不可被活人看见 → 不写目击证据（故障/警报/声音/统计照常）
+	if not ghost and not sab_by.is_empty():
+		_witness_action(sab_by, "saw_sabotage", Vector2(px, py))
 	return true
 
 
@@ -1399,6 +1465,569 @@ func _tick_dmg(dt: float) -> void:
 			prog = maxi(0, prog - int((cfg.get("win", {}) as Dictionary).get("fault_penalty", 5)))
 			_log("fix", {"room": String(d.get("room", "")), "ok": false, "prog": prog})
 			dmg.remove_at(i)
+
+
+#  ---------------- 门（2.5D buildDoors / doorTick / doorBlockedSegment / losNow） ----------------
+# 2.5D 的门是模拟状态：它挡人（doorBlockedSegment）、挡视线与枪线（losNow）、
+# 断电时要完成 2 秒扫描才放行。3D 之前门只在 scene_extras 里当装饰动画，
+# sim 完全不知道门的存在 —— 于是关着的门既不挡人也不挡视线/枪线。
+# 这里按 2.5D 逐行搬：几何来自 map 的 room.doors × 走廊端点匹配，数值读 space.json#door。
+#
+
+## 2.5D buildDoors（js/game.js:415）：只给「走廊端点正对的那扇舱门」生成门，
+## id 是 `走廊id:舱室id`。全 22 扇门规格与 22 个走廊端点一一对应（无遗漏无重复）。
+func _build_doors() -> void:
+	doors = []
+	var width := SpaceData.num(space, "door", "width")
+	for c: Dictionary in (map.get("corridors", []) as Array):
+		var pts: Array = c.get("pts", []) as Array
+		if pts.size() < 2:
+			continue
+		var cid := String(c.get("id", ""))
+		for e: Array in [[0, String(c.get("a", ""))], [pts.size() - 1, String(c.get("b", ""))]]:
+			var rid := String(e[1])
+			var r: Dictionary = rooms_by_id.get(rid, {}) as Dictionary
+			if r.is_empty():
+				continue
+			var p: Array = pts[int(e[0])] as Array
+			var rect: Array = r.get("rect", []) as Array
+			if rect.size() < 4 or p.size() < 2:
+				continue
+			var best: Array = []
+			var bd := 1.0e9
+			for d: Array in (r.get("doors", []) as Array):
+				var side := String(d[0])
+				var v := float(d[1])
+				if side == "t" or side == "b":
+					var wy := float(rect[1]) if side == "t" else float(rect[1]) + float(rect[3])
+					if absf(float(p[1]) - wy) > 0.01:
+						continue
+					var dd := absf(v - float(p[0]))
+					if dd < bd:
+						bd = dd
+						best = d
+				else:
+					var wx := float(rect[0]) if side == "l" else float(rect[0]) + float(rect[2])
+					if absf(float(p[0]) - wx) > 0.01:
+						continue
+					var dd2 := absf(v - float(p[1]))
+					if dd2 < bd:
+						bd = dd2
+						best = d
+			if best.is_empty():
+				continue
+			var side2 := String(best[0])
+			var horiz := side2 == "t" or side2 == "b"
+			var x := float(best[1]) if horiz else \
+				(float(rect[0]) if side2 == "l" else float(rect[0]) + float(rect[2]))
+			var y := (float(rect[1]) if side2 == "t" else float(rect[1]) + float(rect[3])) \
+				if horiz else float(best[1])
+			doors.append({
+				"id": cid + ":" + rid,
+				# 表现层按这个键找回自己那扇门（房间|边|坐标），不靠数组下标，
+				# 避免两边遍历顺序一变就错位。
+				"key": "%s|%s|%.3f" % [rid, side2, float(best[1])],
+				"room": rid, "x": x, "y": y, "horiz": horiz, "w": width,
+				"open": 0.0, "scan_t": 0.0,
+				"x1": x - width * 0.5 if horiz else x,
+				"y1": y if horiz else y - width * 0.5,
+				"x2": x + width * 0.5 if horiz else x,
+				"y2": y if horiz else y + width * 0.5,
+			})
+
+
+## 2.5D doorTick（js/game.js:448）：断电时全船每扇门都要 2 秒安检扫描才放行；
+## 人离开重新上锁；恢复供电立即解除。滞回半径（open_r 3.0 / close_r 3.6）照抄。
+func door_tick(dt: float) -> void:
+	if doors.is_empty() or not meeting.is_empty() or over:
+		return
+	var blackout := light_state == 2
+	var open_r := SpaceData.num(space, "door", "open_r")
+	var close_r := SpaceData.num(space, "door", "close_r")
+	var speed := SpaceData.num(space, "door", "speed")
+	var scan_sec := SpaceData.num(space, "door", "scan_sec")
+	for d: Dictionary in doors:
+		var scan_rule := blackout
+		var range_r := close_r if scan_rule else (close_r if float(d["open"]) > 0.02 else open_r)
+		var busy := false
+		for a: Dictionary in agents:
+			if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+					or bool(a.get("detained", false)):
+				continue
+			if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(
+					Vector2(float(d["x"]), float(d["y"]))) < range_r:
+				busy = true
+				break
+		var target := 0.0
+		if not scan_rule:
+			d["scan_t"] = 0.0
+			target = 1.0 if busy else 0.0
+		elif not busy:
+			d["scan_t"] = 0.0
+		else:
+			d["scan_t"] = minf(scan_sec, float(d["scan_t"]) + dt)
+			target = 1.0 if float(d["scan_t"]) >= scan_sec else 0.0
+		var prev := float(d["open"])
+		if float(d["open"]) < target:
+			d["open"] = minf(target, float(d["open"]) + dt * speed)
+		elif float(d["open"]) > target:
+			d["open"] = maxf(target, float(d["open"]) - dt * speed)
+		# 2.5D doorAutoSound：完全开 / 完全关各响一次，滑动中途不响。
+		# 声音是**玩法输入**（附近 AI 听得见），不是纯表现，所以放在 sim。
+		# 2.5D doorAutoSound 不写事件流（复盘里没有门事件），所以这里也不 _log：
+		# AI 听觉（hear）是玩法输入，事件流是只读旁路，两者不混。
+		if (prev < 1.0 and float(d["open"]) >= 1.0) or (prev > 0.0 and float(d["open"]) <= 0.0):
+			hear("door", Vector2(float(d["x"]), float(d["y"])), 7.0)
+
+
+## 2.5D doorBlockedSegment（js/game.js:484）：这一步会不会穿门。
+## 断电期间只要扫描没满就一定拦（会议室也不再豁免）；否则门没开过 pass 也拦。
+func door_blocked_segment(x1: float, y1: float, x2: float, y2: float) -> bool:
+	if doors.is_empty() or nav == null:
+		return false
+	var a := Vector2(x1, y1)
+	var b := Vector2(x2, y2)
+	var pass_r := SpaceData.num(space, "door", "pass")
+	var scan_sec := SpaceData.num(space, "door", "scan_sec")
+	for d: Dictionary in doors:
+		var da := Vector2(float(d["x1"]), float(d["y1"]))
+		var db := Vector2(float(d["x2"]), float(d["y2"]))
+		if not nav.seg_x(a, b, da, db):
+			continue
+		if light_state == 2 and float(d["scan_t"]) < scan_sec:
+			return true
+		if float(d["open"]) > pass_r:
+			continue
+		return true
+	return false
+
+
+## 2.5D losNow（js/game.js:495）：墙/掩体视线 **且** 没有关着的门。
+## 玩家 (visibleAt)、AI (aiCanSee)、枪线 (fireShot)、听觉置信 (aiHear) 共用这一条。
+func los_now(x1: float, y1: float, x2: float, y2: float) -> bool:
+	if nav == null:
+		return true
+	var a := Vector2(x1, y1)
+	var b := Vector2(x2, y2)
+	if not nav.los(a, b):
+		return false
+	if doors.is_empty():
+		return true
+	var pass_r := SpaceData.num(space, "door", "pass")
+	for d: Dictionary in doors:
+		if float(d["open"]) > pass_r:
+			continue
+		if nav.seg_x(a, b, Vector2(float(d["x1"]), float(d["y1"])),
+				Vector2(float(d["x2"]), float(d["y2"]))):
+			return false
+	return true
+
+
+# ---------------- 通用小工具（2.5D 同名函数的逐行移植） ----------------
+
+## 2.5D nightMeetLeft（js/t2/decision.js:154）：本夜还能开几场会。
+## 在消耗报告额度之前必须先问这一句。
+func night_meet_left() -> int:
+	if over or not meeting.is_empty():
+		return 0
+	return maxi(0, int((cfg.get("rules", {}) as Dictionary).get("MEET", {})
+		.get("perNight", 2)) - night_meets)
+
+
+## 2.5D sabRoomOk（js/game.js:1065）：可破坏的舱室 = 存在 + 不是会议室 + 没有未修复故障。
+func sab_room_ok(rid: String) -> bool:
+	if rid == "" or rid == "bridge" or not rooms_by_id.has(rid):
+		return false
+	for d: Dictionary in dmg:
+		if String(d.get("room", "")) == rid:
+			return false
+	return true
+
+
+## 2.5D watchersAt（js/game.js:3183）：数"有几个人能看见这一下"。
+## 半径取 max(调用方 rad, HUMAN_LIGHT_R, sightRangeAt) —— 亮舱整间可见，
+## 调用方的 rad 只是"我至少关心这么远"；注意力不在网上的人不计入。
+func watchers_at(a: Dictionary, at: Vector2, rad: float, except_i: int = -1) -> Array:
+	var out: Array = []
+	var r := maxf(maxf(rad, SpaceData.num(space, "sight", "human_light_r")),
+		sight_range_at(at))
+	for w: Dictionary in agents:
+		var wi := int(w.get("i", -1))
+		if w == a or wi == except_i or not bool(w.get("alive", false)) \
+				or bool(w.get("downed", false)) or bool(w.get("detained", false)):
+			continue
+		# 2.5D attention(w) != 'online'：站桩做事的人看不见，不计入观众表
+		if float(w.get("doing", 0.0)) > 0.0:
+			continue
+		if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(at) > r:
+			continue
+		if not ai_can_see(w, at):
+			continue
+		out.append(w)
+	return out
+
+
+## 2.5D recentWitness（js/game.js:3121）：最近 sec 秒内有没有活人看见过我。
+## 3D 的 seenBy 存在观察者身上（w.seenBy = 我看见过谁），语义与 2.5D 方向相反但等价。
+func recent_witness(a: Dictionary, sec: float) -> bool:
+	var ai := int(a.get("i", -1))
+	for w: Dictionary in agents:
+		if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		var seen: Dictionary = w.get("seenBy", {}) as Dictionary
+		if not seen.has(ai):
+			continue
+		var rec: Dictionary = seen[ai] as Dictionary
+		if elapsed - float(rec.get("t", 0.0)) < sec:
+			return true
+	return false
+
+
+## 2.5D secbotRaidOk（js/game.js:8365）：拆保安的前置条件。
+##   · 认出 ≥2 名 8 格内的活队友；· 保安 8 格内有活人（非队友）目标；
+##   · 至少一名队友也在朝目标靠（≤7 格）；· 围攻成立也只有 0.45 概率动手。
+func secbot_raid_ok(a: Dictionary, sec_pos: Vector2) -> bool:
+	if a.is_empty() or not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+		return false
+	var mates := 0
+	for k: Variant in (a.get("mates", {}) as Dictionary).keys():
+		var m: Dictionary = agent(int(k))
+		if m.is_empty() or not bool(m.get("alive", false)) or bool(m.get("downed", false)) \
+				or bool(m.get("detained", false)):
+			continue
+		if (m.get("pos", Vector2.ZERO) as Vector2).distance_to(sec_pos) <= 8.0:
+			mates += 1
+	if mates < 2:
+		return false
+	for v: Dictionary in agents:
+		var vi := int(v.get("i", -1))
+		if v == a or not bool(v.get("alive", false)) or bool(v.get("downed", false)) \
+				or bool(v.get("detained", false)) or bool(v.get("alien", false)):
+			continue
+		if (v.get("pos", Vector2.ZERO) as Vector2).distance_to(sec_pos) > 8.0:
+			continue
+		for k2: Variant in (a.get("mates", {}) as Dictionary).keys():
+			var m2: Dictionary = agent(int(k2))
+			if m2.is_empty() or not bool(m2.get("alive", false)) or bool(m2.get("downed", false)) \
+					or bool(m2.get("detained", false)):
+				continue
+			var m2p: Vector2 = m2.get("pos", Vector2.ZERO)
+			if m2p.distance_to(sec_pos) > 8.0:
+				continue
+			# 0.45（2.5D 2026-11-02：围攻成立也有一半以上概率放弃，拆保安是偶发事件）
+			if m2p.distance_to(v.get("pos", Vector2.ZERO)) <= 7.0:
+				return _rng.randf() < 0.45
+	return false
+
+
+# ---------------- 尸体扫描 / 报告（2.5D aiScanBodies，js/game.js:2524） ----------------
+# 对所有活着的 AI（人类 + 异形）共用一条扫描链：
+#   每 0.5s 找 5.4 格内看得见的未报告尸体 -> observeBody 记忆 ->
+#   缺物资/要取证就先搜（STAND.search）-> 否则按 reportT 延迟拉铃
+#   （拉铃前还要过 canReportBody：额度 / 夜场名额 / 异形的误导收益）。
+# 3D 之前异形用的是自造的 35%/20% 概率报告，本函数按 2.5D 逐行替换。
+func scan_bodies(a: Dictionary, dt: float) -> void:
+	var ai := int(a.get("i", -1))
+	if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+			or bool(a.get("detained", false)) or over:
+		return
+	# 正在拖尸时不让扫描抢先拉铃（2.5D a.drag!=null 短路）
+	if int(a.get("drag", -1)) >= 0:
+		return
+	var rt := float(a.get("_reportT", 0.0))
+	if rt > 0.0:
+		a["_reportT"] = rt - dt
+		if float(a.get("_reportT", 0.0)) > 0.0:
+			return
+		var vi := int(a.get("_reportBody", -1))
+		a["_reportBody"] = -1
+		if vi < 0 or over or not meeting.is_empty():
+			return
+		var v: Dictionary = agent(vi)
+		if v.is_empty() or bool(v.get("bodyReported", false)):
+			return
+		var bp: Vector2 = v.get("bodyPos", Vector2.ZERO)
+		# 2.5D：5.8 格内 + 还看得见才真的拉铃；额度/夜场名额在 canReportBody 已筛过
+		if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(bp) <= 5.8 \
+				and ai_can_see(a, bp) and can_report_body(a, v):
+			a["reportLeft"] = maxi(0, int(a.get("reportLeft", 0)) - 1)
+			v["bodyReported"] = true
+			_stat("reportsUsed", 1)
+			open_meeting_kind(MEET_NIGHT, ai, vi)
+		return
+	a["_scanT"] = float(a.get("_scanT", 0.0)) + dt
+	if float(a.get("_scanT", 0.0)) < 0.5:
+		return
+	a["_scanT"] = 0.0
+	var best: Dictionary = {}
+	var bd := 5.4
+	for v: Dictionary in agents:
+		if v == a:
+			continue
+		if bool(v.get("bodyGone", false)) or bool(v.get("bodyReported", false)):
+			continue
+		if bool(v.get("alive", false)) and not bool(v.get("downed", false)):
+			continue
+		var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+		var d := (a.get("pos", Vector2.ZERO) as Vector2).distance_to(bp)
+		if d < bd and ai_can_see(a, bp):
+			bd = d
+			best = v
+	if best.is_empty():
+		return
+	if mind != null:
+		mind.note_body_seen(a, int(best.get("i", -1)))
+	# 搜查 / 翻尸（2.5D：要取证的人类、缺物资的任何 AI 都会停下来搜一次）
+	var want_loot := ai_wants_loot(a, best)
+	var want_evidence: bool = not bool(a.get("alien", false)) \
+		and not bool(best.get("searched", false))
+	var busy_search := false
+	for x: Dictionary in agents:
+		if x != a and String(x.get("_doing", "")) == "search" \
+				and int(x.get("_sv", -1)) == int(best.get("i", -1)):
+			busy_search = true
+			break
+	var rescue: bool = int(a.get("medkit", 0)) > 0 and bool(best.get("alive", false)) \
+		and bool(best.get("downed", false))
+	if not rescue and not busy_search and int(a.get("drag", -1)) < 0 \
+			and best.get("draggedBy") == null and bd < 2.2 \
+			and float(a.get("doing", 0.0)) <= 0.0 and (want_evidence or want_loot):
+		start_doing(ai, "search", SpaceData.num(space, "stand", "search"), -1, "")
+		a["_sv"] = int(best.get("i", -1))
+		return
+	if can_report_body(a, best):
+		var alien := bool(a.get("alien", false))
+		a["_sawBody"] = int(best.get("i", -1))
+		a["_reportT"] = (2.0 if alien else 1.4) + _rng.randf() * (2.0 if alien else 1.6)
+		a["_reportBody"] = int(best.get("i", -1))
+
+
+## 2.5D aiWantsLoot（js/game.js:2144）逐行：目标必须是死者或濒死者；
+## 缺弹 / 缺医疗包 / 缺申请单（qual<2 且目标身上或其未领申请单有货）三者其一；
+## 异形不搜已认出的队友。
+func ai_wants_loot(a: Dictionary, b: Dictionary) -> bool:
+	if a.is_empty() or b.is_empty():
+		return false
+	if bool(a.get("alien", false)) and mind != null \
+			and mind._is_mate(a, int(b.get("i", -1))):
+		return false
+	if bool(b.get("alive", false)) and not bool(b.get("downed", false)):
+		return false
+	if int(a.get("bullet", 0)) < 1 and int(b.get("bullet", 0)) > 0:
+		return true
+	if int(a.get("medkit", 0)) < 1 and int(b.get("medkit", 0)) > 0:
+		return true
+	if int(a.get("qual", 0)) < 2 and (int(b.get("qual", 0)) > 0 \
+			or int(b.get("qualPending", 0)) > 0):
+		return true
+	return false
+
+
+## 2.5D canReportBody（js/game.js:2621）：额度 / 夜场名额 / 濒死与尸体分开判。
+func can_report_body(a: Dictionary, v: Dictionary) -> bool:
+	if int(a.get("reportLeft", 0)) <= 0 or night_meet_left() <= 0:
+		return false
+	if bool(v.get("alive", false)) and bool(v.get("downed", false)):
+		# 濒死者不是尸体：人类只有掌握线索/高警觉才拉铃，异形只在没人看着时拉
+		if bool(a.get("alien", false)):
+			return not recent_witness(a, 20.0)
+		if mind != null:
+			if not mind.best_known_target(a).is_empty():
+				return true
+			if float(a.get("alert", 0.0)) >= 0.4:
+				return true
+			return not mind.top_sus(a, 0.45).is_empty()
+		return false
+	# 尸体：异形按误导收益算一次并记 memo（每具尸体只采样一次）；人类照常报告
+	if bool(a.get("alien", false)):
+		var memo: Dictionary = a.get("_reportMemo", {}) as Dictionary
+		var vi := int(v.get("i", -1))
+		if not memo.has(vi):
+			memo[vi] = alien_report_worth(a, v) >= rules.n("MISLEAD", "threshold", 0.3)
+			a["_reportMemo"] = memo
+		return bool(memo[vi])
+	return true
+
+
+## 2.5D alienReportWorth（js/game.js:2591）：异形报告的误导收益。
+## 收益 = 现成靶子 + 可栽赃的人 - 自己的牵连风险；风险 = 现场有人看着 / 刚被看见；
+## 稀缺 = 报告额度与夜场名额。公开热度只看**当众指认**（2026-11-05 反读心裁定）。
+func alien_report_worth(a: Dictionary, v: Dictionary) -> float:
+	var hot := 0
+	var clean := 0
+	if mind != null:
+		for w: Dictionary in agents:
+			var wi := int(w.get("i", -1))
+			if w == a or not bool(w.get("alive", false)) or bool(w.get("downed", false)) \
+					or bool(w.get("alien", false)):
+				continue
+			var heat: float = mind.public_heat(wi)
+			if heat >= rules.n("MISLEAD", "hotSus", 0.35):
+				hot += 1
+			elif heat <= 0.12:
+				clean += 1
+	var self_sus: float = mind.public_heat(int(a.get("i", -1))) if mind != null else 0.0
+	# 暴露风险：案发 7 格内非队友的观众数（watchersAt 同口径）
+	var wit := 0
+	for w: Dictionary in watchers_at(a, v.get("bodyPos", Vector2.ZERO), 7.0,
+			int(v.get("i", -1))):
+		if mind == null or not mind._is_mate(a, int(w.get("i", -1))):
+			wit += 1
+	var risk := 1.0
+	if wit >= 2:
+		risk = rules.n("MISLEAD", "riskWatch2", 0.3)
+	elif wit == 1:
+		risk = rules.n("MISLEAD", "riskWatch1", 0.6)
+	# 刚被人看见过（25 秒内）就先别抛头露面
+	var seen: float = rules.n("MISLEAD", "seenPenalty", 0.45) if recent_witness(a, 25.0) else 1.0
+	# 每只异形一个固定倾向（开局抽好，避免同一只永远同一套打法）
+	var bias: float = float(a.get("_stallBias", 1.0))
+	var left := maxi(0, int(a.get("reportLeft", 0)))
+	var scarce := 1.0 if left >= 2 else (0.55 if left == 1 else 0.0)
+	var meet_scarce := 0.7 if night_meet_left() <= 1 else 1.0
+	var frame: float = rules.n("MISLEAD", "base", 0.4) \
+		+ rules.n("MISLEAD", "hotGain", 0.2) * minf(rules.n("MISLEAD", "hotMax", 3), hot) \
+		+ rules.n("MISLEAD", "cleanGain", 0.08) * minf(rules.n("MISLEAD", "cleanMax", 4), clean) \
+		- rules.n("MISLEAD", "selfRisk", 0.3) * minf(1.0, self_sus)
+	return maxf(0.0, frame) * risk * seen * bias * scarce * meet_scarce
+
+
+# ---------------- 幽灵（2.5D aiGhost，js/game.js:2371） ----------------
+# 死者不是出局：
+#   · 异形幽灵 = 全局仅限一次的正统破坏（ghost 模式：故障真实、不写目击证据），
+#     之后 2.4 格/秒游荡；
+#   · 人类幽灵 = 额度内继续做自己的任务（6.5 格/秒），做完/额度尽 -> 2.4 格/秒巡舱。
+# 玩家幽灵由 view 层（player.gd set_ghost）自己驱动，这里只跑 AI。
+func _ghost_tick(a: Dictionary, dt: float) -> void:
+	var i := int(a.get("i", -1))
+	# 站桩照常推进（人类幽灵可以站着做任务；幽灵破坏没有站桩）
+	if float(a.get("doing", 0.0)) > 0.0:
+		a["doing"] = float(a.get("doing", 0.0)) - dt
+		if float(a.get("doing", 0.0)) <= 0.0:
+			a["doing"] = 0.0
+			_finish_doing(a)
+			return
+	if bool(a.get("alien", false)):
+		if not over and meeting.is_empty() and not alien_ghost_sab_used \
+				and not bool(a.get("sabUsed", false)):
+			var rooms: Array = []
+			for rid: String in rooms_by_id.keys():
+				if sab_room_ok(rid):
+					rooms.append(rid)
+			if not rooms.is_empty():
+				var rid: String = rooms[_rng.randi_range(0, rooms.size() - 1)]
+				if sabotage_room(rid, i, true):
+					alien_ghost_sab_used = true
+					_stat("ghostSabotages", 1)
+		# 2.5D：破坏之后继续游荡，不再原地待机
+		_ghost_roam(a, dt, 2.4)
+		return
+	# 人类幽灵：额度内继续做任务
+	var tasks: Array = a.get("tasks", []) as Array
+	if int(a.get("ghostPts", 0)) < ghost_cap() and int(a.get("tIdx", 0)) < tasks.size():
+		var pi := int(tasks[int(a.get("tIdx", 0))])
+		var p: Dictionary = point(pi)
+		if not p.is_empty():
+			var tp := Vector2(float(p.get("x", 0.0)), float(p.get("y", 0.0)))
+			var ap: Vector2 = a.get("pos", Vector2.ZERO)
+			if ap.distance_to(tp) < 2.8:
+				if can_do_task(pi, i):
+					# 2.5D startTask(a,p,true)：幽灵站桩 = 任务时长 ×1.6，结算走同一条链
+					start_doing(i, "task", float(p.get("dur", 6.0)) * 1.6, pi)
+					return
+			elif (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+				# 2.5D walkTo 冷却：不可达目标 1.2 秒内不重跑 A*
+				if float(a.get("_pathCD", 0.0)) > 0.0:
+					a["_pathCD"] = maxf(0.0, float(a.get("_pathCD", 0.0)) - dt)
+					return
+				if not set_path(i, tp):
+					a["_pathCD"] = 1.2
+				return
+	_ghost_roam(a, dt, 2.4)
+
+
+func _ghost_roam(a: Dictionary, dt: float, sp: float) -> void:
+	# 2.5D walkTo 的冷却（js/game.js:798）：不可达目标不要每帧重跑 A* ——
+	# 幽灵死在掩体/墙里时 set_path 可能永远失败，没有冷却就是每帧一次全图 A*。
+	if float(a.get("_pathCD", 0.0)) > 0.0:
+		a["_pathCD"] = maxf(0.0, float(a.get("_pathCD", 0.0)) - dt)
+		_ghost_move(a, dt, sp)
+		return
+	if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+		var rooms: Array = map.get("rooms", []) as Array
+		if rooms.is_empty():
+			return
+		var rr: Dictionary = rooms[_rng.randi_range(0, rooms.size() - 1)]
+		if not set_path(int(a.get("i", -1)), room_center(String(rr.get("id", "")))):
+			a["_pathCD"] = 1.2
+	_ghost_move(a, dt, sp)
+
+
+## 幽灵位移：freeFly（不查门、不查墙），其余与 stepMove 同构。
+func _ghost_move(a: Dictionary, dt: float, sp: float) -> void:
+	var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+	if path.is_empty():
+		return
+	var remain := sp * dt
+	var pi := int(a.get("pathI", 0))
+	var pos: Vector2 = a.get("pos", Vector2.ZERO)
+	while remain > 0.0 and pi < path.size():
+		var tgt: Vector2 = path[pi]
+		var d := pos.distance_to(tgt)
+		if d <= remain:
+			pos = tgt
+			pi += 1
+			remain -= d
+		else:
+			pos += (tgt - pos).normalized() * remain
+			remain = 0.0
+	a["pos"] = pos
+	a["pathI"] = pi
+	if pi >= path.size():
+		a["path"] = PackedVector2Array()
+		a["pathI"] = 0
+		a["moving"] = false
+
+
+#  ---------------- 听觉（2.5D aiHear，js/game.js:1827） ----------------
+# 3D 之前只有 _broadcast_noise 往 a.noise 写一个点，**不写任何证据**：
+# 隔墙听见有人出刀 / 拉闸 / 钻管道，在 3D 里完全不留痕迹（2.5D 会记 heard_# 并加嫌疑）。
+# 这里按 2.5D 原样：距离衰减 × 视线（听得见 = 1.0，隔墙 0.72），
+# 最低 0.12；EV_W 里有对应权重且给了 subj 才 susAdd。
+#
+func hear(kind: String, at: Vector2, rad: float, extra: Dictionary = {}) -> void:
+	if over or not meeting.is_empty():
+		return
+	var actor: Variant = extra.get("actor", null)
+	var subj := int(extra.get("subj", -1))
+	var victim: Variant = extra.get("victim", null)
+	var ev_w: Dictionary = rules.constant("EV_W") as Dictionary if rules != null else {}
+	for a: Dictionary in agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+				or bool(a.get("detained", false)):
+			continue
+		if actor is Dictionary and actor == a:
+			continue
+		if actor is int and int(actor) == int(a.get("i", -1)):
+			continue
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		var d := ap.distance_to(at)
+		if d > rad:
+			continue
+		var los_ok := los_now(ap.x, ap.y, at.x, at.y)
+		var conf := maxf(0.12, 1.0 - d / rad) * (1.0 if los_ok else 0.72)
+		# 2.5D evPush 的 sounded 证据：3D 没有 mem 时间线，落到 noise 槽（AI 循声查探用）。
+		a["noise"] = {"x": at.x, "y": at.y, "t": elapsed, "night": int(night),
+			"kind": "heard_" + kind, "conf": snappedf(conf, 0.01)}
+		if mind == null or subj < 0:
+			continue
+		var w := float(ev_w.get("heard_" + kind, 0.0)) if not ev_w.is_empty() else 0.0
+		if w <= 0.0:
+			continue
+		var ev := {"kind": "heard_" + kind, "x": at.x, "y": at.y, "room": room_at(at),
+			"subj": subj, "conf": snappedf(conf, 0.01), "src": "sound",
+			"victim": victim, "night": int(night)}
+		mind.sus_add(a, subj, w * conf, "heard_" + kind, ev)
 
 
 ## 会议种类（2.5D openMeeting 的 kind）：
@@ -2002,7 +2631,9 @@ func _tick_meeting(dt: float) -> void:
 		# 2.5D 里玩家说"我投 X"只是**公开意向**（m.ctx.playerVote，js/game.js:6566），
 		# 不会替他落票；真正落票只有点席位按钮这一条路。3D 原先在这里自动 caste，
 		# 等于多了一条 2.5D 没有的机制，本批按真源去掉。
-		_cast_ai_votes()
+		# ai_enabled=false 是 3D 自测用的"AI 全关"开关：投票也是 AI 行为，一并关闭。
+		if ai_enabled:
+			_cast_ai_votes()
 	elif phase == "vote":
 		_close_meeting()
 		if meeting.is_empty():
@@ -2192,7 +2823,7 @@ func hit_bot(shooter_i: int, kind: String) -> bool:
 	var ap: Vector2 = a.get("pos", Vector2.ZERO)
 	if ap.distance_to(fp) > SpaceData.num(space, "shoot", "range"):
 		return false
-	if nav != null and not nav.los(ap, fp):
+	if not los_now(ap.x, ap.y, fp.x, fp.y):
 		return false
 	a["bullet"] = int(a.get("bullet", 0)) - 1
 	bot_hp[kind] = int(bot_hp.get(kind, 0)) - 1
@@ -2220,6 +2851,8 @@ func toggle_power(by: int) -> bool:
 	_log("breaker", {"actor": by, "on": light_state != 2, "state": light_state,
 		"pulls": breaker_pulls})
 	var br := breaker_pos()
+	# 2.5D pullBreaker：aiHear('power',br,30,{actor}) —— 电闸的嗡鸣声传得很远
+	hear("power", br, 30.0, {"actor": by})
 	# 证据链两种语义相反（2.5D noticeAction + credBroadcast）：
 	#   拉闸断电 = 身份级，目击者写 known；合闸复电 = 正向信任，只给 cred，不洗清任何人。
 	if mind != null and br != Vector2.ZERO:
@@ -2343,7 +2976,8 @@ func sabotage_bot(kind: String, by: int) -> bool:
 	bots.kill(kind)
 	_log("bot_down", {"actor": by, "bot": kind, "method": "sabotage"})
 	_witness_action(a, "saw_bot", bp)
-	_broadcast_noise(bp, 18.0)
+	# 2.5D sabPick 结算：aiHear('robot_down',me,18,{actor})
+	hear("robot_down", bp, 18.0, {"actor": by})
 	bots.on_crime(by, a.get("pos", Vector2.ZERO))
 	return true
 

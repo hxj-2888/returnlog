@@ -4,19 +4,54 @@
   "title": "新返航录 3D 事件流信封（与 2.5D logEvent 对齐）",
   "description": "只冻结信封与 kind 词表，不限制各 kind 的业务字段（additionalProperties=true）。2.5D 真源：js/game.js#logEvent；3D 真源：scripts/sim/sim_state.gd#_log。校验：node 3d/tools/check-events.cjs",
   "type": "object",
-  "required": ["kind", "night", "pt", "t"],
+  "required": [
+    "kind",
+    "night",
+    "pt",
+    "t"
+  ],
   "properties": {
     "kind": {
       "type": "string",
       "enum": [
-        "account", "bot_down", "bot_hit", "breaker", "chat", "dawn", "detain",
-        "drag_away", "drag_end", "drag_start", "eject", "fix", "game_end", "game_start",
-        "kill", "knife", "meeting", "meeting_overtime", "night_start", "pipe", "qual",
-        "report", "revive", "sabotage", "search", "shoot", "supply", "task", "terminator",
-        "vote", "vote_change"
+        "account",
+        "bot_down",
+        "bot_hit",
+        "breaker",
+        "chat",
+        "dawn",
+        "detain",
+        "drag_away",
+        "drag_end",
+        "drag_start",
+        "eject",
+        "fix",
+        "game_end",
+        "game_start",
+        "invariant",
+        "kill",
+        "knife",
+        "meeting",
+        "meeting_overtime",
+        "night_start",
+        "pipe",
+        "qual",
+        "report",
+        "revive",
+        "sabotage",
+        "search",
+        "shoot",
+        "supply",
+        "task",
+        "terminator",
+        "vote",
+        "vote_change"
       ]
     },
-    "night": { "type": "integer", "minimum": 1 },
+    "night": {
+      "type": "integer",
+      "minimum": 1
+    },
     "pt": {
       "type": "number",
       "minimum": 0,
@@ -27,11 +62,39 @@
       "minimum": 0,
       "description": "本夜剩余秒数（2.5D 的 G.t，保留 1 位）；不是已过秒数"
     },
-    "actor": { "type": ["integer", "null"], "description": "行动者席位号；系统事件为 null" },
-    "victim": { "type": ["integer", "null"], "description": "受害者/目标席位号" },
-    "room": { "type": ["string", "null"], "description": "舱室 id（map_v2.json#rooms[].id）" },
-    "x": { "type": ["number", "null"] },
-    "y": { "type": ["number", "null"] }
+    "actor": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "行动者席位号；系统事件为 null"
+    },
+    "victim": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "description": "受害者/目标席位号"
+    },
+    "room": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "舱室 id（map_v2.json#rooms[].id）"
+    },
+    "x": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "y": {
+      "type": [
+        "number",
+        "null"
+      ]
+    }
   },
   "additionalProperties": true,
   "x-kinds": {

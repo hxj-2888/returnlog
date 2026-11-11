@@ -11,6 +11,7 @@ const DeviceScript := preload("res://scripts/device.gd")
 const MGData := preload("res://scripts/minigame/mg_data.gd")
 const MapBuilder := preload("res://scripts/map_builder.gd")
 const SpaceData := preload("res://scripts/space_data.gd")
+const SecbotView := preload("res://scripts/secbot_view.gd")
 
 const WALL_H := 3.0
 const METAL := "res://assets/textures/panel-metal.png"
@@ -83,55 +84,32 @@ func set_power(on: bool) -> void:
 		mat.emission_energy_multiplier = float(mat.get_meta("base_emit")) if on else 0.08
 
 
-## 门的开合与断电扫描锁，口径照 js/game.js 的 doorTick：
-##   · 供电正常：有人靠近（DOOR_CLOSE_R）就开，scanT 归零；
-##   · 断电：人离开就重新上锁（scanT=0），有人则 scanT 累加到 door.scan_sec 才放行；
-##   · 会议室三门**不再豁免**（2.5D 已改为全船一致）。
-## 放行阈值用 DOOR_PASS：open > DOOR_PASS 时撤掉碰撞，否则两扇门拦人。
-func door_update(dt: float, player_pos: Vector3, power_on: bool, agents: Array = []) -> void:
-	var open_r := SpaceData.num(space, "door", "open_r")
-	var close_r := SpaceData.num(space, "door", "close_r")
-	var speed := SpaceData.num(space, "door", "speed")
+## 门的开合与断电扫描**只由 sim 决定**（sim_state.door_tick ← 2.5D js/game.js:448 doorTick）。
+## 这里只把 sim 的 open / scan_t 映射到门扇与扫描线，并在完全开/关时播音。
+## 3D 之前 door_update 自己算了一套开合，于是「看得见的门」和「挡人的门」是两套状态：
+## sim 不知道门，关着的门既不挡人也不挡视线/枪线。
+func sync_doors(p_sim) -> void:
+	if p_sim == null or space.is_empty():
+		return
 	var pass_r := SpaceData.num(space, "door", "pass")
 	var scan_sec := SpaceData.num(space, "door", "scan_sec")
-	if space.is_empty():
-		return
-	for d: Dictionary in doors:
-		var center: Vector3 = d["center"]
-		var range_r := close_r if float(d["open"]) > 0.02 else open_r
-		var busy := false
-		# 2.5D doorTick 遍历 G.agents：任何活人（含 AI）靠近都触发，不是只看玩家。
-		if not agents.is_empty():
-			for a: Dictionary in agents:
-				if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
-						or bool(a.get("detained", false)):
-					continue
-				var ap: Vector2 = a.get("pos", Vector2.ZERO)
-				if Vector2(center.x - ap.x, center.z - ap.y).length() < range_r:
-					busy = true
-					break
-		if not busy:
-			busy = Vector2(center.x - player_pos.x, center.z - player_pos.z).length() < range_r
-		var target := 0.0
-		if power_on:
-			d["scan_t"] = 0.0
-			target = 1.0 if busy else 0.0
-		elif not busy:
-			d["scan_t"] = 0.0
-		else:
-			d["scan_t"] = minf(scan_sec, float(d["scan_t"]) + dt)
-			target = 1.0 if float(d["scan_t"]) >= scan_sec else 0.0
-		var open := float(d["open"])
-		var prev_open := open
-		if open < target:
-			open = minf(target, open + dt * speed)
-		elif open > target:
-			open = maxf(target, open - dt * speed)
-		d["open"] = open
-		_apply_door_state(d, open, pass_r, power_on, scan_sec)
-		# 2.5D doorAutoSound：完全打开 / 完全关闭各响一次，滑动中途不响。
-		if (prev_open < 1.0 and open >= 1.0) or (prev_open > 0.0 and open <= 0.0):
-			door_auto.emit(center)
+	var by_key: Dictionary = {}
+	for sd: Dictionary in p_sim.doors:
+		by_key[String(sd.get("key", ""))] = sd
+	for v: Dictionary in doors:
+		var sd: Dictionary = by_key.get(String(v.get("key", "")), {}) as Dictionary
+		if sd.is_empty():
+			# sim 没生成这扇门（2.5D buildDoors 只给走廊端点生成门）：保持关闭，
+			# 不自己开——避免表现层偷偷放行一条 sim 不认的通道。
+			_apply_door_state(v, 0.0, pass_r, bool(p_sim.power_on), scan_sec)
+			continue
+		var open := float(sd.get("open", 0.0))
+		var prev := float(v.get("open", 0.0))
+		v["open"] = open
+		v["scan_t"] = float(sd.get("scan_t", 0.0))
+		_apply_door_state(v, open, pass_r, bool(p_sim.power_on), scan_sec)
+		if (prev < 1.0 and open >= 1.0) or (prev > 0.0 and open <= 0.0):
+			door_auto.emit(v["center"])
 
 
 func door_stats() -> Dictionary:
@@ -160,8 +138,9 @@ func _apply_door_state(d: Dictionary, open: float, pass_r: float, power_on: bool
 	for i in leaves.size():
 		var s := -1.0 if i == 0 else 1.0
 		var base: Vector3 = d["center"] + offset * (s * half * 0.5) + Vector3(0, 1.25, 0)
-		(leaves[i] as MeshInstance3D).position = base + offset * (s * slide)
-		(blockers[i]["body"] as StaticBody3D).position = (leaves[i] as MeshInstance3D).position
+		var leaf: Node3D = leaves[i] as Node3D
+		leaf.position = base + offset * (s * slide)
+		(blockers[i]["body"] as StaticBody3D).position = leaf.position
 		(blockers[i]["shape"] as CollisionShape3D).disabled = open > pass_r
 	var scan: MeshInstance3D = d["scan"]
 	scan.visible = (not power_on) and open <= pass_r and float(d["scan_t"]) > 0.0
@@ -505,6 +484,11 @@ func _build_doors(data: Dictionary) -> void:
 	_door_strip_mats.append(glow)
 	var leaf_mat := _mat(METAL, Color(0.34, 0.39, 0.47))
 	leaf_mat.metallic = 0.6
+	## 2026-11-11 美术裁定：门 = 3D 滑门结构 + 2.5D 门板。
+	## 三件 glb 缺失时整套回退到旧 BoxMesh，门禁与开合契约不变。
+	var frame_scene := _load_scene("res://assets/models/door_frame.glb")
+	var leaf_l_scene := _load_scene("res://assets/models/door_leaf_l.glb")
+	var leaf_r_scene := _load_scene("res://assets/models/door_leaf_r.glb")
 	## 门扇与放行口径全部读 space.json（真源 SKT2Space.DOOR_* + game.js 的 2 秒扫描）
 	var width := SpaceData.num(space, "door", "width")
 	var height := 2.5
@@ -527,22 +511,28 @@ func _build_doors(data: Dictionary) -> void:
 					center = Vector3(float(rect[0]) + float(rect[2]), 0, coord)
 					along_x = false
 			var offset := Vector3(1.0, 0, 0) if along_x else Vector3(0, 0, 1)
-			for s in [-1.0, 1.0]:
-				var sv := float(s)
-				var post := MeshInstance3D.new()
-				var box := BoxMesh.new()
-				box.size = Vector3(0.16, WALL_H, 0.30) if along_x else Vector3(0.30, WALL_H, 0.16)
-				post.mesh = box
-				post.position = center + offset * sv + Vector3(0, WALL_H * 0.5, 0)
-				post.material_override = frame_mat
-				add_child(post)
-			var lintel := MeshInstance3D.new()
-			var lb := BoxMesh.new()
-			lb.size = Vector3(2.2, 0.26, 0.30) if along_x else Vector3(0.30, 0.26, 2.2)
-			lintel.mesh = lb
-			lintel.position = center + Vector3(0, 2.62, 0)
-			lintel.material_override = frame_mat
-			add_child(lintel)
+			if frame_scene != null:
+				var frame := frame_scene.instantiate() as Node3D
+				frame.position = center
+				frame.rotation.y = 0.0 if along_x else PI * 0.5
+				add_child(frame)
+			else:
+				for s in [-1.0, 1.0]:
+					var sv := float(s)
+					var post := MeshInstance3D.new()
+					var box := BoxMesh.new()
+					box.size = Vector3(0.16, WALL_H, 0.30) if along_x else Vector3(0.30, WALL_H, 0.16)
+					post.mesh = box
+					post.position = center + offset * sv + Vector3(0, WALL_H * 0.5, 0)
+					post.material_override = frame_mat
+					add_child(post)
+				var lintel := MeshInstance3D.new()
+				var lb := BoxMesh.new()
+				lb.size = Vector3(2.2, 0.26, 0.30) if along_x else Vector3(0.30, 0.26, 2.2)
+				lintel.mesh = lb
+				lintel.position = center + Vector3(0, 2.62, 0)
+				lintel.material_override = frame_mat
+				add_child(lintel)
 			var strip := MeshInstance3D.new()
 			var sb := BoxMesh.new()
 			sb.size = Vector3(1.7, 0.05, 0.32) if along_x else Vector3(0.32, 0.05, 1.7)
@@ -558,11 +548,18 @@ func _build_doors(data: Dictionary) -> void:
 			var blockers: Array = []
 			for s in [-1.0, 1.0]:
 				var sv := float(s)
-				var leaf := MeshInstance3D.new()
-				var lmesh := BoxMesh.new()
-				lmesh.size = leaf_size
-				leaf.mesh = lmesh
-				leaf.material_override = leaf_mat
+				var leaf: Node3D
+				var lscene: PackedScene = leaf_l_scene if sv < 0.0 else leaf_r_scene
+				if lscene != null:
+					leaf = lscene.instantiate() as Node3D
+					leaf.rotation.y = 0.0 if along_x else PI * 0.5
+				else:
+					var mi := MeshInstance3D.new()
+					var lmesh := BoxMesh.new()
+					lmesh.size = leaf_size
+					mi.mesh = lmesh
+					mi.material_override = leaf_mat
+					leaf = mi
 				add_child(leaf)
 				leaves.append(leaf)
 				var body := StaticBody3D.new()
@@ -586,6 +583,9 @@ func _build_doors(data: Dictionary) -> void:
 			doors.append({
 				"center": center, "along_x": along_x, "offset": offset,
 				"half": half, "open": 0.0, "scan_t": 0.0,
+				# 与 sim_state._build_doors 的 key 同构（舱室|边|坐标）：
+				# 两边的开合状态按这个键对齐，不靠数组下标（遍历顺序变了就会错位）。
+				"key": "%s|%s|%.3f" % [String(room.get("id", "")), side, coord],
 				"leaves": leaves, "blockers": blockers, "scan": scan,
 			})
 
@@ -621,38 +621,56 @@ func _robot(pos: Vector3, title: String) -> Node3D:
 	var root := Node3D.new()
 	root.position = pos
 	add_child(root)
-	var body := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.62, 0.9, 0.5)
-	body.mesh = box
-	body.position = Vector3(0, 0.55, 0)
-	body.material_override = _mat(METAL, Color(0.45, 0.5, 0.6))
-	root.add_child(body)
-	var head := MeshInstance3D.new()
-	var hb := BoxMesh.new()
-	hb.size = Vector3(0.34, 0.24, 0.30)
-	head.mesh = hb
-	head.position = Vector3(0, 1.15, 0)
-	head.material_override = _mat(METAL, Color(0.55, 0.6, 0.7))
-	root.add_child(head)
-	var eye := MeshInstance3D.new()
-	var es := SphereMesh.new()
-	es.radius = 0.06
-	es.height = 0.1
-	eye.mesh = es
-	eye.position = Vector3(0, 1.17, -0.22)
-	eye.material_override = _flat(Color("#E0574F"), true)
-	root.add_child(eye)
-	# 视野指示灯：6 格 180° 扇形太抽象，用一条朝前的细光条表示朝向
-	var lamp := MeshInstance3D.new()
-	var lb := BoxMesh.new()
-	lb.size = Vector3(0.10, 0.05, 0.42)
-	lamp.mesh = lb
-	lamp.position = Vector3(0, 1.02, -0.35)
-	lamp.material_override = _flat(Color("#E0574F"), true)
-	root.add_child(lamp)
+	var loaded := false
+	var path := "res://assets/models/secbot.glb"
+	if ResourceLoader.exists(path):
+		var packed := load(path) as PackedScene
+		if packed != null:
+			var inst := packed.instantiate()
+			root.add_child(inst)
+			var view := SecbotView.new()
+			root.add_child(view)
+			view.setup(inst)
+			loaded = true
+	if not loaded:
+		var body := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(0.62, 0.9, 0.5)
+		body.mesh = box
+		body.position = Vector3(0, 0.55, 0)
+		body.material_override = _mat(METAL, Color(0.45, 0.5, 0.6))
+		root.add_child(body)
+		var head := MeshInstance3D.new()
+		var hb := BoxMesh.new()
+		hb.size = Vector3(0.34, 0.24, 0.30)
+		head.mesh = hb
+		head.position = Vector3(0, 1.15, 0)
+		head.material_override = _mat(METAL, Color(0.55, 0.6, 0.7))
+		root.add_child(head)
+		var eye := MeshInstance3D.new()
+		var es := SphereMesh.new()
+		es.radius = 0.06
+		es.height = 0.1
+		eye.mesh = es
+		eye.position = Vector3(0, 1.17, -0.22)
+		eye.material_override = _flat(Color("#E0574F"), true)
+		root.add_child(eye)
+		# 视野指示灯：6 格 180° 扇形太抽象，用一条朝前的细光条表示朝向
+		var lamp := MeshInstance3D.new()
+		var lb := BoxMesh.new()
+		lb.size = Vector3(0.10, 0.05, 0.42)
+		lamp.mesh = lb
+		lamp.position = Vector3(0, 1.02, -0.35)
+		lamp.material_override = _flat(Color("#E0574F"), true)
+		root.add_child(lamp)
 	_label3d(Vector3(0, 1.62, 0), title, Color("#E0574F"), root)
 	return root
+
+
+func _load_scene(path: String) -> PackedScene:
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as PackedScene
 
 
 func _monitor(pos: Vector3) -> void:

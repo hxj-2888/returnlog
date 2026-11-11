@@ -34,6 +34,9 @@ func tick(dt: float) -> void:
 			continue
 		if bool(a.get("alien", false)):
 			continue
+		# 2.5D aiScanBodies（js/game.js:2524）：人类 AI 与异形共用同一条
+		# 扫描 → 观察 → 搜查取证 → 拉铃链，每帧都跑（不进 _decide 节流）。
+		sim.scan_bodies(a, dt)
 		if float(a.get("doing", 0.0)) > 0.0:
 			continue
 		var ap: Vector2 = a.get("pos", Vector2.ZERO)
@@ -231,8 +234,7 @@ func _shoot_target(a: Dictionary) -> int:
 		if not kn.is_empty():
 			var ki := int(kn.get("i", -1))
 			var kp: Vector2 = sim.agent(ki).get("pos", Vector2.ZERO)
-			if ap.distance_to(kp) <= shoot_r and \
-					(sim.nav == null or sim.nav.los(ap, kp)):
+			if ap.distance_to(kp) <= shoot_r and sim.los_now(ap.x, ap.y, kp.x, kp.y):
 				return ki
 	return best
 

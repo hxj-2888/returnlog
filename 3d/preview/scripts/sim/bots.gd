@@ -157,6 +157,10 @@ func would_see(at: Vector2) -> bool:
 func _start_catch(i: int) -> void:
 	catch_state = {"i": i, "phase": "chase", "t": 0.0}
 	sec_uses += 1
+	# 2.5D secCatchStart：aiHear('alarm',sec,22,{}) —— 警报不带行为人，
+	# 谁都听得见但谁也不背锅（远处 AI 只知道"保安叫了"）。
+	if sim != null:
+		sim.hear("alarm", sec_pos, 22.0)
 	if sim != null:
 		sim._log("detain", {"actor": i, "phase": "chase",
 			"x": snappedf(sec_pos.x, 0.1), "y": snappedf(sec_pos.y, 0.1)})
@@ -223,6 +227,9 @@ func _tick_catch(dt: float) -> void:
 			killer["doing"] = 0.0
 			killer["path"] = PackedVector2Array()
 			_witness_detain(i, kp, DETAIN_WITNESS_PRESS)
+			# 2.5D secCatchTick press：aiHear('detain',killer,26,{})（无 subj，
+			# 26 格内的人闻声留记录但不锁定被拘留者 —— 注释原文裁定）
+			sim.hear("detain", kp, 26.0)
 			sim._log("detain", {"actor": i, "phase": "press"})
 		elif float(catch_state.get("t", 0.0)) > CHASE_TIMEOUT:
 			# 追不到就放弃（2.5D：7 秒还没贴到人 → G.secCatch=null），不再硬押
@@ -257,6 +264,7 @@ func _tick_catch(dt: float) -> void:
 			catch_state["t"] = DETAIN_TIME
 			killer["pos"] = jail
 			_witness_detain(i, jail, DETAIN_WITNESS_JAIL)
+			sim.hear("detain", jail, 18.0)
 			sim._log("detain", {"actor": i, "phase": "jail", "dur": DETAIN_TIME})
 		return
 
@@ -336,6 +344,8 @@ func _tick_med(dt: float) -> void:
 	if med_t < MED_HEAL_TIME:
 		return
 	sim.revive(med_target, "medbot", MED_STUN)
+	# 2.5D medbotTick：aiHear('robot',med,18) —— 只留机器运作声，不含受害者信息
+	sim.hear("robot", med_pos, 18.0)
 	med_uses += 1
 	med_t = 0.0
 	med_target = -1

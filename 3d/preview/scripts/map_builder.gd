@@ -11,7 +11,7 @@ const CEILING_Y := 3.2
 ## 非地板表面的世界尺度（墙、装饰板）。地板走 floor_spec 的 per-room repeat_m。
 const UV_WORLD_SCALE := 4.0
 ## 天花板贴图重复边长（米）。天花板是舱室面积最大的连续面，贴图尺度太大会看不出纹理。
-const CEIL_TILE_M := 2.4
+const CEIL_TILE_M := 3.0
 
 ## 走廊顶灯的照度半径：这是 3D 表现参数，2.5D 没有对应量（2.5D 的走廊"亮"是判定 + 遮罩），
 ## 所以不进 space.json，但必须和走廊宽度成比例，不能目测乱填。
@@ -213,6 +213,10 @@ var power_on := true
 ## 天花板整层（舱室顶面 / 走廊顶面 / 灯带）：旁观者飞到天花板以上时整层隐藏，
 ## 从上面俯视就是一个完整剖面。2.5D 是 2D 俯视，不需要这套，属维度产物。
 var _ceil_nodes: Array = []
+## 2026-11-11 美术裁定：天花板采用工业材质。
+## 顶板材质只建一份；梁/管线/线槽是 Blender 套件，缺失时只保留工业顶板。
+var _ceil_deck_mat: StandardMaterial3D = null
+var _ceil_kit: Dictionary = {}
 
 
 func build() -> void:
@@ -224,6 +228,7 @@ func build() -> void:
 	if space.is_empty():
 		push_error("space.json 缺失：断电与门的口径会退回默认值")
 	_load_floor_spec()
+	_load_ceil_kit()
 	_build_rooms()
 	_build_corridors()
 	_build_walls()
@@ -297,6 +302,94 @@ func _load_floor_spec() -> void:
 		floor_spec = parsed
 
 
+## 工业天花板套件：梁 / 管线 / 线槽。三件都是 3m 段，原点在底/长度中心。
+func _load_ceil_kit() -> void:
+	for name in ["ceiling_beam", "ceiling_pipe", "ceiling_tray"]:
+		var path := "res://assets/models/%s.glb" % name
+		if ResourceLoader.exists(path):
+			_ceil_kit[name] = load(path)
+
+
+## 工业顶板材质：冲压钢板 albedo + normal + rough，低强度自发光只为暗舱可读。
+func _ceiling_material() -> StandardMaterial3D:
+	if _ceil_deck_mat != null:
+		return _ceil_deck_mat
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.76, 0.80, 0.86)
+	mat.metallic = 0.42
+	mat.roughness = 0.62
+	var albedo := "res://assets/textures/ceiling-deck.png"
+	if ResourceLoader.exists(albedo):
+		mat.albedo_texture = load(albedo)
+	var normal := "res://assets/textures/ceiling-deck-normal.png"
+	if ResourceLoader.exists(normal):
+		mat.normal_enabled = true
+		mat.normal_texture = load(normal)
+		mat.normal_scale = 0.6
+	var rough := "res://assets/textures/ceiling-deck-rough.png"
+	if ResourceLoader.exists(rough):
+		mat.roughness_texture = load(rough)
+		mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		mat.roughness = 1.0
+	mat.emission_enabled = true
+	mat.emission = Color(0.05, 0.06, 0.08)
+	mat.emission_energy_multiplier = 0.35
+	_register_emit(mat, 0.35)
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_ceil_deck_mat = mat
+	return mat
+
+
+func _place_kit(name: String, pos: Vector3, along_x: bool, len_scale: float) -> void:
+	var packed: PackedScene = _ceil_kit.get(name)
+	if packed == null:
+		return
+	var node := packed.instantiate() as Node3D
+	node.position = pos
+	node.rotation.y = 0.0 if along_x else PI * 0.5
+	node.scale = Vector3(len_scale, 1.0, 1.0)
+	add_child(node)
+	_ceil_nodes.append(node)
+
+
+## 一个舱的工业天花板：主梁 3m 一档、次梁 6m 一档、2 条管线 + 1 条线槽。
+## 只用 room.rect 的世界尺度，不新增碰撞，也不改任何玩法面。
+func _add_ceiling_kit(room: Dictionary) -> void:
+	if _ceil_kit.is_empty():
+		return
+	var rect: Array = room.get("rect", [])
+	if rect.size() < 4:
+		return
+	var x0 := float(rect[0])
+	var z0 := float(rect[1])
+	var w := float(rect[2])
+	var d := float(rect[3])
+	if w < 2.5 or d < 2.5:
+		return
+	var long_x := w >= d
+	var length := w if long_x else d
+	var span := d if long_x else w
+	var beam_y := CEILING_Y - 0.18
+	var n_main := maxi(1, int(floor(span / 3.0)))
+	for i in n_main:
+		var off := (float(i) + 0.5) * span / float(n_main)
+		var pos := Vector3(x0 + w * 0.5, beam_y, z0 + off) if long_x else Vector3(x0 + off, beam_y, z0 + d * 0.5)
+		_place_kit("ceiling_beam", pos, long_x, length / 3.0)
+	var n_cross := maxi(1, int(floor(length / 6.0)))
+	for i in n_cross:
+		var off := (float(i) + 0.5) * length / float(n_cross)
+		var pos := Vector3(x0 + off, beam_y, z0 + d * 0.5) if long_x else Vector3(x0 + w * 0.5, beam_y, z0 + off)
+		_place_kit("ceiling_beam", pos, not long_x, span / 3.0)
+	var pipe_y := CEILING_Y - 0.27
+	for frac in [0.30, 0.45]:
+		var off := span * float(frac)
+		var pos := Vector3(x0 + w * 0.5, pipe_y, z0 + off) if long_x else Vector3(x0 + off, pipe_y, z0 + d * 0.5)
+		_place_kit("ceiling_pipe", pos, long_x, length / 3.0)
+	var tray_off := span * 0.70
+	var tray_pos := Vector3(x0 + w * 0.5, CEILING_Y - 0.26, z0 + tray_off) if long_x else Vector3(x0 + tray_off, CEILING_Y - 0.26, z0 + d * 0.5)
+	_place_kit("ceiling_tray", tray_pos, long_x, length / 3.0)
+
+
 ## floor_spec 的 tint 是底图用的 MULTIPLY 染色（可 >1 表示提亮）。
 ## 没有 tint 时用白色（原样），不再用统一灰蓝 —— 那正是「地板看起来被换过」的另一半原因。
 func _spec_tint(spec: Dictionary) -> Color:
@@ -328,17 +421,15 @@ func _build_rooms() -> void:
 		## 拍出来整片发闷）。天花板是**非交互面**，用贴图提质是性价比最高的一处。
 		## 不用 triplanar —— triplanar 的 uv1_scale=0.35 会把贴图放到 2.9m 一循环，
 		## 加上朝下的法线选不到 Y 轴投影，结果就是一片纯色。改用平面 UV + 真实尺度。
-		var ceil_mat := _material("panel-white", Color(0.80, 0.84, 0.90), false)
-		ceil_mat.emission_enabled = true
-		ceil_mat.emission = Color(0.1, 0.12, 0.16)
-		ceil_mat.emission_energy_multiplier = 0.8
-		_register_emit(ceil_mat, 0.8)
+		## 2026-11-11：工业顶板（冲压钢板 + 法线/粗糙度），梁/管线/线槽在下面单独挂套件。
+		var ceil_mat := _ceiling_material()
 		_add_polygon_surface(poly, 0.02, Vector3.UP, floor_mat, repeat_m)
 		_add_polygon_surface(poly, CEILING_Y, Vector3.DOWN, ceil_mat, CEIL_TILE_M)
 		## 天花板灯带：2026-11-07。房间顶灯在 2.6m、天花板在 3.2m，
 		## 灯只照亮天花板背面 —— 仰视时天花板是一片死黑。
 		## 加一圈贴墙的发光灯带（沿房间边界内侧），既是照明也是视觉引导。
 		_add_ceiling_strip(room)
+		_add_ceiling_kit(room)
 		## 墙顶边框：2.5D 里房间身份主要靠这条连续色带传达（12° 俯角下墙面只剩顶面一条框）。
 		## 颜色与强度全部来自 rooms[].theme（烘焙端 ROOM_THEME 原样导出）。
 		_add_wall_top(room)
@@ -449,7 +540,7 @@ func _build_corridors() -> void:
 		floor_mat.emission = Color(0.16, 0.22, 0.3)
 		floor_mat.emission_energy_multiplier = float(cs["emit"])
 	var corr_repeat := float(cs.get("repeat_m", 2.6))
-	var ceil_mat := _material("panel-metal", Color(0.62, 0.66, 0.72), false)
+	var ceil_mat := _ceiling_material()
 	for corridor: Dictionary in data.get("corridors", []):
 		var pts: Array = corridor.get("pts", [])
 		for i in range(pts.size() - 1):
