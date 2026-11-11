@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "product": "启航路 3D 版",
+  "code": "V1P",
+  "version": "V1P-0.1",
+  "semver": "0.1.0",
+  "channel": "preview",
+  "build": "2026-11-09",
+  "note": "3D 版独立版本号，不占用 2.5D 的「返航录V3.x」。移植基线由 export-version.cjs 从 js/config/version.js 自动写入 base 字段，不在此手写。"
+}
