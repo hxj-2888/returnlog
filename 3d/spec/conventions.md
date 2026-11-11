@@ -75,6 +75,20 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
 
 ## 6. 与 2.5D 的边界
 
-- 3D **不替换** 2.5D；两套是并行产品，共享的只有 `js/data/map.js`（经 `export-map.cjs`）和 `assets/scene/v4/tex`。
+- **3D 是 2.5D 的延伸，不是第二条产品线**（AGENTS.md §一.11）；共享地图、数值、语料、
+  规则与音频基线，只允许按键操作、维度、部分美术三类差异。
 - 墙在 3D 里**必须是实体几何**（有厚度、有高度、有门洞），不允许用 2.5D 的零厚度线段糊过去。
-- 游戏内美术（面板、贴图）沿用 SDXL 出图；**千问只做游戏外美术**，不进 3D 资产管线。
+- 本地生成统一走**千问**（SDXL 已退役）；千问参考图可进入 3D **设计参考**流程
+  （`docs/qwen21/crew-refs/`、`3d/assets/crew_refs/`），但运行时只加载导出的 GLB/贴图，
+  不直接读参考图；模型/seed/prompt/许可必须登记 `ASSETS.md` / `CREDITS.md`。
+
+
+## 7. 截图 / 机位
+
+- **严禁截图操作捕获鼠标**（AGENTS.md §五.8，2026-11-11 用户裁定）。
+- 截图/机位参数统一走 `_screenshot_mode`：`player.capture_mouse_on_ready=false`、
+  `Input.mouse_mode=VISIBLE`、`_input()` 不响应、`_exit_tree()` 释放；
+  禁止 `Input.mouse_mode=CAPTURED` / `Input.warp_mouse()`。
+- 截图运行前确认没有其它 Godot 进程占用鼠标；运行后确认进程退出、光标可见。
+- 截图是**本机验收图**，按 `.gitignore` 不入库；`--probetest`/`--mousetest` 是输入链自测，
+  不是截图，必须单独跑并恢复 `VISIBLE`。

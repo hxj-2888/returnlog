@@ -1,7 +1,7 @@
 # 新返航录 3D 预演（独立子项目）
 
 > 状态：**2.5D 的完整功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
-> 33 项 Godot 自测全绿、`npm run check` 6/0、parity 0 WARN）。仍是本地预演、不发行。
+> 34 项 Godot 自测全绿、`npm run check` 6/0、parity 0 WARN）。仍是本地预演、不发行。
 > **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**；
 > 红线/继承审查见 **`REDLINE-AUDIT.md`**（2026-11-11：红线 1–10 通过，11/12 未全过）。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
@@ -258,6 +258,7 @@ npm run 3d:probe
 
 # 门扇闭合/全开对照（2026-11-11）：closed 时中线合拢，open 时让出整段门洞
 "$GODOT" --path 3d/preview --resolution 1280x720 -- --doorshot
+
 # 默认就是 3D 体块；要回退旧 billboard 用 --crew-billboard
 "$GODOT" --path 3d/preview --resolution 1280x720 -- --role alien --crew-billboard
 
@@ -268,6 +269,13 @@ npm run 3d:probe
 # 音频链路（2026-11-09）：背景音乐文件 / 导入循环 / 感知音量曲线 / 音乐与音效是否各管各的
 "$GODOT" --headless --path 3d/preview -- --audiotest
 ```
+
+> **截图/机位硬约束（AGENTS.md §五.8）**：所有 `--shot / --crewshot / --doorshot /
+> --mgshot / --devshot / --covershot / --ceilshot / --pipeshot / --meetshot /
+> --endshot / --minishot / --homeshot` 一律使用 `MOUSE_MODE_VISIBLE`，
+> **禁止捕获鼠标、禁止转视角、禁止误触攻击**；进程退出时 `_exit_tree()` 再释放。
+> 截图自测应打印 `CREW_MOUSE mode=0（0=VISIBLE）`；若为 2 说明捕获了，立即停跑修复。
+> `--probetest` / `--mousetest` 是输入链自测，不是截图，必须与截图/机位分开跑。
 
 实测（2026-11-09 复跑）：`--reachtest` **26 点 / 走不到 0**（改钳位距离前是 3 个走不到）；
 `--audiotest` **文件=true 时长=151.2s 导入循环=true 播放=true**、档 0.35 → 增益 0.48（−6.4dB）、Master 回到 0dB；

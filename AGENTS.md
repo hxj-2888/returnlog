@@ -132,6 +132,7 @@
 | 单条门禁 | `npm run 3d:assets` / `3d:import:check` / `3d:port:check` / `3d:events:check` / `3d:lines:check` / `3d:parity:check` |
 | 基线校验 / 刷新 | `npm run baseline:check` / `npm run baseline:sync`（可选 `-- --source <原仓路径>`） |
 | 玩家探针（真实窗口） | `npm run 3d:probe`（真实 E / 数字键 / 左键 / F2；DEV 无敌与面板） |
+| 截图/机位（不捕获鼠标） | `--shot` / `--crewshot` / `--doorshot` 等；共同约束见 §五.8 |
 | 模型同步 | `npm run 3d:sync:models`（`3d/assets/export/*.glb` → `3d/preview/assets/models/`） |
 | 千问出图 | `npm run 3d:refs:cabin` / `3d:refs:tasks`（**必须 pwsh 7**，本地生成） |
 
@@ -170,6 +171,17 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
    T2 改动的论证依据只能是 `js/` 真源语义（写明文件与行号）或「真人会不会这样」。
    门禁与自测只用来回答「有没有写坏」，不用来回答「该不该做」。
    跨批次反馈须显式登记；**agent 不得自行跨批次立项**，建议只走提问清单。
+8. **截图 / 机位 / 视觉验收严禁捕获鼠标**（2026-11-11 用户现场裁定，强制）：
+   - 所有截图参数（`--shot / --crewshot / --doorshot / --mgshot / --devshot /
+     --covershot / --ceilshot / --pipeshot / --meetshot / --endshot / --minishot /
+     --homeshot`）必须走 `_screenshot_mode`：`Input.mouse_mode=VISIBLE`、
+     `player.capture_mouse_on_ready=false`、不响应鼠标视角/攻击，退出 `_exit_tree()` 再释放。
+   - 截图路径**禁止** `Input.mouse_mode=CAPTURED`、`Input.warp_mouse()` 或任何把光标锁进
+     游戏窗口的 API；截图进程必须自行退出，运行前确认没有其它 Godot 进程占用鼠标。
+   - `--probetest` / `--mousetest` 等**输入链自测不是截图**：若必须 CAPTURED，测完立即恢复
+     VISIBLE，并在输出里标 `mouse=CAPTURED`；不得拿它冒充截图/机位验收。
+   - 截图只作为本机验收图，按 §五.6 不入库；现有落地为 `main.gd::_screenshot_mode`、
+     `player.capture_mouse_on_ready`，截图打印 `CREW_MOUSE mode=0` 作为读数。
 
 ## 六、已知问题与门禁读数（2026-11-10 · 第 16 批后实跑）
 
@@ -216,7 +228,7 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
 | `3d:parity:check` | ✅ | 全域 63 synced / 7 adapter / 0 pending（`SKT2AI` 38 synced、`SKT2Decision` 11 synced / 2 adapter）；**0 个**非真源小数 WARN（20 个源字面量登记在 `SOURCE_LITERALS`，带 `js/game.js:行号` 回读校验） |
 | **汇总** | ✅ | **6 通过 / 0 失败** |
 
-Godot 自测：**33 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（清单与一键脚本见 `3d/HANDOFF.md` §0.8）。
+Godot 自测：**34 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（清单与一键脚本见 `3d/HANDOFF.md` §0.8）。
 
 **2026-11-11 第 18 批追加**：人物默认切 `char_crew_blockout`（1.75 m / 864 tris /
 3 材质 / 无骨骼），`--crew-billboard` 保留旧 billboard 回退；门扇按 2.5D `doorTick`
@@ -228,6 +240,14 @@ Godot 自测：**33 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（清单与一键�
 `port-manifest.json` 的 `X-BIND` 补认领上游新增的 111 行 `_t` 调试查询接口。
 Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接入后没更新的坏账
 （**原仓同批逐字同样失败**，非本工程回归），本批用 `_finish_meeting()` 夹具修好。
+
+### 6.2.1 截图鼠标（2026-11-11）
+
+- 用户现场：截图/自测窗口把鼠标框住。已修：所有截图参数 `_screenshot_mode` 强制
+  `VISIBLE`、`player.capture_mouse_on_ready=false`、`_input()` 不响应、`_exit_tree()` 释放；
+  `--crewshot` 实跑 `CREW_MOUSE mode=0（0=VISIBLE）`；遗留 Godot 测试进程已清理。
+- 规范见 §五.8；`3d/README.md` / `3d/HANDOFF.md` / `3d/ARCHITECTURE.md` /
+  `3d/spec/conventions.md` / `3d/DECISIONS.md` ADR-0013 同步。
 
 ### 6.3 仍未同源（事实登记，不是立项）
 

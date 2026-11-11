@@ -63,6 +63,7 @@
 
 ## 五、截图 / 鼠标
 
+- 规范入口：**`AGENTS.md` §五.8 + `3d/spec/conventions.md` §7 + ADR-0013**。
 - 所有截图参数（`--shot / --crewshot / --doorshot / --mgshot / --devshot /
   --covershot / --ceilshot / --pipeshot / --meetshot / --endshot / --minishot /
   --homeshot`）走 `_screenshot_mode`：`player.capture_mouse_on_ready=false`、

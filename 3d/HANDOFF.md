@@ -15,7 +15,7 @@
 ## 0. 最新交接（2026-11-10）
 
 > **一句话现状**：3D 已是 2.5D 的完整功能移植（判定 / 会议 / 结算 / 小地图 / HUD），
-> 33 项 Godot 自测全绿、`npm run check` 6/0、parity **0 WARN**；
+> 34 项 Godot 自测全绿、`npm run check` 6/0、parity **0 WARN**；
 > 只剩表现层像素排布、3D 维度产物（A* / 相机 / 碰撞 / LOD）与 billboard 人物美术。
 > 当前工作区 **77 个文件未提交**（第 1–16 批 + 现场修复），提交前按 `AGENTS.md` §五.6 审阅。
 
@@ -62,7 +62,7 @@ node 3d/tools/sync-cover-height.cjs --check
 | 旁观者俯视剖面 | `--specttest` | 飞越隐藏天花板、下穿夹取 0.35 |
 | 任务点可达性 | `--tasktest` / `--reachtest` / `--navtest` | `26/0` · `26/0` · `28/0` |
 
-**33 项无头/真实窗口自测全部 exit 0、0 条 `SCRIPT ERROR`**（清单与一键脚本见 §0.8）。
+**34 项无头/真实窗口自测全部 exit 0、0 条 `SCRIPT ERROR`**（清单与一键脚本见 §0.8）。
 
 ### 0.3 16 个批次 + 2 次修复做了什么（一句话版）
 
@@ -171,12 +171,21 @@ node 3d/tools/sync-cover-height.cjs --check
 第七批之前代码的 1000 局读数，且早于第 13/16 批的判定层改动，**不能与当前代码对比**。
 按 `AGENTS.md` §五.7，验收读数不得作为「该不该改」的依据。
 
+**⑬ 截图/机位严禁捕获鼠标（2026-11-11 用户裁定，强制）。**
+`--shot / --crewshot / --doorshot / --mgshot / --devshot / --covershot / --ceilshot /
+--pipeshot / --meetshot / --endshot / --minishot / --homeshot` 必须走
+`_screenshot_mode`：`player.capture_mouse_on_ready=false`、`Input.mouse_mode=VISIBLE`、
+`_input()` 不响应、`_exit_tree()` 释放；禁止在截图路径 `CAPTURED` / `warp_mouse`。
+实测截图应打印 `CREW_MOUSE mode=0`。`--probetest` / `--mousetest` 是输入链测试，
+不是截图，必须单独跑并在结束时恢复 `VISIBLE`。详见 `AGENTS.md` §五.8。
+
 ### 0.6 排障索引（症状 → 先看哪）
 
 | 症状 | 先看 |
 |---|---|
 | 界面卡住 / 按钮点不到 | 面板是不是比视口高（`ScrollContainer`）；`_want_mouse_visible()` 是否覆盖该面板 |
 | 鼠标被框在游戏窗口 / 截图拖不出去 | `mouse_released`；`_refresh_mouse_mode()` 是唯一 CAPTURED 入口；失焦应自动释放 |
+| 跑完截图后鼠标仍被锁 | 截图必须走 `_screenshot_mode` 并打印 `CREW_MOUSE mode=0`；见 `AGENTS.md` §五.8，禁止截图路径 CAPTURED |
 | 异形打不到人 | 刀程 1.4m + 朝向；`_player_knife` 的三条 toast（没刀 / 够不到 / 人类没刀） |
 | 按 E 没反应 | `_collect_offers()` 为空会 toast；再看半径（设备 2.0 / 圆桌 2.3 / 管道冷却 20s） |
 | 会议里投票按钮灰 / 点不动 | `_refresh_meeting_ui` 的 `b.disabled`；讨论期也必须可点（2.5D 先投改票） |
@@ -195,7 +204,7 @@ npm run check          6 通过 / 0 失败（assets/import/port/events/lines/par
 baseline:check         BASELINE OK 454 个文件 · 快照 2026-11-10
 3d:floor:check         FLOOR-SPEC OK（11 项）
 cover-height --check   61 项 · 需更新 0 · 低于 1.7m 0 件
-Godot 33 项自测        全部 exit 0 · 0 条 SCRIPT ERROR
+Godot 34 项自测        全部 exit 0 · 0 条 SCRIPT ERROR
 --meetuitest           23/0（会议模板/投票/改票/弃权/跳过/只读/新消息）
 --aiporttest           13/0（无全图锁敌 / humanT / 身份轴 / exposureAt / huntSpotFor）
 --mousetest            5/0（Esc 释放 / 点击收回 / 会议开关 / 失焦释放）
@@ -211,7 +220,7 @@ Godot 33 项自测        全部 exit 0 · 0 条 SCRIPT ERROR
 > 验收层读数不得反过来当作"该不该改"的依据；需要新基线必须单独跑 `--sim1000`。
 >
 > **本次实跑汇总（2026-11-10）**：`npm run check` 6/0 · `baseline:check` 454 OK ·
-> `3d:floor:check` 11 项 OK · Godot 33 项自测全部 exit 0 / 0 条 `SCRIPT ERROR` ·
+> `3d:floor:check` 11 项 OK · Godot 34 项自测全部 exit 0 / 0 条 `SCRIPT ERROR` ·
 > `3d:parity:check` 0 WARN。
 
 ### 0.8 接手第一小时（当前版）
@@ -234,14 +243,14 @@ npm run check                          # 期望 6 通过 / 0 失败（parity 0 W
 npm run 3d:floor:check                 # 期望 FLOOR-SPEC OK（11 项）
 node 3d/tools/sync-cover-height.cjs --check
 
-# 4) Godot 33 项自测（真实窗口；Godot 不在 PATH）
+# 4) Godot 34 项自测（真实窗口；Godot 不在 PATH）
 $GODOT = 'E:\ai-tools\godot\Godot_v4.6-stable_win64_console.exe'
 $tests = @(
   'navtest','simtest','meetingtest','speechtest','b4test','leadtest','b6test','aittest',
   'bottest','tasktest','reachtest','floortest','powertest','audiotest','uitest',
   'actiontest','interacttest','knifetest','specttest','mgtest','devicetest',
   'taskflowtest','e2e','walktest','hometest','roletest','meetuitest','aiporttest',
-  'mousetest','settletest','minimaptest','socialtest','probetest'
+  'mousetest','settletest','minimaptest','socialtest','probetest','crewanimtest'
 )
 foreach ($t in $tests) {
   & $GODOT --path 3d/preview --resolution 1280x720 -- --$t
@@ -265,7 +274,7 @@ foreach ($t in $tests) {
 6. `minimap.gd`：局内小地图；`ui_panels.gd`：设置 / 复盘；
 7. `3d/tools/export-*.cjs` + `check-*.cjs` + `3d/spec/`：数据链与对账。
 
-**接手第一件事不是写代码**：先跑上面 1–4，确认 6/0、454、33 项 exit 0、
+**接手第一件事不是写代码**：先跑上面 1–4，确认 6/0、454、34 项 exit 0、
 parity 0 WARN；任一项不对，先按 §0.6 排障，不要直接改判定。
 
 ---

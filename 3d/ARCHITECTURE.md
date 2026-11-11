@@ -115,6 +115,10 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
 - **玩家探针**：`--probetest` / `npm run 3d:probe`（2026-11-10）——真实 `InputEvent`
   按 E / 数字键 / 左键 / F2，验「异形按 E 放倒人」与 DEV 无敌/面板。
   **必须真实窗口**：headless 下 `MOUSE_MODE_CAPTURED` 不成立，左键会被「先夺回鼠标」分支吃掉。
+- **截图/机位**（强制）：所有 `--shot/--crewshot/--doorshot/...` 一律
+  `MOUSE_MODE_VISIBLE`，禁止捕获鼠标、转视角、误触攻击；`player.capture_mouse_on_ready=false`，
+  `_exit_tree()` 释放。`--probetest` 是输入链测试，不是截图，必须分开跑。
+  规范见 `AGENTS.md` §五.8。
 - **视觉批量**：`--mgshot all`、`--devshot 0,4,7,8,13,26`，出图在 `preview/screenshots/`。
 - 将来加 **golden screenshot**：固定机位、固定曝光、固定 seed，像素差异超过阈值就失败。
 - 所有决策写 `3d/DECISIONS.md`；所有可见变更写 `3d/CHANGELOG.md`。

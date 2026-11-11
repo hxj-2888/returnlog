@@ -20,6 +20,9 @@
 - **截图鼠标**：所有 `--shot/--crewshot/--doorshot/...` 走 `_screenshot_mode`，
   强制 `MOUSE_MODE_VISIBLE`，不转视角/不误触；退出 `_exit_tree()` 再释放。
   实测 `CREW_MOUSE mode=0`；遗留 Godot 测试进程已清理。
+- **截图规范**：`AGENTS.md` §五.8 + `3d/README.md` / `HANDOFF.md` / `ARCHITECTURE.md` /
+  `spec/conventions.md` §7 / `DECISIONS.md` ADR-0013 固化“截图严禁捕获鼠标”；
+  `--probetest`/`--mousetest` 与截图分开，必须恢复 VISIBLE。
 - **红线审查**：新增 `3d/REDLINE-AUDIT.md`；结论 **红线 1–10 通过，11/12 未全过**
   （鬼魂模式、医疗无人机救起行为、1000 局基线、公开设计参照留痕）。
 - **门禁**：`npm run check` **6 通过 / 0 失败**；`baseline:check` 454；

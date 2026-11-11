@@ -43,7 +43,17 @@
   项目自绘 2.5D sprite，未留痕公开设计参照检索）。
 - 本批不把“2.5D 全量玩法已迁完”写成结论。
 
-### 6. 实跑读数（2026-11-11）
+### 6. 截图鼠标规范固化
+
+- `AGENTS.md` §五.8（强制）+ §6.2.1：所有截图/机位参数必须 `MOUSE_MODE_VISIBLE`，
+  禁止 `CAPTURED` / `warp_mouse`；`--probetest`/`--mousetest` 是输入链自测，不是截图。
+- `3d/README.md` 截图段、`3d/HANDOFF.md` 接手陷阱 ⑬ / §0.6、`3d/ARCHITECTURE.md` §7、
+  `3d/spec/conventions.md` §7、`3d/DECISIONS.md` ADR-0013 同步；
+  `3d/REDLINE-AUDIT.md` §五 增加规范入口。
+- 落地代码：`main.gd::_screenshot_mode`、`player.capture_mouse_on_ready`、
+  `_exit_tree()` 释放；实跑 `CREW_MOUSE mode=0`。
+
+### 7. 实跑读数（2026-11-11）
 
 | 项 | 结果 |
 |---|---|

@@ -214,3 +214,21 @@
   「先夺回鼠标」分支吃掉，`--mousetest` / `--knifetest` 同一条限制）。
 - 推翻条件：用户认为 DEV 不应留在正式包 → 用启动参数或构建开关关掉；
   但不得删除 `--probetest`，它是玩家输入链的回归门禁。
+
+
+## ADR-0013 · 截图/机位严禁捕获鼠标
+
+- 日期：2026-11-11
+- 状态：已采纳（用户现场裁定，强制）
+- 背景：自动化截图/自测窗口把系统光标锁进 Godot 窗口，用户无法操作其它窗口；
+  根因是 `--shot/--crewshot/--doorshot` 走普通开局路径，`player._ready()` 无条件
+  `MOUSE_MODE_CAPTURED`，截图进程又没有释放。
+- 决定：
+  1. 所有截图/机位参数进入 `_screenshot_mode`：`player.capture_mouse_on_ready=false`，
+     `Input.mouse_mode=VISIBLE`，`_input()` 不响应，`_exit_tree()` 再释放；
+  2. 截图路径禁止 `CAPTURED` / `warp_mouse` / 任何锁定光标的 API；
+  3. `--probetest` / `--mousetest` 是输入链自测，不是截图；若必须 CAPTURED，测完立即恢复
+     VISIBLE，并在输出标注 `mouse=CAPTURED`；
+  4. 截图运行前确认没有其它 Godot 进程占用鼠标，运行后确认进程退出、光标可见。
+- 代价：截图时不能用鼠标转视角；机位改用固定 `Camera3D` / 参数。
+- 推翻条件：无。若将来必须用鼠标交互做截图，另开显式输入测试参数并强制释放。
