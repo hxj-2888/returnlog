@@ -21,8 +21,8 @@
 | `index.html` | **只读对账对象**：`3d/spec/port-manifest.json` 把它登记成 `X-ENTRY` source，`3d:port:check` 会校验存在性与行数；不是 3D 入口 | **禁止** |
 | `package.json` 的 `version` / `gameVersion` | 上游基线标识（`3d/tools/export-version.cjs` 会校验它与 `js/config/version.js` 一致） | **禁止手改**，只由 `baseline:sync` 写 |
 
-> `package.json` 里的 `version: "3.6.0"` / `gameVersion: "返航录V3.6"` **不是 3D 版本**，
-> 3D 自己的版本真源是 `3d/version.json`（`V1P-0.1` / `0.1.0`）。两者互不占号，
+> `package.json` 里的 `version: "3.7.0"` / `gameVersion: "返航录V3.7"` **不是 3D 版本**，
+> 3D 自己的版本真源是 `3d/version.json`（`V1P-0.2` / `0.2.0`）。两者互不占号，
 > 口径见 `3d/README.md` §1.5。改动 version 字段会直接让 `3d:export:version` 的基线校验失效。
 
 ## 2. 完整性清单

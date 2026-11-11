@@ -149,7 +149,7 @@
       "status": "ported",
       "depends_on": [],
       "gate": "node 3d/tools/export-version.cjs（version 不符 V1P-<major>.<minor>、version 与 semver 数字不一致、SKConfig.version ≠ package.json.gameVersion，任一命中直接 FAIL）",
-      "notes": "3D 独立版本号 V1P-0.1 / 0.1.0（真源 3d/version.json），不占 2.5D 的 返航录V3.6 / 3.6.0；base 字段自动记录移植基线。主页品牌行读 config.gd，不再写死版本字符串。"
+      "notes": "3D 独立版本号 V1P-0.2 / 0.2.0（真源 3d/version.json），不占 2.5D 的 返航录V3.7 / 3.7.0；base 字段自动记录移植基线。主页品牌行读 config.gd，不再写死版本字符串。"
     },
     {
       "id": "D-SPACE",

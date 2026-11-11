@@ -1,5 +1,11 @@
 # 3D 修改记录
 
+## 2026-11-11 · 3D 版本升至 V1P-0.2 / 0.2.0
+
+- 版本真源 `3d/version.json`：`V1P-0.1` / `0.1.0` → `V1P-0.2` / `0.2.0`，build 2026-11-11。
+- 移植基线同步到 2.5D `返航录V3.7` / `3.7.0`（`npm run baseline:sync`，基线清单 443 个文件，`baseline:check` OK）。
+- 同步版本口径：`3d/README.md`、`BASELINE.md`、`SPLIT.md`、`AGENTS.md`、`3d/spec/port-manifest.json`、`3d/preview/project.godot`。
+
 ## 2026-11-11 · 第 23 批：game.js core/UI 审计 + 会议面板 UI spec POC
 
 用户继续要求把行为逻辑和 UI 纳入自动移植；本轮做 `game.js` 函数级解耦审计与会议面板 UI spec。

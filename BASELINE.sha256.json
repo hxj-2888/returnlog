@@ -3,8 +3,8 @@
   "generated": "2026-11-11",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
-    "version": "3.6.0",
-    "gameVersion": "返航录V3.6"
+    "version": "3.7.0",
+    "gameVersion": "返航录V3.7"
   },
   "file_count": 443,
   "files": {
@@ -1377,7 +1377,7 @@
       "size": 8832
     },
     "js/config/version.js": {
-      "sha256": "8614b065ba5332c3f6ba857834054846ae3ec3f26107a32961b96e0a7f6fe16e",
+      "sha256": "9f33b701031b56cb017090e1ecfd9f7b74aec672754133a1287643e281651ddf",
       "size": 1613
     },
     "js/data/lines.js": {

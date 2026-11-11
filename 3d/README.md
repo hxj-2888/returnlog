@@ -60,14 +60,14 @@
 | | 真源 | 格式 | 当前 |
 |---|---|---|---|
 | 2.5D | `js/config/version.js` + `package.json.gameVersion` | `返航录V3.x` / `3.x.0` | `返航录V3.6` / `3.6.0` |
-| 3D | `3d/version.json` | `V1P-<major>.<minor>` / `major.minor.0` | `V1P-0.1` / `0.1.0` |
+| 3D | `3d/version.json` | `V1P-<major>.<minor>` / `major.minor.0` | `V1P-0.2` / `0.2.0` |
 
 - 两个号互不占位：3D 用 `V1P-` 前缀，2.5D 继续走 `返航录V3.x`，谁也不挤谁。
 - `npm run 3d:export:version` 合成 `preview/data/version.json`，其中 `base` 字段自动写入
   当前的 2.5D 版本（**不手写**，防漂移），用来回答「这一版 3D 是从哪个 2.5D 基线移植的」。
 - 门禁会拦：`version` 不符合 `V1P-<major>.<minor>`；`version` 与 `semver` 数字不一致
-  （`V1P-0.1` ↔ `0.1.0`）；2.5D 自身 `SKConfig.version ≠ package.json.gameVersion`。
-- 首页品牌行读 `Config.label()`（返回 `V1P-0.1`），GDScript 里不许再写版本字符串。
+  （`V1P-0.2` ↔ `0.2.0`）；2.5D 自身 `SKConfig.version ≠ package.json.gameVersion`。
+- 首页品牌行读 `Config.label()`（返回 `V1P-0.2`），GDScript 里不许再写版本字符串。
 - 这是**发布标识**的差别，不是机制差异，所以不进 `spec/parity-map.json#allowed_differences`
   ——那个列表只放维度 / 美术 / 输入三类真差异，别把版本号混进去稀释红线。
 
@@ -386,7 +386,7 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
     scripts/sim/speech.gd    发言排期 / 去重 / 广播 / 玩家自由发言
     data/lines.json          62 类台词 + 21 规则表（S 轨唯一真源快照）
     data/rules.json          ★ 48 张规则表 / 70 函数指纹 / 发言调度系数（同源唯一真源）
-    data/version.json        版本号（V1P-0.1 / 0.1.0，base 记 2.5D 移植基线）
+    data/version.json        版本号（V1P-0.2 / 0.2.0，base 记 2.5D 移植基线）
     scripts/sim/crew_view.gd 15 个 billboard + 名牌（美术下一批）
     scripts/sim/README.md   sim 模块布局、依赖顺序与接口
     scripts/player.gd       WASD + 鼠标视角 + 手电

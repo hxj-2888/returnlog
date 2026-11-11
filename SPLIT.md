@@ -76,8 +76,8 @@
   （例如 `3d/preview/data/floor_spec.json`、`3d/preview/scripts/map_builder.gd`、
   `3d/tools/bake-qwen-room-skins.py`、`assets/MANIFEST.json` 等）。
   也就是说，新工程是从**磁盘现状**复制，不是从 git HEAD 检出 —— 这是刻意的，否则会丢掉当天的工作。
-- **版本标识**：上游 `返航录V3.6` / `3.6.0`（`package.json` 的 `gameVersion` / `version`），
-  3D 自己 `V1P-0.1` / `0.1.0`（`3d/version.json`）。两者互不占号，口径见 `3d/README.md` §1.5。
+- **版本标识**：上游 `返航录V3.7` / `3.7.0`（`package.json` 的 `gameVersion` / `version`），
+  3D 自己 `V1P-0.2` / `0.2.0`（`3d/version.json`）。两者互不占号，口径见 `3d/README.md` §1.5。
 - **完整性清单**：`BASELINE.sha256.json` 由 `npm run baseline:sync` 生成，
   记录每个基线文件的 SHA256 与字节数；`npm run baseline:check` 可离线校验基线未被本地篡改。
   **2026-11-09**：`docs/` 移出范围后由 `--rebuild` 重建，清单 555 → **451**（保留项哈希全部一致）。

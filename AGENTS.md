@@ -13,7 +13,7 @@
 > 本工程把 2.5D 真源以**只读基线**形式随仓带走，目的正是让「改 3D 之前先问 2.5D 里这条在哪」
 > 能在本工程内闭环，不需要跨仓猜测，也不允许借「已经独立了」的理由自造规则。
 >
-> **版本**：3D `V1P-0.1` / `0.1.0`（真源 `3d/version.json`）· 移植基线 `返航录V3.6` / `3.6.0`（只读标识见 `package.json`）。
+> **版本**：3D `V1P-0.2` / `0.2.0`（真源 `3d/version.json`）· 移植基线 `返航录V3.7` / `3.7.0`（只读标识见 `package.json`）。
 > **接手顺序**：根 `README.md` → `SPLIT.md` → 本文件 → `3d/README.md` → `3d/HANDOFF.md` → `3d/MIGRATION.md` → `3d/CHANGELOG.md` → 再动代码。
 > **分离时刻的现场事实**：玩家除移动外**无法进行任何操作**；门禁有 2 项既有失败。两者均见 §六，本轮只分离、未修复。
 
@@ -27,7 +27,7 @@
    `config/version → data/map → data/plates → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.6'`）。**
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
 4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tools/test-v3.cjs`，失败一律按回归处理；
