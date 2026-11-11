@@ -105,16 +105,19 @@
 
 2.5D 白天会议唯一入口 `dawn()`（`js/game.js:4513-4526`）先全员 `randIn(bridge)` 再开会。3D `sim.dawn()` 只改 `agent.pos`，玩家相机从未搬；会议结束 `_sync_player_pos` 还会反写。已新增 `main._sync_day_meeting_teleport()`，断言 (8,8)→(31,33.5) PASS。
 
-### P0-3 暗房不暗（未修）
+### P0-3 暗房不暗（已修 · 2026-11-11）
 
 - 3D 三态逻辑正确：`map_builder.set_light_state(0)` 按 `rec.bright` 关房间灯。
 - 但同一函数里 `_fill`（0.28）、`_ceil_fill`（0.16）、`env.ambient` **常态全开**，暗房被全船补光照亮。
 - 2.5D 还有一层「画布遮黑 + 只剩手电」，3D 完全没有。
 - 影响：照明、手电、潜行、视野规则（`ai_can_see` 有暗房判定，但玩家看不出暗）。
+- **修法**：`LIT_AMBIENT 0.55→0.30`、`_fill 0.28→0.06`、`_ceil_fill 0.16→0.04`；新增 `main._tick_darkness()`：按 `light_state` + 房间 `light` 判定玩家所在房间，暗房叠一层 62% 径向渐变遮罩（中心保留手电视野），DEV/旁观不遮。
+- **断言**：`DARK_TEST power_lit=false bridge_lit=true → PASS`。
 
-### P0-4 HUD 信息泄露（未修）
+### P0-4 HUD 信息泄露（已修 · 2026-11-11）
 
 `main._event_feed()` 播报「X 完成 任务 / X 被驱逐 / X 领取补给」。2.5D 局内 HUD 只显示夜/进度/任务/存活/报告额度；这些事件只在复盘页。属信息泄露，破坏推理。
+- **已修**：只保留公共可感知事件（开会 / 故障 / 修复）。断言 `FEED_TEST leak=false → PASS`。
 
 ## 四、manifest 中已过期的 notes（本次核实）
 
@@ -131,17 +134,17 @@
 
 | # | 项 | 证据 | 影响 | 优先级 |
 |---|---|---|---|---|
-| 1 | 暗房遮罩 | §三-3 | 照明/潜行全失效 | P0 |
-| 2 | HUD 事件播报 | §三-4 | 信息泄露 | P0 |
-| 3 | 人类 AI 追猎（`chaseKnown/chaseSus`） | `ai_human.gd:220` 自述未接 | 人类 AI 不会主动接近已知目标开枪 | P1 |
-| 4 | 路径平滑（`smoothPath` / `pathClear`） | `grid_nav.gd` 仅 A* | AI 走折线、贴墙 | P1 |
-| 5 | 故障点 3D 视觉 | `_tick_dmg` 只有数据 | 看不见哪台设备坏了 | P1 |
+| 1 | 暗房遮罩 | §三-3 | 照明/潜行全失效 | **已修** |
+| 2 | HUD 事件播报 | §三-4 | 信息泄露 | **已修** |
+| 3 | 人类 AI 追猎（`chaseKnown/chaseSus`） | `ai_human.gd:_chase_target` | 已按 SHOT.chaseKnown/chaseSus 接上 | **已修** |
+| 4 | 路径平滑（`smoothPath` / `pathClear`） | `grid_nav.path()` 新增 string-pulling | 折线已消除 | **已修** |
+| 5 | 故障点 3D 视觉 | `main._tick_fault_marks()` 红色警示 + 点光 | 已在世界中标出 | **已修** |
 | 6 | 报告播报文案 | `S-REPORT` | 信息面与 2.5D 不一致 | P1 |
 | 7 | 4 型小游戏 | `V-MINIGAME` 10/14 | 任务种类少 | P2 |
 | 8 | 复盘页 | `UI-REPLAY` | 无时间轴/事件回放 | P2 |
 | 9 | 图板坐标数据 | `D-PLATES` | 玩法等价，数据未搬 | P3 |
-| 10 | DEV 不变量断言 | `E-INVARIANTS` reference | 缺运行时自检 | P3 |
-| 11 | 藏尸评分 | `_hide_room()` 随机 | 藏尸位置不如 2.5D 合理 | P3 |
+| 10 | DEV 不变量断言 | `sim._tick_invariants()`（人数/负刀/负弹/死人移动） | 已接最小集 | **已修** |
+| 11 | 藏尸评分 | `_hide_room(from_pos)` 按离人距离评分 | 已改评分 | **已修** |
 
 ## 六、静态审阅无法确认的部分（需运行验证）
 
@@ -162,4 +165,5 @@
 
 ---
 
-**本轮改动**：仅新增本文档；游戏代码零改动（P0-1/P0-2 已在上一提交修复）。
+**本轮改动**：P0-3/P0-4/P1（追猎、路径、故障视觉）/P3（DEV 不变量、藏尸评分）已修，附 4 条 headless 断言；
+剩余 P2 内容层（小游戏 3 型、复盘页）与 P3 图板数据未动，见 §五。

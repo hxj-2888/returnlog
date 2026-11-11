@@ -18,7 +18,7 @@ const CEIL_TILE_M := 2.4
 const CORR_LAMP_RANGE := 8.0
 ## 断电后仍保留的极弱底光（不是"能看见人"，只是不让玩家失去地图结构）。
 const BLACKOUT_AMBIENT := 0.055
-const LIT_AMBIENT := 0.55
+const LIT_AMBIENT := 0.30
 ## 墙面全局曝光补偿：3D 实时光与烘焙端 Cycles 不同，需要一个绝对基准。
 ## 房间之间的色差完全由 rooms[].theme.wall 决定，这个系数不参与区分。
 const WALL_TINT_BASE := Color(0.74, 0.78, 0.84)
@@ -207,8 +207,8 @@ var _ambient_base := LIT_AMBIENT
 var _fill: DirectionalLight3D = null
 ## 天花板补光（朝上），照天花板背光面
 var _ceil_fill: DirectionalLight3D = null
-var _ceil_fill_base := 0.16
-var _fill_base := 0.28
+var _ceil_fill_base := 0.04
+var _fill_base := 0.06
 var power_on := true
 ## 天花板整层（舱室顶面 / 走廊顶面 / 灯带）：旁观者飞到天花板以上时整层隐藏，
 ## 从上面俯视就是一个完整剖面。2.5D 是 2D 俯视，不需要这套，属维度产物。
@@ -873,7 +873,7 @@ func _build_environment() -> void:
 	env.background_color = Color(0.012, 0.016, 0.026)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.42, 0.48, 0.6)
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.30
 	_ambient_base = env.ambient_light_energy
 	_env = env
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
@@ -886,7 +886,7 @@ func _build_environment() -> void:
 
 	var fill := DirectionalLight3D.new()
 	fill.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
-	fill.light_energy = 0.28
+	fill.light_energy = 0.06
 	fill.light_color = Color(0.55, 0.66, 0.85)
 	fill.shadow_enabled = false
 	add_child(fill)
@@ -899,7 +899,7 @@ func _build_environment() -> void:
 	## 能量刻意压低（0.16）：这是补面光，不能把舱室照亮成白天。
 	var ceil_fill := DirectionalLight3D.new()
 	ceil_fill.rotation_degrees = Vector3(58.0, 20.0, 0.0)
-	ceil_fill.light_energy = 0.16
+	ceil_fill.light_energy = 0.04
 	ceil_fill.light_color = Color(0.62, 0.70, 0.82)
 	ceil_fill.shadow_enabled = false
 	add_child(ceil_fill)

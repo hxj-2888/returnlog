@@ -165,6 +165,37 @@ func _medbot_usable() -> bool:
 ## 选一个"敢开枪"的目标：确证优先 → 准-确证 affordableAlmostShot → 综合嫌疑。
 ## 嫌疑读**夜间折价**（sus_of_night，跨夜存量 ×0.7）；必须在枪程 + 视线内。
 ## 数值全部读 space.json#shoot 与 rules.json，不写死。
+## 追猎目标：枪程外、追猎距离内，且手里有子弹。
+## 2.5D chaseKnown=14（有确证）/ chaseSus=10（只有嫌疑）—— 是"愿意走多远"，不是射程。
+func _chase_target(a: Dictionary) -> int:
+	if sim == null or sim.mind == null:
+		return -1
+	var scfg: Dictionary = space.get("shoot", {}) as Dictionary
+	var shoot_r := float(scfg.get("range", 9.0))
+	var ti := -1
+	var sure := false
+	var rec: Dictionary = sim.mind.best_known_target(a)
+	if not rec.is_empty():
+		ti = int(rec.get("i", -1))
+		sure = ti >= 0
+	if ti < 0:
+		var al: Dictionary = sim.mind.best_almost_target(a)
+		if not al.is_empty():
+			ti = int(al.get("i", -1))
+	if ti < 0:
+		return -1
+	var tgt: Dictionary = sim.agent(ti)
+	if tgt.is_empty() or not bool(tgt.get("alive", true)) or bool(tgt.get("downed", false)):
+		return -1
+	var d: float = (a.get("pos", Vector2.ZERO) as Vector2).distance_to(
+		tgt.get("pos", Vector2.ZERO) as Vector2)
+	var chase_r := float(scfg.get("chaseKnown", 14.0)) if sure \
+		else float(scfg.get("chaseSus", 10.0))
+	if d <= shoot_r or d >= chase_r:
+		return -1
+	return ti
+
+
 func _shoot_target(a: Dictionary) -> int:
 	var scfg: Dictionary = space.get("shoot", {}) as Dictionary
 	var shoot_r := float(scfg.get("range", 9.0))
@@ -222,6 +253,13 @@ func _decide(a: Dictionary) -> void:
 		var si: int = _shoot_target(a)
 		if si >= 0 and sim.shoot(i, si):
 			a["_aiT"] = 2.5 + sim._rng.randf() * 2.0
+			return
+		# 追猎（2.5D js/game.js:3877 chaseR）：枪程外、追猎距离内 → 主动靠近再开枪。
+		# 与 ai_alien 同一口径：有确证 chaseKnown(14)、只有嫌疑 chaseSus(10)。
+		var ci := _chase_target(a)
+		if ci >= 0 and (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+			sim.set_path(i, sim.agent(ci).get("pos", Vector2.ZERO))
+			a["_aiT"] = 0.4
 			return
 
 	# 1) 有待领申请单：回圆桌领（个人进度 3 / 5 各生成一张）。

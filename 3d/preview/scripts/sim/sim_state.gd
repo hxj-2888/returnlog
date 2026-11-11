@@ -478,6 +478,7 @@ func tick(dt: float) -> void:
 		if _ai_alien != null:
 			_ai_alien.tick(dt)
 	tick_agents(dt)
+	_tick_invariants(dt)
 	if bots != null:
 		bots.tick(dt)
 	_tick_dmg(dt)
@@ -2338,3 +2339,25 @@ func _read_json(path: String) -> Variant:
 	var text := fh.get_as_text()
 	fh.close()
 	return JSON.parse_string(text)
+
+## DEV 不变量（2.5D engine/invariants.js 的最小集）：只在 DEV 下跑，
+## 只写 dev_log、不阻断对局 —— 用来发现"数值被写坏"而不是替代门禁。
+var _inv_t := 0.0
+
+func _tick_invariants(dt: float) -> void:
+	if not dev:
+		return
+	_inv_t += dt
+	if _inv_t < 2.0:
+		return
+	_inv_t = 0.0
+	if agents.size() != 15:
+		_log("invariant", {"what": "agents", "n": agents.size()})
+	for a: Dictionary in agents:
+		var ai := int(a.get("i", -1))
+		if int(a.get("knife", 0)) < 0:
+			_log("invariant", {"what": "knife_negative", "i": ai})
+		if int(a.get("bullet", 0)) < 0:
+			_log("invariant", {"what": "bullet_negative", "i": ai})
+		if not bool(a.get("alive", true)) and bool(a.get("moving", false)):
+			_log("invariant", {"what": "dead_moving", "i": ai})

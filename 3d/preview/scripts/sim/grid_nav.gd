@@ -124,6 +124,22 @@ func path(from: Vector2, to: Vector2) -> PackedVector2Array:
 	if pts.is_empty():
 		return PackedVector2Array([t])
 	pts[pts.size() - 1] = t
+	# 2.5D geo.smoothPath / pathClear：能直达就跳过中间点。
+	# 不做会沿网格走出折线，AI 贴墙、绕角时尤其明显。
+	if pts.size() > 2:
+		var out := PackedVector2Array()
+		var i := 0
+		while i < pts.size():
+			out.append(pts[i])
+			var j := pts.size() - 1
+			while j > i + 1:
+				if los(pts[i], pts[j]):
+					break
+				j -= 1
+			if j <= i:
+				j = i + 1
+			i = j
+		pts = out
 	return pts
 
 

@@ -1,5 +1,16 @@
 # 3D 修改记录
 
+## 2026-11-11 · 核心机制修复批（P0×2 + P1×3 + P3×2）
+
+- **暗房（P0）**：`LIT_AMBIENT 0.55→0.30`、`_fill 0.28→0.06`、`_ceil_fill 0.16→0.04`；`main._tick_darkness()` 按 `light_state` + 房间 `light` 给暗房叠 62% 径向遮罩（中心保留手电视野），DEV/旁观不遮。断言 `DARK_TEST power_lit=false bridge_lit=true PASS`。
+- **HUD 播报收口（P0）**：删掉任务完成 / 驱逐 / 补给三类播报，只留开会 / 故障 / 修复。断言 `FEED_TEST leak=false PASS`。
+- **人类 AI 追猎（P1）**：`ai_human._chase_target()`，按 `SHOT.chaseKnown(14) / chaseSus(10)` 在枪程外主动靠近；与异形同一口径。
+- **路径平滑（P1）**：`grid_nav.path()` 加 string-pulling（2.5D `smoothPath`），相邻路点保证 LOS。断言 `PATH_TEST blocked_segments=0 PASS`。
+- **故障点视觉（P1）**：`main._tick_fault_marks()` 在世界里给 `sim.dmg` 挂「⚠ 故障」标牌 + 红光，修复后自动消失。断言 `FAULT_TEST marks=1 / FAULT_CLEAR marks=0 PASS`。
+- **DEV 不变量（P3）**：`sim._tick_invariants()` 每 2 秒检查人数 / 负刀 / 负弹 / 死人移动，只写 dev_log。
+- **藏尸评分（P3）**：`ai_alien._hide_room(from_pos)` 改为按「离活人距离 − 拖尸超距扣分」评分，不再随机。
+- 未动：小游戏 3 型（wire/sync/valve）、复盘页、图板坐标数据 —— 属 P2 内容层，另批处理。
+
 ## 2026-11-11 · 修 P0：白天会议回舱 + 异形互刀
 
 - **白天会议回舱（`main.gd` 新增 `_sync_day_meeting_teleport()`）**：2.5D `dawn()`（`js/game.js:4513-4526`）先全员 `randIn(bridge)` 再 `openMeeting('day')`；3D 的 `sim.dawn()` 只改了 `agent.pos`，玩家相机从未搬过，会议结束 `_sync_player_pos` 还会反写回原地 → 玩家实际没回会议室。现按 `sim.meet_seq` 监听白天会议开场，把相机搬到 `sim.me().pos` 并朝向会议室中心。断言：从 (8,8) → (31,33.5)，`kind=day`，PASS。

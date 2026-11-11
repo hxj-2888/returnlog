@@ -590,7 +590,7 @@ func _decide(a: Dictionary) -> void:
 				if (w3.get("pos", Vector2.ZERO) as Vector2).distance_to(a.get("pos", Vector2.ZERO)) <= 8.0:
 					wit2 += 1
 			if wit2 == 0 and sim._rng.randf() < 0.5:
-				var hid := _hide_room()
+				var hid := _hide_room(bpos)
 				if hid != "":
 					a["drag"] = best
 					bvic["draggedBy"] = i
@@ -744,13 +744,30 @@ func _try_breaker_off(a: Dictionary) -> bool:
 		return true
 	return sim.set_path(i, bp)
 
-## 藏尸目的地（2.5D hideRoomFor 的简化）：随机挑一间非 med/bridge 的房间
-func _hide_room() -> String:
-	var pool: Array = []
+## 藏尸目的地：2.5D hideRoomFor 的评分近似 —— 离活人越远越好，拖尸距离过远要扣分，
+## med/bridge 排除（2.5D 也不往医疗间/会议室藏）。
+func _hide_room(from_pos: Vector2 = Vector2.ZERO) -> String:
+	var humans: Array = []
+	for h: Dictionary in sim.agents:
+		if bool(h.get("alive", false)) and not bool(h.get("alien", false)) \
+				and not bool(h.get("downed", false)):
+			humans.append(h.get("pos", Vector2.ZERO))
+	var best := ""
+	var best_s := -1.0e9
 	for r: Dictionary in (sim.map.get("rooms", []) as Array):
 		var rid := String(r.get("id", ""))
-		if rid != "med" and rid != "bridge" and rid != "":
-			pool.append(rid)
-	if pool.is_empty():
-		return ""
-	return String(pool[sim._rng.randi_range(0, pool.size() - 1)])
+		if rid == "" or rid == "med" or rid == "bridge":
+			continue
+		var c: Vector2 = sim.room_center(rid)
+		var min_d := 999.0
+		for hp: Vector2 in humans:
+			min_d = minf(min_d, c.distance_to(hp))
+		if humans.is_empty():
+			min_d = 0.0
+		var carry := c.distance_to(from_pos)
+		# 离人远 = 更难被发现；拖太远 = 暴露时间变长，按格扣分
+		var s := min_d - maxf(0.0, carry - 25.0) * 0.8
+		if s > best_s:
+			best_s = s
+			best = rid
+	return best

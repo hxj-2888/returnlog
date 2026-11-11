@@ -89,6 +89,12 @@ var _red_t := 0.0
 ## 2.5D dawn() 先把全员 randIn(bridge) 再 openMeeting('day')；3D 的 sim.dawn()
 ## 只改了 agent.pos，玩家相机没搬 —— 会议结束 _sync_player_pos 还会把位置反写回原地。
 var _last_meet_seq := 0
+## 暗房遮罩（2.5D refreshLight + SIGHT）：未点亮房间整块压暗，只留中心手电圈。
+var dark_layer: CanvasLayer
+var dark_rect: TextureRect
+var _dark_alpha := 0.0
+## 故障点世界标记：room_id -> Node3D（红色警示 + 点光）
+var _fault_marks: Dictionary = {}
 
 var meeting_panel: ColorRect
 var meeting_title: Label
@@ -3501,6 +3507,28 @@ func _build_fx() -> void:
 	hit_mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fx_layer.add_child(hit_mark)
 
+	# 暗房遮罩单独放在 layer 0（HUD 之下），径向渐变：中心透明、四周全黑。
+	dark_layer = CanvasLayer.new()
+	dark_layer.layer = 0
+	add_child(dark_layer)
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.0, 0.0, 0.0, 0.0))
+	grad.set_color(1, Color(0.0, 0.0, 0.0, 1.0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill = GradientTexture2D.FILL_RADIAL
+	gtex.fill_from = Vector2(0.5, 0.5)
+	gtex.fill_to = Vector2(1.0, 0.5)
+	gtex.width = 256
+	gtex.height = 256
+	dark_rect = TextureRect.new()
+	dark_rect.texture = gtex
+	dark_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dark_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	dark_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dark_rect.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	dark_layer.add_child(dark_rect)
+
 
 ## 出刀反馈总入口：hit=true 走命中（标记 + 红闪 + 镜头冲击 + 血花），
 ## false 只做轻微镜头回弹（挥空也要有手感，但不能假装命中）。
@@ -3566,6 +3594,96 @@ func _tick_fx(delta: float) -> void:
 
 ## 手上的刀只在「异形 + 本夜还有刀 + 活着且没倒地 + 不在会议」时出现。
 ## 人类拿刀会直接泄露身份，所以这里必须严格跟着 sim 状态走。
+## 2.5D refreshLight 的三态 + SIGHT：判断玩家所在房间是否点亮。
+func _player_room_lit() -> bool:
+	if sim == null or player == null:
+		return true
+	var st := int(sim.light_state)
+	if st == 1:
+		return true
+	var p := Vector2(player.global_position.x, player.global_position.z)
+	var rid: String = sim.room_at(p)
+	if rid == "":
+		# 走廊：常态亮，拉闸全黑（2.5D corrLit = st!==2）
+		return st != 2
+	if st == 2:
+		return rid == "bridge"
+	for r: Dictionary in (map_data.get("rooms", []) as Array):
+		if String(r.get("id", "")) == rid:
+			return String(r.get("light", "bright")) == "bright"
+	return true
+
+
+## 暗房遮罩：DEV / 旁观者不遮；进暗房 0.62，出暗房 0。
+func _tick_darkness(delta: float) -> void:
+	if dark_rect == null or sim == null:
+		return
+	var target := 0.0
+	if not bool(sim.dev) and not bool(sim.spectator) and not _player_room_lit():
+		target = 0.62
+	_dark_alpha = lerpf(_dark_alpha, target, clampf(delta * 4.0, 0.0, 1.0))
+	dark_rect.modulate.a = _dark_alpha
+
+
+## 故障点世界标记：sim.dmg 是唯一数据源，标记只是表现，随修复自动消失。
+func _tick_fault_marks() -> void:
+	if sim == null:
+		return
+	var live := {}
+	for d: Dictionary in sim.dmg:
+		var rid := String(d.get("room", ""))
+		if rid == "":
+			continue
+		live[rid] = true
+		if _fault_marks.has(rid):
+			continue
+		var node := _make_fault_mark(d)
+		add_child(node)
+		_fault_marks[rid] = node
+	for rid2 in _fault_marks.keys():
+		if live.has(rid2):
+			continue
+		var old = _fault_marks[rid2]
+		if is_instance_valid(old):
+			old.queue_free()
+		_fault_marks.erase(rid2)
+	var pulse := 0.85 + 0.15 * sin(Time.get_ticks_msec() / 200.0)
+	for rid3 in _fault_marks.keys():
+		var n = _fault_marks[rid3]
+		if is_instance_valid(n):
+			(n as Node3D).scale = Vector3.ONE * pulse
+
+
+func _make_fault_mark(d: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var x := float(d.get("x", 0.0))
+	var y := float(d.get("y", 0.0))
+	if absf(x) < 0.01 and absf(y) < 0.01:
+		var c: Vector2 = sim.room_center(String(d.get("room", "")))
+		x = c.x
+		y = c.y
+	root.position = Vector3(x, 1.55, y)
+	var lb := Label3D.new()
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
+	lb.text = "⚠ 故障"
+	lb.font = font
+	lb.font_size = 48
+	lb.pixel_size = 0.004
+	lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lb.modulate = Color(1.0, 0.38, 0.30)
+	lb.outline_size = 8
+	lb.outline_modulate = Color(0.0, 0.0, 0.0, 0.9)
+	root.add_child(lb)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.28, 0.22)
+	light.light_energy = 1.4
+	light.omni_range = 2.4
+	light.omni_attenuation = 1.4
+	root.add_child(light)
+	return root
+
+
 func _tick_knife_view() -> void:
 	if player == null or sim == null:
 		return
@@ -5714,6 +5832,8 @@ func _process(delta: float) -> void:
 		sim.tick(delta)
 		# 白天会议开场（dawn）后必须把相机搬回会议室，否则玩家留在原地开会。
 		_sync_day_meeting_teleport()
+		_tick_darkness(delta)
+		_tick_fault_marks()
 		if crew_view != null:
 			crew_view.sync(sim, delta)
 		_sync_bots()
@@ -7096,22 +7216,14 @@ func _event_feed() -> String:
 		if e.get("actor") is int and int(e.get("actor", -1)) >= 0:
 			who = String(sim.agent(int(e.get("actor", -1))).get("name", ""))
 		var txt := ""
-		if kind == "task":
-			txt = "%s 完成 %s" % [who, String(e.get("label", "任务"))]
-		elif kind == "kill":
-			txt = "有人倒下"
-		elif kind == "knife":
-			txt = "有人被放倒"
-		elif kind == "meeting":
+		# 2.5D 局内 HUD 不播报任务完成 / 驱逐 / 补给（那些只在复盘页）。
+		# 这里只留"全船都能感知"的事件：开会、故障、修复。
+		if kind == "meeting":
 			txt = "发现尸体 · 开会"
-		elif kind == "eject":
-			txt = "%s 被驱逐" % who
 		elif kind == "sabotage":
 			txt = "设备故障 · %s" % sim.room_name(String(e.get("room", "")))
 		elif kind == "fix":
 			txt = "故障修复" if bool(e.get("ok", false)) else "故障未修 · 进度 -5"
-		elif kind == "supply":
-			txt = "%s 领取补给" % who
 		if txt != "":
 			lines.append(txt)
 	return "\n".join(lines)
