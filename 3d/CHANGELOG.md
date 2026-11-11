@@ -1,5 +1,16 @@
 # 3D 修改记录
 
+## 2026-11-11 · 机制同步批 2（审阅驱动）
+
+- **补齐停摆机器人**：2.5D `sabotageBot()` 在 3D 没有入口。新增 `sim.sabotage_bot()` + B 键交互项「停摆 · 保安/医疗」：活着的异形、1.8 格、每夜一次、不耗刀弹；`sabUsed` 记账、目击 `saw_bot`、18 格噪声、保安记案。
+- **`kill()` 统一走 `die()`**：之前门禁用的 `kill()` 是第二条死亡路径，漏 `ghost=true`、`bodyPos/deathRoom`、拖拽解除与状态清理。现在委托 `die()`，2.5D 只有一条死亡入口。
+- **`revive()` 清 `searched`**：对齐 2.5D 的 medbotTick / finishDoing(revive)。
+- **监控守卫**：`_open_cams()` 补 `over / meeting` 守卫（2.5D openCams 同款）。
+- **审阅器升级**：`adapter` 的拆分缺口不再计入预算；2.5D DOM/Canvas 函数自动标 `not-applicable`；`!arr.length` 与 `is_empty()` 视为等价；`not-applicable` 条目不再走自动同名匹配。
+- **映射进度**：385 个 2.5D 函数 → 96 显式 + 67 自动，**守卫缺口 0 / 写入缺口 0 / 3D 独有 0 / 真源漂移 0**；`budget` 收紧到 `pending 133`。剩余 pending 多为工具/UI/模板句。
+- **两个真缺口已登记，未实现**：① `doorBlockedSegment` —— 3D `nav.los` 不含门，关闭的门不挡视线/枪线；② `secbotRaidOk` —— 3D 没有「2+ 异形围攻保安」协同判定。
+- **验证**：`B4TEST 8/0`、`INTERACT` 全项、`KNIFETEST OK`、`MEETINGTEST ok=true`、`baseline:check OK 443`、`guard PASS`、`audit:parity:strict PASS`。
+
 ## 2026-11-11 · 核心机制对齐批 + 自动化审阅
 
 - **濒死口径改成 2.5D**：删掉 3D 自造的 `downedT=12` 失血计时与 tick 里的 `die()`；濒死持续到天亮，`dawn()` 统一判 `bled`。第二刀不再直接致死（2.5D `knife()` 对已倒地目标直接 return）。

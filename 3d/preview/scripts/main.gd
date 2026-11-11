@@ -6072,7 +6072,7 @@ func _offer_key(id: String) -> String:
 		return "Q"
 	if id.begins_with("breaker"):
 		return "V"
-	if id.begins_with("sabotage-"):
+	if id.begins_with("sabotage"):
 		return "B"
 	if id.begins_with("cams"):
 		return "C"
@@ -6334,6 +6334,35 @@ func _collect_offers() -> Array:
 			"act": func() -> void: _on_hit_bot(bk),
 		})
 
+	# 停摆机器人（2.5D sabotage()：贴身 1.8 格、每夜一次、不耗刀/弹）
+	if sim != null and not sim.agents.is_empty():
+		var sab_me: Dictionary = sim.me()
+		if bool(sab_me.get("alien", false)) and bool(sab_me.get("alive", true)) \
+				and not bool(sab_me.get("downed", false)) \
+				and not bool(sab_me.get("detained", false)) \
+				and not bool(sab_me.get("sabUsed", false)):
+			for bkind3: String in ["secbot", "medbot"]:
+				if int(sim.bot_hp.get(bkind3, 0)) <= 0:
+					continue
+				var bp3: Vector2 = sim.bot_pos_of(bkind3)
+				if bp3 == Vector2.ZERO:
+					continue
+				if bp3.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "sabotage"):
+					continue
+				var bname3 := "保安机器人" if bkind3 == "secbot" else "医疗无人机"
+				for f3: Dictionary in (map_data.get("facility", []) as Array):
+					if String(f3.get("kind", "")) == bkind3:
+						bname3 = String(f3.get("label", bname3))
+						break
+				var bk4 := bkind3
+				out.append({
+					"id": "sabotagebot-" + bkind3,
+					"label": "停摆 · " + bname3,
+					"hint": "每夜一次 · 不耗刀 · 之后不能再破坏舱室",
+					"accent": Color("#FFB3AC"),
+					"act": func() -> void: _on_sabotage_bot(bk4),
+				})
+
 	# 搜尸：一具尸体只搜一次，站桩 STAND.search 秒后转移随身物资。
 	if sim != null:
 		for dead: Dictionary in sim.agents:
@@ -6512,6 +6541,13 @@ func _on_revive_done(body_i: int) -> void:
 		_toast("施救失败（医疗包不足 / 目标已不在濒死状态）")
 
 
+func _on_sabotage_bot(kind: String) -> void:
+	if sim != null and sim.sabotage_bot(kind, int(sim.me_idx)):
+		_toast("已停摆 %s（本夜破坏额度已用）" % ("保安机器人" if kind == "secbot" else "医疗无人机"))
+	else:
+		_toast("停摆失败（今晚已用过 / 距离太远 / 已停摆 / 不是异形）")
+
+
 func _on_sabotage(room_id: String) -> void:
 	if sim != null and sim.player_sabotage(room_id):
 		_toast("已破坏 " + sim.room_name(room_id) + " · 30 秒内未修复将倒扣维修进度")
@@ -6549,6 +6585,9 @@ func _open_body_card(body_i: int) -> void:
 ## 2.5D openCams：路数、断电中断、夜次与剩余时间；不暴露异形身份。
 func _open_cams() -> void:
 	if sim == null:
+		return
+	# 2.5D openCams()：`if(!G||G.over||G.meet||G.inspect||G.pipePick...)return`
+	if sim.over or not sim.meeting.is_empty():
 		return
 	var rooms: Array = map_data.get("rooms", [])
 	var lines: Array = []

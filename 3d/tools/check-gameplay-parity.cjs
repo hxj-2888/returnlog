@@ -199,12 +199,19 @@ for (const fn of jsFns) {
   const entry = entryByKey.get(key);
   let gd = null;
   let status = 'pending';
-  if (entry && entry.target) {
+  if (entry && !entry.target && entry.status === 'not-applicable') {
+    status = 'not-applicable';
+  } else if (entry && entry.target) {
     gd = gdLookup(entry.target);
     status = gd ? entry.status || 'mapped' : 'broken-target';
   } else {
     gd = autoTarget(fn);
-    if (gd) status = 'auto';
+    if (gd) {
+      status = 'auto';
+    } else if (/document\.|getElementById|querySelector|ctx\.|innerHTML|classList|\.fillRect|\.drawImage|\.beginPath/.test(fn.body)) {
+      // 2.5D 的 DOM / Canvas 绘制函数：3D 由 Godot 场景与渲染管线承担，无 1:1 对应。
+      status = 'not-applicable';
+    }
   }
   const row = {
     src: key,
@@ -219,6 +226,7 @@ for (const fn of jsFns) {
     writes_missing: 0,
     missing_detail: '',
   };
+  row.counted = status !== 'adapter' && status !== 'not-applicable';
   if (gd) {
     const { guards, writes } = atoms(fn.body);
     row.guards = guards.length;
@@ -228,7 +236,9 @@ for (const fn of jsFns) {
     for (const g of guards) {
       const toks = identTokens(g.cond);
       if (toks.length === 0) continue;
-      const hit = toks.some((t) => gdBody.includes(t));
+      // 空集合守卫在 2.5D 常写 `!arr.length`，3D 用 is_empty()：语义等价，直接放过
+      const emptiness = /!\s*[\w.$]+\.length|\b\.length\s*===?\s*0/.test(g.cond);
+      const hit = toks.some((t) => gdBody.includes(t)) || (emptiness && gdBody.includes('is_empty()'));
       if (!hit) {
         row.guards_missing++;
         miss.push('guard(' + g.cond.slice(0, 42) + ')');
@@ -249,8 +259,12 @@ for (const fn of jsFns) {
 const jsNames = new Set(jsFns.map((f) => f.name));
 const jsSnakes = new Set(jsFns.map((f) => toSnake(f.name)));
 const extras = [];
+const extrasAllow = spec.extras_allow || {};
+const explicitTargets = new Set((spec.entries || []).map((e) => e.target).filter(Boolean));
 for (const g of gdFns) {
   if (!g.file.startsWith('sim/')) continue;
+  if (explicitTargets.has(g.file + ':' + g.name)) continue;
+  if (extrasAllow[g.file + ':' + g.name]) continue;
   if (g.name.startsWith('_') && !g.body.includes('.get("')) continue;
   const hasWrite = /\["(alive|downed|ghost|knife|bullet|stunT|redT|sabUsed|downedT|draggedBy)"\]\s*=/.test(g.body);
   if (!hasWrite) continue;
@@ -291,8 +305,8 @@ for (const [rel, re] of [
 const counts = rows.reduce((acc, r) => {
   acc.total++;
   acc[r.status] = (acc[r.status] || 0) + 1;
-  if (r.guards_missing) acc.guard_gap++;
-  if (r.writes_missing) acc.write_gap++;
+  if (r.counted && r.guards_missing) acc.guard_gap++;
+  if (r.counted && r.writes_missing) acc.write_gap++;
   return acc;
 }, { total: 0, guard_gap: 0, write_gap: 0 });
 
@@ -334,10 +348,12 @@ else for (const h of hardcoded) md.push('- ⛔ ' + h + ' 里写死了 GHOST_TASK
 md.push('');
 md.push('## 守卫/字段缺口（按缺口数排序）');
 md.push('');
-md.push('| 2.5D 函数 | 3D 目标 | 守卫缺 | 写入缺 | 缺什么 |');
-md.push('|---|---|---:|---:|---|');
-for (const r of rows.filter((x) => x.guards_missing || x.writes_missing).sort((a, b) => (b.guards_missing + b.writes_missing) - (a.guards_missing + a.writes_missing))) {
-  md.push('| `' + r.src + ':' + r.src_line + '` | `' + r.target + '` | ' + r.guards_missing + ' | ' + r.writes_missing + ' | ' + r.missing_detail.replace(/\|/g, '\\|') + ' |');
+md.push('> `adapter` 表示一个 2.5D 函数拆到多个 3D 函数（或输入层），其缺口是拆分导致，不计入预算；`ported/auto` 的缺口才是真缺口。');
+md.push('');
+md.push('| 2.5D 函数 | 状态 | 3D 目标 | 守卫缺 | 写入缺 | 缺什么 |');
+md.push('|---|---|---|---:|---:|---|');
+for (const r of rows.filter((x) => x.guards_missing || x.writes_missing).sort((a, b) => (b.counted ? 1 : 0) - (a.counted ? 1 : 0) || (b.guards_missing + b.writes_missing) - (a.guards_missing + a.writes_missing))) {
+  md.push('| `' + r.src + ':' + r.src_line + '` | ' + r.status + ' | `' + r.target + '` | ' + r.guards_missing + ' | ' + r.writes_missing + ' | ' + r.missing_detail.replace(/\|/g, '\\|') + ' |');
 }
 md.push('');
 md.push('## 未映射函数（按文件分组）');
@@ -356,6 +372,10 @@ md.push('## 3D 独有状态写入（需标注为表现/输入层或补映射）'
 md.push('');
 for (const e of extras.slice(0, 40)) md.push('- `' + e.target + ':' + e.line + '`');
 if (extras.length > 40) md.push('- …共 ' + extras.length + ' 个');
+md.push('');
+md.push('### 已登记的内部函数（不算自造规则）');
+md.push('');
+for (const [k, v] of Object.entries(extrasAllow)) md.push('- `' + k + '`：' + v);
 md.push('');
 md.push('## 下一步（由审阅表驱动，不靠抽查）');
 md.push('');

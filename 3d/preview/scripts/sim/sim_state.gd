@@ -810,20 +810,16 @@ func check_win() -> bool:
 
 
 ## 只给门禁 / 后续战斗结算用：把一个角色标记为死亡（B1 还没有战斗入口）。
+## 门禁 / 批量模拟用的死亡快捷入口。
+## 必须走 die()：否则会漏掉 ghost=true、bodyPos/deathRoom、拖拽解除与状态清理
+## （2.5D 只有 die() 一个死亡入口，不存在第二条路径）。
 func kill(agent_i: int, cause: String, by: int = -1) -> bool:
 	var a := agent(agent_i)
 	if a.is_empty() or not bool(a.get("alive", false)):
 		return false
-	if dev and not spectator and agent_i == me_idx:
-		_dev_note("DEV 无敌：死亡被拦截（%s）" % cause)
-		return false
-	a["alive"] = false
-	a["downed"] = false
 	a["deathCause"] = cause
 	a["killedBy"] = by
-	_log("kill", {"actor": agent_i, "cause": cause, "by": by})
-	check_win()
-	return true
+	return die(a)
 
 
 ## 出刀：把人放倒（濒死持续到天亮 / 被救），已倒地的人不能再被刀。
@@ -973,6 +969,8 @@ func revive(agent_i: int, method: String = "manual", stun: float = 0.0) -> bool:
 	a["downedT"] = 0.0
 	a["deathCause"] = ""
 	a["medTried"] = true
+	# 2.5D medbotTick / finishDoing(revive)：救起后清 searched（每次倒下都是新一次可搜）
+	a["searched"] = false
 	# 2.5D：救起后短时间内站不稳（只禁移动，不禁交互 / 发言）；拖拽关系一并解除。
 	if stun > 0.0:
 		a["stunT"] = stun
@@ -2318,6 +2316,35 @@ func knife_bot(kind: String, by: int) -> bool:
 		_log("bot_down", {"actor": by, "bot": kind})
 	if bots != null:
 		bots.on_crime(by, a.get("pos", Vector2.ZERO))
+	return true
+
+
+## 2.5D sabotageBot()：异形用「破坏」把机器人直接停摆（每夜一次，不耗刀/弹）。
+## 与 knife_bot 的区别：刀拆是逐点削 HP；停摆是一次性、只属于活着的异形。
+func sabotage_bot(kind: String, by: int) -> bool:
+	var a := agent(by)
+	if a.is_empty() or bots == null:
+		return false
+	if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+			or bool(a.get("detained", false)):
+		return false
+	if not bool(a.get("alien", false)):
+		return false
+	if bool(a.get("sabUsed", false)) and not dev:
+		return false
+	if bots.is_dead(kind) or not bot_hp.has(kind) or int(bot_hp.get(kind, 0)) <= 0:
+		return false
+	var bp := bot_pos_of(kind)
+	if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(bp) > 1.8:
+		return false
+	if not dev:
+		a["sabUsed"] = true
+	bot_hp[kind] = 0
+	bots.kill(kind)
+	_log("bot_down", {"actor": by, "bot": kind, "method": "sabotage"})
+	_witness_action(a, "saw_bot", bp)
+	_broadcast_noise(bp, 18.0)
+	bots.on_crime(by, a.get("pos", Vector2.ZERO))
 	return true
 
 
