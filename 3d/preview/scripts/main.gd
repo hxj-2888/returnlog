@@ -76,6 +76,7 @@ var meeting_send: Button
 var meeting_tpl: VBoxContainer
 var meeting_tpl_target: OptionButton
 var meeting_tpl_room: OptionButton
+var meeting_tpl_when: OptionButton
 var _meeting_feed_start := 0
 var _meeting_feed_synced := 0
 var _meeting_unread := 0
@@ -1602,7 +1603,7 @@ func _click_ctrl(b: Control) -> bool:
 
 
 ## 会议 UI 功能自测（2.5D 会议面板的功能层，2026-11-10 第 12 批）：
-## 真实鼠标点 8 模板 / 席位投票 / 改票 / 弃权 / 跳过讨论 / 跳过投票，
+## 真实鼠标点模板 / 席位投票 / 改票 / 弃权 / 跳过讨论 / 跳过投票，
 ## 并验证夜会信息行、幽灵与旁观者的只读口径。
 func _run_meetuitest() -> void:
 	var pass_n := 0
@@ -1622,13 +1623,13 @@ func _run_meetuitest() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var me_i := int(sim.me_idx)
-	# ① 8 个模板 + 对象/舱室下拉在讨论期可见，对象默认「未选择」
+	# ① 11 个模板 + 对象/舱室/时段下拉在讨论期可见，对象默认「未选择」
 	var grid: GridContainer = null
 	for c in meeting_tpl.get_children():
 		if c is GridContainer:
 			grid = c
 	var tpl_n: int = grid.get_child_count() if grid != null else 0
-	if meeting_tpl.visible and tpl_n == 8 and meeting_tpl_target.item_count >= 2:
+	if meeting_tpl.visible and tpl_n == 11 and meeting_tpl_target.item_count >= 2:
 		pass_n += 1
 	else:
 		fail_n += 1
@@ -4346,6 +4347,33 @@ func _run_speechtest() -> bool:
 		print("SPEECHTEST FAIL 证词没进听众 sus %.2f→%.2f" % [before_sus, after_sus])
 	if int(res.get("responses", 0)) >= 0:
 		pass_n += 1
+	# 回应池：证据必须由被指者用 player_claim_deny 否认，且不能记成对目标的证词。
+	var claim_line: Dictionary = s2.speech.feed[-1] as Dictionary if not s2.speech.feed.is_empty() else {}
+	if String(claim_line.get("cat", "")) == "player_claim_deny" \
+			and int(claim_line.get("target", -2)) == -1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 证据回应池/目标错：%s" % str(claim_line))
+	# 作证回应不能写成对目标的证词（2.5D playerTalk 的 support 分支不加 sus）。
+	var sup_name := String(s2.agent(1).get("name", ""))
+	s2.speech.player_say("我可以为%02d %s作证" % [2, sup_name])
+	var sup_line: Dictionary = s2.speech.feed[-1] as Dictionary if not s2.speech.feed.is_empty() else {}
+	if String(sup_line.get("cat", "")) in ["player_support_thanks", "skeptic_ask"] \
+			and int(sup_line.get("target", -2)) == -1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 作证回应池/目标错：%s" % str(sup_line))
+	# 「不是我 + 我在X」必须接到否认回应，而不是被自述位置分支截走。
+	s2.speech.player_say("不是我，我一整晚都在医疗间")
+	var deny_line: Dictionary = s2.speech.feed[-1] as Dictionary if not s2.speech.feed.is_empty() else {}
+	if String(deny_line.get("cat", "")) in ["press_deny", "ack_short"] \
+			and int(deny_line.get("target", -2)) == -1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 否认+位置回应池错：%s" % str(deny_line))
 	# 投票意向
 	var res2: Dictionary = s2.speech.player_say("我投 2号")
 	if s2.meeting.has("player_intent") and int(s2.meeting.get("player_intent", -1)) >= 0:
@@ -4371,9 +4399,71 @@ func _run_speechtest() -> bool:
 			print("SPEECHTEST FAIL 席位号没认出：%s → %s" % [c, str(ps.get("people", []))])
 	if seat_hit != seat_cases.size():
 		fail_n += 1
-	print("SPEECHTEST pass=%d fail=%d 讨论台词=%d feed=%d 残留=%d 复读=%d 玩家解析=%s 席位号=%d/%d" % [
+	# 模板 → parse_speech 契约（2026-11-11）：按钮/生成器/解析器同一份清单。
+	# 逐条生成并解析，失败必须点名，不能只看按钮数量。
+	var tpl_defs := _meeting_template_defs()
+	var tpl_hit := 0
+	var tpl_bad: Array = []
+	var claim_want := {"pipe": "saw_pipe", "red": "saw_red", "knife": "saw_knife",
+		"sabotage": "saw_sabotage", "bot": "saw_bot", "breaker": "saw_breaker"}
+	var tpl_target: Dictionary = s2.agent(2)
+	for pair: Array in tpl_defs:
+		var k := String(pair[0])
+		var has_t := k != "where" and k != "deny"
+		var rid := "engine" if k == "pipe" else ("power" if k == "breaker" else "med")
+		var txt := _meet_template_text(k, tpl_target if has_t else {}, rid, "")
+		var ps: Dictionary = s2.lines_data.parse_speech(txt, s2)
+		var good := false
+		if k == "accuse":
+			good = int(ps.get("accuse", -1)) == 2
+		elif k == "vote":
+			good = int(ps.get("vote", -1)) == 2
+		elif k == "support":
+			good = int(ps.get("support", -1)) == 2
+		elif k == "where":
+			good = String(ps.get("where", "")) == "med" and String(ps.get("when", "")) == ""
+		elif k == "deny":
+			good = bool(ps.get("deny", false)) and String(ps.get("where", "")) == "med"
+		elif claim_want.has(k):
+			var c: Dictionary = ps.get("claim", {}) as Dictionary
+			good = not c.is_empty() and String(c.get("kind", "")) == String(claim_want[k]) \
+				and int(c.get("target", -1)) == 2 and String(c.get("room", "")) == rid \
+				and String(ps.get("where", "")) == ""
+		if good:
+			tpl_hit += 1
+		else:
+			tpl_bad.append("%s→%s" % [k, str(ps)])
+	if tpl_hit != tpl_defs.size():
+		fail_n += 1
+		print("SPEECHTEST FAIL 模板解析 %d/%d：%s" % [tpl_hit, tpl_defs.size(), " | ".join(PackedStringArray(tpl_bad))])
+	var nr_txt := _meet_template_text("knife", tpl_target, "", "")
+	var nr_ps: Dictionary = s2.lines_data.parse_speech(nr_txt, s2)
+	var nr_c: Dictionary = nr_ps.get("claim", {}) as Dictionary
+	if not nr_c.is_empty() and String(nr_c.get("room", "")) == "" and not nr_txt.contains("就在"):
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 空舱室仍注入地点：%s → %s" % [nr_txt, str(nr_ps)])
+	var tmpl_when_bad := 0
+	for w: String in ["recent", "night"]:
+		var wp: Dictionary = s2.lines_data.parse_speech(
+			_meet_template_text("where", {}, "med", w), s2)
+		if String(wp.get("where", "")) != "med" or String(wp.get("when", "")) != w:
+			tmpl_when_bad += 1
+	if tmpl_when_bad == 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 时段模板解析失败 %d/2" % tmpl_when_bad)
+	if tpl_defs.size() == 11:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("SPEECHTEST FAIL 模板数量 %d（应 11）" % tpl_defs.size())
+	print("SPEECHTEST pass=%d fail=%d 讨论台词=%d feed=%d 残留=%d 复读=%d 玩家解析=%s 席位号=%d/%d 模板=%d/%d" % [
 		pass_n, fail_n, chat_n, feed_n, bad_slot, dup,
-		String(claim.get("kind", "none")), seat_hit, seat_cases.size()])
+		String(claim.get("kind", "none")), seat_hit, seat_cases.size(),
+		tpl_hit, tpl_defs.size()])
 	return fail_n == 0
 
 
@@ -4942,26 +5032,32 @@ func _build_meeting_ui() -> void:
 	sel_row.add_theme_constant_override("separation", 6)
 	meeting_tpl.add_child(sel_row)
 	meeting_tpl_target = OptionButton.new()
-	meeting_tpl_target.custom_minimum_size = Vector2(250, 30)
+	meeting_tpl_target.custom_minimum_size = Vector2(210, 30)
 	meeting_tpl_target.add_theme_font_size_override("font_size", 14)
 	sel_row.add_child(meeting_tpl_target)
 	meeting_tpl_room = OptionButton.new()
-	meeting_tpl_room.custom_minimum_size = Vector2(250, 30)
+	meeting_tpl_room.custom_minimum_size = Vector2(210, 30)
 	meeting_tpl_room.add_theme_font_size_override("font_size", 14)
 	sel_row.add_child(meeting_tpl_room)
+	meeting_tpl_when = OptionButton.new()
+	meeting_tpl_when.custom_minimum_size = Vector2(110, 30)
+	meeting_tpl_when.add_theme_font_size_override("font_size", 14)
+	meeting_tpl_when.add_item("不指定时段")
+	meeting_tpl_when.set_item_metadata(0, "")
+	meeting_tpl_when.add_item("刚才")
+	meeting_tpl_when.set_item_metadata(1, "recent")
+	meeting_tpl_when.add_item("整晚")
+	meeting_tpl_when.set_item_metadata(2, "night")
+	sel_row.add_child(meeting_tpl_when)
 	_build_room_options()
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 5)
 	grid.add_theme_constant_override("v_separation", 5)
 	meeting_tpl.add_child(grid)
-	# 8 个一键模板（2.5D #m-tpl-btns 的 data-tpl，顺序逐条对齐 templates.js:298-307）
-	var tpl_defs: Array = [
-		["accuse", "怀疑"], ["vote", "投他"], ["support", "作证"],
-		["pipe", "看见钻管道"], ["red", "看见红光"], ["knife", "看见出刀"],
-		["where", "我在…"], ["deny", "不是我"],
-	]
-	for pair: Array in tpl_defs:
+	# 11 个一键模板（2.5D #m-tpl-btns 的 data-tpl，顺序逐条对齐 templates.js:298-307）
+	# 六类直接证据是 parseSpeech 实际能认的 claim 清单；按钮/生成器/门测同源。
+	for pair: Array in _meeting_template_defs():
 		var kind := String(pair[0])
 		var tb := _meeting_mk_button(String(pair[1]),
 			func() -> void: _on_meeting_template(kind), 13)
@@ -4979,7 +5075,7 @@ func _build_meeting_ui() -> void:
 	meeting_input.text_submitted.connect(_on_player_say)
 	input_row.add_child(meeting_input)
 	meeting_send = Button.new()
-	meeting_send.text = "发 言"
+	meeting_send.text = "发送"
 	meeting_send.custom_minimum_size = Vector2(80, 34)
 	meeting_send.add_theme_font_size_override("font_size", 14)
 	meeting_send.pressed.connect(func() -> void: _on_player_say(meeting_input.text))
@@ -5010,6 +5106,17 @@ func _build_meeting_ui() -> void:
 	meeting_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	meeting_hint.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72))
 	box.add_child(meeting_hint)
+
+
+## 模板清单：按钮 / 生成器 / --speechtest 共用一份。顺序与 2.5D templates.js 一致，
+## 六类直接证据全部来自 js/t2/decision.js#parseSpeech 的 claimKind 词表。
+func _meeting_template_defs() -> Array:
+	return [
+		["accuse", "怀疑"], ["vote", "投他"], ["support", "作证"],
+		["pipe", "看见钻管道"], ["red", "看见红光"], ["knife", "看见出刀"],
+		["sabotage", "看见破坏设备"], ["bot", "看见机器人停摆"], ["breaker", "看见拉闸"],
+		["where", "我在…"], ["deny", "不是我"],
+	]
 
 
 func _build_room_options() -> void:
@@ -5046,20 +5153,14 @@ func _build_tpl_targets() -> void:
 	meeting_tpl_target.select(0)
 
 
-func _select_current_room() -> void:
-	if meeting_tpl_room == null or sim == null:
-		return
-	var me: Dictionary = sim.me()
-	var rid := ""
-	if not me.is_empty():
-		rid = sim.room_at(me.get("pos", Vector2.ZERO))
-	var pick := 0
-	if rid != "":
-		for k in meeting_tpl_room.item_count:
-			if String(meeting_tpl_room.get_item_metadata(k)) == rid:
-				pick = k
-				break
-	meeting_tpl_room.select(pick)
+## 舱室 / 时段默认必须是「不指定」：2.5D syncMeetTemplates 2026-11-11 同口径。
+## 旧写法默认填玩家当前舱室，「看见出刀」会悄悄生成"就在玩家现在这间"——
+## 玩家没声称的地点被写进证词，AI 拆谎时就成了自己给自己挖的坑。
+func _reset_tpl_room_and_when() -> void:
+	if meeting_tpl_room != null and meeting_tpl_room.item_count > 0:
+		meeting_tpl_room.select(0)
+	if meeting_tpl_when != null and meeting_tpl_when.item_count > 0:
+		meeting_tpl_when.select(0)
 
 
 func _selected_tpl_target() -> int:
@@ -5085,9 +5186,10 @@ func _is_pipe_room(rid: String) -> bool:
 	return false
 
 
-## 2.5D meetTemplateText（js/game.js:6812-6829）：生成一句一定能被 parseSpeech
-## 识别的标准句。槽位/时间词/管道口限制逐条对齐，不新增句式。
-func _meet_template_text(kind: String, t: Dictionary, rid: String) -> String:
+## 2.5D meetTemplateText（js/game.js:6830-6857）：生成一句一定能被 parseSpeech
+## 识别的标准句。槽位/时间词/管道口限制逐条对齐；六类直接证据全部覆盖。
+## `when` 只作用于口供类（where / deny）：recent=刚才，night=一整晚。
+func _meet_template_text(kind: String, t: Dictionary, rid: String, when := "") -> String:
 	var tag := ""
 	if not t.is_empty():
 		tag = "%02d %s" % [int(t.get("i", 0)) + 1, String(t.get("name", ""))]
@@ -5096,13 +5198,19 @@ func _meet_template_text(kind: String, t: Dictionary, rid: String) -> String:
 		rn = "走廊"
 	elif rid != "":
 		rn = sim.room_name(rid)
-	var when: String = sim.speech._when_word() if sim.speech != null else "今晚"
+	var when_word: String = sim.speech._when_word() if sim.speech != null else "今晚"
+	var lead := "我刚才在"
+	if when == "night":
+		lead = "我一整晚都在"
+	elif when != "recent":
+		lead = "我%s在" % when_word
 	if kind == "where":
-		return "我%s在%s干活，手都没停过" % [when, rn if rn != "" else "走廊"]
+		return lead + (rn if rn != "" else "走廊") + "干活" \
+			+ ("，手都没停过" if when == "night" else "")
 	if kind == "deny":
 		if rn == "":
 			return "不是我"
-		return "不是我，我%s在%s，哪儿也没去" % [when, rn]
+		return "不是我，" + lead + rn + ("，哪儿也没去" if when == "night" else "")
 	if t.is_empty():
 		return ""
 	match kind:
@@ -5119,11 +5227,18 @@ func _meet_template_text(kind: String, t: Dictionary, rid: String) -> String:
 			return "我亲眼看见%s 身上有红光%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
 		"knife":
 			return "我亲眼看见%s 出刀%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
+		"sabotage":
+			return "我亲眼看见%s 破坏设备%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
+		"bot":
+			return "我亲眼看见%s 把机器人停摆%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
+		"breaker":
+			return "我亲眼看见%s 拉闸%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
 	return ""
 
 
-## 模板点击（2.5D js/game.js:10878-10891）：讨论期、非旁观、非幽灵；
-## 「怀疑/投他/作证/三种亲眼」必须先选对象，空值不能变成 0 号。
+## 模板点击（2.5D js/game.js:10919-10937）：讨论期、非旁观、非幽灵；
+## 「怀疑/投他/作证/六类亲眼」必须先选对象，空值不能变成 0 号。
+## 只有口供类才回落到"我现在这间"；证据类留空 = 不声称地点。
 func _on_meeting_template(kind: String) -> void:
 	if sim == null or sim.speech == null or sim.meeting.is_empty():
 		return
@@ -5137,15 +5252,23 @@ func _on_meeting_template(kind: String) -> void:
 		_toast("先选对象")
 		return
 	var rid := _selected_tpl_room()
-	if rid == "":
+	if rid == "" and (kind == "where" or kind == "deny"):
 		var me: Dictionary = sim.me()
 		if not me.is_empty():
 			rid = sim.room_at(me.get("pos", Vector2.ZERO))
-	if rid == "":
+	if kind == "where" and rid == "":
 		rid = "corridor"
-	var text := _meet_template_text(kind, sim.agent(ti), rid)
+	var when := _selected_tpl_when()
+	var text := _meet_template_text(kind, sim.agent(ti), rid, when)
 	if text != "":
 		_on_player_say(text)
+
+
+func _selected_tpl_when() -> String:
+	if meeting_tpl_when == null or meeting_tpl_when.selected < 0:
+		return ""
+	var md: Variant = meeting_tpl_when.get_item_metadata(meeting_tpl_when.selected)
+	return String(md) if md != null else ""
 
 
 func _meeting_can_act_now() -> bool:
@@ -5239,7 +5362,7 @@ func _refresh_meeting_ui() -> void:
 		# 会议面板要能点按钮、能打字：鼠标必须释放，否则 CAPTURED 状态下点不到任何控件
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_build_tpl_targets()
-		_select_current_room()
+		_reset_tpl_room_and_when()
 		_build_meeting_buttons()
 		meeting_feed.clear()
 		_meeting_feed_start = sim.speech.feed.size() if sim.speech != null else 0
@@ -5270,7 +5393,7 @@ func _refresh_meeting_ui() -> void:
 		meeting_input.placeholder_text = "投票中…"
 	else:
 		meeting_input.placeholder_text = "投票已结束"
-	# 8 模板 + 对象/舱室下拉只在「讨论期 + 可行动」显示（2.5D syncMeetTemplates）
+	# 11 模板 + 对象/舱室/时段下拉只在「讨论期 + 可行动」显示（2.5D syncMeetTemplates）
 	meeting_tpl.visible = phase == "discuss" and can_act
 	# 投票区讨论期与投票期共用（2.5D renderVoteButtons，js/game.js:7413-7447）
 	meeting_list.visible = can_act and (phase == "discuss" or phase == "vote")

@@ -1,7 +1,7 @@
 # 新返航录 3D 预演（独立子项目）
 
 > 状态：**2.5D 的完整功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
-> 34 项 Godot 自测全绿、`npm run check` 6/0、parity 0 WARN）。仍是本地预演、不发行。
+> 34 项 Godot 自测全绿、`npm run check` 7/0、parity 0 WARN）。仍是本地预演、不发行。
 > **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**；
 > 红线/继承审查见 **`REDLINE-AUDIT.md`**（2026-11-11：红线 1–10 通过，11/12 未全过）。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
@@ -37,6 +37,19 @@
   （见 `summary.pending_next_batch`），不伪装成完成。
 - `npm run 3d:parity:check`：改了任一 `js/` 真源没重导 → FAIL；`lines.json#rules` 与
   `rules.json` 出现第二套数值 → FAIL；3D 脚本出现自造阈值 → WARN。
+- `npm run 3d:audit:port`：只读审计 22 个 JS 文件，按「数据表 / 纯逻辑 / 适配 / DOM-UI /
+  运行时 DOM」分层，报告在 `3d/reports/portability-audit.md`。当前结论：数据表已自动导出；
+  纯函数可做 IR + codegen；`game.js`（12k 行 / 438 DOM 引用）与 UI 必须先上游解耦，不能直接翻译。
+- `npm run 3d:poc:speech`：`parseSpeech` 差分 POC。2.5D 生成 503 条 fixtures，Godot 同时跑
+  运行时手写解析器与 POC 生成解析器；当前 **runtime 503/503 / generated 503/503**。
+  **边界**：词表/正则自动生成，控制流仍是固定模板；通用 JS→GDScript 转译尚未实现。
+- `npm run 3d:audit:coreui`：`game.js` 函数级 core/UI 解耦审计。341 个具名函数中
+  `core-state` 196 / 7206 行、`ui` 47 / 1734 行、`pure` 96 / 1028 行；混用 DOM+G 39 个。
+  报告：`3d/reports/core-ui-audit.md`。
+- `npm run 3d:ui:check`：会议面板 UI spec（`3d/spec/ui/meeting-panel.spec.json`）↔
+  2.5D DOM 17/17 ↔ 3D Control 17/17 ↔ 模板 11/11；已并入 `npm run check`。
+- `npm run 3d:poc:ui`：从同一份 spec 生成 Godot Control 面板，验证 17 节点 / 11 模板 /
+  3 状态可见性（7/0）。**不生成 handler、不替换运行时**；2.5D DOM 仍是 spec 来源。
 - 详见 `MIGRATION.md` §10。
 
 ### 版本号（2026-11-09）
@@ -108,7 +121,7 @@
 - **B6′ · 剩余系统（2026-11-08）**：拖尸/藏尸/医疗救起、机器人 HP 与反制、供电合并、
   改票/报账/讨论超时/天亮/终结者、旁观者第 16 人自由相机、设置与复盘面板、
   20 条 `.ogg` 事件音效、版本号单一真源。**事件词表 31/31/31 静态全覆盖**。`--b6test` 6/0。
-- **UI 收尾（2026-11-10 第 12–15 批）**：会议 8 模板/席位号/弃权/先投改票/跳过投票/只读；
+- **UI 收尾（2026-11-10 第 12–15 批）**：会议 11 模板（六类直接证据 + 时段）/席位号/弃权/先投改票/跳过投票/只读；
   结算页身份表 + 逐人投票矩阵；局内小地图（短名/灯态/任务点/故障/圆桌脉冲/玩家/图例，
   不画他人、不可点击）；HUD 报告余量 + 夜会场次。`--meetuitest` / `--settletest` /
   `--minimaptest` 全绿。
@@ -144,6 +157,11 @@ npm run 3d:export:version    # js/config/version.js + package.json → data/vers
 npm run 3d:export:rules      # ★ 推理/发言全量真源 → data/rules.json（改 js/ 后必跑）
 npm run 3d:parity:check      # ★ 2.5D↔3D 同源校验：真源/双份表/函数对账/3D 硬编码
 npm run 3d:events:check      # 事件词表校验：schema 31 / 2.5D 31 / 3D 31 kind / 信封 pt+t
+npm run 3d:audit:port        # 只读可移植性审计：纯逻辑 / DOM-UI / 运行时耦合分层
+npm run 3d:audit:coreui      # game.js 函数级 core/UI 解耦审计（341 函数 / 39 混用）
+npm run 3d:ui:check          # 会议面板 UI spec ↔ 2.5D DOM ↔ 3D Control 契约
+npm run 3d:poc:speech        # parseSpeech 差分 POC：JS↔运行时↔生成 GDScript 同 fixtures
+npm run 3d:poc:ui            # 会议面板 spec → Godot Control POC（结构/模板/状态）
 npm run 3d:simdump           # 导出 2.5D 同 seed 事件流（可加 -- --seed N）
 
 # 断电 / 交互 / 美术 三组无头自测
@@ -163,7 +181,7 @@ npm run 3d:simdump           # 导出 2.5D 同 seed 事件流（可加 -- --seed
 "$GODOT" --headless --path 3d/preview -- --b4test          # 期望 8/0（位置/管道/开枪/搜尸/会议）
 "$GODOT" --headless --path 3d/preview -- --hometest        # 期望 6/0（三张卡 + 图元 + 高亮）
 "$GODOT" --headless --path 3d/preview -- --roletest        # 期望 4/0
-"$GODOT" --headless --path 3d/preview -- --speechtest       # 期望 11/0（发言链路）
+"$GODOT" --headless --path 3d/preview -- --speechtest       # 期望 17/0（发言链路 + 模板 11/11）
 "$GODOT" --headless --path 3d/preview -- --b6test           # 期望 6/0（剩余系统）
 "$GODOT" --headless --path 3d/preview -- --sim1000 --games 200  # 3D 批量基线（含败因/驱逐/异形决策遥测）
 "$GODOT" --headless --path 3d/preview -- --simdiff 3d/reports/js-simdump-20261108.json（人类/异形开局）

@@ -92,3 +92,16 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
 - 截图运行前确认没有其它 Godot 进程占用鼠标；运行后确认进程退出、光标可见。
 - 截图是**本机验收图**，按 `.gitignore` 不入库；`--probetest`/`--mousetest` 是输入链自测，
   不是截图，必须单独跑并恢复 `VISIBLE`。
+
+
+## 8. 生成物 / POC
+
+- `3d/preview/data/*.json` 由 `3d/tools/export-*.cjs` 生成，**禁止手改**；改了 `js/` 必须重导。
+- `3d/preview/poc/generated_*.gd` 由 `3d/tools/poc-gen-*.cjs` 生成，用于验证自动移植路径，
+  **禁止手改**，也不得被 `main.tscn` / 运行时脚本引用。
+- `3d/spec/ui/*.spec.json` 是 UI 信息结构 / 状态 / 事件契约；`3d:ui:check` 同时校验
+  2.5D DOM 与 3D Control。POC 生成的 Godot 面板只用于验证 spec 可渲染，不替换运行时。
+- POC 的边界必须在报告里写清：`3d/reports/portability-audit.md` / `parse-speech-poc.md`。
+  当前生成器只自动生成词表/正则，控制流是固定模板；这不是通用 JS→GDScript 转译器。
+- 真正的行为自动移植需要先在上游拆出 DOM-free core，再做 IR 驱动 codegen；UI 需要共享
+  UI spec 与两个 renderer，不能把 HTML/CSS 直接翻译成 `.tscn`。

@@ -105,8 +105,8 @@ collect(saved.dispatch);
    每项都带 js 源文件:行号，扫描时**回读该行验证数字确实存在**；上游改行后这里会直接 FAIL，
    不会静默地把一个新阈值当成“已核对”。新增 3D 数字必须先在 js/ 找到出处再登记。 */
 const SOURCE_LITERALS = {
-  0.01: ['js/game.js', 7095],   // identityAxis 下界
-  0.99: ['js/game.js', 7095],   // identityAxis 上界
+  0.01: ['js/game.js', 7135],   // identityAxis 下界
+  0.99: ['js/game.js', 7135],   // identityAxis 上界
   1.10: ['js/game.js', 1684],   // 传闻抖动上限
   0.94: ['js/game.js', 1684],   // 传闻抖动基线
   0.24: ['js/game.js', 5968],   // contradiction_lie 权重

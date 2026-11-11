@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-10",
+  "generated": "2026-11-11",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
     "version": "3.6.0",
     "gameVersion": "返航录V3.6"
   },
-  "file_count": 454,
+  "file_count": 443,
   "files": {
     "assets/MANIFEST.json": {
       "sha256": "ea12399462641aa75216ce10e93259410596de1ba50f39114025e9d627e90438",
@@ -1409,8 +1409,8 @@
       "size": 9025
     },
     "js/game.js": {
-      "sha256": "99eaca3f56a440d61181f3955c1a54d51e11761d0e6be720efb8c5b55fd9487e",
-      "size": 650872
+      "sha256": "d76172873eff6e4278857ced000184eafd278d16851cb8bc41ab8884b4fcf720",
+      "size": 653784
     },
     "js/main.js": {
       "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",
@@ -1453,8 +1453,8 @@
       "size": 21654
     },
     "js/ui/templates.js": {
-      "sha256": "626ec68bede68f3dd2c97359a6ad1a0658efcb6bbf8fd6d171019f8bd5bfe744",
-      "size": 22176
+      "sha256": "23c1c14fccc2b04346c4833d0e8134a96a214ce1b6264a19be0392a2cf31b158",
+      "size": 22793
     },
     "tools/_qwen_refs/armory_floor.png": {
       "sha256": "4e6252883b4f3dd578ff9c00648bb0589ddedb7f7710804fabc5e872d1a8dc26",
@@ -1536,13 +1536,13 @@
       "sha256": "637e06dfd6a2433b5524c5b44f4d9db6e5a8f645a7f4fbe07bad726bb90c5944",
       "size": 3191808
     },
-    "tools/_style-report.txt": {
-      "sha256": "38d145d3caa9e89f29f1dc68eb07cb5237269187775d23dcf5c4545dd138f789",
-      "size": 2880
-    },
     "tools/align-tex-style.py": {
       "sha256": "afb011b0202a6f1f052925bf454588054b32f924a85d7fa6ea4eb9ae2308d16a",
       "size": 7729
+    },
+    "tools/asset-guard.cjs": {
+      "sha256": "f5eefcde6d04ffb5a3309bd276e435624937d5d30dde0bb19846d07c837de6c4",
+      "size": 4911
     },
     "tools/assets-check.cjs": {
       "sha256": "c7bb45bbea75d125b09b3ececb0a9fcc3b922215bcc5d4ee54ba23078c17b90a",
@@ -1584,6 +1584,10 @@
       "sha256": "d1e84dac37d526954e92c78e2fa670075eea2cce261c260be51089ceff5df55c",
       "size": 2432
     },
+    "tools/check-agent-contract.cjs": {
+      "sha256": "3a8ff7fc44861c30a310e79662c292e0924fa5e77bf81445862d9e05afa784f3",
+      "size": 2887
+    },
     "tools/check-blender.ps1": {
       "sha256": "27b8c189c4755dade0d5fd3a375973b475e8f8f6a2474452456a05ec27da7c28",
       "size": 3369
@@ -1600,9 +1604,13 @@
       "sha256": "1ab1176a9b7e5773ae3e649893a8c31502eabe37b42921bbfbd6fbb259ba8df4",
       "size": 5586
     },
+    "tools/deploy-config.cjs": {
+      "sha256": "c97fc23c245d0bf0dd570cf4a24acef85fc3a3c66a12c3f2baf9df2177f968dd",
+      "size": 1361
+    },
     "tools/deploy-pages.cjs": {
-      "sha256": "57175cd3bb55fbb4eb33dfca57e9dcce88d64de29267ba3e8bbb6f3639efbe69",
-      "size": 3114
+      "sha256": "2e0895acdbc63d10b227fa950e51bfd863ca94185cc743b2283f1d313117e4c5",
+      "size": 3595
     },
     "tools/fuse-tex-detail.py": {
       "sha256": "08c1d46a8e369c339318ec0861b6668b6a0a054593768f20456ebeda0de139e6",
@@ -1640,10 +1648,6 @@
       "sha256": "84182a783e37db0d4024cd021a656e12b8bf3a95a55b38d5f1ff768718881309",
       "size": 1929
     },
-    "tools/layout-reach-report.md": {
-      "sha256": "f616b9df2bf3c5fbf07b32885de93282baf8738c66f2f9047fb87e7ff9f8f4a9",
-      "size": 1019
-    },
     "tools/layout-reach.cjs": {
       "sha256": "1cf06b57ac3f1dc24588dbe1131268ec6b559b5e9083d6607eca19fe2aac6100",
       "size": 24547
@@ -1656,10 +1660,6 @@
       "sha256": "26fefe93e973635a57e49aa346c0237bc79ea5b8120037ada25c748129d1f226",
       "size": 36519
     },
-    "tools/lines-report.md": {
-      "sha256": "168a162e6ff6dbbbdc1eed31f2d62bebac25450a1336ba5c41f533aa92009249",
-      "size": 10821
-    },
     "tools/map-check.cjs": {
       "sha256": "19e49a0f660556a4d6b683602d778b1f81288a810977b753e2793f728f77b0eb",
       "size": 5739
@@ -1668,25 +1668,9 @@
       "sha256": "1ca5f4ab38587208bac9393f5d64a5a0b2a5c9e9049b64004766b35e53d22370",
       "size": 10113
     },
-    "tools/mc-report-E.md": {
-      "sha256": "6a36d0886ac204540efa2b5c28d101386badf3a225ebf39040103869ff0799b2",
-      "size": 17437
-    },
-    "tools/mc-report.md": {
-      "sha256": "5310920f344d808578d14bfba3c0b066b8807067eb2a2e3309a57dd31c9fc822",
-      "size": 35769
-    },
-    "tools/mc-results-E.json": {
-      "sha256": "62a49e8188e2c26d6f495870d08f18629903ab77d7eaea91ab34f70f9a61eba1",
-      "size": 2735067
-    },
     "tools/mc-results-E.json.gz": {
       "sha256": "f48290782a336bf1e28ed41d1a7574db245ce1246e501dd6a2451fd81df85162",
       "size": 171682
-    },
-    "tools/mc-results.json": {
-      "sha256": "788a00906ed23deba00e93e59c128f116a78e7bdffe930fc8594f72f686b5f2b",
-      "size": 3641764
     },
     "tools/mc-results.json.gz": {
       "sha256": "7b9cef894862b2cf2fd88ad22b422bf1e901a6a1e939fd8086ba401c88de9959",
@@ -1740,10 +1724,6 @@
       "sha256": "63d0d9f69c01a07a45057663a947c7bb1a0eadb160b4d3a71b138658ae2555cd",
       "size": 1413
     },
-    "tools/qwen-rooms-report.json": {
-      "sha256": "c88c063f2df7eb17453838d8a6258da3252b414037f109678bfcaebe3988807c",
-      "size": 4686
-    },
     "tools/serve.cjs": {
       "sha256": "de5635c9deb50cbed9a316ea19af32819632765f4e6d70d689ed0a444dd6a687",
       "size": 2096
@@ -1751,10 +1731,6 @@
     "tools/sfx-audit.py": {
       "sha256": "1915fe0a3d83b6780aa6f0766a3ce1fadccc2e66aa24ba047179319dd00c79e6",
       "size": 8280
-    },
-    "tools/sfx-report.md": {
-      "sha256": "bc416e22ba101a750d624933091197aa336d8df987fa56f6bd899ed0c6097131",
-      "size": 2324
     },
     "tools/ship-layout-build.cjs": {
       "sha256": "4af0f11885baf2673c74a187ff8e2fe590114d86af24e0342a7ed839fd299c3d",
@@ -1780,10 +1756,6 @@
       "sha256": "93c813cb807725365623ad206acd27c9094dd46297463474950b244b9fe78582",
       "size": 12016
     },
-    "tools/ship-layout-report.md": {
-      "sha256": "4acefbc52bc27557d294d7d79700578bbafa4d6f3d44997541361f873af2a8fe",
-      "size": 11965
-    },
     "tools/ship-layout-spec.cjs": {
       "sha256": "5e9f86943c7727d8292a1b6e21791206fbc110044d6a4666a502ad4d9bb60331",
       "size": 34751
@@ -1796,33 +1768,17 @@
       "sha256": "27cb37dcae5641d165231ac862ed60826fff04d63f8db0a6ff990e139d9c391a",
       "size": 3174
     },
-    "tools/style-align-report.json": {
-      "sha256": "947b837553c2abc0971231a2b0a9c7eeb476aeb41d8b1857f4cb3961a1782dcd",
-      "size": 2727
-    },
     "tools/sync-map-v2-cover.cjs": {
       "sha256": "fb525657e6d76dfa1900d4252b27f09b93c4ade8bf43346363de3cd54ce5b576",
       "size": 5518
     },
     "tools/test-v3.cjs": {
-      "sha256": "89fc0d3446b496da842093b262d3f202848dab51be6f663f75dd20b3ce85c758",
-      "size": 465203
-    },
-    "tools/tex-detail-fusion-report.json": {
-      "sha256": "ef34550dbc536609e2b2062bbc2741a2d19f71971ba1557e75ccf633e005e459",
-      "size": 1451
+      "sha256": "d82d059ebdd30d87d214650a88ebd6f867d810d12e1f88fec1a5f1a3e57eeab2",
+      "size": 468677
     },
     "tools/ux-audit.cjs": {
       "sha256": "f7e6f8b97482e4c4bacb5d9ebb0ac94383dfb6f2943f3ce3a56911d0dabc416a",
       "size": 36378
-    },
-    "tools/ux-report.md": {
-      "sha256": "cd5498b960af48bc92c10fc36e66735bdae23d4d75486b5cee6bc6fab1d48428",
-      "size": 5179
-    },
-    "tools/ux-results.json": {
-      "sha256": "2ccd067cb937dea643c5067e53874717b276ea5e6ee2f7c2fa2d7caa43bccd32",
-      "size": 21705
     }
   }
 }

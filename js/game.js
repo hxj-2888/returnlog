@@ -6583,6 +6583,21 @@
         }
       }
       const vi=m.ctx.victimInfo;
+      /* 「不是我」的回应（2.5D 原块）：有人接受，有人追问。
+         抽成局部函数是因为「不是我 + 我在X」同时命中 where 与 deny 两个槽：
+         旧写法先走 where 分支并 return，否认永远得不到否认类回应。 */
+      const denyReply=()=>{
+        const press=cands.find(w=>w.alien||(G.me&&envEstimate(w,G.me.i).score>=0.3));
+        if(press){
+          const where=vi?vi.room:'案发那会儿';
+          meetLater(m,600+Math.random()*500,()=>say(press.name,pickLine(press,
+            'press_deny',0,{r:where,when:whenWord()})));
+        }else{
+          const resp=pickResponder(m,cands);
+          meetLater(m,600+Math.random()*500,()=>say(resp.name,
+            pickLine(resp,'ack_short',0,{})));
+        }
+      };
 
       /* 1) 时间线对质：玩家自称在哪，但某个 AI 记得在别处见过他 → 当场拆穿。
          2026-11-01 修量词：只比玩家口供所指时段（"刚才" 20 秒 / "一直" 整夜 /
@@ -6730,8 +6745,11 @@
         return;
       }
 
-      /* 3) 玩家自述位置（无冲突）：在场的人可以作证或反问 */
+      /* 3) 玩家自述位置（无冲突）：在场的人可以作证或反问。
+         若同一句里还有「不是我」，先按否认回应 —— 否则「不是我，我在X」
+         会被当成普通自述，AI 从头到尾没接否认。时间线拆穿仍在上面先跑。 */
       if(sl.where){
+        if(sl.deny){ denyReply(); return; }
         const there=cands.find(w=>!w.alien&&w.nRoom===sl.where&&
           !(w.mind&&w.mind.seenT&&w.mind.seenT[0]&&evNow()-w.mind.seenT[0]<8));
         if(there){
@@ -6764,18 +6782,9 @@
         return;
       }
 
-      /* 5) 玩家否认：有人会接受，有人会追问 */
+      /* 5) 玩家否认（没有自述位置）：有人会接受，有人会追问 */
       if(sl.deny){
-        const press=cands.find(w=>w.alien||(G.me&&envEstimate(w,G.me.i).score>=0.3));
-        if(press){
-          const where=vi?vi.room:'案发那会儿';
-          meetLater(m,600+Math.random()*500,()=>say(press.name,pickLine(press,
-            'press_deny',0,{r:where,when:whenWord()})));
-        }else{
-          const resp=pickResponder(m,cands);
-          meetLater(m,600+Math.random()*500,()=>say(resp.name,
-            pickLine(resp,'ack_short',0,{})));
-        }
+        denyReply();
         return;
       }
 
@@ -6809,22 +6818,40 @@
        旧版每条都带一个多余空格、且"我在X"缺动词，读起来像没说完
        （调研报告 P2：`我今晚在 中央会议室`）。parseSpeech 靠关键词正则识别，
        不依赖空格，所以这里可以放心写成完整口语。 */
-    function meetTemplateText(kind,t,roomId){
+    /* 模板清单是「按钮 / 生成器 / 门禁」的唯一口径：新增一类必须三处同批，
+       否则会出现按钮点了却生成空串、或门禁只测到旧模板的情况。 */
+    const MEET_TPL_KINDS=['accuse','vote','support','pipe','red','knife',
+      'sabotage','bot','breaker','where','deny'];
+    /* 时段只作用于**口供类**（我在… / 不是我）：parseSpeech 的 when 槽只有
+       recent / night 两档，证据句是点事件，不带时段。
+       · recent → 刚才，claimWindow 只核对 ALIBI.recent 窗口；
+       · night  → 一整晚，核对整夜；
+       · 空     → 沿用原句，45 秒默认窗口（不擅自扩大玩家没声称的时段）。 */
+    function meetTemplateText(kind,t,roomId,when){
       const tag=t?tagName(t):'';
       const rn=roomId?roomNameById(roomId):'';
-      if(kind==='where')return '我'+whenWord()+'在'+(rn||'走廊')+'干活，手都没停过';
-      if(kind==='deny')return '不是我'+(rn?('，我'+whenWord()+'在'+rn+'，哪儿也没去'):'');
+      const lead=when==='recent'?'我刚才在'
+        :(when==='night'?'我一整晚都在':('我'+whenWord()+'在'));
+      if(kind==='where')
+        return lead+(rn||'走廊')+'干活'+(when==='night'?'，手都没停过':'');
+      if(kind==='deny'){
+        if(!rn)return '不是我';
+        return '不是我，'+lead+rn+(when==='night'?'，哪儿也没去':'');
+      }
       if(!t)return '';
       if(kind==='accuse')return '我怀疑'+tag+'，先说给大伙听';
       if(kind==='vote')return '这票我投'+tag;
       if(kind==='support')return '我可以为'+tag+'作证，他干的是正经事';
-      if(kind==='pipe'){
-        const at=rn&&isPipeRoom(roomId)?('，就在'+rn):'';
-        return '我亲眼看见'+tag+' 钻管道'+at;
-      }
       const at=rn?('，就在'+rn):'';
+      if(kind==='pipe'){
+        /* 没有管道口的舱室不能生成"在配电室钻管道"：地点直接省略。 */
+        return '我亲眼看见'+tag+' 钻管道'+(rn&&isPipeRoom(roomId)?at:'');
+      }
       if(kind==='red')return '我亲眼看见'+tag+' 身上有红光'+at;
       if(kind==='knife')return '我亲眼看见'+tag+' 出刀'+at;
+      if(kind==='sabotage')return '我亲眼看见'+tag+' 破坏设备'+at;
+      if(kind==='bot')return '我亲眼看见'+tag+' 把机器人停摆'+at;
+      if(kind==='breaker')return '我亲眼看见'+tag+' 拉闸'+at;
       return '';
     }
     function syncMeetTemplates(){
@@ -6867,8 +6894,21 @@
           const cor=document.createElement('option');
           cor.value='corridor';cor.textContent='走廊';roomSel.appendChild(cor);
         }
-        const cur=G.me.nRoom||roomIdAt(G.me.x,G.me.y);
-        if(cur&&Array.from(roomSel.options).some(o=>o.value===cur))roomSel.value=cur;
+        /* 舱室默认必须是"不指定"（2026-11-11）：旧写法默认填玩家当前舱室，
+           「看见出刀」会悄悄生成"就在玩家现在这间"——玩家没声称的地点被
+           写进证词，AI 拆谎时就成了自己给自己挖的坑。
+           同一场会议内保留选择，换场回到占位。 */
+        const oldRoom=(roomSel.__meetSeq===m.seq)?roomSel.value:'';
+        roomSel.__meetSeq=m.seq;
+        roomSel.value='';
+        if(oldRoom&&Array.from(roomSel.options).some(o=>o.value===oldRoom))
+          roomSel.value=oldRoom;
+      }
+      const whenSel=document.getElementById('m-tpl-when');
+      if(whenSel){
+        const oldWhen=(whenSel.__meetSeq===m.seq)?whenSel.value:'';
+        whenSel.__meetSeq=m.seq;
+        whenSel.value=(oldWhen==='recent'||oldWhen==='night')?oldWhen:'';
       }
     }
     function sendPlayerSpeech(text){
@@ -10879,14 +10919,20 @@
       const b=e.target.closest?e.target.closest('button[data-tpl]'):null;
       if(!b)return;
       const m=G.meet; if(!m||m.phase!=='discuss'||G.spectMode)return;
+      const kind=b.dataset.tpl;
       /* 空值不能走 + 运算（会变成 0 = 自己）；「我在…」「不是我」本来就不需要对象。 */
       const rawT=document.getElementById('m-tpl-target').value;
-      const needT=b.dataset.tpl!=='where'&&b.dataset.tpl!=='deny';
+      const needT=kind!=='where'&&kind!=='deny';
       if(!rawT&&needT){toast('先选对象');return;}
       const ti=rawT?+rawT:-1;
-      const rid=document.getElementById('m-tpl-room').value||
-        G.me.nRoom||roomIdAt(G.me.x,G.me.y)||'corridor';
-      const text=meetTemplateText(b.dataset.tpl,G.agents[ti],rid);
+      /* 只有口供类才回落到"我现在这间"；证据类留空 = 不声称地点，
+         不能替玩家把当前舱室塞进证词。 */
+      const fallbackRoom=kind==='where'||kind==='deny'
+        ?(G.me.nRoom||roomIdAt(G.me.x,G.me.y)||'corridor'):'';
+      const rid=document.getElementById('m-tpl-room').value||fallbackRoom;
+      const whenSel=document.getElementById('m-tpl-when');
+      const when=whenSel?whenSel.value:'';
+      const text=meetTemplateText(kind,G.agents[ti],rid,when);
       if(text)sendPlayerSpeech(text);
     });
     document.getElementById('m-text').addEventListener('keydown',e=>{
@@ -11379,7 +11425,8 @@
         playerAccuse:G.meet.ctx.playerAccuse,playerVote:G.meet.ctx.playerVote}:null,
       simGame:opts=>simGame(opts),
       parseSpeech:t=>parseSpeech(t),
-      tplText:(kind,target,room)=>meetTemplateText(kind,target==null?null:G.agents[target],room),
+      tplText:(kind,target,room,when)=>meetTemplateText(kind,target==null?null:G.agents[target],room,when),
+      tplKinds:()=>MEET_TPL_KINDS.slice(),
       chatterPlan:()=>G.meet&&G.meet.plan?Object.assign({},G.meet.plan):null,
       /* 会议中改票（2026-11-05）：门禁只做结构化断言，不猜台词 */
       earlyVotes:()=>G.meet?(G.meet.earlyVotes||0):0,

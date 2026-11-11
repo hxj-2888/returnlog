@@ -5,6 +5,9 @@
  * 为什么要暂存：项目根带着 android/（37MB 的 www 副本）、tools/、assets/scene/v4/tex（20MB 烘焙源材质）
  * 与 .git，直接 deploy 会把它们全推上去，既慢又容易撞 Pages 的 25MiB 单文件限制。
  * 白名单只带运行时真正会读的文件；v4/tex 只留 door-panel.png（drawDoors 会采样）。
+ * 2026-11-11 治理：assets/qwen-lib/*.png（78 MB 烘焙源）与 facility/_raw_fx/（渲染中间帧）
+ * 也已加入 SKIP——它们被 .gitignore 声明「只在本机留档」，此前白名单漏排除导致发布包 124.85 MB。
+ * 口径见 docs/ASSET_GOVERNANCE.md；规则真源 tools/deploy-config.cjs；发版前跑 npm run guard。
  */
 const fs = require('fs');
 const os = require('os');
@@ -15,13 +18,10 @@ const ROOT = path.resolve(__dirname, '..');
 const PROJECT = process.env.CF_PROJECT || 'returnlog';
 const DRY = process.argv.includes('--dry-run');
 
-const ENTRIES = ['index.html', 'LICENSE', 'README.md', 'js', 'audio', 'assets'];
-
-const SKIP = [
-  /^assets\/scene\/v4\/facility\/_raw\//,
-  /^assets\/scene\/v4\/tex\/(?!door-panel\.png$)/,
-  /\.md$/,
-];
+/* 白名单单一真源：与 tools/asset-guard.cjs 共用 tools/deploy-config.cjs，
+ * 避免「.gitignore 已排除、部署白名单却没排除」的规则漂移。
+ * 依据 docs/ASSET_GOVERNANCE.md §3 / §7；3D 版 tools/ 属只读基线，需走 baseline:sync。 */
+const { ENTRIES, SKIP } = require('./deploy-config.cjs');
 
 function stage(dst) {
   let n = 0, bytes = 0;

@@ -593,3 +593,56 @@ npm run 3d:export:rules      # 改了 js/ 之后必须重跑
 npm run 3d:parity:check      # 真源 / 双份表 / 对账覆盖 / 3D 硬编码
 npm run 3d:lines:check       # 语料逐字校验
 ```
+
+### 10.7 自动移植审计与 parseSpeech POC（2026-11-11）
+
+**结论先说**：当前仍是「数据自动导出 + 行为人工移植 + 门禁对账」，不是自动移植。
+`3d/reports/portability-audit.md` 把 22 个 JS 文件分成五层：
+
+| 层 | 文件 / 行数 | 能否自动 |
+|---|---|---|
+| 数据表 / 配置 | 5 文件 / 2265 行 | 已由 `export-*.cjs` 自动导出 |
+| 纯逻辑 | 7 文件 / 2631 行 | 可做 IR + codegen；当前未做 |
+| 逻辑 + 定时器适配 | `t2/decision.js` 206 行 | 拆掉 `meetLater` 后才能生成 |
+| DOM/Canvas UI | 7 文件 / 2716 行 | 必须改共享 UI spec + 双 renderer |
+| 运行时 DOM 编排 | `js/game.js` 11917 行 / 438 DOM 引用 | 必须上游拆 core，不能直接翻译 |
+
+**POC（`npm run 3d:poc:speech`）**：
+
+- 2.5D `parseSpeech` 生成 **503 条** fixtures（名称重叠 / 死亡席位 / 补零与中文席位 /
+  六类 claim / 否定 / 支持 / 投票 / 否认 / 时段 / 截断 / 300 条确定性 fuzz）；
+- Godot 同时跑运行时手写解析器与 POC 生成解析器，当前 **runtime 503/503 /
+  generated 503/503**；
+- 修复前实测 **90/503 不一致**，暴露并修正了 3D 的 5 个真实偏差：死亡席位被过滤、
+  裸补零席位不识别、玩家自己席位未排除、`12号` 子串误命中 `2号`、全文被截到 80 字再解析；
+- **边界**：生成器只自动生成词表/正则，控制流是固定算法模板；它不是通用
+  JS→GDScript 转译器。真正的行为自动移植需要先把上游拆成 DOM-free core（A/B 层），
+  再做 IR 驱动的 codegen；UI 需要共享 UI spec。
+
+**下一步顺序**（未立项，待用户裁定）：扩纯函数 fixtures（`claimWindow` / `seatIndex` /
+`treat*`）→ 上游拆会议/报告/投票状态机 → UI spec 先迁会议面板 → 生成物入门禁。
+
+### 10.8 game.js core/UI 审计 + 会议面板 UI spec（2026-11-11 · 第 23 批）
+
+**函数级审计**（`npm run 3d:audit:coreui` → `3d/reports/core-ui-audit.md`）：
+
+| 层 | 函数 | 行数 |
+|---|---:|---:|
+| core-state（依赖 G / sink） | 196 | 7206 |
+| ui（直接 DOM/Canvas） | 47 | 1734 |
+| pure（无 DOM / 无 G） | 96 | 1028 |
+| adapter（定时器） | 1 | 7 |
+
+混用 DOM + G 的函数 **39 个**；最重的是 `startVote`（202 行 / 13 DOM / 75 state）、
+`update`、`syncHud`、`openMeeting`、`closeVote`、`say`。这说明 `game.js` 不能整体翻译，
+必须先把 sink（say/logEvent/toast/SND）与时钟注入，再逐个拆 `decide*` / `render*`。
+
+**UI spec**（`3d/spec/ui/meeting-panel.spec.json`）：
+
+- 17 个元素 / 11 个模板 / 3 个状态（discuss / vote / readonly）/ 6 个事件；
+- `npm run 3d:ui:check`（已并入 `npm run check`）同时校验 2.5D DOM 与 3D Control：
+  17/17 元素、11/11 模板、handler 均存在；
+- `npm run 3d:poc:ui` 从同一份 spec 生成 Godot Control POC，验证 17 节点 / 11 模板 /
+  3 状态可见性，实测 **7/0**；
+- **边界**：POC 不生成业务 handler、不替换 `main.gd`；2.5D DOM 仍是 spec 来源。
+  下一步是让 2.5D 也消费 spec（DOM renderer），再逐屏替换 3D 手写 Control。

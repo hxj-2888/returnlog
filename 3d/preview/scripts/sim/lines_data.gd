@@ -146,57 +146,69 @@ func claim_kinds() -> Array:
 ## 与 2.5D parseSpeech 同口径：名字按长度降序占位（避免「星尘」被认成「星」），
 ## 席位号 1..15 / 中文席位号，意图只做槽位抽取，不做语义理解。
 func parse_speech(text: String, sim) -> Dictionary:
-	var s := text.substr(0, 80)
+	# 2.5D 只截断 raw（`out.raw=s.slice(0,80)`），解析仍用全文；
+	# 3D 原先把整段截到 80 再解析，长句后半段的人名/证据会直接丢。
+	var s := text
 	var out := {
-		"raw": s, "rooms": [], "people": [], "accuse": -1, "vote": -1,
+		"raw": s.substr(0, 80), "rooms": [], "people": [], "accuse": -1, "vote": -1,
 		"deny": false, "where": "", "when": "", "claim": {}, "support": -1,
 	}
 	# 舱室词
 	for pair: Array in room_words:
 		if s.find(String(pair[0])) >= 0 and not (out["rooms"] as Array).has(String(pair[1])):
 			(out["rooms"] as Array).append(String(pair[1]))
-	# 人名 / 席位号
+	# 人名 / 席位号：2.5D 不过滤死亡席位（会议里可能提到死者），只排除玩家自己。
 	var spans: Array = []
 	var at: Dictionary = {}
 	var names: Array = []
 	for a: Dictionary in sim.agents:
 		if int(a.get("i", -1)) == int(sim.me_idx):
 			continue
-		if not bool(a.get("alive", false)):
-			continue
 		names.append([String(a.get("name", "")), int(a.get("i", -1))])
-	names.sort_custom(func(x, y): return String(x[0]).length() > String(y[0]).length())
+	names.sort_custom(func(x, y):
+		var lx := String(x[0]).length()
+		var ly := String(y[0]).length()
+		if lx != ly:
+			return lx > ly
+		return int(x[1]) < int(y[1]))
 	for pair: Array in names:
 		var nm := String(pair[0])
 		var idx := int(pair[1])
-		var pos := s.find(nm)
-		if pos >= 0 and _free_span(spans, pos, nm.length()):
-			at[idx] = pos
+		# 2.5D 用的 while 找“第一个未被长名字占用的出现位置”；
+		# 只 find 一次会在「长名字先占位」时漏掉后面的短名字。
+		var from := 0
+		var pos := -1
+		while true:
+			pos = s.find(nm, from)
+			if pos < 0:
+				break
+			if _free_span(spans, pos, nm.length()):
+				break
+			from = pos + 1
+		if pos >= 0:
+			_note_at(at, idx, pos)
 			spans.append([pos, pos + nm.length()])
-		var seat := "%d号" % (idx + 1)
+		# 2.5D seatNo：补零两位（如 07），不要求「号/席」后缀。
+		var seat := "%02d" % (idx + 1)
 		var sp := s.find(seat)
 		if sp >= 0 and _free_span(spans, sp, seat.length()):
-			if not at.has(idx) or int(at[idx]) > sp:
-				at[idx] = sp
+			_note_at(at, idx, sp)
 			spans.append([sp, sp + seat.length()])
 	# 席位号：补零 / 「第 N 席」/ 中文数字（2.5D decision.js:96-99 的两条正则）。
-	# 3D 原先只会匹配「%d号」，玩家写「07号」「第七号」都认不出来。
 	var re_num := RegEx.new()
 	re_num.compile("(?:第\\s*)?0?([1-9]|1[0-5])\\s*(?:号|席)")
 	for m: RegExMatch in re_num.search_all(s):
 		var idx2 := int(m.get_string(1)) - 1
-		if idx2 >= 0 and idx2 < sim.agents.size() and _free_span(spans, m.get_start(), 1):
-			if not at.has(idx2):
-				at[idx2] = m.get_start()
-			spans.append([m.get_start(), m.get_start() + m.get_string().length()])
+		if idx2 >= 0 and idx2 != int(sim.me_idx) and idx2 < sim.agents.size() \
+				and _free_span(spans, m.get_start(), 1):
+			_note_at(at, idx2, m.get_start())
 	var re_cn := RegEx.new()
 	re_cn.compile("([一二三四五六七八九十]{1,3})\\s*(?:号|席)")
 	for m2: RegExMatch in re_cn.search_all(s):
 		var idx3 := int(cn_seat.get(m2.get_string(1), 0)) - 1
-		if idx3 >= 0 and idx3 < sim.agents.size() and _free_span(spans, m2.get_start(), 1):
-			if not at.has(idx3):
-				at[idx3] = m2.get_start()
-			spans.append([m2.get_start(), m2.get_start() + m2.get_string().length()])
+		if idx3 >= 0 and idx3 != int(sim.me_idx) and idx3 < sim.agents.size() \
+				and _free_span(spans, m2.get_start(), 1):
+			_note_at(at, idx3, m2.get_start())
 	var keys: Array = at.keys()
 	keys.sort_custom(func(x, y): return int(at[x]) < int(at[y]))
 	out["people"] = keys
@@ -245,6 +257,12 @@ func _free_span(spans: Array, start: int, len_: int) -> bool:
 		if start < int(sp[1]) and start + len_ > int(sp[0]):
 			return false
 	return true
+
+
+## 2.5D note()：同一席位保留最靠前的出现位置，决定 people 的先后。
+func _note_at(at: Dictionary, idx: int, pos: int) -> void:
+	if not at.has(idx) or pos < int(at[idx]):
+		at[idx] = pos
 
 
 ## 证据短语：按 kind 取一条（找不到回落 unknown，绝不返回空串）

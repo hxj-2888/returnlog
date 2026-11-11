@@ -3,6 +3,13 @@ node_modules/
 *.log
 *.err
 .env
+# 退役/暂关素材备份（3D 版暂无此目录，预防性声明，与主仓口径一致）
+_backup/
+# 一次性门禁 / 模拟 / 渲染日志（显式列出便于审计）
+tools/_mc-*.log
+tools/_hires-*.log
+tools/_sdxl-*.log
+tools/_qwen-rooms-*.log
 
 # 系统垃圾文件
 .DS_Store
@@ -46,8 +53,11 @@ assets/scene/v4/facility/_raw_fx/
 3d/preview/assets/textures/
 3d/assets/renders/
 3d/assets/refs/
-assets/qwen-lib/
+# 素材库 PNG 为 L1 构建期源，不入库；README.md 与 素材库清单.json 必须入库（与主仓口径一致）
+assets/qwen-lib/*.png
 tools/_qwen_refs/
+# docs/qwen21/ 为千问出图留档（L2 中间产物），新增不入库；
+# 主仓历史已入库的 88 个文件待保留期评估，口径见 docs/ASSET_GOVERNANCE.md §7-C
 docs/qwen21/
 *.blend1
 

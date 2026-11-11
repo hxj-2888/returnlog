@@ -1,5 +1,157 @@
 # 3D 修改记录
 
+## 2026-11-11 · 第 23 批：game.js core/UI 审计 + 会议面板 UI spec POC
+
+用户继续要求把行为逻辑和 UI 纳入自动移植；本轮做 `game.js` 函数级解耦审计与会议面板 UI spec。
+
+### 1. game.js core/UI 解耦审计
+
+- 新增 `3d/tools/core-ui-audit.cjs`（`npm run 3d:audit:coreui`），按函数体统计
+  DOM / 定时器 / `G` 状态 / `say|logEvent|toast|SND` 副作用，写
+  `3d/reports/core-ui-audit.md` / `.json`。
+- 读数：341 个具名函数（不含容器 `boot`）；`core-state` 196 / 7206 行、
+  `ui` 47 / 1734 行、`pure` 96 / 1028 行、`adapter` 1 / 7 行；**混用 DOM+G 39 个**。
+- 最重债务：`startVote`（202 行 / 13 DOM / 75 state）、`update`、`syncHud`、
+  `openMeeting`、`closeVote`、`say`；报告给出“先抽 sink → 再抽时钟 → 逐个 decide/render”的顺序。
+
+### 2. 会议面板 UI spec
+
+- 新增 **`3d/spec/ui/meeting-panel.spec.json`**：17 个元素、11 个模板、3 个状态
+  （discuss / vote / readonly）、6 个事件；来源是 2.5D `js/ui/templates.js#meet`。
+- 新增 `3d/tools/check-ui-spec.cjs`（`npm run 3d:ui:check`，已并入 `npm run check`）：
+  - 2.5D DOM：17/17 元素、11/11 模板、时段选项全对；
+  - 3D `main.gd`：17/17 Control 字段、11/11 模板、
+    `_on_player_say` / `_on_meeting_template` / `sim.cast_vote` / `skip_*` 等 handler 均存在。
+  - 对齐了一处文案：3D 发送按钮由“发 言”改为 2.5D 的“发送”。
+
+### 3. UI spec → Godot POC
+
+- 新增 `3d/tools/poc-gen-meeting-ui.cjs`：从 spec 生成
+  `3d/preview/poc/generated_meeting_panel.gd`（17 个 Control、11 个模板按钮、3 个状态的
+  可见性规则）；新增 `3d/preview/poc/meeting_ui_poc.gd` 验证结构/文本/模板父节点/状态。
+- `npm run 3d:poc:ui` 实跑：**MEETING-UI-POC pass=7 fail=0 nodes=17 templates=11 states=3**。
+- 边界：POC 只生成结构 / 文本 / 状态可见性，**不生成业务 handler，也不替换 main.gd**；
+  2.5D DOM 仍是 spec 的来源，下一步才是让 2.5D 也消费 spec。
+
+### 4. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **7 通过 / 0 失败**（新增 `3d:ui:check`） |
+| `--speechtest` | `17/0` |
+| `--simtest` | `26/0` |
+| `--meetuitest`（真实窗口） | `23/0` |
+| `--actiontest` | `5/5` |
+| `npm run 3d:poc:speech` | runtime 503/503 / generated 503/503 |
+| `npm run 3d:poc:ui` | 17 nodes / 11 templates / 3 states，7/0 |
+| `npm run 3d:audit:coreui` | 341 函数 / 混用 DOM+G 39 |
+
+## 2026-11-11 · 第 22 批：可移植性审计 + parseSpeech 差分 POC
+
+用户裁定：行为逻辑和 UI 也应当是自动移植的部分；先做只读审计与 parseSpeech POC。
+
+### 1. 只读可移植性审计
+
+- 新增 `3d/tools/portability-audit.cjs`（`npm run 3d:audit:port`）：扫描 22 个 JS 文件，
+  按「数据表/配置 / 纯逻辑 / 逻辑+定时器适配 / DOM-UI / 运行时 DOM」分层，写
+  `3d/reports/portability-audit.md` / `.json`。
+- 读数：22 文件 / 19931 行；`js/game.js` **11917 行 / 438 处 DOM 引用 / 7 定时器**；
+  纯逻辑 7 文件 2631 行；DOM-UI 7 文件 2716 行；数据表/配置 5 文件 2265 行。
+- 结论：数据表已自动导出；纯逻辑可做 IR + codegen；`game.js` 与 UI 必须先上游解耦，
+  不能把 HTML/CSS 直接翻译成 Godot Control。
+
+### 2. parseSpeech 差分 POC
+
+- 新增 `3d/tools/poc-parse-speech.cjs`（`npm run 3d:poc:speech`）：
+  - 从 2.5D `js/t2/decision.js#parseSpeech` 生成 **503 条 fixtures**（名称重叠 / 死亡席位 /
+    补零与中文席位 / 六类 claim / 否定 / 支持 / 投票 / 否认 / 时段 / 截断 / 300 条 fuzz）；
+  - `3d/tools/poc-gen-parse-speech.cjs` 从 `lines.json` 自动生成独立 GDScript 解析器
+    `3d/preview/poc/generated_parse_speech.gd`；
+  - Godot runner `3d/preview/poc/parse_speech_poc.gd` 同时跑运行时手写解析器与生成解析器。
+- **读数：runtime 503/503 / generated 503/503**（`3d/reports/parse-speech-poc.md`）。
+- 修复前实测 **90/503 不一致**，5 个真实偏差全部修在 `lines_data.gd#parse_speech`：
+  ① 3D 过滤死亡/濒死席位，2.5D 只排除玩家自己；
+  ② 3D 不认 2.5D `seatNo()` 的裸补零席位（`07`）；
+  ③ 3D 席位正则没排除玩家自己的 `1号`；
+  ④ 3D 的 `%d号` 子串匹配让 `12号` 同时命中 `2号`；
+  ⑤ 3D 把全文截到 80 字再解析，2.5D 只截 `raw`、解析用全文。
+- 解析器能认出死者后，`speech.gd#player_say` 补 2.5D 同款早退：目标已死/濒死时
+  不写听众证词，避免“给死者记 sus”。
+
+### 3. 边界（不伪装成完成）
+
+- POC 生成器只自动生成词表/正则，控制流仍是 `parseSpeech` 的固定算法模板；
+  **不是通用 JS→GDScript 转译器**。
+- 行为/UI 的真正自动移植仍需：上游拆 DOM-free core → IR → codegen；UI 共享 spec 双 renderer。
+- 本轮不改 `js/`、不新增运行时依赖、不把 POC 文件挂进 `main.tscn`。
+
+### 4. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--speechtest` | `17/0`（模板 11/11） |
+| `--simtest` | `26/0` |
+| `--meetuitest`（真实窗口） | `23/0` |
+| `--actiontest` | `5/5` |
+| `npm run 3d:poc:speech` | runtime **503/503** / generated **503/503** |
+| `npm run 3d:audit:port` | 22 文件 / 19931 行分层报告 |
+
+## 2026-11-11 · 第 21 批：玩家发言模板对齐 parseSpeech（2.5D + 3D）
+
+用户要求把玩家发言模板与 AI 实际能识别的模板对齐并扩展，2D / 3D 同批。
+
+### 1. 2.5D 真源（上游 `新返航录`）
+
+- `js/game.js#meetTemplateText`：8 类 → **11 类**，补齐 `parseSpeech` 六类直接证据中
+  缺的三类：`saw_sabotage`（破坏设备）、`saw_bot`（机器人停摆）、`saw_breaker`（拉闸）。
+- 新增**时段**参数（`recent` / `night`）：只作用于「我在… / 不是我」两项口供，
+  生成「我刚才在 X」/「我一整晚都在 X」，对应 `claimWindow` 的 recent / 整夜窗口；
+  不指定时段仍走原来的 45 秒默认窗。
+- **证据模板不选舱室就不声称地点**：点击层不再把玩家当前舱室回落到证据句；
+  只有「我在… / 不是我」才回落到当前舱室。管道模板仍只在真有管道口的舱室附带地点。
+- **「不是我，我在 X」不再被自述位置分支截走**：`playerTalk` 的 where 分支在
+  `sl.deny` 时改走否认回应（`press_deny` / `ack_short`），时间线拆穿仍先执行。
+- `js/ui/templates.js`：新增三颗证据按钮 + 「不指定时段 / 刚才 / 整晚」下拉与提示；
+  `MEET_TPL_KINDS` 作为按钮 / 生成器 / 门禁唯一清单，`_t.tplKinds()` 暴露。
+- `tools/test-v3.cjs`：模板契约逐条断言（11 类槽位、六类 claim、时段、空舱室、
+  证据句不产生额外槽位、按钮集合一致、空舱室点击真实不注入地点）。
+
+### 2. 3D 移植
+
+- `main.gd`：镜像 11 模板 + 时段下拉；`_meeting_template_defs()` 作为按钮 /
+  `--speechtest` 共用清单；`_meet_template_text(kind,t,rid,when)` 逐条对齐；
+  空舱室不再注入当前房间（只有口供类回落）。
+- `speech.gd#player_say`：回应池按 2.5D `playerTalk` 分支重排：
+  - 证据 → 被指者 `player_claim_deny`（`{k}` = 动作，不再是任务名），
+    有独立确证的人 `known_endorse_player`；
+  - 作证 → 有疑心的人 `skeptic_ask`，否则被保者 `player_support_thanks`
+    （**不再把作证回应写成对目标的证词**）；
+  - 指控 → 被指者 `defend` + 旁人 `call`；投票 → 跟票 / 追问；
+    自述 → 同舱室 `ask` / 他人 `identity`；否认 → `press_deny` / `ack_short`。
+  - 删除 3D 自造的「玩家否认 → 全员可信度 −0.05」；2.5D `RELIA.emptyAccuse`
+    至今是未接通配置，不在 3D 另造规则。
+  - 删除普通「怀疑」模板附带的 `empty_accuse` 证词；2.5D 该分支不加目标嫌疑。
+- `port-manifest.json#X-BIND` 行段随源码增长改为 `11755–11917`；
+  `check-parity.cjs` 的 `0.01/0.99` 源行号 7095 → 7135。
+
+### 3. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| 2.5D `node tools/test-v3.cjs` | **918 通过 / 1 失败**；失败＝已登记时序偶发「领取物资申请单」 |
+| 2.5D 未改动 HEAD 对照 | **911 通过 / 3 失败**（拖拽 0.00 格 / 藏尸 ×2）；同一机器同样失败，证明不是本批回归 |
+| 2.5D 模板新增契约 | 连续 4 轮全过（11 类 / 六类 claim / 时段 / 空舱室） |
+| `npm run check` | **6 通过 / 0 失败** |
+| `--speechtest` | `pass=17 fail=0`，模板 **11/11**，席位号 4/4 |
+| `--simtest` | `26/0` |
+| `--meetuitest`（真实窗口） | `23/0` |
+| `--actiontest` | `ACTION OK 鼠标相位 5/5 · 2.5D 动作入口 5/5` |
+| `baseline:sync` | 3 个文件更新 / 451 相同；454 文件清单重建 |
+
+> 说明：Godot 自测参数必须放在 `--` 之后（`godot --headless --path 3d/preview -- --speechtest`）；
+> 不写 `--` 时 Godot 会把参数当引擎参数吞掉，表现为“测试没跑、进程不退”。
+
 ## 2026-11-11 · 第 20 批：knife/down + V-CREW full + 音频同步 + 鼠标/银翼清理
 
 用户现场：会议室圆桌旁“银翼”贴图去掉；同步 2.5D 声音系统；全面审查红线继承；

@@ -222,6 +222,7 @@
   #m-tpl .tpl-row{display:flex;gap:6px;margin-bottom:6px}
   #m-tpl select{flex:1;min-width:0;background:#0D1117;border:1px solid #313B4B;border-radius:6px;
     color:#DDE3EC;padding:4px 6px;font-size:11.5px;font-family:inherit;outline:none}
+  #m-tpl select#m-tpl-when{flex:0 0 96px}
   #m-tpl select:focus{border-color:#F0C674}
   #m-tpl-btns{display:flex;flex-wrap:wrap;gap:5px}
   #m-tpl-btns button{padding:4px 8px;font-size:11px;background:#18222E;border-color:#2B3B4C;color:#AFC0D2}
@@ -294,6 +295,11 @@
       <div class="tpl-row">
         <select id="m-tpl-target" title="指定玩家"></select>
         <select id="m-tpl-room" title="指定舱室"></select>
+        <select id="m-tpl-when" title="口供时段">
+          <option value="">不指定时段</option>
+          <option value="recent">刚才</option>
+          <option value="night">整晚</option>
+        </select>
       </div>
       <div id="m-tpl-btns">
         <button data-tpl="accuse">怀疑</button>
@@ -302,10 +308,13 @@
         <button data-tpl="pipe">看见钻管道</button>
         <button data-tpl="red">看见红光</button>
         <button data-tpl="knife">看见出刀</button>
+        <button data-tpl="sabotage">看见破坏设备</button>
+        <button data-tpl="bot">看见机器人停摆</button>
+        <button data-tpl="breaker">看见拉闸</button>
         <button data-tpl="where">我在…</button>
         <button data-tpl="deny">不是我</button>
       </div>
-      <div class="tpl-hint">先选对象 / 舱室，再点模板；模板会直接发出，并按规则进入 AI 的证据与发言链。「看见钻管道」只会在真正有管道口的舱室附带地点。</div>
+      <div class="tpl-hint">先选对象 / 舱室，再点模板；模板会直接发出，并按规则进入 AI 的证据与发言链。「看见钻管道」只会在真正有管道口的舱室附带地点；证据模板不选舱室就不声称地点。「我在… / 不是我」不选舱室时用你当前所在舱室，时段（刚才 / 整晚）只作用于这两项口供。</div>
     </div>
     <div class="inp"><input id="m-text" placeholder="自由发言，回车发送"><button id="m-send">发送</button></div>
   </div>

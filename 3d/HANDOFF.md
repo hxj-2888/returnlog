@@ -15,7 +15,7 @@
 ## 0. 最新交接（2026-11-10）
 
 > **一句话现状**：3D 已是 2.5D 的完整功能移植（判定 / 会议 / 结算 / 小地图 / HUD），
-> 34 项 Godot 自测全绿、`npm run check` 6/0、parity **0 WARN**；
+> 34 项 Godot 自测全绿、`npm run check` 7/0、parity **0 WARN**；
 > 只剩表现层像素排布、3D 维度产物（A* / 相机 / 碰撞 / LOD）与 billboard 人物美术。
 > 当前工作区 **77 个文件未提交**（第 1–16 批 + 现场修复），提交前按 `AGENTS.md` §五.6 审阅。
 
@@ -51,7 +51,7 @@ node 3d/tools/sync-cover-height.cjs --check
 | 异形出刀 | `--knifetest`（真实左键） | `命中=true 剩余刀=0` |
 | 异形按 E 放倒 + 轮盘 + F2 DEV | `--probetest` / `npm run 3d:probe`（真实 E / 数字键 / 左键 / F2） | `PROBETEST OK 0 项失败`；DEV 挨枪/死亡/驱逐全无效 |
 | 会议：讨论期先投、改票、追责 | `--leadtest` / `--meetingtest` | `5/0` · `ok=true ejected=1` |
-| 会议 UI：8 模板 / 席位号 / 弃权 / 先投改票 / 跳过投票 / 只读 | `--meetuitest`（真实鼠标点击） | `23/0` |
+| 会议 UI：11 模板 / 时段 / 席位号 / 弃权 / 先投改票 / 跳过投票 / 只读 | `--meetuitest`（真实鼠标点击） | `23/0` |
 | 异形挑目标：无全图锁敌 / 25s 记忆 / humanT / 身份轴 / 暴露度 | `--aiporttest` | `13/0` |
 | 鼠标口径：Esc 释放 / 点击收回 / 失焦自动释放 | `--mousetest`（真实窗口） | `5/0` |
 | 结算页：身份表 + 逐人投票矩阵（按场次分组） | `--settletest` / `--endshot` | `5/0` |
@@ -79,7 +79,7 @@ node 3d/tools/sync-cover-height.cjs --check
 | 9 | 差异登记（`allowed_differences` 4→9 条）+ 全量验收 |
 | 10 | 桌面快捷方式改指向本工程 |
 | 11 | 同步最新 2.5D（`STAND` 改值 + 领申请单交互即领 + 掩体 123）+ **出手键提示 / 删 Shift / 交互无反馈 / 旁观者剖面** |
-| 12 | **会议 UI 功能同源**：8 模板 + 对象/舱室下拉、`01–15` 席位号、弃权、讨论期先投/改票、跳过投票、幽灵/旁观只读、报告地点/发起人/伤者三行、`↓N 条新发言` |
+| 12 | **会议 UI 功能同源**：11 模板（六类直接证据）+ 对象/舱室/时段下拉、`01–15` 席位号、弃权、讨论期先投/改票、跳过投票、幽灵/旁观只读、报告地点/发起人/伤者三行、`↓N 条新发言` |
 | 13 | **判定层 A 档**：取消异形全图锁敌（只认看得见 / 本夜 25s 记忆）、`humanT`+`HUMANISH`、`saw_red` 5s 节流、`lastBody`/`saw_body_moved`/`near_body`、`aiIdleRoam`+`saw_avoid`、`audSusEstimate` 方向拨正、`note_sight` 重复记账修掉 |
 | 修复 | **鼠标口径**：Esc 释放/收回、窗口失焦自动释放（截图工具可拖出窗口）、删除四处无条件 CAPTURED |
 | 14 | **结算页**：`#e-ids` 身份表 + `#e-votes` 逐人投票矩阵（终票在 close 按 seq 落账）、`downRoom/deathRoom`、阵亡提示不泄露身份 |
@@ -179,6 +179,14 @@ node 3d/tools/sync-cover-height.cjs --check
 实测截图应打印 `CREW_MOUSE mode=0`。`--probetest` / `--mousetest` 是输入链测试，
 不是截图，必须单独跑并在结束时恢复 `VISIBLE`。详见 `AGENTS.md` §五.8。
 
+**⑭ Godot 自测参数必须放在 `--` 之后（2026-11-11 实跑坑）。**
+`main.gd` 用 `OS.get_cmdline_user_args()` 取参数；不写 `--` 时 Godot 会把
+`--speechtest` 等当成引擎参数吞掉，表现为**测试一条都没跑、进程也不退出**（很容易被
+误判成死循环）。正确写法：
+`Godot --headless --path 3d/preview -- --speechtest`；真实窗口类（`--meetuitest` /
+`--probetest`）同理，只是去掉 `--headless`。headless 下 GUI 收不到鼠标，`--meetuitest`
+会以 `hover=null`、全部点击失败告终——这不是会议 UI 回归，必须用真实窗口跑。
+
 ### 0.6 排障索引（症状 → 先看哪）
 
 | 症状 | 先看 |
@@ -200,7 +208,7 @@ node 3d/tools/sync-cover-height.cjs --check
 ### 0.7 验收读数（2026-11-10 实跑，供下次对比）
 
 ```
-npm run check          6 通过 / 0 失败（assets/import/port/events/lines/parity）
+npm run check          7 通过 / 0 失败（assets/import/port/events/lines/parity/ui）
 baseline:check         BASELINE OK 454 个文件 · 快照 2026-11-10
 3d:floor:check         FLOOR-SPEC OK（11 项）
 cover-height --check   61 项 · 需更新 0 · 低于 1.7m 0 件
@@ -219,9 +227,24 @@ Godot 34 项自测        全部 exit 0 · 0 条 SCRIPT ERROR
 > `--aittest` 是 2 夜 AI 样本，只作记录，不作验收。按 `AGENTS.md` §五.7，
 > 验收层读数不得反过来当作"该不该改"的依据；需要新基线必须单独跑 `--sim1000`。
 >
-> **本次实跑汇总（2026-11-10）**：`npm run check` 6/0 · `baseline:check` 454 OK ·
+> **本次实跑汇总（2026-11-10）**：`npm run check` 7/0 · `baseline:check` 454 OK ·
 > `3d:floor:check` 11 项 OK · Godot 34 项自测全部 exit 0 / 0 条 `SCRIPT ERROR` ·
 > `3d:parity:check` 0 WARN。
+>
+> **2026-11-11 第 21 批（模板对齐）**：`npm run check` 6/0 ·
+> `--speechtest` 17/0（**模板 11/11**）· `--simtest` 26/0 ·
+> `--meetuitest` 真实窗口 23/0 · `--actiontest` 5/5。
+> 2.5D 全量 918 通过 / 1 失败（已登记偶发「领取物资申请单」）；
+> 未改动 HEAD 对照 911 通过 / 3 失败（拖拽/藏尸），同机器同样失败，非本批回归。
+>
+> **2026-11-11 第 22 批（自动移植审计）**：`npm run 3d:audit:port` 22 文件 / 19931 行分层；
+> `npm run 3d:poc:speech` runtime **503/503** / generated **503/503**。
+> POC 修复前 90/503 不一致，顺带修正 3D 解析器 5 个真实偏差。
+> 生成器仍只是「词表/正则自动生成 + 固定算法模板」，不是通用 JS→GDScript 转译。
+>
+> **2026-11-11 第 23 批（core/UI 审计 + UI spec）**：`npm run check` **7/0**（新增 `3d:ui:check`）；
+> `npm run 3d:audit:coreui` 341 函数 / 混用 DOM+G 39；`npm run 3d:poc:ui`
+> **17 节点 / 11 模板 / 3 状态，7/0**。UI POC 只生成结构/状态，不生成 handler、不替换运行时。
 
 ### 0.8 接手第一小时（当前版）
 

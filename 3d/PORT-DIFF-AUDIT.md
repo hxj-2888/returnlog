@@ -58,9 +58,10 @@
 
 | 域 | 项 | 2.5D 真源 | 3D 现状 |
 |---|---|---|---|
-| 发言解析 | 中文席位 | `decision.js:65 parseSpeech` 用 `CN_SEAT`（一~十五）+ `seatNo()` 补零 `01号` + 正则 `第 N 号/席` | `lines_data.gd:148` 只有 `"%d号"`；`CN_SEAT`/`ROOM_WORDS` 已导出到 `rules.json#tables.SKT2Decision` 但**未被使用** |
-| 发言解析 | 时间词 | `decision.js::whenWord()`：白天会说「**昨晚**」，夜会说「今晚」 | 未见对应实现 |
+| 发言解析 | 中文席位 | `decision.js:65 parseSpeech` 用 `CN_SEAT`（一~十五）+ `seatNo()` 补零 `01号` + 正则 `第 N 号/席` | 第 7 批已补：`lines_data.gd:parse_speech` 读导出的两条正则 + `CN_SEAT`；2026-11-11 POC 503 条 fixtures 全量一致，并修正死亡席位 / 裸补零席位 / 玩家自己席位 / `12号` 子串 / 全文截断 5 个偏差 |
+| 发言解析 | 时间词 | `decision.js::whenWord()`：白天会说「**昨晚**」，夜会说「今晚」 | `speech._when_word()`，`--speechtest` 与模板时段用例覆盖 |
 | 发言解析 | 槽位 | `rooms/people/accuse/vote/deny/where/when/claim/support`，claim 六类 `saw_pipe/saw_red/saw_knife/saw_sabotage/saw_bot/saw_breaker` | `lines_data.gd` 大体同源，`claim_kinds()` 从数据读 |
+| 玩家模板 | 一键发言 | `js/game.js:meetTemplateText` + `templates.js#m-tpl-btns`：11 类（六类直接证据 + 怀疑/投他/作证/我在/不是我），时段 recent/night，证据不选舱室不带地点 | `main.gd::_meeting_template_defs` / `_meet_template_text` 逐条对齐；2026-11-11 第 21 批补齐 `sabotage/bot/breaker`，空舱室不再注入当前房间；`--speechtest` 模板 11/11、`--meetuitest` 23/0 |
 | 发言排期 | 定时器 | `stopChatter` / `meetLater` / `sayStreakOK`；`MEET.endPad=2.2` / `minPlan=5.2` 保证「不前 7 秒热闹后 50 秒死寂」 | `speech.gd` 用每帧 `tick(dt)` + `_streak` + `end_pad/span` 覆盖；**2 个 adapter 属允许的运行时适配**，但覆盖断言口径需逐条核 |
 | 发言内容 | 构陷 / 领袖 | `planAlienDeception` / `planMateBus` / `scheduleLeaderOrders` / 背书 / 作证 / 质疑 / 矛盾 | `speech.gd:106/321/394` **已有**；`S-SPEECH` 的 note 说未接是**失实**（见 §4） |
 | 会议 | 三类 | `openMeeting(kind, reporter, victim)`：`pre`(50s 不投票) / `day`(60+5) / `night`(35+5)，`MEET.perNight=2`、`reportsPerAgent=2` | `open_meeting_kind` 三类齐全、`_after_meeting` 分流、`reportLeft`/`night_meets` 额度齐全 |

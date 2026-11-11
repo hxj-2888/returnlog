@@ -5,6 +5,50 @@
 > 中文记录与提交格式 `type(scope): 摘要` 见 `AGENTS.md` §一.10；
 > 门禁报告必须写本次实跑的「X 通过 / Y 失败」（§一.4）。
 
+## 2026-11-11 · 第 23 批：game.js core/UI 审计 + 会议面板 UI spec POC
+
+- **触发**：继续推进“行为逻辑和 UI 也自动移植”；本轮做函数级解耦审计和会议面板 UI 契约。
+- **core/UI 审计**：新增 `3d:audit:coreui`；341 个具名函数中 `core-state` 196 / 7206 行、
+  `ui` 47 / 1734 行、`pure` 96 / 1028 行，混用 DOM+G 39 个；`startVote` / `syncHud` /
+  `openMeeting` / `say` 是最重债务，报告给出 sink→时钟→decide/render 的拆分顺序。
+- **UI spec**：新增 `3d/spec/ui/meeting-panel.spec.json`（17 元素 / 11 模板 / 3 状态 / 6 事件）；
+  `3d:ui:check` 已并入 `npm run check`，2.5D DOM 与 3D Control 字段/模板/handler 全对齐；
+  3D 发送按钮文案由“发 言”改为“发送”。
+- **UI POC**：`3d:poc:ui` 从 spec 生成 Godot Control 面板，实跑 17 节点 / 11 模板 /
+  3 状态，**7/0**；只生成结构/状态，不生成 handler，不替换运行时。
+- **门禁**：`npm run check` **7 通过 / 0 失败**；`--speechtest` 17/0；`--simtest` 26/0；
+  `--meetuitest` 23/0；`--actiontest` 5/5；parseSpeech POC 503/503。
+
+## 2026-11-11 · 第 22 批：可移植性审计 + parseSpeech 差分 POC
+
+- **触发**：用户裁定行为逻辑和 UI 也应当是自动移植的部分；先做只读审计与 parseSpeech POC。
+- **审计**：新增 `3d:audit:port`，22 个 JS 文件 19931 行分层；`game.js` 11917 行 /
+  438 处 DOM 引用，必须上游拆 core；纯逻辑 2631 行可做 IR + codegen；UI 2716 行需共享 spec。
+- **POC**：新增 `3d:poc:speech`，2.5D 生成 503 条 fixtures；运行时解析器与自动生成的
+  GDScript 解析器均 **503/503**。修复前 90/503 不一致，顺带修正 3D 解析器 5 个真实偏差
+  （死亡席位 / 裸补零席位 / 玩家自己席位 / `12号` 子串 / 全文截断）。
+- **边界**：生成器只自动生成词表/正则，控制流仍是固定模板；不是通用 JS→GDScript 转译器，
+  行为/UI 的自动移植仍需上游 DOM-free core + IR + UI spec。
+- **门禁**：`npm run check` 6/0；`--speechtest` 17/0；`--simtest` 26/0；
+  `--meetuitest` 23/0；`--actiontest` 5/5；POC runtime/generated 503/503。
+
+## 2026-11-11 · 第 21 批：玩家发言模板对齐 parseSpeech（2.5D + 3D）
+
+- **触发**：用户要求更新玩家发言模板，与 AI 实际能识别的模板对齐并扩展，2D / 3D 同批。
+- **2.5D 真源**：`meetTemplateText` 8 → 11 类（补齐破坏设备 / 机器人停摆 / 拉闸），
+  新增「刚才 / 整晚」口供时段；证据模板空舱室不再注入玩家当前房间；
+  「不是我，我在 X」改走否认回应，不再被自述位置分支截走。
+  `tools/test-v3.cjs` 增加模板 → `parseSpeech` 逐条契约。
+- **3D 移植**：`main.gd` 镜像 11 模板 + 时段下拉 + 空舱室口径；
+  `speech.gd#player_say` 按 2.5D `playerTalk` 重排回应池（作证不写成证词、
+  证据被指者用 `player_claim_deny` 且 `{k}`=动作、否认用 `press_deny`），
+  删除 3D 自造的否认降可信度与普通指控 `empty_accuse` 证词。
+- **门禁**：`npm run check` **6 通过 / 0 失败**；Godot `--speechtest` **17/0（模板 11/11）**、
+  `--simtest` **26/0**、`--meetuitest` 真实窗口 **23/0**、`--actiontest` 5/5。
+  2.5D 全量 **918 通过 / 1 失败**（已登记偶发「领取物资申请单」）；
+  未改动 HEAD 对照 **911 通过 / 3 失败**（拖拽/藏尸，同一机器同样失败），
+  失败项随机器负载漂移，模板新增用例连续 4 轮全过。
+
 ## 2026-11-11 · 第 20 批：knife/down + V-CREW full + 音频同步 + 红线审查
 
 - **触发**：用户要求补 knife/down、把 V-CREW 标 full；同时发现会议室圆桌旁仍有

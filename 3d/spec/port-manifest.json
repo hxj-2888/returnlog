@@ -742,8 +742,8 @@
         "D-LINES",
         "A-COGNITION"
       ],
-      "gate": "--speechtest 11/0（讨论 13 条台词 / 玩家解析 saw_knife / 证词改 sus / 投票意向）",
-      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；系数读 rules.json#dispatch。2026-11-09 第七批核实：构陷编排 plan_alien_deception(speech.gd:106)、plan_mate_bus(:321)、领袖指令 schedule_leader_orders(:394)、COFRAME 协同诬陷(:191)、MISLEAD.bus(:318) 均已接入，旧 note 的「未接」失实。仍缺：parseSpeech 的 CN_SEAT 中文席位 / 补零席位号 / whenWord 时间词（词表已导出但未被使用）。"
+      "gate": "--speechtest 17/0（讨论 17 条台词 / 玩家解析 saw_knife / 证词改 sus / 投票意向 / 模板 11/11）",
+      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；系数读 rules.json#dispatch。2026-11-09 第七批核实：构陷编排 plan_alien_deception(speech.gd:106)、plan_mate_bus(:321)、领袖指令 schedule_leader_orders(:394)、COFRAME 协同诬陷(:191)、MISLEAD.bus(:318) 均已接入，旧 note 的「未接」失实；CN_SEAT / 补零席位号 / whenWord 同批补齐。2026-11-11 第 21 批：player_say 回应池按 2.5D playerTalk 分支重排（证据被指者 player_claim_deny 的 {k}=动作、作证不写成证词、否认用 press_deny、普通指控不再附送 empty_accuse 证词），删除 3D 自造的否认降可信度；--speechtest 模板 11/11。仍缺：讨论期陆续投 + 跟票 + rev 驱动的完整改票时序（在 S-DECISION 条目登记）。"
     },
     {
       "id": "S-DECISION",
@@ -791,7 +791,7 @@
         "S-DECISION"
       ],
       "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetuitest 23/0 / --meetshot 三张实拍",
-      "notes": "discuss(发言流+8模板+对象/舱室下拉+玩家输入框) → vote → result(聚合票数+弃权+门槛+身份，逐人矩阵在结算页 S-WIN，第 14 批已迁)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮；讨论期先投/改票、跳过投票、幽灵/旁观只读均在。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。2026-11-10 第 12 批：会议 UI 功能层逐条对齐 js/game.js:6812-6873/7413-7447/10878-10903，--meetuitest 23/0。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
+      "notes": "discuss(发言流+11模板+对象/舱室/时段下拉+玩家输入框) → vote → result(聚合票数+弃权+门槛+身份，逐人矩阵在结算页 S-WIN，第 14 批已迁)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮；讨论期先投/改票、跳过投票、幽灵/旁观只读均在。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。2026-11-10 第 12 批：会议 UI 功能层逐条对齐 js/game.js:6812-6873/7413-7447/10878-10903，--meetuitest 23/0。2026-11-11 第 21 批：模板扩到六类直接证据 + 时段，空舱室不再注入当前房间；--speechtest 模板 11/11。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
     },
     {
       "id": "S-NIGHT",
@@ -971,7 +971,7 @@
           "file": "js/game.js",
           "lines": [
             11755,
-            11870
+            11917
           ]
         }
       ],
@@ -981,7 +981,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；window.SKV3._t 只属于 2.5D 门禁",
-      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。2026-11-10 baseline:sync 后文件由 11877 行缩到 11873 行，行段末值随之更正（只改末值，认领语义不变）。"
+      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。2026-11-10 baseline:sync 后文件由 11877 行缩到 11873 行，行段末值随之更正（只改末值，认领语义不变）。2026-11-11 第 21 批再同步后 11917 行（tplKinds 新增 1 个查询），行段末值同步。"
     },
     {
       "id": "X-ENTRY",
@@ -1084,7 +1084,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；结构可参考，DOM id 不保留",
-      "notes": "2.5D 的 DOM id 双处同步红线不适用于 3D。功能层（8 模板 / 席位号 / 弃权 / 跳过投票 / 只读）已并入 S-MEET 的 Godot Control 实现；本条目只排除 DOM 标记。"
+      "notes": "2.5D 的 DOM id 双处同步红线不适用于 3D。功能层（11 模板 / 时段 / 席位号 / 弃权 / 跳过投票 / 只读）已并入 S-MEET 的 Godot Control 实现；本条目只排除 DOM 标记。"
     },
     {
       "id": "V-SCENE",

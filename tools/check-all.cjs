@@ -21,6 +21,7 @@ const CHECKS = [
   ['3d:events:check', '3d/tools/check-events.cjs'],
   ['3d:lines:check', '3d/tools/check-lines.cjs'],
   ['3d:parity:check', '3d/tools/check-parity.cjs'],
+  ['3d:ui:check', '3d/tools/check-ui-spec.cjs'],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;

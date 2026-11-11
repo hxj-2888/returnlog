@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "id": "meeting-panel",
+  "title": "紧急会议",
+  "source": {
+    "dom": "js/ui/templates.js#meet",
+    "godot": "3d/preview/scripts/main.gd#_build_meeting_ui"
+  },
+  "regions": [
+    { "id": "say", "label": "发言", "role": "left" },
+    { "id": "mid", "label": "会议信息", "role": "center" },
+    { "id": "vote", "label": "投票", "role": "right" }
+  ],
+  "elements": [
+    { "id": "m-say", "region": "say", "role": "feed", "dom": "m-say", "godot": "meeting_feed", "type": "RichTextLabel", "states": ["discuss", "vote", "result"] },
+    { "id": "m-new", "region": "say", "role": "button", "dom": "m-new", "godot": "meeting_new_btn", "label": "↓ 新消息", "label_dynamic": true, "states": ["discuss", "vote"] },
+    { "id": "m-tpl", "region": "say", "role": "group", "dom": "m-tpl", "godot": "meeting_tpl", "states": ["discuss"], "requires": ["m-tpl-target", "m-tpl-room", "m-tpl-when", "m-tpl-btns"] },
+    { "id": "m-tpl-target", "region": "say", "role": "select", "dom": "m-tpl-target", "godot": "meeting_tpl_target", "label": "指定玩家", "options": "alive_agents" },
+    { "id": "m-tpl-room", "region": "say", "role": "select", "dom": "m-tpl-room", "godot": "meeting_tpl_room", "label": "指定舱室", "options": "rooms" },
+    { "id": "m-tpl-when", "region": "say", "role": "select", "dom": "m-tpl-when", "godot": "meeting_tpl_when", "label": "口供时段", "options": [
+      { "value": "", "label": "不指定时段" },
+      { "value": "recent", "label": "刚才" },
+      { "value": "night", "label": "整晚" }
+    ] },
+    { "id": "m-tpl-btns", "region": "say", "role": "button_group", "dom": "m-tpl-btns", "godot": "GridContainer", "states": ["discuss"] },
+    { "id": "m-text", "region": "say", "role": "input", "dom": "m-text", "godot": "meeting_input", "placeholder": "自由发言，回车发送", "states": ["discuss"] },
+    { "id": "m-send", "region": "say", "role": "button", "dom": "m-send", "godot": "meeting_send", "label": "发送", "states": ["discuss"] },
+    { "id": "m-title", "region": "mid", "role": "title", "dom": "m-title", "godot": "meeting_title", "label": "紧急会议", "label_dynamic": true },
+    { "id": "m-sub", "region": "mid", "role": "text", "dom": "m-sub", "godot": "meeting_time", "label_dynamic": true },
+    { "id": "m-rows", "region": "mid", "role": "info_rows", "dom": "m-rows", "godot": "meeting_info", "fields": ["报告地点", "发起报告", "伤者"] },
+    { "id": "m-ph", "region": "mid", "role": "status", "dom": "m-ph", "godot": "meeting_hint", "label_dynamic": true },
+    { "id": "m-skip", "region": "mid", "role": "button", "dom": "m-skip", "godot": "meeting_skip", "label": "跳过讨论", "label_contains": true },
+    { "id": "m-who", "region": "vote", "role": "list", "dom": "m-who", "godot": "meeting_list", "states": ["discuss", "vote"] },
+    { "id": "m-skip-vote", "region": "vote", "role": "button", "dom": "m-skip-vote", "godot": "meeting_skip_vote", "label": "跳过投票", "label_contains": true, "states": ["vote"] },
+    { "id": "m-tally", "region": "vote", "role": "result", "dom": "m-tally", "godot": "meeting_result", "label_dynamic": true, "states": ["vote", "result"] }
+  ],
+  "templates": [
+    { "key": "accuse", "label": "怀疑", "needs_target": true },
+    { "key": "vote", "label": "投他", "needs_target": true },
+    { "key": "support", "label": "作证", "needs_target": true },
+    { "key": "pipe", "label": "看见钻管道", "needs_target": true, "claim": "saw_pipe" },
+    { "key": "red", "label": "看见红光", "needs_target": true, "claim": "saw_red" },
+    { "key": "knife", "label": "看见出刀", "needs_target": true, "claim": "saw_knife" },
+    { "key": "sabotage", "label": "看见破坏设备", "needs_target": true, "claim": "saw_sabotage" },
+    { "key": "bot", "label": "看见机器人停摆", "needs_target": true, "claim": "saw_bot" },
+    { "key": "breaker", "label": "看见拉闸", "needs_target": true, "claim": "saw_breaker" },
+    { "key": "where", "label": "我在…", "needs_target": false, "time": true },
+    { "key": "deny", "label": "不是我", "needs_target": false, "time": true }
+  ],
+  "states": [
+    {
+      "id": "discuss",
+      "condition": "phase == 'discuss' && canAct",
+      "show": ["m-tpl", "m-text", "m-send", "m-skip", "m-who"],
+      "hide": ["m-skip-vote"]
+    },
+    {
+      "id": "vote",
+      "condition": "phase == 'vote' && canAct",
+      "show": ["m-who", "m-skip-vote", "m-tally"],
+      "hide": ["m-tpl", "m-text", "m-send", "m-skip"]
+    },
+    {
+      "id": "readonly",
+      "condition": "!canAct",
+      "show": ["m-say", "m-who"],
+      "hide": ["m-tpl", "m-text", "m-send", "m-skip", "m-skip-vote"],
+      "note": "幽灵 / 旁观只读；3D 用 _meeting_can_act_now()"
+    }
+  ],
+  "events": [
+    { "id": "send", "from": ["m-send", "m-text"], "dom_handler": "sendPlayerSpeech", "godot_handler": "_on_player_say" },
+    { "id": "template_click", "from": ["m-tpl-btns"], "dom_handler": "meetTemplateText→sendPlayerSpeech", "godot_handler": "_on_meeting_template" },
+    { "id": "vote", "from": ["m-who"], "dom_handler": "renderVoteButtons", "godot_handler": "sim.cast_vote" },
+    { "id": "skip_discussion", "from": ["m-skip"], "dom_handler": "startVote/finishMeeting", "godot_handler": "sim.skip_discussion" },
+    { "id": "skip_vote", "from": ["m-skip-vote"], "dom_handler": "closeVote", "godot_handler": "sim.skip_vote" },
+    { "id": "jump_latest", "from": ["m-new"], "dom_handler": "clearNewLines", "godot_handler": "_jump_feed_bottom" }
+  ],
+  "extra_3d": [
+    { "godot": "meeting_time", "reason": "2.5D 的剩余时间在 #m-sub/#m-ph 文本里；3D 单独一行" },
+    { "godot": "meeting_hint", "reason": "2.5D 的 #m-ph 阶段文本；3D 用提示句表达" }
+  ]
+}

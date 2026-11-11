@@ -21,6 +21,11 @@
 
 ## 2. 复用边界
 
+> **2026-11-11 用户裁定**：行为逻辑与 UI 也应纳入自动移植目标。本节“不能直接复用”指的是
+> 不能把 DOM/Canvas/HTML 原地翻译成 GDScript；目标形态是上游 **DOM-free core + UI spec +
+> 生成器**，而不是继续手写第二套。当前分层与 POC 见 `MIGRATION.md` §10.7、
+> `3d/reports/portability-audit.md`、`3d/reports/parse-speech-poc.md`。
+
 ### 可以直接复用
 
 - **地图数据**：`rooms[].poly/rect/doors/label`、`corridors[].pts`、`walls[]`、`cover[]`、
