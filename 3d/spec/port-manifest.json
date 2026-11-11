@@ -105,13 +105,12 @@
         }
       ],
       "target": [
-        "3d/preview/data/map_v2.json",
-        "3d/preview/data/layout-v2.json"
+        "3d/preview/data/map_v2.json"
       ],
       "status": "ported",
       "depends_on": [],
-      "gate": "npm run 3d:export:map / npm run 3d:export:layout / --tasktest 26/0",
-      "notes": "唯一真源；掩体布局 v2 由 tools/ship-layout-spec.cjs 生成。"
+      "gate": "npm run 3d:export:map → node 3d/tools/build-map-v2.cjs → npm run 3d:export:sim / --tasktest 26/0",
+      "notes": "唯一真源 js/data/map.js。2026-11-10 用户裁定「掩体回归 map.js，墙面装饰保留」：build-map-v2.cjs 原先从 tools/ship-layout-plan.json 取 cover（第二份地图真源，且停在 11-06 的 127 件布局），已改为原样取 map.json，现 cover 120 / facility 6 / points 26 / pipes / rooms / corridors / walls 与基线逐值一致；只有 decor 40 件墙面美术仍取方案层（属允许的美术差异）。layout-v2.json 由 export-layout-v2.cjs 从方案层另生成，运行时无人读取（Godot 只读 map_v2.json），已从本项 target 移出，留作方案层留档。"
     },
     {
       "id": "D-NAMES",
@@ -189,13 +188,13 @@
       "target": [
         "3d/preview/data/minigames.json#tasks"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "D-MAP",
         "D-PLATES"
       ],
-      "gate": "--tasktest 26/0 / --mgtest 10/10",
-      "notes": "10 型可玩；sequence/sort/valve/code 暂映射到 match/place/lever/sync。"
+      "gate": "--tasktest 26/0 / --mgtest 14/14",
+      "notes": "2026-11-10 baseline:sync + export:minigames 后 minigames.json 是 14 型 / 26 标签，与真源一致；第 2 批把四型降级与失败惩罚一并清掉，tasks 表里每个任务的 n / shapes / icons / lo / hi / hold / targets 都已接到运行时。"
     },
     {
       "id": "D-PLATES",
@@ -320,7 +319,7 @@
     },
     {
       "id": "S-DEV",
-      "name": "DEV 横栏 / 运行时断言 / 暂停调试",
+      "name": "DEV 横栏 / 全知无敌 / 玩家探针（运行时断言未迁）",
       "group": "view",
       "track": "core",
       "source": [
@@ -333,12 +332,14 @@
         }
       ],
       "target": [
-        "excluded:2.5D 调试层"
+        "3d/preview/scripts/main.gd#_build_dev_panel",
+        "3d/preview/scripts/main.gd#_run_probetest",
+        "3d/preview/scripts/sim/sim_state.gd#dev"
       ],
-      "status": "excluded",
+      "status": "partial",
       "depends_on": [],
-      "gate": "不迁；3D 用 --simtest / --devicetest 替代",
-      "notes": "DEV 面板是 2.5D 的调试 UI，不属于玩家系统。"
+      "gate": "npm run 3d:probe（--probetest：真实 E / 左键 / 轮盘 / F2）",
+      "notes": "2026-11-10 用户裁定：DEV 是必要开发者选项，撤销原 excluded。已迁 F2 开关、全知卡片栏、无敌（刀/枪/死亡/驱逐/保安抓捕）与玩家探针；2.5D 的运行时 SKInvariants 断言层未迁（3D 无对应实现），门禁仍用 --simtest / --devicetest。"
     },
     {
       "id": "E-POWER",
@@ -501,8 +502,8 @@
         "S-STATE",
         "E-GEO"
       ],
-      "gate": "--speechtest 证词改 sus / --b6test / --aittest 投票走认知分",
-      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。2026-11-09 第七批核实：parity-map 为 38 synced / 0 pending，envEstimate(env_estimate) 与时间线拆谎(check_alibi) 均已接入，旧 note 的「25 pending / 仍待接」失实。仍缺：credWhy / claimHist / trust / grudge / humanT / ally / mem / seenBy 等 mindReset 跨夜保留字段，以及 almost 的跨夜语义（本批已按真源改为保留+就地推翻）。"
+      "gate": "--speechtest 证词改 sus / --b6test / --aittest 投票走认知分 / --aiporttest 13/0 / --socialtest 6/0",
+      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。2026-11-09 第七批核实：parity-map 为 38 synced / 0 pending，envEstimate(env_estimate) 与时间线拆谎(check_alibi) 均已接入。2026-11-10 第 13 批：humanT+seenBy 读写、audSusEstimate 方向拨正、saw_red 5s 节流、avoidSeen/lastBody/saw_body_moved/near_body 已接。第 16 批：claimHist/claim_recall、trust/grudge/patron、evalAlmost 全量（WEAK/heardKinds/real/fresh/friend）、DESC 单写已接；mind.mem 时间线由 why/bodySeen 等价存储（PORT-DIFF-AUDIT §J）。"
     },
     {
       "id": "S-LOOP",
@@ -552,8 +553,8 @@
         "S-INTERACT",
         "S-BODY"
       ],
-      "gate": "--aittest 任务 23 / 申请单 11 / 补给 10",
-      "notes": "选任务→A*→站桩→完成→领申请单→换补给→修故障→报告尸体→持枪反制。社交/逃跑/完整计划层未接。"
+      "gate": "--aittest 任务 23 / 申请单 11 / 补给 10 / --aiporttest 13/0 / --socialtest 6/0",
+      "notes": "选任务→A*→站桩→完成→领申请单→换补给→修故障→报告尸体→持枪反制。2026-11-10 第 13 批：任务做完接 aiIdleRoam（修故障/领单/危险时按 cred-warm 跟随/躲避 hater/随机巡舱），_avoidHuman 粘性，saw_avoid 由 track_pass 记账。第 16 批：trust/grudge 情绪通道与 patron 投票过滤已接。仍缺：幽灵做任务/修故障、完整计划层。"
     },
     {
       "id": "A-SOCIAL",
@@ -606,8 +607,8 @@
         "S-SABOTAGE",
         "A-SOCIAL"
       ],
-      "gate": "--aittest knife 6 / kill 6 / sab 0-1",
-      "notes": "按 sim.json#rules.KNIFE 复现三条理智硬线 + 性格冒险率 + HUNT 挑落单目标；watchersAt 排除 doing>0。RUSH 逃逸、目标承诺、管道突袭、异形开枪均已接入（ai_alien.gd:60/290/338、sim_state.gd:500）。2026-11-09 第七批拨乱反正：此前以「进攻链未齐、只搬限制会 0 胜」为由不启用每夜 1 把刀额度，核实该前提不成立，已按 js/game.js:4225/4232/7801 恢复硬 gate。"
+      "gate": "--aittest knife 6 / kill 6 / sab 0-1 / --aiporttest 13/0",
+      "notes": "按 sim.json#rules.KNIFE 复现三条理智硬线 + 性格冒险率 + HUNT 挑落单目标；watchersAt 排除 doing>0。RUSH 逃逸、管道突袭、异形开枪均已接入。2026-11-09 第七批拨乱反正：恢复每夜 1 把刀硬 gate（js/game.js:4225/4232/7801）。2026-11-10 第 13 批：挑目标恢复 js/game.js:3849-3896 的三档信息（看得见 / 本夜 25s saw_agent 记忆 / 否则不进候选），去掉 3D 自加的「目标承诺」折价；补 detained 排除、mateOnIt +8、humanT pull、_avoid 兜底、没刀游荡。第 16 批：IDENTITY 导出 + identity_prior/axis/hostile_prob/target_dist_mul、trait_c（nums）、exposureAt、huntSpotFor 全部同源。"
     },
     {
       "id": "S-COMBAT",
@@ -680,14 +681,16 @@
       ],
       "target": [
         "3d/preview/scripts/sim/sim_state.gd#check_win",
-        "3d/preview/scripts/main.gd#_show_end"
+        "3d/preview/scripts/main.gd#_show_end",
+        "3d/preview/scripts/main.gd#_settle_ids_text",
+        "3d/preview/scripts/main.gd#_settle_votes_text"
       ],
       "status": "ported",
       "depends_on": [
         "S-STATE"
       ],
-      "gate": "--simtest（45 分 / 异形出局 / 人类全灭 三条）",
-      "notes": "胜负判定/结算 + 结束页复盘入口；3D 1000 局基线见 reports/3d-sim1000.md。"
+      "gate": "--simtest（45 分 / 异形出局 / 人类全灭 三条）/ --settletest 5/0 / --endshot",
+      "notes": "胜负判定/结算 + 结束页复盘入口；3D 1000 局基线见 reports/3d-sim1000.md。2026-11-10 第 14 批：结算页按 js/game.js:4802-4838 补 #e-ids 身份表 + #e-votes 逐人投票矩阵（按会议 seq 分组，终票在 closeVote 落事件，js/game.js:7669-7672）；死亡地点 downRoom/deathRoom 同源。阵亡提示（局未结束）仍不泄露身份。"
     },
     {
       "id": "S-REPORT",
@@ -787,8 +790,8 @@
         "A-COGNITION",
         "S-DECISION"
       ],
-      "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetshot 三张实拍",
-      "notes": "discuss(发言流+玩家输入框) → vote → result(身份公布+投票矩阵)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
+      "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetuitest 23/0 / --meetshot 三张实拍",
+      "notes": "discuss(发言流+8模板+对象/舱室下拉+玩家输入框) → vote → result(聚合票数+弃权+门槛+身份，逐人矩阵在结算页 S-WIN，第 14 批已迁)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮；讨论期先投/改票、跳过投票、幽灵/旁观只读均在。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。2026-11-10 第 12 批：会议 UI 功能层逐条对齐 js/game.js:6812-6873/7413-7447/10878-10903，--meetuitest 23/0。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
     },
     {
       "id": "S-NIGHT",
@@ -906,7 +909,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；3D 用镜头/光照/材质替代",
-      "notes": "约 2,000 行；这是 3D 不需要的那一层。"
+      "notes": "约 2,000 行；这是 3D 不需要的那一层。小地图是 HUD 元素，例外由 V-HUD 的 minimap.gd 承接（第 15 批），其余 Canvas/迷雾/精灵不迁。"
     },
     {
       "id": "V-HUD",
@@ -924,14 +927,15 @@
       ],
       "target": [
         "3d/preview/scripts/main.gd#_build_hud",
-        "3d/preview/scripts/main.gd#_refresh_sim_hud"
+        "3d/preview/scripts/main.gd#_refresh_sim_hud",
+        "3d/preview/scripts/minimap.gd"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-STATE"
       ],
-      "gate": "B1 HUD 实拍 sim-b1-hud.png",
-      "notes": "夜/进度/自己的任务已上；小地图、申请单脉冲、结算表在 B5/B6。"
+      "gate": "--minimaptest 4/0 / --minishot / B1 HUD 实拍",
+      "notes": "夜/进度/自己的任务/存活/事件流/房间名/供电读数已上。2026-11-10 第 15 批：局内小地图（js/game.js:10507-10632）→ minimap.gd（短名/灯态三态/管道/设施/运行时机器人/个人任务点/故障/圆桌脉冲/玩家/图例；不画他人、不可点击、不受迷雾影响）；HUD 补「报告 N · 夜会 N/2」（2.5D 报告稀缺资源规则）。"
     },
     {
       "id": "X-SIM",
@@ -967,7 +971,7 @@
           "file": "js/game.js",
           "lines": [
             11755,
-            11877
+            11870
           ]
         }
       ],
@@ -977,7 +981,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；window.SKV3._t 只属于 2.5D 门禁",
-      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。"
+      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。2026-11-10 baseline:sync 后文件由 11877 行缩到 11873 行，行段末值随之更正（只改末值，认领语义不变）。"
     },
     {
       "id": "X-ENTRY",
@@ -1080,7 +1084,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；结构可参考，DOM id 不保留",
-      "notes": "2.5D 的 DOM id 双处同步红线不适用于 3D。"
+      "notes": "2.5D 的 DOM id 双处同步红线不适用于 3D。功能层（8 模板 / 席位号 / 弃权 / 跳过投票 / 只读）已并入 S-MEET 的 Godot Control 实现；本条目只排除 DOM 标记。"
     },
     {
       "id": "V-SCENE",
@@ -1116,20 +1120,20 @@
           "file": "js/t2/minigame.js",
           "lines": [
             111,
-            1184
+            1169
           ]
         }
       ],
       "target": [
         "3d/preview/scripts/minigame/"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "D-TASKS",
         "D-PLATES"
       ],
-      "gate": "--mgtest 10/10 / --devicetest open=true",
-      "notes": "10 型已可玩；4 型待做。"
+      "gate": "--tasktest 26/0 / --mgtest 14/14 + 26 标签",
+      "notes": "2026-11-10 第 2 批：14 型全部可玩，BASE_FALLBACK 四型降级已撤。新增 sequence / sort / valve / code 四个 builder（mg_sequence / mg_sort / mg_valve / mg_code），规则逐条照 js/t2/minigame.js:944-1095。同时把任务专属配置接进玩法：mg_base.cfg() 读 minigames.json#tasks[label]，原先 10 个 builder 只按难度档取值，丢掉了 26 个任务点各自的 n / shapes / icons / lo / hi / rate / hold / targets / init / tol / hits / speed / zone。--mgtest 现为 14/14 + 26 个真实标签全部按 kind 打开。"
     },
     {
       "id": "X-TEST",
@@ -1178,7 +1182,7 @@
     },
     {
       "id": "V-CREW",
-      "name": "15 个 crew 的 3D 占位表现",
+      "name": "15 个 crew 的 3D 表现（billboard / blockout）",
       "group": "view",
       "track": "core",
       "source": [],
@@ -1189,8 +1193,8 @@
       "depends_on": [
         "S-STATE"
       ],
-      "gate": "--shot --wait 5 / --aittest",
-      "notes": "15 billboard+名牌；旁观模式下 0 号也显示。美术下一批优化。"
+      "gate": "--crewshot / --crew-billboard / --aittest",
+      "notes": "默认 15 个 char_crew_lowpoly（1.75m/1812 tris/17 骨/idle+walk）+名牌（旁观模式下 0 号也显示）；walk 2.9× 匹配 4.2m/s，moving 切换 walk/idle；--crew-billboard 回退旧 billboard，--crewshot 出同框图。knife/down 待补；外观不得承载阵营信息。"
     }
   ]
 }

@@ -32,8 +32,26 @@
 | prop_shelf | `assets/models/prop_shelf.blend` | `assets/export/prop_shelf.glb` | 1080 | `5048b75191e7a461` |
 | prop_pipe_run | `assets/models/prop_pipe_run.blend` | `assets/export/prop_pipe_run.glb` | 552 | `a202cb6397711f09` |
 | prop_pipe_port | `assets/models/prop_pipe_port.blend` | `assets/export/prop_pipe_port.glb` | 2336 | `85cac12b33787621` |
+| char_crew_lowpoly | `assets/models/char_crew_lowpoly.blend` | `assets/export/char_crew_lowpoly.glb` | 1812 | `b73e56d08f110369` |
+| char_crew_blockout | `assets/models/char_crew_blockout.blend` | `assets/export/char_crew_blockout.glb` | 864 | `b48182690c295fbe` |
 
 面数都低于 `spec/conventions.md` 的 `device 8k / prop 3k` 预算；`npm run 3d:assets` 可复核。
+
+**人物模型（2026-11-11）**：
+
+- `char_crew_lowpoly`：按 `docs/qwen21/crew-refs/crew-turnaround_768.png` 建模的
+  1.75 m / 1812 tris / 4 材质（`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin`）/
+  17 形变骨 / **idle + walk** 已导出；脚本 `3d/tools/build-crew-rigged.py`。
+  正常对局默认使用它；`--crew-billboard` 回退旧 billboard。
+- `char_crew_blockout`：864 tris / 3 材质 / 无骨骼的体块验证件，保留作 fallback 与对比；
+  脚本 `3d/tools/build-crew-blockout.py`。
+- 参考图：`docs/qwen21/crew-refs/`（完整 768²，本地 3 张）+ `3d/assets/crew_refs/`
+  （640px 预览 + `manifest.json`，随仓入库）；Qwen-Image 2.1 本地生成，
+  Research License 非商用，模型/seed/prompt 见 manifest；三视图、三配色、制服细节各 1 张。
+- 动画：`walk` 为 24fps / 1 秒循环；Godot 侧按移速 4.2 m/s 播 2.9 倍速，避免脚底滑动。
+  `knife` / `down` 仍待补，补齐前 V-CREW 只算 partial。
+- 验收命令：`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`；`--probetest`
+  会断言 `moving=true → walk`、`moving=false → idle`。
 **设备原点约定**：`device_*` 统一用 `base_center`（底面中心），便于按地面/掩体顶面摆放；
 `prop_pipe_run` 仍为 `origin`。
 

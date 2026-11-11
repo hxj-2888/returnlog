@@ -18,6 +18,14 @@ var MED_TOUCH_R := 1.15
 var MED_STUN := 3.0
 var med_t := 0.0
 const CATCH_REACH := 1.2
+## 2.5D secCatch 状态机：追捕 7 秒还贴不到就**放弃**（不是硬拖走）；
+## 贴到 → 压制 0.9 秒 → 押送 1.2 秒（人是被 lerp 带过去的，不是瞬移）。
+const CHASE_TIMEOUT := 7.0
+const PRESS_TIME := 0.9
+const ESCORT_TIME := 1.2
+## 拘留证据的目击半径：压制瞬间 10m、押送到位 8m（2.5D witnessDetain）
+const DETAIN_WITNESS_PRESS := 10.0
+const DETAIN_WITNESS_JAIL := 8.0
 
 var SEC_RANGE := 6.0
 var SEC_ARC := PI * 0.5
@@ -127,15 +135,23 @@ func on_crime(actor_i: int, at: Vector2) -> bool:
 		return false
 	if not catch_state.is_empty() or sec_uses >= SEC_USES_MAX:
 		return false
-	if at.distance_to(sec_pos) > SEC_RANGE:
-		return false
-	if sim.nav != null and not sim.nav.los(sec_pos, at):
-		return false
-	var diff := wrapf((at - sec_pos).angle() - sec_ang, -PI, PI)
-	if absf(diff) > SEC_ARC:
+	if not would_see(at):
 		return false
 	_start_catch(actor_i)
 	return true
+
+
+## 保安能不能看见某点（2.5D secbotWouldSee 同源）：6m + 180° 前方 + 只看墙。
+## AI 出手前用它预判，和真正抓人共用同一判据，避免"AI 以为安全、结果被抓"。
+func would_see(at: Vector2) -> bool:
+	if is_dead("secbot") or sec_uses >= SEC_USES_MAX:
+		return false
+	if at.distance_to(sec_pos) > SEC_RANGE:
+		return false
+	if sim.nav != null and not sim.nav.los_walls(sec_pos, at):
+		return false
+	var diff := wrapf((at - sec_pos).angle() - sec_ang, -PI, PI)
+	return absf(diff) <= SEC_ARC
 
 
 func _start_catch(i: int) -> void:
@@ -200,25 +216,47 @@ func _tick_catch(dt: float) -> void:
 	if phase == "chase":
 		sec_pos = sec_pos.move_toward(kp, SEC_CHASE_SPEED * dt)
 		sec_ang = (kp - sec_pos).angle() if sec_pos.distance_to(kp) > 0.001 else sec_ang
-		if sec_pos.distance_to(kp) <= CATCH_REACH or float(catch_state.get("t", 0.0)) > 7.0:
-			catch_state["phase"] = "escort"
+		if sec_pos.distance_to(kp) <= CATCH_REACH:
+			# 贴到人 → 压制 0.9 秒（2.5D press），压制瞬间周围 10m 内看得见的人记一笔
+			catch_state["phase"] = "press"
 			catch_state["t"] = 0.0
-			killer["detained"] = true
 			killer["doing"] = 0.0
 			killer["path"] = PackedVector2Array()
+			_witness_detain(i, kp, DETAIN_WITNESS_PRESS)
+			sim._log("detain", {"actor": i, "phase": "press"})
+		elif float(catch_state.get("t", 0.0)) > CHASE_TIMEOUT:
+			# 追不到就放弃（2.5D：7 秒还没贴到人 → G.secCatch=null），不再硬押
+			sim._log("detain", {"actor": i, "phase": "giveup"})
+			_release()
+		return
+
+	if phase == "press":
+		killer["pos"] = sec_pos + (kp - sec_pos).normalized() * 0.55 if \
+			sec_pos.distance_to(kp) > 0.01 else kp
+		killer["doing"] = 0.0
+		killer["path"] = PackedVector2Array()
+		if float(catch_state.get("t", 0.0)) >= PRESS_TIME:
+			catch_state["phase"] = "escort"
+			catch_state["t"] = 0.0
+			catch_state["from"] = killer.get("pos", kp)
+			killer["detained"] = true
 			sim._log("detain", {"actor": i, "phase": "escort"})
 		return
 
 	if phase == "escort":
-		sec_pos = sec_pos.move_toward(jail, SEC_CHASE_SPEED * dt)
-		# 被押的人贴着机器人走，不能自己动
-		killer["pos"] = sec_pos + Vector2(0.55, 0.0)
+		# 1.2 秒定点押送：机器人朝拘留位走，人在起点与拘留位之间按进度插值
+		var t_esc := clampf(float(catch_state.get("t", 0.0)) / ESCORT_TIME, 0.0, 1.0)
+		var from: Vector2 = catch_state.get("from", kp)
+		killer["pos"] = from.lerp(jail, t_esc)
 		killer["doing"] = 0.0
 		killer["path"] = PackedVector2Array()
-		if sec_pos.distance_to(jail) <= 0.6:
+		sec_pos = sec_pos.move_toward(jail, SEC_CHASE_SPEED * dt)
+		sec_ang = (jail - sec_pos).angle() if sec_pos.distance_to(jail) > 0.001 else sec_ang
+		if t_esc >= 1.0:
 			catch_state["phase"] = "jail"
 			catch_state["t"] = DETAIN_TIME
 			killer["pos"] = jail
+			_witness_detain(i, jail, DETAIN_WITNESS_JAIL)
 			sim._log("detain", {"actor": i, "phase": "jail", "dur": DETAIN_TIME})
 		return
 
@@ -229,6 +267,28 @@ func _tick_catch(dt: float) -> void:
 	if float(catch_state.get("t", DETAIN_TIME)) >= DETAIN_TIME:
 		sim._log("detain", {"actor": i, "phase": "release"})
 		_release()
+
+
+## 拘留证据（2.5D witnessDetain）：压制瞬间 10m、押送到位 8m，看得见的人各记一条
+## `saw_detain`。**绝不写 known** —— 被抓的可能是开枪的人类；
+## 同一夜同一人只记一次（`detainSeen` 按夜清空，见 sim._reset_agent_night）。
+func _witness_detain(actor_i: int, at: Vector2, radius: float) -> void:
+	if sim == null or sim.mind == null:
+		return
+	for w: Dictionary in sim.agents:
+		var wi := int(w.get("i", -1))
+		if wi == actor_i or not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(at) > radius:
+			continue
+		if not sim.ai_can_see(w, at):
+			continue
+		var seen: Dictionary = (w.get("detainSeen", {}) as Dictionary).duplicate()
+		if seen.has(actor_i):
+			continue
+		seen[actor_i] = int(sim.night)
+		w["detainSeen"] = seen
+		sim.mind.note_sight(wi, actor_i, "saw_detain", at)
 
 
 func _release() -> void:

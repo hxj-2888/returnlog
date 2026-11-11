@@ -1,9 +1,9 @@
 {
-  "generated": "2026-11-09T03:43:21.413Z",
+  "generated": "2026-11-10T00:20:24.428Z",
   "note": "以下文件不入 git（.gitignore 的 2026-11-04 载荷改造段落），本机为唯一副本。校验：node tools/assets-check.cjs；重生成：--write",
   "restoreHint": "2026-11-04 之前入库过的版本仍可从 git 历史取回，见 --from-git",
   "count": 71,
-  "totalBytes": 139601374,
+  "totalBytes": 140307876,
   "files": [
     {
       "path": "assets/scene/v4/tex/ao-soft.png",
@@ -162,8 +162,8 @@
     },
     {
       "path": "assets/qwen-lib/armory-floor_768.png",
-      "bytes": 1416925,
-      "sha256": "c84cdbaa8e0d65febd81eec41ec50dbf887e3fa3655b578dd0ab316a84aedee7"
+      "bytes": 1701378,
+      "sha256": "27e443bac69097a8ada44dfaa72d9cd3215f1208988ca2449c4f168ccc95e7f9"
     },
     {
       "path": "assets/qwen-lib/armory-wall_768.png",
@@ -172,8 +172,8 @@
     },
     {
       "path": "assets/qwen-lib/bridge-floor_768.png",
-      "bytes": 1910282,
-      "sha256": "12e2a1e58b6cff208933ba82b78ae6c3ac69b0e5f81cc5e34a967e7d52d51313"
+      "bytes": 1712508,
+      "sha256": "b7af3e2832a913a3ca2c11356e59c6430a70d3f18dae521eeabcdcb49971a269"
     },
     {
       "path": "assets/qwen-lib/bridge-wall_768.png",
@@ -187,8 +187,8 @@
     },
     {
       "path": "assets/qwen-lib/cam-floor_768.png",
-      "bytes": 1082419,
-      "sha256": "967f82dde521d165bcfdf71de2923a459f1b6090224ff0550ce801a0c12e5dbe"
+      "bytes": 1235600,
+      "sha256": "50faf14bf25e93a0932bb83cb5ee215a56527c90c98d726b506117bf9a0a1272"
     },
     {
       "path": "assets/qwen-lib/cam-wall_768.png",
@@ -202,18 +202,18 @@
     },
     {
       "path": "assets/qwen-lib/ecosys-floor_768.png",
-      "bytes": 1446042,
-      "sha256": "6196ee3cd92b3360bcc27c3bc8caa299db16b1ad65e15750f6fa672c438d129d"
+      "bytes": 1327182,
+      "sha256": "1ce7b4a72cbcb4037ddab87d1dd306dbf2a923b017cdf70f76fd03b331021f7a"
     },
     {
       "path": "assets/qwen-lib/ecosys-wall_768.png",
-      "bytes": 1468255,
-      "sha256": "aac3c3569004b3ae06f6d89c2b98378432f77d08c35b5122f1b1495160c91f9f"
+      "bytes": 1390803,
+      "sha256": "19e4fceb12778a2fb85d8420fd6a46410b2fbcfcd74f7770b1da11c536a63388"
     },
     {
       "path": "assets/qwen-lib/engine-floor_768.png",
-      "bytes": 1671497,
-      "sha256": "1954f3cd7c23327765be996fe009b432201f6a3da536d3387b151e8ceddf878e"
+      "bytes": 1501344,
+      "sha256": "1eab1d38f1bec02460c2e97db5dde155688aceae174259a24c716b84efc72db0"
     },
     {
       "path": "assets/qwen-lib/engine-wall_768.png",
@@ -237,8 +237,8 @@
     },
     {
       "path": "assets/qwen-lib/fun-floor_768.png",
-      "bytes": 1450668,
-      "sha256": "b739d09e8e32ea9454559f771505f535d9292940aaf415d93a6e72e8153b2dcf"
+      "bytes": 1587336,
+      "sha256": "7d7d6a9004e86afba756d4af39ebbbb4ac3bf7f00fcb13dddf7891453f75f452"
     },
     {
       "path": "assets/qwen-lib/fun-wall_768.png",
@@ -252,8 +252,8 @@
     },
     {
       "path": "assets/qwen-lib/med-floor_768.png",
-      "bytes": 902532,
-      "sha256": "a914b6cc6dbddb60f47d2bdf7e7a915650fc39083cddf1f75724dc1ed17fbcd9"
+      "bytes": 1006184,
+      "sha256": "d242ce4f8b5abdf31bf848916326aacb6843022f460506d4987af9925ca485ec"
     },
     {
       "path": "assets/qwen-lib/med-wall_768.png",
@@ -272,8 +272,8 @@
     },
     {
       "path": "assets/qwen-lib/power-floor_768.png",
-      "bytes": 1101256,
-      "sha256": "fff78eb59c718adf1e2b4e6474eef9468f18559672fc031f323d3961092104c4"
+      "bytes": 1371810,
+      "sha256": "04e901b828e92a15e40e9edb09bbf3a670e3b44a76264b53757185383c1fff21"
     },
     {
       "path": "assets/qwen-lib/power-wall_768.png",
@@ -337,8 +337,8 @@
     },
     {
       "path": "assets/qwen-lib/transit-floor_768.png",
-      "bytes": 1562858,
-      "sha256": "d6c3aa9cc6eed9337d96c5e6791548e3c09984d271c11dab8913d45ad9a6fcfb"
+      "bytes": 1760066,
+      "sha256": "2c26d605f9a0347d93e7475097269473acb17d4e455ab3139f62775de1b9c8b9"
     },
     {
       "path": "assets/qwen-lib/transit-wall_768.png",
@@ -347,8 +347,8 @@
     },
     {
       "path": "assets/qwen-lib/warehouse-floor_768.png",
-      "bytes": 1612820,
-      "sha256": "1f0bea278e8af7a278a69ae3f0103c96a08313f7f3e5765a0a8792742152e171"
+      "bytes": 1737845,
+      "sha256": "10e7545f534541837c50f2e2f457874f35c7875065152c071dc5c1610d66ece7"
     },
     {
       "path": "assets/qwen-lib/warehouse-rack.png",

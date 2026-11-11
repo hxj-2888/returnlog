@@ -5,6 +5,66 @@
 > 中文记录与提交格式 `type(scope): 摘要` 见 `AGENTS.md` §一.10；
 > 门禁报告必须写本次实跑的「X 通过 / Y 失败」（§一.4）。
 
+## 2026-11-11 · 人物 blockout / 默认化 + 门扇闭合
+
+- **触发**：用户 2026-11-11 裁定人物从 billboard 走向 3D 建模，先做 blockout 验证；
+  首批目标 15 crew + 4 动作，鬼魂模式后置。同日现场：人物「仍然是贴图」、门半开。
+- **新增**：`3d/tools/build-crew-blockout.py`（Blender 5.2.2）→
+  `char_crew_blockout.blend/.glb`（1.75 m / 864 tris / 3 材质 / 无骨骼）；
+  已登记 `3d/spec/assets.manifest.json` 与 `3d/ASSETS.md`。
+- **接入**：`crew_view.gd` **默认使用 3D 体块**，模型缺失/实例化失败逐人回退；
+  `--crew-billboard` 保留旧 billboard 对比，`--crewshot` 出同框图
+  `preview/screenshots/crew-blockout.png`。
+- **门扇**：按 2.5D `doorTick` 修正关闭/打开几何（中线合拢、完全打开让出 1.8 m），
+  触发范围改为所有活人；会议/结算期间冻结。
+- **契约**：`V-CREW` 状态仍 `partial`（骨架/动画未完成）；README/HANDOFF/CHANGELOG 已同步。
+- **门禁**：`npm run check` **6 通过 / 0 失败**；`3d:import:check` 0 差异；
+  `--probetest` 默认模型 / `--crew-billboard` 回退均 **PROBETEST OK 0 项失败**；
+  `--powertest` 门扇 `closed_gap=0.000 open_gap=1.800`。
+
+## 2026-11-10 · 第 17 批工具：玩家探针 + DEV 契约状态
+
+- **触发**：用户现场「异形按 E 打不倒人 / 不知道交互了什么；DEV 很有必要；你自己写玩家探针」。
+- **新增工具**：`3d/tools/player-probe.cjs` + `npm run 3d:probe` —— 用真实 `InputEvent`
+  跑 `--probetest`（E / 数字键 / 左键 / F2），必须真实窗口；headless 下
+  `MOUSE_MODE_CAPTURED` 不成立（`--mousetest` / `--knifetest` 同一条限制）。
+- **契约口径**：`3d/spec/port-manifest.json#S-DEV` 从 `excluded` 改为 `partial`：
+  DEV 横栏 / 全知 / 无敌 / 玩家探针已迁，2.5D 的 `SKInvariants` 运行时断言未迁。
+  决策见 `3d/DECISIONS.md` ADR-0012；可见变更与实跑读数见 `3d/CHANGELOG.md` 第 17 批。
+- **门禁（本次实跑）**：`npm run check` **6 通过 / 0 失败**；Godot **33 项 exit 0**；
+  `PROBETEST OK 0 项失败`。未采新平衡读数。
+
+## 2026-11-10 · 移植批（第 1–8 批）+ 桌面快捷方式改指向本工程
+
+- **触发**：用户 2026-11-10「检查三者关系，把 2.5D 里**非美术、非按键操作**的东西
+  全部移植到 3D，严格按红线」。三个附件：本工程、`新返航录`（2.5D）、
+  桌面 `启航路 3D 版.lnk`。
+- **三者关系**（审计结论）：
+  - `新返航录` 是 2.5D 真源（只读基线）；本工程是它的**延伸**，不是第二条产品线；
+  - 桌面快捷方式**原先指向旧仓 `新返航录\3d\preview`** —— 那是分离前的 3D，
+    缺分离后的 6 个修复批（含 P0 输入链修复）。这是「继承有问题」的直接来源。
+- **桌面快捷方式**（用户授权「改指向新工程」，旧仓 `3d/` 保留不删）：
+  - 旧：`--path "C:\Users\ASUS\Desktop\新返航录\3d\preview"`，工作目录 `新返航录`
+  - 新：`--path "C:\Users\ASUS\Desktop\新返航录 3D 版\3d\preview"`，工作目录 `新返航录 3D 版`
+  - 目标程序不变（`E:\ai-tools\godot\Godot_v4.6-stable_win64.exe`）；
+    从新路径 `--quit-after 180` 冒烟 exit=0、0 条脚本错误。
+- **基线**：`baseline:sync` 两次（上游在我工作期间又改了 `js/data/map.js` 120 → 124 件、
+  `tools/blender-ship.py`、`assets/scene/v4/base-lit.png`），清单 452 个文件 / 2026-11-10。
+  **上游是活动靶**：动数据前后都要 `baseline:check` 并与上游 diff。
+- **数据单一真源**：`build-map-v2.cjs` 的 cover 从方案层 `ship-layout-plan.json` 改回
+  **原样取 `map.json`（⇒ `js/data/map.js`）**；3D 此前跑的是 11-06 的旧布局（127 件），
+  与 2.5D 的 124 件不一致。墙面装饰 40 件仍取方案层（用户裁定：属允许的美术差异）。
+- **可见变更与逐批判定口径**见 `3d/CHANGELOG.md` 第 1–9 批；
+  **差异登记与全量验收读数**见 `3d/PORT-DIFF-AUDIT.md` §C / §E。
+- **门禁（本次实跑）**：`npm run check` **6 通过 / 0 失败**；
+  `3d:floor:check` OK、`baseline:check` OK、`sync-cover-height --check` 一致；
+  Godot 23 项无头自测全通过（`--taskflowtest` 与 `--floortest` 的既有坏账已清），
+  运行期 0 条 `SCRIPT ERROR`。
+- **未采新平衡读数**：`3d-sim1000.md` 仍是第七批之前代码的读数（§五.7 验收层边界）。
+- **同日第二次同步（16 个文件）**：上游改了 `SKSanity.STAND`（qual 3→0 / ammo 7→5 / med 5→3）、
+  领申请单改成 `grantQual` 交互即领、管道口换写实精灵、掩体 124→123。
+  3D 已跟（清单 454 个文件），细节见 `3d/CHANGELOG.md` 第 11 批。
+
 ## 2026-11-09 · 清理：`docs/` 移出基线 + SDXL 舱室图与旧批次读数
 
 - **范围**（用户裁定「本次同步先到此为止」）：只做清理，不改执行层判定、不采新读数、不拉上游。

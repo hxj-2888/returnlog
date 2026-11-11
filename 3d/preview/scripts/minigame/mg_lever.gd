@@ -1,7 +1,7 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 拉闸 / 合闸（对应 2.5D 的 buildLever）
-## 按住不放直到充满；松早了会回落，充满即完成。
+## 按住不放直到充满；松手保持已充进度，可以分多次按住（2026-11-09 取消衰减）。
 
 class LeverView extends Control:
 	var charge := 0.0
@@ -33,10 +33,12 @@ var _held := false
 var _fill: ProgressBar
 var _pct: Label
 var _hold_btn: Button
+var _hold_need := 1.2
 
 
 func build() -> void:
 	set_process(true)
+	_hold_need = maxf(0.2, float(cfg("hold", 1.2)))
 	var wrap := center_box()
 	add_child(wrap)
 	wrap.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -80,9 +82,9 @@ func _process(delta: float) -> void:
 	if is_finished():
 		return
 	if _held and _charge < 1.0:
-		_charge = minf(1.0, _charge + delta / 1.2)
-	if not _held and _charge > 0.0:
-		_charge = maxf(0.0, _charge - delta * 2.4)
+		_charge = minf(1.0, _charge + delta / _hold_need)
+	# 松手不再回落：真源 2026-11-09 取消「松手保持进度」，改成分多次按住也能攒满
+	# （js/t2/minigame.js:665-667 松手时不动 charge）。
 	_view.charge = _charge
 	_view.queue_redraw()
 	_fill.value = _charge * 100.0

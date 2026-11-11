@@ -131,6 +131,7 @@
 | 全量只读门禁 | `npm run check`（assets / import / port / events / lines / parity 串跑） |
 | 单条门禁 | `npm run 3d:assets` / `3d:import:check` / `3d:port:check` / `3d:events:check` / `3d:lines:check` / `3d:parity:check` |
 | 基线校验 / 刷新 | `npm run baseline:check` / `npm run baseline:sync`（可选 `-- --source <原仓路径>`） |
+| 玩家探针（真实窗口） | `npm run 3d:probe`（真实 E / 数字键 / 左键 / F2；DEV 无敌与面板） |
 | 模型同步 | `npm run 3d:sync:models`（`3d/assets/export/*.glb` → `3d/preview/assets/models/`） |
 | 千问出图 | `npm run 3d:refs:cabin` / `3d:refs:tasks`（**必须 pwsh 7**，本地生成） |
 
@@ -170,7 +171,7 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
    门禁与自测只用来回答「有没有写坏」，不用来回答「该不该做」。
    跨批次反馈须显式登记；**agent 不得自行跨批次立项**，建议只走提问清单。
 
-## 六、已知问题与门禁读数（2026-11-09 · 第四批修复后实跑）
+## 六、已知问题与门禁读数（2026-11-10 · 第 16 批后实跑）
 
 > 本节是**事实快照**，不是数值真源；后续每批改动后按 §五.3 重新实跑并更新。
 
@@ -191,7 +192,19 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
   `player.gd` 的 `_unhandled_input()`、`project.godot`（**无 `[input]` 段**，按键全硬编码
   `physical_keycode` —— 属允许的输入映射差异，不是缺陷）。
 
-### 6.2 门禁读数（第七批后实跑）
+**2026-11-10 第 17 批追加（同一入口的语义补齐）**：用户现场「异形按 E 打不倒人、
+不知道交互了个啥；DEV 很有必要；你自己写玩家探针」。
+
+- E 轮盘现在在「刀程内最近 + 视线不被挡」的活人身上给出「出刀」，单项 E 直接执行，
+  多项 `1-9` 选择；左键仍走准星，两者共用 `sim.knife`。E 的选人口径照 2.5D `stab()`
+  （`js/game.js:8243-8248`），并补 `losNow` 同源遮挡判定。
+- `F2` DEV 从 port-manifest 的 `excluded` 改为 `partial`：全知卡片栏、无敌
+  （刀/枪/死亡/驱逐/保安抓捕）与探针留痕；2.5D 的 `SKInvariants` 运行时断言未迁。
+- 新增 `--probetest` / `npm run 3d:probe`：真实 `InputEvent` 按 E / 数字键 / 左键 / F2，
+  不直接调 sim 冒充输入；**必须真实窗口**（headless 下 `MOUSE_MODE_CAPTURED` 不成立）。
+- 实跑：33 项 Godot 自测 exit 0；`PROBETEST OK 0 项失败`。
+
+### 6.2 门禁读数（2026-11-10 第 17 批后实跑）
 
 | 门禁 | 结果 | 读数 |
 |---|---|---|
@@ -200,8 +213,16 @@ Python `C:\Python314\python.exe`；PowerShell 7（`pwsh`，本机 7.6.5）。
 | `3d:port:check` | ✅ | 0 错误 / 1 警告（`cover_refs.json` 缺 `schema_version`，legacy） |
 | `3d:events:check` | ✅ | EVENTS OK |
 | `3d:lines:check` | ✅ | LINES OK |
-| `3d:parity:check` | ✅ | 全域 63 synced / 7 adapter / 0 pending（`SKT2AI` 38 synced、`SKT2Decision` 11 synced / 2 adapter）；脚本自报 **18 个**非真源小数 WARN（列前 12），旧写 16 个已更正 |
+| `3d:parity:check` | ✅ | 全域 63 synced / 7 adapter / 0 pending（`SKT2AI` 38 synced、`SKT2Decision` 11 synced / 2 adapter）；**0 个**非真源小数 WARN（20 个源字面量登记在 `SOURCE_LITERALS`，带 `js/game.js:行号` 回读校验） |
 | **汇总** | ✅ | **6 通过 / 0 失败** |
+
+Godot 自测：**33 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（清单与一键脚本见 `3d/HANDOFF.md` §0.8）。
+
+**2026-11-11 第 18 批追加**：人物默认切 `char_crew_blockout`（1.75 m / 864 tris /
+3 材质 / 无骨骼），`--crew-billboard` 保留旧 billboard 回退；门扇按 2.5D `doorTick`
+修正为「关闭时中线合拢、完全打开让出 1.8 m 门洞」，触发检查所有活人。
+`--powertest` 新增门扇读数 `closed_gap=0.000 / open_gap=1.800`；`--crewshot` /
+`--doorshot` 已出对照图。
 
 分离时的 2 项既有失败已清：`rules.json` 重导消除 `sources` SHA 漂移；
 `port-manifest.json` 的 `X-BIND` 补认领上游新增的 111 行 `_t` 调试查询接口。
@@ -211,6 +232,13 @@ Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接�
 ### 6.3 仍未同源（事实登记，不是立项）
 
 > 本节只登记当前已知事实，**不是下一批清单**；方向由用户裁定（见 §五.7）。
+>
+> **2026-11-10 判定层收尾（第 13/16 批）**：`humanT`+`HUMANISH`、`claimHist`、
+> `seenT/lastBody/redSeen/avoidSeen`、身份轴 / `exposureAt` / trait 系数 / `huntSpotFor`、
+> `evalAlmost` 全量、`trust`/`grudge`/`patron`、`DESC`、构陷/大义灭亲编排已全部同源；
+> `buildMeetCtx` 为等价实现（逐字段映射见 `3d/PORT-DIFF-AUDIT.md` §J）；
+> parity **0 WARN**（20 个源字面量已登记并回读校验）。
+> 第 1–8 批的历史记录见下；第 9–16 批逐条见 `3d/CHANGELOG.md` 与 §J。
 
 1. **行为层读数已失效**：`3d-sim1000.md` 的 1000 局基线（人类 27.1% / 异形 68.9% / 超时 40、
    平均夜 5.71、救起 156）是**第七批之前**代码在 26 夜窗口下的读数；第七批恢复每夜刀额度、
@@ -227,5 +255,10 @@ Godot 的 `--simtest` / `--meetingtest` / `--speechtest` 原是 `MEET_PRE` 接�
 6. **验收层自身缺口**：`--mgtest 0/10`、`--taskflowtest`、`--floortest 失败 4`、`--e2e` 超时
    为原仓基线同样失败的既有坏账；`--actiontest` 是状态断言（0 次 `InputEvent` 派发），
    **真实输入链至今没有端到端自动化验收**。
+
+> **2026-11-11 补充**：**鬼魂模式未迁** —— 2.5D `die()` 会 `ghost=true`，死亡后可穿墙、
+> 修剩余任务（1.6× 时长 / `GHOST_TASK_CAP` 额度）、异形幽灵可破坏一次；3D `die()` 只置
+> `alive=false`，玩家死亡直接出结算页。用户裁定先做人物 blockout，鬼魂后置；在完成前不得
+> 把本工程描述为“2.5D 全量玩法已迁完”。
 
 按 §一.4，这些未清项在任何报告里都要如实列出，不得沿用旧读数或伪装完成。

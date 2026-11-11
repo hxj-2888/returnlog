@@ -492,8 +492,17 @@ def shadow_decal(tag, cx, cy, w, d, z=0.008, grow=1.0):
     return ob
 
 
+# 2026-11-09 第四批（用户裁定）：警戒线框只允许出现在军械库/引擎/配电室，
+# 其余舱室一律不画（医疗/娱乐/仓库等之前的"带警戒线不明物体"由此清除）。
+_HAZ_ROOMS = {'armory', 'engine', 'power'}
+_CUR_ROOM = None
+
+
 def floor_frame(tag, cx, cy, w, d, mat=HAZ, z0=0.006, z1=0.014, bar=0.13, gap=0.22):
-    """设备周边的地面警戒框：说明"这是台要维护的机器"，同时统一家具与地板的色调。"""
+    """设备周边的地面警戒框：说明"这是台要维护的机器"，同时统一家具与地板的色调。
+    仅 _HAZ_ROOMS 内的舱室绘制（见 _CUR_ROOM，furniture() 每件套件前设置）。"""
+    if _CUR_ROOM not in _HAZ_ROOMS:
+        return
     ow, od = w + gap * 2, d + gap * 2
     box(tag + '_h1', cx, cy - od / 2, ow, bar, z0, z1, mat)
     box(tag + '_h2', cx, cy + od / 2, ow, bar, z0, z1, mat)
@@ -509,10 +518,35 @@ def bolts(tag, cx, cy, w, d, z, r=0.035, inset=0.12, mat=DARK):
 
 
 def vent(tag, cx, cy, w, d, z0, n=5, mat=DARK):
-    """百叶散热口：一组薄板，替代原来一整块纯色面板。"""
+    """百叶散热口/下水道格栅。2026-11-09 第四批：按舱室区分样式，不再一个模子——
+    生态舱=圆孔培养排水、工业舱(引擎/配电/军械)=粗重斜纹格栅、
+    医疗/监控/会议=细密白净百叶、其余=中等百叶+主题色框。"""
+    rid = _CUR_ROOM
+    if rid == 'ecosys':
+        cnt = max(3, int(w / 0.3))
+        for i in range(cnt):
+            cyl(tag + '_dr%d' % i, cx - w / 2 + (i + 0.5) * w / cnt, cy,
+                min(d * 0.3, 0.09), z0, z0 + 0.02, WATER, verts=10)
+        return
+    if rid in ('engine', 'power', 'armory'):
+        n = max(3, n - 1)                      # 粗重少条
+        step = d / max(1, n)
+        for i in range(n):
+            box(tag + '_v%d' % i, cx, cy - d / 2 + step * (i + 0.5), w, step * 0.5,
+                z0, z0 + 0.03, mat, rot=0.12)
+        box(tag + '_vf', cx, cy, w + 0.06, d + 0.06, z0 - 0.005, z0, METAL)
+        return
+    if rid in ('med', 'cam', 'bridge'):
+        n = n + 3                              # 细密
+        step = d / max(1, n)
+        for i in range(n):
+            box(tag + '_v%d' % i, cx, cy - d / 2 + step * (i + 0.5), w, step * 0.3,
+                z0, z0 + 0.018, PANEL_LIGHT_V[0])
+        return
     step = d / max(1, n)
     for i in range(n):
         box(tag + '_v%d' % i, cx, cy - d / 2 + step * (i + 0.5), w, step * 0.42, z0, z0 + 0.022, mat)
+    box(tag + '_vf', cx, cy, w + 0.05, d + 0.05, z0 - 0.005, z0, TRIM)
 
 
 def led_strip(tag, cx, cy, w, z, mat=CYAN, n=3):
@@ -638,20 +672,42 @@ for r in M['rooms']:
 
 for c in M['corridors']:
     pts = c['pts']
+    seg_norm = []
     for i in range(len(pts) - 1):
         a, b = pts[i], pts[i + 1]
         dx, dy = b[0] - a[0], b[1] - a[1]
         L = math.hypot(dx, dy)
         rot = math.atan2(dy, dx)
         mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        # 2026-11-09：走廊格栅严格收缩在两门端点之间（长度 L，不再 +CW 伸进房间），
+        # 去掉门连接处溢出到房间里的铁格栅。
         box('corr_%s_%d' % (c['id'], i), mx, my,
-            L + CW, CW, -0.02, 0.0, FLOOR_MATS['corridor'], rot=rot)
-        # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源
+            L, CW, -0.02, 0.0, FLOOR_MATS['corridor'], rot=rot)
+        # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源。
+        # 2026-11-10：改为"连续偏移折线 + 拐角 miter"，两侧全覆盖、拐角收束，
+        # 不再每段缩 0.4 导致交叉飞出 / 缺边（生态舱-医疗舱拐角曾飞线、下段缺线）。
         ux, uy = dx / L, dy / L
-        for side in (-1, 1):
-            ox, oy = -uy * (CW / 2 - 0.22) * side, ux * (CW / 2 - 0.22) * side
-            box('corr_glow_%s_%d_%d' % (c['id'], i, side), mx + ox, my + oy,
-                L - 0.4, 0.07, 0.012, 0.030, CYAN, rot=rot)
+        seg_norm.append((-uy, ux))
+    off = CW / 2 - 0.45
+    for side in (-1, 1):
+        norms = seg_norm
+        P = []
+        for j, (px, py) in enumerate(pts):
+            if j == 0:
+                nx, ny = norms[0]
+            elif j == len(pts) - 1:
+                nx, ny = norms[-1]
+            else:
+                nx, ny = norms[j - 1][0] + norms[j][0], norms[j - 1][1] + norms[j][1]
+            P.append((px + nx * off * side, py + ny * off * side))
+        for j in range(len(P) - 1):
+            (x0, y0), (x1, y1) = P[j], P[j + 1]
+            Ll = math.hypot(x1 - x0, y1 - y0)
+            if Ll <= 0.01:
+                continue
+            rr = math.atan2(y1 - y0, x1 - x0)
+            box('corr_glow_%s_%d_%d' % (c['id'], j, side), (x0 + x1) / 2, (y0 + y1) / 2,
+                Ll, 0.09, 0.025, 0.050, CYAN, rot=rr)
 
 # 门槛灯：每条门缝一条琥珀色贴地灯，兼作"这里能过去"的视觉提示
 # 自动门门框也在这里烘焙：门板由游戏内动态绘制（扩散纹理），底座只留框与指示灯。
@@ -766,6 +822,7 @@ KIND_V2 = {
     'ecosys_growrack': 'rack',
     'ecosys_irrigation': 'machine',
     'ecosys_climate': 'machine',
+    'seedtray': 'seedtray',
     # 配电室
     'power_switchgear': 'switchgear',
     'power_transformer': 'transformer',
@@ -822,12 +879,14 @@ KIND_SHAPES = {
     'pond', 'reactor', 'engineblock', 'machine', 'arcade', 'jukebox', 'billiard',
     'crate', 'pallet', 'forklift', 'breaker', 'sofa', 'camera', 'chair', 'bed',
     'medbed', 'ventilator', 'ivstand', 'fridge', 'rack', 'gunrack', 'warehouse_rack',
-    'shelftall', 'plate_stack', 'pot',
+    'shelftall', 'plate_stack', 'pot', 'seedtray',
 }
 _flat = []          # 退化成铁板盒的掩体（kind 既不在形状表也不在 KIND_V2）
 
 
 def furniture(c, deco=False):
+    global _CUR_ROOM
+    _CUR_ROOM = c.get('room')
     x, y, w, h = c['x'], c['y'], c['w'], c['h']
     k0 = c['kind']
     k = KIND_V2.get(k0, k0)
@@ -925,7 +984,10 @@ def furniture(c, deco=False):
             box(tag + '_leg', lx, ly, 0.10, 0.10, 0.06, th, METAL, bevel=0.015)
             cyl(tag + '_foot', lx, ly, 0.11, 0.0, 0.06, DARK, verts=12)
     elif k == 'servicecounter':
-        # 取餐台 / 打包台：台面 + 挡板玻璃 + 收银/扫描立屏 + 台下柜门
+        # 取餐台 / 打包台 / 领用窗口：台面 + 台下柜门 + 收银/扫描立屏。
+        # 2026-11-09 第三批：食堂(transit) 要读得出「智能灶台 + 取餐口」，
+        # 不再是一块通用台面。占地(w,h)与碰撞不变，只在顶面/上方加细节。
+        rid = c.get('room')
         box(tag + '_body', cx, cy, w, h, 0.0, 0.86, PN, bevel=0.03)
         box(tag + '_top', cx, cy, w * 1.04, h * 1.10, 0.86, 0.93, CT, bevel=0.02)
         for i in range(2):
@@ -933,11 +995,35 @@ def furniture(c, deco=False):
                 w * 0.40, 0.05, 0.10, 0.78, PL)
             cyl(tag + '_knob%d' % i, cx + (i - 0.5) * w * 0.46 + w * 0.14, cy + h * 0.5 + 0.04,
                 0.03, 0.40, 0.48, METAL, verts=10)
-        if bt[1] % 2:                       # 卫生挡板（食堂有、打包台按哈希）
-            box(tag + '_guard', cx, cy - h * 0.30, w * 0.96, 0.04, 0.93, 1.42, GLASS)
-            box(tag + '_guard_top', cx, cy - h * 0.30, w * 0.98, 0.07, 1.42, 1.46, METAL)
-        box(tag + '_pos', cx + w * 0.30, cy, w * 0.20, h * 0.5, 0.93, 1.06, DARK)
-        box(tag + '_pos_screen', cx + w * 0.30, cy, w * 0.16, h * 0.4, 1.06, 1.24, SCREEN)
+        if rid == 'transit':
+            # 智能灶台：靠后一半放炉眼 + 排烟罩 + 保温灯，靠前一半是取餐口
+            nb = max(2, int(w / 1.1))
+            for i in range(nb):
+                bx = cx - w / 2 + (i + 0.5) * (w * 0.5) / nb
+                by = cy - h * 0.18
+                cyl(tag + '_burn%d' % i, bx, by, min(0.16, w * 0.09), 0.93, 0.965, DARK, verts=20)
+                cyl(tag + '_burnring%d' % i, bx, by, min(0.19, w * 0.11), 0.955, 0.975, AMBER, verts=20)
+            # 排烟罩（四立柱撑起的金属罩，压在炉眼上方）
+            hy = cy - h * 0.18
+            for sx in (-1, 1):
+                box(tag + '_hoodpost%d' % sx, cx + sx * w * 0.22, hy, 0.05, 0.05, 0.93, 1.55, METAL)
+            box(tag + '_hood', cx, hy, w * 0.52, h * 0.34, 1.55, 1.72, METAL, bevel=0.02)
+            box(tag + '_hoodlip', cx, hy + h * 0.17, w * 0.52, 0.05, 1.50, 1.55, TRIM)
+            led_strip(tag + '_hoodheat', cx, hy, w * 0.42, 1.52, RED, n=4)
+            # 取餐口：挡板玻璃 + 餐盘槽 + 叫号屏
+            box(tag + '_guard', cx + w * 0.02, cy + h * 0.30, w * 0.92, 0.04, 0.93, 1.34, GLASS)
+            box(tag + '_guard_top', cx + w * 0.02, cy + h * 0.30, w * 0.94, 0.07, 1.34, 1.38, METAL)
+            for i in range(max(2, int(w / 1.4))):
+                tx = cx - w * 0.34 + i * (w * 0.68) / max(1, int(w / 1.4) - 1 if int(w / 1.4) > 1 else 1)
+                box(tag + '_tray%d' % i, tx, cy + h * 0.06, w * 0.16, h * 0.14, 0.93, 0.99, PL, bevel=0.01)
+            box(tag + '_callpost', cx + w * 0.40, cy + h * 0.02, 0.05, 0.05, 0.93, 1.40, METAL)
+            box(tag + '_callscreen', cx + w * 0.40, cy + h * 0.02, w * 0.16, 0.03, 1.40, 1.62, SCREEN)
+        else:
+            if bt[1] % 2:                       # 卫生挡板（打包台按哈希）
+                box(tag + '_guard', cx, cy - h * 0.30, w * 0.96, 0.04, 0.93, 1.42, GLASS)
+                box(tag + '_guard_top', cx, cy - h * 0.30, w * 0.98, 0.07, 1.42, 1.46, METAL)
+            box(tag + '_pos', cx + w * 0.30, cy, w * 0.20, h * 0.5, 0.93, 1.06, DARK)
+            box(tag + '_pos_screen', cx + w * 0.30, cy, w * 0.16, h * 0.4, 1.06, 1.24, SCREEN)
         led_strip(tag + '_led', cx, cy + h * 0.52, w * 0.7, 0.06, L, n=3)
     elif k == 'console':
         # 机柜 + 斜面操作台 + 散热百叶 + 状态灯带 + 地面警戒框
@@ -955,7 +1041,8 @@ def furniture(c, deco=False):
         led_strip(tag + '_led', cx, cy + h * 0.46, w * 0.7, Z + 0.045, L, n=4)
         bolts(tag + '_bolt', cx, cy, w, h, Z + 0.045, r=0.03, inset=0.10, mat=METAL)
         floor_frame(tag + '_hz', cx, cy, w, h, mat=HZM)
-        pipe_run(tag + '_cable', cx, cy + h / 2, cx + w * 0.35, cy + h / 2 + 0.9, 0.05, 0.045, DARK)
+        # 2026-11-09 第四批：去掉斜拉电缆（用户点名的"斜杠"），改直短走线管。
+        pipe_run(tag + '_cable', cx, cy + h / 2, cx, cy + h / 2 + 0.6, 0.05, 0.045, DARK)
         # 斜躺的监控屏（2026-10-31）：box 只支持绕 Z 旋转，做不了真俯仰，
         # 所以用 5 条逐级「后退 + 抬高」的薄带拼出约 20° 的坡度 —— 从 12° 俯角看，
         # 读起来就是一块支在台面上、面向玩家的监控屏。屏幕内容用 SDXL 的 facility-screen。
@@ -1053,7 +1140,8 @@ def furniture(c, deco=False):
         cyl(tag + '_body', cx, cy, r, 0.10, Z, PL, verts=20, bevel=0.02)
         cyl(tag + '_base', cx, cy, r * 1.22, 0.0, 0.12, DARK, verts=20)
         cyl(tag + '_cap', cx, cy, r * 1.14, Z - 0.02, Z + 0.06, TRIM, verts=20)
-        cyl(tag + '_band', cx, cy, r * 1.03, 0.42, 0.56, HZM, verts=20)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            cyl(tag + '_band', cx, cy, r * 1.03, 0.42, 0.56, HZM, verts=20)
         cyl(tag + '_ring', cx, cy, r * 1.05, Z * 0.76, Z * 0.76 + 0.04, L, verts=20)
         box(tag + '_plate', cx + r, cy, 0.10, r * 0.9, 0.62, 0.86, DARK)
     elif k == 'tank':
@@ -1079,13 +1167,27 @@ def furniture(c, deco=False):
                  0.62 + i * 0.32, r * 0.07, WATER)
         led_strip(tag + '_led', cx, cy + r * 1.2, r * 1.2, 0.14, AMBER, n=3)
     elif k == 'tree':
-        cyl(tag + '_soil', cx, cy, min(w, h) * 0.42, 0.0, 0.16, DARK, verts=18)
-        cyl(tag + '_pot', cx, cy, min(w, h) * 0.46, 0.0, 0.22, TRIM, verts=18)
-        cyl(tag + '_trunk', cx, cy, min(w, h) * 0.09, 0.16, 1.05, WOOD, verts=10)
-        ball(tag + '_leaf1', cx, cy, 1.10, min(w, h) * 0.50, LEAF)
-        ball(tag + '_leaf2', cx + w * 0.18, cy - h * 0.12, 1.32, min(w, h) * 0.36, LEAF)
-        ball(tag + '_leaf3', cx - w * 0.16, cy + h * 0.15, 1.24, min(w, h) * 0.32, LEAF)
-        ball(tag + '_leaf4', cx - w * 0.05, cy - h * 0.20, 1.44, min(w, h) * 0.26, LEAF)
+        # 2026-11-09 第三批：绿植收进「特制玻璃培养舱」——金属底座 + 玻璃罩 +
+        # 顶部补光灯 + 营养液基座，去掉裸灌木的铁板感。占地不变。
+        r = min(w, h) * 0.46
+        gh = 1.55 * hs
+        cyl(tag + '_plinth', cx, cy, r * 1.06, 0.0, 0.14, METAL, verts=22)
+        cyl(tag + '_soil', cx, cy, r * 0.86, 0.12, 0.24, DARK, verts=20)
+        cyl(tag + '_nutrient', cx, cy, r * 0.86, 0.20, 0.28, WATER, verts=20)
+        # 植株（舱内）
+        cyl(tag + '_trunk', cx, cy, r * 0.12, 0.24, gh * 0.55, WOOD, verts=10)
+        ball(tag + '_leaf1', cx, cy, gh * 0.62, r * 0.52, LEAF)
+        ball(tag + '_leaf2', cx + r * 0.26, cy - r * 0.16, gh * 0.74, r * 0.34, LEAF)
+        ball(tag + '_leaf3', cx - r * 0.22, cy + r * 0.18, gh * 0.70, r * 0.30, LEAF)
+        # 玻璃培养罩（圆柱玻璃 + 金属箍 + 顶盖补光灯）
+        cyl(tag + '_glass', cx, cy, r, 0.14, gh, GLASS, verts=24, bevel=0.02)
+        for i in range(2):
+            cyl(tag + '_hoop%d' % i, cx, cy, r * 1.04, 0.14 + i * (gh - 0.28),
+                0.20 + i * (gh - 0.28), METAL, verts=24)
+        cyl(tag + '_cap', cx, cy, r * 1.10, gh, gh + 0.12, PL, verts=24, bevel=0.02)
+        cyl(tag + '_grow', cx, cy, r * 0.6, gh + 0.12, gh + 0.16,
+            [LEAF, CYAN, VIOLET][ti % 3], verts=20)
+        led_strip(tag + '_led', cx, cy + r * 1.05, r * 1.0, 0.12, L, n=3)
     elif k == 'pond':
         box(tag + '_water', cx, cy, w, h, 0.0, 0.05, WATER)
         box(tag + '_rim', cx, cy, w + 0.24, h + 0.24, 0.0, 0.10, TRIM, bevel=0.03)
@@ -1140,7 +1242,8 @@ def furniture(c, deco=False):
                 w * 0.10, h * 0.10, Z * 0.76, Z * 0.765, L)
         led_strip(tag + '_led', cx, cy + h * 0.34, w * 0.62, Z - 0.16, L, n=4)
         vent(tag + '_vent', cx - w * 0.32, cy, h * 0.5, w * 0.22, 0.24, n=6)
-        box(tag + '_haz', cx, cy + h * 0.5, w * 1.01, h * 0.08, 0.16, 0.30, HZM)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            box(tag + '_haz', cx, cy + h * 0.5, w * 1.01, h * 0.08, 0.16, 0.30, HZM)
         if bt[0] % 2:
             cyl(tag + '_stack', cx + w * 0.30, cy + h * 0.22, min(w, h) * 0.12,
                 Z + 0.08, Z + 0.46, METAL, verts=14)
@@ -1154,6 +1257,26 @@ def furniture(c, deco=False):
         bolts(tag + '_bolt', cx, cy, w, h, Z + 0.08, r=0.035, inset=0.14, mat=METAL)
         floor_frame(tag + '_hzf', cx, cy, w, h, mat=HZM)
     elif k == 'arcade':
+        # 2026-11-09 第三批：fun_racer → VR 舱（座舱+头显遮光罩+支撑龙门+地垫环）；
+        # fun_arcade 仍是招牌街机柜。占地不变。
+        if 'racer' in k0:
+            Z = 1.30 * hs
+            cyl(tag + '_pad', cx, cy, min(w, h) * 0.52, 0.0, 0.06, DARK, verts=28)   # 地垫
+            ring = cyl(tag + '_padring', cx, cy, min(w, h) * 0.54, 0.02, 0.05,
+                       [VIOLET, CYAN, AMBER][ti % 3], verts=28)
+            box(tag + '_seat', cx, cy + h * 0.10, w * 0.52, h * 0.44, 0.06, 0.42, FB, bevel=0.05)
+            box(tag + '_back', cx, cy + h * 0.34, w * 0.54, h * 0.16, 0.06, Z * 0.92, PN, bevel=0.04)
+            # 头显遮光罩：前伸的深色面罩 + 发光缝
+            box(tag + '_visor', cx, cy - h * 0.10, w * 0.40, h * 0.22, Z * 0.62, Z * 0.86, SCREEN, bevel=0.03)
+            box(tag + '_visor_glow', cx, cy - h * 0.21, w * 0.36, 0.03, Z * 0.66, Z * 0.82, L)
+            # 两侧支撑柱 + 顶部龙门灯（VR 定位基站感）
+            for sx in (-1, 1):
+                box(tag + '_post%d' % sx, cx + sx * w * 0.40, cy, 0.06, 0.06, 0.06, Z, METAL)
+            box(tag + '_gantry', cx, cy, w * 0.86, 0.08, Z, Z + 0.06, TRIM, bevel=0.02)
+            led_strip(tag + '_gantry_led', cx, cy, w * 0.7, Z + 0.02, L, n=4)
+            box(tag + '_console', cx, cy - h * 0.34, w * 0.40, h * 0.16, 0.06, 0.30, PL, bevel=0.02)
+            led_strip(tag + '_led', cx, cy + h * 0.5, w * 0.7, 0.06, L, n=3)
+            return
         # 街机柜：顶灯箱 + 斜屏 + 摇杆按钮台 + 投币口 —— 娱乐室的招牌剪影
         Z = 1.66 * hs
         box(tag + '_cab', cx, cy, w, h, 0.0, Z * 0.72, PN, bevel=0.04)
@@ -1204,6 +1327,41 @@ def furniture(c, deco=False):
         ball(tag + '_cue', cx - w * 0.10, cy, Z + 0.075, 0.045, WHITE, subdiv=1)
         led_strip(tag + '_rail', cx, cy - h * 0.5, w * 0.5, Z - 0.06, AMBER, n=3)
     elif k == 'crate':
+        # 2026-11-09 第三批：engine 零件车 / med 医疗推车 不再是方货箱——
+        # 抽屉/工具剪影/层架 + 脚轮，读得出"可移动的工位车"。其余舱保持钢板货箱。
+        rid = c.get('room')
+        if rid in ('engine', 'med') and 'cart' in k0:
+            Z = 0.92 * hs
+            box(tag + '_body', cx, cy, w * 0.92, h * 0.86, 0.14, Z, PN, bevel=0.03)
+            box(tag + '_top', cx, cy, w, h, Z, Z + 0.07, CT if rid == 'med' else TP, bevel=0.02)
+            # 脚轮
+            for sx in (-1, 1):
+                for sy in (-1, 1):
+                    cyl(tag + '_wheel%d%d' % (sx, sy), cx + sx * w * 0.34, cy + sy * h * 0.30,
+                        0.06, 0.0, 0.14, DARK, verts=12)
+            if rid == 'engine':
+                # 零件车：三层抽屉 + 面上一排工具剪影
+                for i in range(3):
+                    box(tag + '_drawer%d' % i, cx, cy + h * (0.20 - i * 0.22), w * 0.80, h * 0.18,
+                        0.24 + i * 0.20, 0.40 + i * 0.20, PL, bevel=0.01)
+                    box(tag + '_pull%d' % i, cx + w * 0.20, cy + h * (0.20 - i * 0.22), 0.10, 0.03,
+                        0.30 + i * 0.20, 0.34 + i * 0.20, METAL)
+                for i in range(4):
+                    box(tag + '_tool%d' % i, cx - w * 0.30 + i * w * 0.20, cy - h * 0.10,
+                        w * 0.05, h * 0.34, Z + 0.07, Z + 0.11, METAL)
+            else:
+                # 医疗推车：两层开放架 + 药品格 + 侧面输液杆
+                for i in range(2):
+                    box(tag + '_shelf%d' % i, cx, cy, w * 0.86, h * 0.80, 0.30 + i * 0.30,
+                        0.34 + i * 0.30, PL)
+                    for j in range(3):
+                        box(tag + '_drug%d_%d' % (i, j), cx - w * 0.26 + j * w * 0.26, cy,
+                            w * 0.16, h * 0.30, 0.34 + i * 0.30, 0.50 + i * 0.30,
+                            [WHITE, CYAN, MEDWHITE_V[ti]][(i + j) % 3], bevel=0.01)
+                cyl(tag + '_ivpole', cx + w * 0.42, cy - h * 0.30, 0.02, Z + 0.07, Z + 0.70, METAL, verts=8)
+                ball(tag + '_ivbag', cx + w * 0.42, cy - h * 0.30, Z + 0.66, 0.07, WATER, subdiv=1)
+            led_strip(tag + '_led', cx, cy + h * 0.44, w * 0.6, 0.08, L, n=2)
+            return
         # 钢板货箱：框筋 + 警戒色带 + 顶盖缝 + 锁扣，替换原来的纯色木盒
         Z = 0.84 * hs
         box(tag + '_body', cx, cy, w, h, 0.0, Z, CR, bevel=0.045)
@@ -1212,7 +1370,8 @@ def furniture(c, deco=False):
         for sx in (-1, 1):
             box(tag + '_post_l%d' % sx, cx + sx * (w / 2 - 0.06), cy, 0.12, h * 1.01, 0.0, Z + 0.04, DARK)
             box(tag + '_post_w%d' % sx, cx, cy + sx * (h / 2 - 0.06), w * 1.01, 0.12, 0.0, Z + 0.04, DARK)
-        box(tag + '_band', cx, cy, w * 1.02, h * 0.20, 0.34, 0.42, HZM)
+        if _CUR_ROOM in _HAZ_ROOMS:
+            box(tag + '_band', cx, cy, w * 1.02, h * 0.20, 0.34, 0.42, HZM)
         box(tag + '_latch', cx + w * 0.30, cy - h * 0.5, w * 0.18, 0.07, 0.44, 0.62, METAL)
         box(tag + '_plate', cx - w * 0.22, cy - h * 0.5, w * 0.30, 0.05, 0.50, 0.68, WHITE)
         if bt[0] % 2:                       # 半开箱盖：有的箱子是开着的
@@ -1289,13 +1448,34 @@ def furniture(c, deco=False):
         box(tag + '_led', cx - w * 0.30, cy - h * 0.10, w * 0.16, h * 0.14,
             Z + 0.11, Z + 0.14, RED)
     elif k == 'chair':
-        box(tag + '_seat', cx, cy, w, h, 0.36, 0.48, FB, bevel=0.05)
-        box(tag + '_back', cx, cy - h / 2 + 0.07, w * 0.94, 0.14, 0.48, 0.94, FB, bevel=0.04)
-        box(tag + '_back_post', cx, cy - h / 2 + 0.07, 0.07, 0.07, 0.44, 0.52, DARK)
-        cyl(tag + '_pole', cx, cy, 0.05, 0.12, 0.36, DARK, verts=10)
+        # 2026-11-09 第三批：科幻工学椅（网背+头枕+扶手+五星脚）。
+        # 会议室(bridge)椅子默认朝向圆桌圆心：背板放在背离圆心一侧。
+        bx, by = cx, cy - h / 2 + 0.07
+        brot = 0.0
+        if c.get('room') == 'bridge':
+            tbl = next((t for t in M['cover'] if t.get('label') == '圆桌'), None)
+            if tbl:
+                tx, ty = tbl['x'] + tbl['w'] / 2, tbl['y'] + tbl['h'] / 2
+                dx, dy = tx - cx, ty - cy
+                dl = math.hypot(dx, dy) or 1.0
+                dx, dy = dx / dl, dy / dl
+                bx, by = cx - dx * (h / 2 - 0.07), cy - dy * (h / 2 - 0.07)
+                brot = math.atan2(dy, dx) + math.pi / 2
+        box(tag + '_seat', cx, cy, w, h, 0.40, 0.50, FB, bevel=0.05)
+        # 网背（高背+镂空缝）+ 头枕
+        box(tag + '_back', bx, by, w * 0.90, 0.12, 0.50, 1.02, DARK, rot=brot, bevel=0.04)
+        box(tag + '_mesh', bx, by, w * 0.74, 0.13, 0.56, 0.96, FB, rot=brot, bevel=0.02)
+        hx, hy = bx - math.sin(brot) * 0.0, by
+        box(tag + '_head', bx, by, w * 0.5, 0.12, 1.04, 1.16, DARK, rot=brot, bevel=0.04)
+        # 扶手
+        for sx in (-1, 1):
+            ax = cx + math.cos(brot) * sx * w * 0.5
+            ay = cy + math.sin(brot) * sx * w * 0.5
+            box(tag + '_armrest%d' % sx, ax, ay, 0.08, h * 0.5, 0.50, 0.66, DARK, rot=brot, bevel=0.02)
+        cyl(tag + '_pole', cx, cy, 0.05, 0.12, 0.40, METAL, verts=10)
         for i in range(5):
             a = math.pi * 2 * i / 5
-            box(tag + '_arm%d' % i, cx + math.cos(a) * 0.16, cy + math.sin(a) * 0.16,
+            box(tag + '_leg%d' % i, cx + math.cos(a) * 0.16, cy + math.sin(a) * 0.16,
                 0.30, 0.05, 0.06, 0.12, DARK, rot=a)
             cyl(tag + '_cast%d' % i, cx + math.cos(a) * 0.28, cy + math.sin(a) * 0.28,
                 0.035, 0.0, 0.07, METAL, verts=8)
@@ -1304,10 +1484,10 @@ def furniture(c, deco=False):
         box(tag + '_frame', cx, cy, w, h, 0.0, 0.14, METAL, bevel=0.02)
         box(tag + '_body', cx, cy, w * 0.98, h * 0.98, 0.40, 0.52, MW, bevel=0.04)
         box(tag + '_mattress', cx, cy, w * 0.92, h * 0.94, 0.52, 0.62, WHITE, bevel=0.05)
-        box(tag + '_blanket', cx, cy + h * 0.14, w * 0.94, h * 0.66, 0.60, 0.665,
-            FABRIC_TEX_V[(ti + 3) % 5], bevel=0.03)
+        box(tag + '_blanket', cx, cy + h * 0.14, w * 0.94, h * (0.50 if k == 'medbed' else 0.66), 0.60, 0.665,
+            WHITE if k == 'medbed' else FABRIC_TEX_V[(ti + 3) % 5], bevel=0.03)
         box(tag + '_blanket_fold', cx, cy - h * 0.16, w * 0.94, h * 0.08, 0.62, 0.68, FB, bevel=0.02)
-        box(tag + '_pillow', cx, cy - h / 2 + 0.32, w * 0.58, 0.40, 0.62, 0.74, WHITE, bevel=0.07)
+        box(tag + '_pillow', cx, cy - h / 2 + 0.32, w * (0.70 if k == 'medbed' else 0.58), 0.50 if k == 'medbed' else 0.40, 0.62, 0.74, WHITE, bevel=0.07)
         for sx in (-1, 1):
             box(tag + '_rail%d' % sx, cx + sx * (w / 2 - 0.05), cy + h * 0.10, 0.05, h * 0.42,
                 0.52, 0.80, METAL, bevel=0.015)
@@ -1323,17 +1503,38 @@ def furniture(c, deco=False):
                 box(tag + '_ivbag', cx + w * 0.44, cy - h * 0.30, 0.16, 0.09, 1.30, 1.50, GLASS)
             box(tag + '_tag', cx, cy + h * 0.56, w * 0.30, 0.03, 0.52, 0.70, WHITE)
     elif k == 'ventilator':
-        # 呼吸机：立式机箱 + 圆形风机窗 + 呼吸管路 + 数值屏
+        # 呼吸机（2026-11-10 重做·直观可读）：机箱+波形屏+盘绕呼吸管+面罩，
+        # 去掉旧的对角直管（读成"斜杠方块"）。顶视=屏+软管圈+面罩三件套。
         Z = 1.18 * hs
         box(tag + '_body', cx, cy, w, h, 0.0, Z, MW, bevel=0.04)
-        cyl(tag + '_fan', cx, cy - h * 0.42, min(w, h) * 0.34, Z * 0.42, Z * 0.86, SCREEN, verts=18)
-        cyl(tag + '_fan_ring', cx, cy - h * 0.42, min(w, h) * 0.38, Z * 0.40, Z * 0.44, METAL, verts=18)
-        box(tag + '_disp', cx, cy + h * 0.30, w * 0.86, h * 0.30, Z - 0.20, Z - 0.02, SCREEN)
-        led_strip(tag + '_bar', cx, cy + h * 0.52, w * 0.7, Z, GREEN, n=3)
-        pipe_run(tag + '_tube', cx - w * 0.4, cy - h * 0.2, cx + w * 0.9, cy - h * 0.9,
-                 Z * 0.60, 0.05, GLASS)
+        box(tag + '_disp', cx, cy - h * 0.22, w * 0.80, h * 0.34, Z - 0.02, Z + 0.02, SCREEN)
+        for i in range(3):
+            box(tag + '_wave%d' % i, cx - w * 0.26 + i * w * 0.26, cy - h * 0.22,
+                w * 0.16, 0.02, Z + 0.02, Z + 0.03, GREEN if i % 2 else CYAN)
+        led_strip(tag + '_bar', cx, cy + h * 0.40, w * 0.7, Z, GREEN, n=3)
+        # 盘绕呼吸管（波纹管圈）+ 引出段 + 面罩
+        hr = min(w, h) * 0.26
+        for i in range(10):
+            a = i * math.tau / 10
+            ball(tag + '_coil%d' % i, cx - w * 0.22 + math.cos(a) * hr,
+                 cy + h * 0.16 + math.sin(a) * hr, Z * 0.55, 0.055, GLASS, subdiv=1)
+        pipe_run(tag + '_hoselead', cx + w * 0.02, cy + h * 0.16, cx + w * 0.26, cy + h * 0.20,
+                 Z * 0.55, 0.045, GLASS)
+        cyl(tag + '_mask', cx + w * 0.30, cy + h * 0.24, min(w, h) * 0.16, Z * 0.45, Z * 0.62, WHITE, verts=14)
+        box(tag + '_strap', cx + w * 0.30, cy + h * 0.24, min(w, h) * 0.34, 0.03, Z * 0.50, Z * 0.56, DARK)
         for i in (-1, 1):
             cyl(tag + '_wh%d' % i, cx + i * w * 0.34, cy + h * 0.40, 0.06, 0.0, 0.10, DARK, verts=10)
+    elif k == 'seedtray':
+        # 育苗 tray（decor·不阻挡）：浅盘+土面+成排幼苗，直观读成"种植/育苗"
+        box(tag + '_tray', cx, cy, w, h, 0.0, 0.16, PL, bevel=0.02)
+        box(tag + '_soil', cx, cy, w * 0.90, h * 0.86, 0.16, 0.20, DARK)
+        n = 4
+        for i in range(n):
+            for j in range(2):
+                px = cx - w * 0.33 + i * (w * 0.66 / (n - 1))
+                py = cy - h * 0.22 + j * h * 0.44
+                cyl(tag + '_seed%d%d' % (i, j), px, py, 0.03, 0.20, 0.34, GREEN, verts=8)
+                ball(tag + '_leaf%d%d' % (i, j), px, py, 0.36, 0.07, GREEN, subdiv=1)
     elif k == 'ivstand':
         cyl(tag + '_base', cx, cy, min(w, h) * 0.42, 0.0, 0.035, DARK, verts=14)
         cyl(tag + '_pole', cx, cy, 0.035, 0.03, 1.72, METAL, verts=10)
@@ -1361,33 +1562,60 @@ def furniture(c, deco=False):
         for sx in (-1, 1):
             box(tag + '_side%d' % sx, cx + sx * (w / 2 - 0.04), cy, 0.08, h * 1.01, 0.02, Z, side_mat)
         if k == 'gunrack':
-            # 枪架：竖格分隔 + 斜靠的长枪轮廓 + 格前琥珀标牌
+            # 2026-11-09 第三批：枪架做成「武器柜 + 挂枪架」，一眼看得出放军械。
+            # 参照 SCP:SL 武器柜分类（柜门 + 挂枪钩 + 弹药格 + 标牌）。占地不变。
             n = max(3, int(w / 0.55))
             for i in range(n):
                 px = cx - w / 2 + (i + 0.5) * w / n
-                box(tag + '_div%d' % i, px, cy, 0.035, h * 0.92, 0.10, Z - 0.06, METAL)
+                cw = w / n
+                # 柜门（浅面板 + 竖向把手）
+                box(tag + '_locker%d' % i, px, cy + h * 0.02, cw * 0.86, h * 0.80,
+                    0.14, Z - 0.10, PL, bevel=0.01)
+                box(tag + '_handle%d' % i, px + cw * 0.30, cy + h * 0.02, 0.04, h * 0.24,
+                    0.55, 0.95, METAL)
                 if (i + bt[0]) % 3 != 0:
-                    box(tag + '_rifle%d' % i, px, cy - h * 0.06, w / n * 0.30, h * 0.80,
-                        0.22, 0.30, TRIM, rot=0.14)
-                    box(tag + '_stock%d' % i, px, cy + h * 0.30, w / n * 0.42, h * 0.24,
-                        0.20, 0.34, WOOD)
-                box(tag + '_tag%d' % i, px, cy - h * 0.52, w / n * 0.5, 0.03, Z - 0.30, Z - 0.20,
+                    # 长枪剪影：枪管(细) + 机匣 + 枪托，斜靠，顶部露出柜面
+                    box(tag + '_barrel%d' % i, px, cy - h * 0.10, cw * 0.10, h * 0.62,
+                        0.30, 0.40, TRIM, rot=0.12)
+                    box(tag + '_receiver%d' % i, px, cy + h * 0.16, cw * 0.22, h * 0.20,
+                        0.28, 0.42, DARK, rot=0.12)
+                    box(tag + '_stock%d' % i, px, cy + h * 0.34, cw * 0.30, h * 0.16,
+                        0.26, 0.40, WOOD, rot=0.12)
+                else:
+                    # 空位放弹药罐（矮圆柱 + 盖）
+                    cyl(tag + '_ammo%d' % i, px, cy + h * 0.04, cw * 0.22, 0.14, 0.52, CR, verts=14)
+                    cyl(tag + '_ammolid%d' % i, px, cy + h * 0.04, cw * 0.24, 0.52, 0.56, METAL, verts=14)
+                # 柜顶琥珀/主题色编号牌 + 状态灯
+                box(tag + '_tag%d' % i, px, cy - h * 0.46, cw * 0.5, 0.03, Z - 0.28, Z - 0.16,
                     AMBER if i % 2 else L)
             box(tag + '_cap', cx, cy, w * 1.02, h * 1.02, Z, Z + 0.06, TRIM, bevel=0.02)
+            led_strip(tag + '_rail', cx, cy - h * 0.5, w * 0.8, Z + 0.02, RED, n=5)
         else:
+            # 2026-11-09 第四批：货架做「开放层架 + 零散小件」，侧面露出内容，
+            # 不再是一整块铁板，也**不再堆叠大货箱**（用户裁定）。
             for i in range(4):
                 z = 0.22 + i * (Z - 0.42) / 3.0
-                box(tag + '_slot%d' % i, cx, cy - h * 0.36 + i * h * 0.24, w * 0.74, h * 0.10,
-                    z, z + 0.09, PL, bevel=0.01)
-                led_strip(tag + '_slot_led%d' % i, cx + w * 0.22, cy - h * 0.36 + i * h * 0.24,
-                          w * 0.22, z + 0.09, AMBER if i % 2 else L, n=2)
-                if tall and (i + bt[1]) % 3 != 0:
-                    # 高层货架每层摆不同数量的货箱：四组货架从此不再是四胞胎
-                    for j in range(1 + (bt[2] + i) % 3):
-                        bw = w * 0.26
-                        box(tag + '_cargo%d_%d' % (i, j), cx - w * 0.24 + j * w * 0.28,
-                            cy + h * 0.04, bw, h * 0.52, z + 0.09, z + 0.09 + 0.30,
-                            CRATE_V[(ti + i + j) % 5], bevel=0.02)
+                # 层板（前缘略挑出，读出层架感）
+                box(tag + '_shelf%d' % i, cx, cy - h * 0.30 + i * h * 0.20, w * 0.92, h * 0.16,
+                    z, z + 0.05, PL, bevel=0.01)
+                box(tag + '_lip%d' % i, cx, cy - h * 0.38 + i * h * 0.20, w * 0.92, 0.04,
+                    z + 0.05, z + 0.09, side_mat)
+                # 每层 2~4 件零散小物（箱/罐/包），高低错落、不堆叠
+                cnt = 2 + (bt[2] + i) % 3
+                for j in range(cnt):
+                    jx = cx - w * 0.34 + (j + 0.5) * (w * 0.68) / cnt
+                    jh = 0.14 + ((bt[1] + i + j) % 3) * 0.07
+                    kind_j = (ti + i + j) % 3
+                    if kind_j == 0:
+                        box(tag + '_bin%d_%d' % (i, j), jx, cy - h * 0.30 + i * h * 0.20,
+                            w * 0.14, h * 0.12, z + 0.05, z + 0.05 + jh,
+                            CRATE_V[(ti + i + j) % 5], bevel=0.01)
+                    elif kind_j == 1:
+                        cyl(tag + '_can%d_%d' % (i, j), jx, cy - h * 0.30 + i * h * 0.20,
+                            w * 0.06, z + 0.05, z + 0.05 + jh, METAL, verts=10)
+                    else:
+                        box(tag + '_pack%d_%d' % (i, j), jx, cy - h * 0.30 + i * h * 0.20,
+                            w * 0.12, h * 0.10, z + 0.05, z + 0.05 + jh * 0.7, FB, bevel=0.01)
             box(tag + '_cap', cx, cy, w * 1.02, h * 1.02, Z, Z + 0.06, TRIM, bevel=0.02)
             if tall:
                 for sx in (-1, 1):
@@ -1395,8 +1623,9 @@ def furniture(c, deco=False):
                         Z - 0.16, Z - 0.06, WR)
                 led_strip(tag + '_top', cx, cy - h * 0.52, w * 0.7, Z - 0.10, AMBER, n=3)
         vent(tag + '_vent', cx, cy + h * 0.44, w * 0.6, h * 0.12, Z - 0.16, n=4)
-        pipe_run(tag + '_cable', cx, cy + h / 2, cx - w * 0.4, cy + h / 2 + 1.0, 0.06, 0.05, DARK)
-        floor_frame(tag + '_hzf', cx, cy, w, h, mat=HZM, bar=0.10, gap=0.16)
+        # 去掉货架下斜拉铁杠（_cable）；警戒框只留军械/引擎/配电（用户裁定）。
+        if c.get('room') in ('armory', 'engine', 'power'):
+            floor_frame(tag + '_hzf', cx, cy, w, h, mat=HZM, bar=0.10, gap=0.16)
     elif k == 'plate_stack':
         for i, rr in enumerate((0.34, 0.30, 0.26)):
             cyl(tag + '_plate%d' % i, cx, cy, rr, 0.84 + i * 0.025, 0.855 + i * 0.025,

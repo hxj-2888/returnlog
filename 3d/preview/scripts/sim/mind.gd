@@ -36,6 +36,154 @@ func id_evidence() -> Dictionary:
 	return {}
 
 
+## 2.5D IDENTITY（js/game.js:7040，rules.json#constants.IDENTITY）
+func identity_cfg() -> Dictionary:
+	if sim != null and sim.rules != null:
+		var c: Variant = sim.rules.constant("IDENTITY")
+		if c is Dictionary:
+			return c
+	return {}
+
+
+## 2.5D hasIdEvidence（js/game.js:7054）：almost.foe 的 kinds 里有“人类做不到”的证据。
+func has_id_evidence(entry: Dictionary) -> bool:
+	var id_ev := id_evidence()
+	for k: Variant in (entry.get("kinds", []) as Array):
+		if id_ev.has(String(k)):
+			return true
+	return false
+
+
+## 2.5D identityPrior（js/game.js:7057）：H 的先验，按 15 席 / 4 异形的公开配置
+## 条件化已认出的队友（异形）或已确证的异形（人类）；不读系统阵营表。
+func identity_prior(a: Dictionary) -> float:
+	if a.is_empty() or sim == null:
+		return 0.5
+	var alive_others := 0
+	for x: Dictionary in sim.agents:
+		if x != a and bool(x.get("alive", false)):
+			alive_others += 1
+	if alive_others <= 0:
+		return 0.5
+	var cfg := identity_cfg()
+	var roles: Dictionary = sim.cfg.get("roles", {}) as Dictionary
+	var total := int(roles.get("agents", 15))
+	var alien_total := int(roles.get("aliens", 4))
+	var humans_total := total - alien_total
+	var alien_self := bool(a.get("alien", false))
+	var h0 := humans_total if alien_self else humans_total - 1
+	var a0 := alien_total - 1 if alien_self else alien_total
+	var kn: Dictionary = {}
+	if alien_self:
+		kn = (a.get("mates", {}) as Dictionary)
+	else:
+		kn = (a.get("known", {}) as Dictionary)
+	var known_a := 0
+	var known_dead_a := 0
+	for k: int in kn.keys():
+		var x: Dictionary = sim.agent(k)
+		if x.is_empty() or x == a:
+			continue
+		if bool(x.get("alive", false)):
+			known_a += 1
+		elif String(x.get("deathCause", "")) != "vote":
+			known_dead_a += 1
+	var hx := 0
+	var ax := 0
+	var unknown := 0
+	for x2: Dictionary in sim.agents:
+		if x2 == a or bool(x2.get("alive", false)):
+			continue
+		if String(x2.get("deathCause", "")) == "vote":
+			if bool(x2.get("alien", false)):
+				ax += 1
+			else:
+				hx += 1
+		elif not kn.has(int(x2.get("i", -1))):
+			unknown += 1
+	var H := maxf(0.0, float(h0 - hx))
+	var A := maxf(0.0, float(a0 - ax - known_a - known_dead_a))
+	var denom := maxf(1e-6, H + A)
+	var h_alive := maxf(0.0, H - float(unknown) * H / denom)
+	var pool := maxf(1.0, float(alive_others - known_a))
+	return clampf(h_alive / pool,
+		float(cfg.get("priorMin", 0.02)), float(cfg.get("priorMax", 0.98)))
+
+
+## 2.5D identityAxis（js/game.js:7085）：h = P(目标是人类 | 先验 + 贵信号)。
+## known / mates → 0；almost.foe（含身份级证据）→ 0.05；almost.friend → 0.95；
+## 其余 = prior + evidenceW × min(0.5, cred)。普通 sus 不进身份轴。
+func identity_axis(a: Dictionary, t: Dictionary) -> float:
+	if a.is_empty() or t.is_empty() or sim == null:
+		return 0.5
+	var ti := int(t.get("i", -1))
+	if (a.get("known", {}) as Dictionary).has(ti):
+		return 0.0
+	if bool(a.get("alien", false)) and (a.get("mates", {}) as Dictionary).has(ti):
+		return 0.0
+	var al: Dictionary = a.get("almost", {}) as Dictionary
+	var foe: Dictionary = al.get("foe", {}) as Dictionary
+	var friend: Dictionary = al.get("friend", {}) as Dictionary
+	var cfg := identity_cfg()
+	if foe.has(ti) and has_id_evidence(foe[ti] as Dictionary):
+		return float(cfg.get("almostAlien", 0.05))
+	if friend.has(ti):
+		return float(cfg.get("almostHuman", 0.95))
+	var cred := float((a.get("cred", {}) as Dictionary).get(ti, 0.0))
+	return clampf(identity_prior(a)
+		+ float(cfg.get("evidenceW", 1.0)) * minf(0.5, cred), 0.01, 0.99)
+
+
+## 2.5D hostileProb（js/game.js:7102）：异形看 h（越像人越敌对），人类看 1-h。
+func hostile_prob(a: Dictionary, t: Dictionary) -> float:
+	var h := identity_axis(a, t)
+	return h if bool(a.get("alien", false)) else (1.0 - h)
+
+
+## 2.5D targetDistMul（js/game.js:7111）：h=1 → 0.5× 风险分，h=0 → 1.25×。
+func target_dist_mul(h: float) -> float:
+	var cfg := identity_cfg()
+	var mx := float(cfg.get("targetMulMax", 1.25))
+	var mn := float(cfg.get("targetMulMin", 0.5))
+	return mx - (mx - mn) * h
+
+
+## 2.5D traits.js 的 b(a,axis)：性格轴相对中性的偏移（已乘 TRAIT_GAIN）。
+func trait_b(a: Dictionary, axis: String) -> float:
+	var tr: Dictionary = (sim.rules.data.get("tables", {}) as Dictionary).get("SKTrait", {}) as Dictionary
+	var neutral := float(tr.get("NEUTRAL", 50))
+	var gain := 0.45
+	var sk: Dictionary = (sim.rules.data.get("tables", {}) as Dictionary).get("SKSanity", {}) as Dictionary
+	gain = float(sk.get("TRAIT_GAIN", gain))
+	var v := float((a.get("trait", {}) as Dictionary).get(axis, neutral))
+	return ((v - neutral) / 50.0) * gain
+
+
+## 2.5D SKTrait.C 具名系数：公式按 traits.js 移植，数值读 rules.json#tables.SKTrait.C[*].nums
+## （nums 就是该函数里的字面量序列，避免在 GDScript 里另抄一份阈值）。
+func trait_c(name: String, a: Dictionary) -> float:
+	var tr: Dictionary = (sim.rules.data.get("tables", {}) as Dictionary).get("SKTrait", {}) as Dictionary
+	var c: Dictionary = (tr.get("C", {}) as Dictionary).get(name, {}) as Dictionary
+	var nums: Array = c.get("nums", []) as Array
+	if nums.is_empty():
+		return 1.0
+	var ba := trait_b(a, "aggr")
+	var bc := trait_b(a, "caut")
+	var bs := trait_b(a, "soc")
+	match name:
+		"knifeWatcherPenalty":
+			return float(nums[0]) * (float(nums[1]) - float(nums[2]) * ba + float(nums[3]) * bc)
+		"knifeBusyBonus":
+			return -float(nums[0]) * (float(nums[1]) + float(nums[2]) * ba)
+		"grudgeGain":
+			return float(nums[0]) + float(nums[1]) * ba + float(nums[2]) * bc
+		"trustGain":
+			return float(nums[0]) + float(nums[1]) * bs
+		"voteGrudgePull":
+			return float(nums[0]) * (float(nums[1]) + float(nums[2]) * ba)
+	return 1.0
+
+
 ## 开局心智档案：性格轴按 SKTrait.AXES / BANDS 三档抽（28/50/72，30/40/30）。
 func init_agent(a: Dictionary) -> void:
 	var axes: Array = ["aggr", "caut", "soc", "cur"]
@@ -69,6 +217,10 @@ func init_agent(a: Dictionary) -> void:
 	a["credWhy"] = {}
 	a["reliability"] = {}
 	a["warm"] = {}
+	a["trust"] = {}
+	a["grudge"] = {}
+	a["ally"] = {}
+	a["claimHist"] = []
 	a["heard"] = []
 	a["known"] = {}
 	a["almost"] = {"foe": {}, "friend": {}}
@@ -81,6 +233,16 @@ func init_agent(a: Dictionary) -> void:
 	a["alibi"] = {}
 	a["susNight"] = {}
 	a["rev"] = 0
+	# 2.5D mindReset 字段（2026-11-10 第 13 批补）：
+	#   humanT   = 异形眼里「这人像人类」的倾向（合闸目击 +0.28，跨夜 ×0.8）
+	#   redSeen  = 红身去重时间戳（同一段红光 5 秒内只写一次证据）
+	#   avoidSeen= 「他刚才在躲我」每夜一次的去重表（值 = 夜号）
+	#   lastBody = 尸体观察单槽 {i, sig}：状态变了才重写 saw_body
+	a["humanT"] = {}
+	a["redSeen"] = {}
+	a["avoidSeen"] = {}
+	a["lastBody"] = {}
+	a["target"] = -1
 
 
 func sus_of(a: Dictionary, target_i: int) -> float:
@@ -525,30 +687,28 @@ func aud_sus_estimate(a: Dictionary, w: Dictionary) -> Dictionary:
 	var score := 0.0
 	var why := ""
 	var wi := int(w.get("i", -1))
-	if int(a.get("accuse", -1)) == wi:
+	var ai := int(a.get("i", -1))
+	# 2.5D（js/t2/ai.js:680）：**他**当众指认过**我**（w.accuse === a.i）。
+	# 3D 原先读成 a.accuse === w.i（我指认他），方向反了 —— 这条函数此前没有
+	# 调用方，所以一直没暴露；第 13 批接 idle roam 时一并拨正。
+	if int(w.get("accuse", -1)) == ai:
 		score = 0.85
 		why = "他当众指认过我"
-	# 会开完 accuse 会清空，夜里只剩"我自己记着的那一句"（heard_* 的 speaker 就是他）
+	# 会上他点过我，我自己记着那一句（3D 的 heard 窗口就是 2.5D mind.mem 的 heard_*）。
 	if score < 0.7:
-		var why_map: Dictionary = a.get("why", {}) as Dictionary
-		for k in why_map.keys():
-			if score >= 0.7:
+		for h: Dictionary in (a.get("heard", []) as Array):
+			if int(h.get("speaker", -1)) != wi or int(h.get("target", -1)) != ai:
+				continue
+			var kd := String(h.get("kind", ""))
+			if kd == "heard_accuse" or kd == "heard_frame" or kd == "heard_claim":
+				score = 0.7
+				why = "我听见他当众点过我"
 				break
-			for e: Variant in (why_map[k] as Array):
-				var rec := e as Dictionary
-				if int(rec.get("speaker", -1)) != wi:
-					continue
-				if int(rec.get("actor", -1)) != int(a.get("i", -1)):
-					continue
-				var kd := String(rec.get("kind", ""))
-				if kd == "heard_accuse" or kd == "heard_frame" or kd == "heard_claim":
-					score = 0.7
-					why = "我听见他当众点过我"
-					break
-	# 他刚才看见我在现场附近
-	var seen_by: Dictionary = a.get("seenBy", {}) as Dictionary
-	if seen_by.has(wi):
-		var age := ev_now() - float((seen_by[wi] as Dictionary).get("t", 0.0))
+	# 他刚才看见我在现场附近：3D 的 seenBy 存在**观察者**身上（w.seenBy = 我看见过谁），
+	# 所以这里读 w.seenBy[a.i]；2.5D 存在 actor 身上（方向相反，语义等价）。
+	var seen_by: Dictionary = w.get("seenBy", {}) as Dictionary
+	if seen_by.has(ai):
+		var age := ev_now() - float((seen_by[ai] as Dictionary).get("t", 0.0))
 		if age < 20.0 and score < 0.55:
 			score = 0.55
 			if why == "":
@@ -596,6 +756,140 @@ func sus_add(a: Dictionary, target_i: int, w: float, reason: String,
 	eval_almost(a, target_i)
 
 
+## 看见尸体（2.5D observeBody 的 saw_body 记忆，js/game.js:2164-2188）。
+## 3D 没有 mem 时间线，落到「见过这具尸体没有」的一张按夜的表上。
+## 只记事实：不加嫌疑、不写 known —— 尸体本身不指向任何人；
+## 唯一的消费方是会议里的 quick_report（报案太快 → 先看见过尸体的人怀疑报案人）。
+func note_body_seen(a: Dictionary, victim_i: int) -> void:
+	if a.is_empty() or victim_i < 0:
+		return
+	var v: Dictionary = sim.agent(victim_i)
+	if v.is_empty():
+		return
+	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+	var rid: String = sim.room_at(bp)
+	# 2.5D observeBody（js/game.js:2175）：单槽 lastBody + 状态签名。
+	# 只有 alive/downed/伤口/移动/搜过/舱室 任一变化才重写 —— 每 0.5 秒刷屏会把
+	# mem / why 挤爆（2.5D 注释原文：只有状态变化才记一条）。
+	var sig := "%s|%s|%s|%s|%s|%s" % [
+		bool(v.get("alive", false)), bool(v.get("downed", false)),
+		String(v.get("woundCause", v.get("deathCause", ""))),
+		bool(v.get("bodyMoved", false)), bool(v.get("searched", false)), rid,
+	]
+	var last: Dictionary = a.get("lastBody", {}) as Dictionary
+	if int(last.get("i", -1)) == victim_i and String(last.get("sig", "")) == sig:
+		return
+	a["lastBody"] = {"i": victim_i, "sig": sig}
+	var seen: Dictionary = (a.get("bodySeen", {}) as Dictionary).duplicate()
+	seen[victim_i] = int(sim.night)
+	a["bodySeen"] = seen
+	# 2.5D：尸体被移动过 → 追加一条 saw_body_moved（sequenceCue 的弱线索原料）
+	if bool(v.get("bodyMoved", false)):
+		_push_why(a, victim_i, {"kind": "saw_body_moved", "src": "sight",
+			"night": int(sim.night), "x": bp.x, "y": bp.y})
+	# 2.5D：同一舱室 8 秒内见过的人各记一笔 near_body（只能说明"他在附近"，
+	# 不能定罪）—— 权重 0.16，进 sus 的 saw_* 通道。
+	if rid != "":
+		var now: float = sim.night_len() - maxf(0.0, float(sim.t))
+		var core := rule("ALIBI", "core", 8.0)
+		var why_map: Dictionary = (a.get("why", {}) as Dictionary).duplicate()
+		for subj: int in why_map.keys():
+			var arr: Array = why_map[subj] as Array
+			for e: Variant in arr:
+				var rec := e as Dictionary
+				if String(rec.get("kind", "")) != "saw_agent":
+					continue
+				if int(rec.get("night", -1)) != int(sim.night):
+					continue
+				if String(rec.get("room", "")) != rid:
+					continue
+				if absf(now - float(rec.get("t", 0.0))) > core:
+					continue
+				sus_add(a, subj, 0.16, "near_body",
+					{"kind": "near_body", "src": "sight", "night": int(sim.night)})
+
+
+## 异形看见有人**合闸**：给他记一笔「像人类」（2.5D humanishAdd，js/game.js:2037）。
+## 只服务「先处理更像对手的人」这一个用途；不写 known / mates，不做身份结论。
+func humanish_add(a: Dictionary, target_i: int, amount: float) -> void:
+	if a.is_empty() or not bool(a.get("alien", false)) or target_i < 0:
+		return
+	var ht: Dictionary = (a.get("humanT", {}) as Dictionary).duplicate()
+	ht[target_i] = minf(1.0, float(ht.get(target_i, 0.0)) + amount)
+	a["humanT"] = ht
+
+
+## 2.5D humanishOf（js/game.js:2043）：读 0..1 的「像人类」倾向。
+func humanish_of(a: Dictionary, target_i: int) -> float:
+	return clampf(float((a.get("humanT", {}) as Dictionary).get(target_i, 0.0)), 0.0, 1.0)
+
+
+## 2.5D grudgeAdd（js/game.js:1461）：他咬过我 → 情绪记仇。
+## 幅度乘 SKTrait.C.grudgeGain（性格系数，数值读 rules.json）。
+func grudge_add(a: Dictionary, target_i: int, amount: float) -> void:
+	if a.is_empty() or target_i < 0 or target_i == int(a.get("i", -1)):
+		return
+	if sim == null or sim.rules == null:
+		return
+	var g: Dictionary = (a.get("grudge", {}) as Dictionary).duplicate()
+	g[target_i] = clampf(float(g.get(target_i, 0.0))
+		+ amount * trait_c("grudgeGain", a), 0.0, 2.0)
+	a["grudge"] = g
+
+
+## 2.5D trustAdd（js/game.js:1467）：他帮过我 → 情绪记恩。
+func trust_add(a: Dictionary, target_i: int, amount: float) -> void:
+	if a.is_empty() or target_i < 0 or target_i == int(a.get("i", -1)):
+		return
+	if sim == null or sim.rules == null:
+		return
+	var t: Dictionary = (a.get("trust", {}) as Dictionary).duplicate()
+	t[target_i] = clampf(float(t.get(target_i, 0.0))
+		+ amount * trait_c("trustGain", a), 0.0, 2.0)
+	a["trust"] = t
+
+
+## 2.5D isPatron（js/game.js:1474）：被某人当众保过（trust≥0.8）就不过他的票。
+func is_patron(a: Dictionary, target_i: int) -> bool:
+	return float((a.get("trust", {}) as Dictionary).get(target_i, 0.0)) >= 0.8
+
+
+## 2.5D startVote 情绪分支（js/game.js:7487-7499）：最恨谁（活着、非队友）。
+func best_grudge(a: Dictionary) -> Dictionary:
+	if a.is_empty():
+		return {}
+	var g: Dictionary = a.get("grudge", {}) as Dictionary
+	var alien := bool(a.get("alien", false))
+	var mates: Dictionary = a.get("mates", {}) as Dictionary
+	var best := -1
+	var bv := 0.0
+	for k: int in g.keys():
+		var t: Dictionary = sim.agent(k)
+		if t.is_empty() or t == a or not bool(t.get("alive", false)) \
+				or bool(t.get("downed", false)):
+			continue
+		if alien and mates.has(k):
+			continue
+		var v := float(g[k])
+		if v > bv:
+			bv = v
+			best = k
+	return {"i": best, "score": bv} if best >= 0 else {}
+
+
+## 2.5D recordClaim（js/game.js:1624）：口供史只留最近 3 场，只进语料、不产生嫌疑。
+func record_claim(a: Dictionary, room_id: String) -> void:
+	if a.is_empty():
+		return
+	var rid := room_id
+	var rname: String = sim.room_name(rid) if rid != "" else "走廊"
+	var h: Array = (a.get("claimHist", []) as Array).duplicate()
+	h.append({"night": int(sim.night), "room": rname, "roomId": rid})
+	while h.size() > 3:
+		h.remove_at(0)
+	a["claimHist"] = h
+
+
 ## 亲眼目击：不进 heard 窗口；why 按目标累积证据记录（2.5D evPush 口径）。
 ## 证据分级（2.5D CONFIRM，2026-11-02 用户裁定"AI 判定太神"）：
 ##   · d ≤ CONFIRM.nearR(4.5) → 写 known（确证，会议里敢说"我确定"）
@@ -608,22 +902,22 @@ func note_sight(witness_i: int, actor_i: int, kind: String, at: Vector2) -> void
 		return
 	var ev_w: Dictionary = sim.rules.constant("EV_W") as Dictionary
 	var weight := float(ev_w.get(kind, 0.0))
-	sus_add(w, actor_i, weight, "亲眼目击",
-		{"kind": kind, "src": "sight", "actor": actor_i,
-		"x": at.x, "y": at.y, "night": int(sim.night)})
+	# 远距离目击打标（2.5D farSight 遥测口径：>4.5 格不确证）。
+	var wp: Vector2 = w.get("pos", Vector2.ZERO)
+	var d := wp.distance_to(at)
+	var far: bool = d > rule("CONFIRM", "nearR", 4.5)
+	var evrec := {"kind": kind, "src": "sight", "actor": actor_i,
+		"x": at.x, "y": at.y, "night": int(sim.night)}
+	if far:
+		evrec["far"] = true
+	# 一次目击只记**一条** why（2.5D evPush 一次）；3D 原先 sus_add 与 _push_why
+	# 各写一条，记忆窗口与 almost 的原料都被翻倍（第 13 批修）。
+	sus_add(w, actor_i, weight, "亲眼目击", evrec)
 	var actor: Dictionary = sim.agent(actor_i)
 	if not actor.is_empty():
 		actor["exposure"] = float(actor.get("exposure", 0.0)) + 1.0
-	var rec := {"kind": kind, "src": "sight", "actor": actor_i,
-		"x": at.x, "y": at.y, "night": int(sim.night)}
-	# 远距离目击打标（2.5D farSight 遥测口径：>4.5 格不确证）
-	var wp: Vector2 = w.get("pos", Vector2.ZERO)
-	var d := wp.distance_to(at)
-	if d > rule("CONFIRM", "nearR", 4.5):
-		rec["far"] = true
-	_push_why(w, actor_i, rec)
 	var id_ev: Dictionary = sim.rules.constant("ID_EVIDENCE") as Dictionary
-	if not id_ev.has(kind) or d > rule("CONFIRM", "nearR", 4.5):
+	if not id_ev.has(kind) or far:
 		return
 	# MISID：20% 概率认错人 —— 候选池 = 目击者此刻真看得见的人（排除自己与行为人）
 	var final_i := actor_i
@@ -700,11 +994,6 @@ func note_testimony(listener_i: int, speaker_i: int, target_i: int,
 	for h: Dictionary in heard:
 		if int(h.get("target", -1)) == target_i and int(h.get("speaker", -1)) != speaker_i:
 			independent = true
-	heard.append({"speaker": speaker_i, "target": target_i, "kind": kind,
-		"night": int(sim.night)})
-	while heard.size() > cap:
-		heard.remove_at(0)
-	l["heard"] = heard
 	var base := strength if strength >= 0.0 else rule("TESTIFY", "dirtySus", 0.3)
 	var rel := relia_of(sp, speaker_i)
 	var w := base * relia_mul(rel)
@@ -745,10 +1034,15 @@ func note_testimony(listener_i: int, speaker_i: int, target_i: int,
 			sim._stat("descErrors", 1)
 	if claim_room != "":
 		rec["room"] = claim_room
-	sus_add(l, target_i, w, "heard_testimony",
-		{"kind": "heard_testimony", "src": "speech", "actor": target_i,
-		"speaker": speaker_i, "night": int(sim.night)})
-	_push_why(l, target_i, rec)
+	# 听众的 heard 窗口记 DESC 后的最终种类（2.5D deliverTestimony 的 ev 副本）。
+	heard.append({"speaker": speaker_i, "target": target_i, "kind": kind,
+		"night": int(sim.night)})
+	while heard.size() > cap:
+		heard.remove_at(0)
+	l["heard"] = heard
+	# 一次证言只写**一条** why（2.5D susAdd 一次）：3D 原先 sus_add + _push_why
+	# 双写，且 sus_add 那条的 kind 固定成 heard_testimony（会被 evalAlmost 当成实证）。
+	sus_add(l, target_i, w, "heard_testimony", rec)
 
 
 ## 自述与听众记忆对不上 → 说话人可信度扣 caughtLie（2.5D checkAlibi 量词）。
@@ -931,15 +1225,22 @@ func evidence_reason(a: Dictionary, i: int) -> Dictionary:
 	return arr[arr.size() - 1] as Dictionary if not arr.is_empty() else {}
 
 
-## 准-确证 evalAlmost：证据种类数 / 新鲜夜数达到 ALMOST 门槛才升级。
+## 准-确证 evalAlmost（2.5D js/t2/ai.js:364-436）：
+## foe = sus≥foeSus + real≥1 + counted≥foeKinds + 至少一种新鲜；
+## friend = cred≥friendCred + credWhy 种类≥friendKinds + 新鲜；
+## WEAK（沉默/空口指控/领袖点名/不可能口供/快报案/错告）不算证据；
+## heard_* 最多补 heardKinds 个；saw_agent / saw_body_moved 是时间线，不算种类。
 func eval_almost(a: Dictionary, i: int) -> void:
 	var al: Dictionary = (a.get("almost", {}) as Dictionary).duplicate()
 	var foe: Dictionary = (al.get("foe", {}) as Dictionary).duplicate()
 	var friend: Dictionary = (al.get("friend", {}) as Dictionary).duplicate()
+	var known := (a.get("known", {}) as Dictionary).has(i)
+	var fresh_night := int(sim.night) - int(rule("ALMOST", "freshNights", 2))
+	var weak := {"silent": true, "empty_accuse": true, "leader_order": true,
+		"impossible_claim": true, "quick_report": true, "wrong_accuse": true}
 	var arr: Array = (a.get("why", {}) as Dictionary).get(i, []) as Array
 	var kinds: Dictionary = {}
 	var fresh: Dictionary = {}
-	var fresh_night := int(sim.night) - int(rule("ALMOST", "freshNights", 2))
 	for r: Variant in arr:
 		if not (r is Dictionary):
 			continue
@@ -947,15 +1248,72 @@ func eval_almost(a: Dictionary, i: int) -> void:
 		var k := String(rec.get("kind", ""))
 		if k == "":
 			continue
+		if k == "saw_agent" or k == "saw_body_moved":
+			continue
 		kinds[k] = true
 		if int(rec.get("night", -1)) >= fresh_night:
 			fresh[k] = true
-	foe.erase(i)
-	friend.erase(i)
-	if kinds.size() >= int(rule("ALMOST", "foeKinds", 2)) and \
-			sus_of(a, i) >= rule("ALMOST", "foeSus", 0.5):
-		foe[i] = {"sus": sus_of(a, i), "conf": rule("ALMOST", "foeConf", 0.8),
-			"kinds": kinds.keys(), "fresh": fresh.size()}
+	var real_n := 0
+	var heard_n := 0
+	for k2: String in kinds.keys():
+		if k2.begins_with("heard_"):
+			if k2 != "heard_vouch":
+				heard_n += 1
+			continue
+		if weak.has(k2):
+			continue
+		real_n += 1
+	var heard_use := mini(heard_n, int(rule("ALMOST", "heardKinds", 1)))
+	var counted := real_n + heard_use
+	var foe_kinds := int(rule("ALMOST", "foeKinds", 2))
+	var had_foe := foe.has(i)
+	if not known and sus_of(a, i) >= rule("ALMOST", "foeSus", 0.5) \
+			and real_n >= 1 and counted >= foe_kinds and fresh.size() >= 1:
+		var since := int(sim.night)
+		if had_foe and (foe[i] as Dictionary).get("since") != null:
+			since = int((foe[i] as Dictionary).get("since", since))
+		foe[i] = {"t": ev_now(), "sus": sus_of(a, i), "kinds": kinds.keys(),
+			"heardUsed": heard_use, "since": since,
+			"conf": rule("ALMOST", "foeConf", 0.8)}
+		if not had_foe:
+			sim._stat("almostCount", 1)
+			if bool(sim.agent(i).get("alien", false)):
+				sim._stat("almostAlien", 1)
+			else:
+				sim._stat("almostHuman", 1)
+			if real_n < foe_kinds:
+				sim._stat("almostHeard", 1)
+		friend.erase(i)
+	else:
+		foe.erase(i)
+	# friend：正向证据（credWhy 的 kind）+ 新鲜 + 不在 foe / known
+	var cred := cred_of(a, i)
+	var cw: Array = (a.get("credWhy", {}) as Dictionary).get(i, []) as Array
+	var ck: Dictionary = {}
+	var cf: Dictionary = {}
+	for r2: Variant in cw:
+		if not (r2 is Dictionary):
+			continue
+		var rec2 := r2 as Dictionary
+		var k4 := String(rec2.get("kind", ""))
+		if k4 == "":
+			continue
+		ck[k4] = true
+		if int(rec2.get("night", -1)) >= fresh_night:
+			cf[k4] = true
+	var had_friend := friend.has(i)
+	if not known and not foe.has(i) \
+			and cred >= rule("ALMOST", "friendCred", 0.5) \
+			and ck.size() >= int(rule("ALMOST", "friendKinds", 2)) and cf.size() >= 1:
+		var since2 := int(sim.night)
+		if had_friend and (friend[i] as Dictionary).get("since") != null:
+			since2 = int((friend[i] as Dictionary).get("since", since2))
+		friend[i] = {"t": ev_now(), "cred": cred, "kinds": ck.keys(),
+			"since": since2, "conf": rule("ALMOST", "friendConf", 0.7)}
+		if not had_friend:
+			sim._stat("almostFriendCount", 1)
+	else:
+		friend.erase(i)
 	al["foe"] = foe
 	al["friend"] = friend
 	a["almost"] = al
@@ -1369,6 +1727,14 @@ func reset_night() -> void:
 					why_out[k4] = keep
 		a["sus"] = sus_out
 		a["why"] = why_out
+		# susNight 只保留**还活着的那批嫌疑**的夜戳（2.5D keepSusNight）。
+		# 3D 原来一律清空，于是第二天所有存量都判成"本夜无新证据"，
+		# 每夜都多挨一次 staleMul ×0.55 —— 跨夜嫌疑衰减比真源陡得多。
+		var sn_out: Dictionary = {}
+		for k6: int in sus_out.keys():
+			if sus_night.has(k6):
+				sn_out[k6] = int(sus_night[k6])
+		a["susNight"] = sn_out
 		# ⑤ known 是长期记忆：**不清**
 		# ⑥ almost 跨夜保留，条件不成立时由 evalAlmost 就地推翻
 		#    （2.5D mindReset, js/t2/ai.js:270 `almost:{foe:Object.assign({},oldM.almost.foe),...}`）。
@@ -1390,7 +1756,42 @@ func reset_night() -> void:
 		a["silent"] = false
 		a["exposure"] = float(a.get("exposure", 0.0)) * decay_sight
 		a["alibi"] = {}
-		a["susNight"] = {}
+		# 情绪记忆跨会议保留、每场 ×0.8 衰减，低于 0.05 才忘（2.5D mindReset keepEmo）。
+		# 「被谁咬过、被谁护过」不是只活在当夜的东西。
+		var emo_decay := 0.8
+		for key in ["trust", "grudge"]:
+			var old_emo: Dictionary = (a.get(key, {}) as Dictionary).duplicate()
+			var emo_out: Dictionary = {}
+			for ke: int in old_emo.keys():
+				var ev2 := float(old_emo[ke]) * emo_decay
+				if ev2 > 0.05:
+					emo_out[ke] = ev2
+			a[key] = emo_out
+		# ally（谁替谁说过话）跨夜保留；credWhy 跟着 cred 一起裁掉已衰减的条目。
+		a["ally"] = (a.get("ally", {}) as Dictionary).duplicate()
+		var cw_old: Dictionary = (a.get("credWhy", {}) as Dictionary).duplicate()
+		var cw_out: Dictionary = {}
+		for kc: int in cw_old.keys():
+			if (a.get("cred", {}) as Dictionary).has(kc):
+				cw_out[kc] = cw_old[kc]
+		a["credWhy"] = cw_out
+		# 信念版本号每夜归零；「看见尸体」的记忆按夜清空（quick_report 只认当夜）。
+		a["rev"] = 0
+		a["bodySeen"] = {}
+		# 2.5D mindReset（js/t2/ai.js:257/258/283）：按夜清空的观察闸门
+		a["lastBody"] = {}
+		a["redSeen"] = {}
+		a["avoidSeen"] = {}
+		# 2.5D mindReset（js/t2/ai.js:275）：口供史只留最近 3 场，只进语料、不产生嫌疑。
+		a["claimHist"] = ((a.get("claimHist", []) as Array).slice(-3)).duplicate()
+		# 2.5D mindReset(js/t2/ai.js:280)：humanT 走 keepEmo（×0.8，<0.05 遗忘）。
+		var ht_old: Dictionary = (a.get("humanT", {}) as Dictionary).duplicate()
+		var ht_out: Dictionary = {}
+		for kh: int in ht_old.keys():
+			var hv := float(ht_old[kh]) * 0.8
+			if hv > 0.05:
+				ht_out[kh] = hv
+		a["humanT"] = ht_out
 		# 2.5D startNight 每夜重置：作案记账 / 假口供 / 修订标记 / 伙同目标
 		a["_killAt"] = 0.0
 		a["_lie"] = {}

@@ -179,6 +179,24 @@ func parse_speech(text: String, sim) -> Dictionary:
 			if not at.has(idx) or int(at[idx]) > sp:
 				at[idx] = sp
 			spans.append([sp, sp + seat.length()])
+	# 席位号：补零 / 「第 N 席」/ 中文数字（2.5D decision.js:96-99 的两条正则）。
+	# 3D 原先只会匹配「%d号」，玩家写「07号」「第七号」都认不出来。
+	var re_num := RegEx.new()
+	re_num.compile("(?:第\\s*)?0?([1-9]|1[0-5])\\s*(?:号|席)")
+	for m: RegExMatch in re_num.search_all(s):
+		var idx2 := int(m.get_string(1)) - 1
+		if idx2 >= 0 and idx2 < sim.agents.size() and _free_span(spans, m.get_start(), 1):
+			if not at.has(idx2):
+				at[idx2] = m.get_start()
+			spans.append([m.get_start(), m.get_start() + m.get_string().length()])
+	var re_cn := RegEx.new()
+	re_cn.compile("([一二三四五六七八九十]{1,3})\\s*(?:号|席)")
+	for m2: RegExMatch in re_cn.search_all(s):
+		var idx3 := int(cn_seat.get(m2.get_string(1), 0)) - 1
+		if idx3 >= 0 and idx3 < sim.agents.size() and _free_span(spans, m2.get_start(), 1):
+			if not at.has(idx3):
+				at[idx3] = m2.get_start()
+			spans.append([m2.get_start(), m2.get_start() + m2.get_string().length()])
 	var keys: Array = at.keys()
 	keys.sort_custom(func(x, y): return int(at[x]) < int(at[y]))
 	out["people"] = keys

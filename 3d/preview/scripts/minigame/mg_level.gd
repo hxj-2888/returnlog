@@ -1,23 +1,26 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 层高对齐（对应 2.5D 的 buildLevel）
-## 拖动货架层，全部对齐到同一条虚线（±3%）。
+## 拖动货架层，全部对齐到同一条虚线（容差读任务配置 tol，默认 ±3%）。
 
 const TARGET := 42.0
-const TOL := 3.0
 
 var _bars: Array = []
 var _drag := -1
+var _tol := 3.0
 
 
 func build() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(0, 300)
-	var n := tier_n(4, 5, 5)
+	_tol = float(cfg("tol", 3.0))
+	var n: int = clampi(int(cfg("n", tier_n(4, 5, 5))), 2, 5)
 	var base := [14.0, 30.0, 48.0, 66.0, 84.0] if n == 5 else [20.0, 34.0, 58.0, 72.0]
+	if n < 4:
+		base = base.slice(0, n)
 	for i in base.size():
 		_bars.append(base[i])
-	set_progress(0, _bars.size(), "把 %d 层货架拖到同一条虚线（±3%%）" % _bars.size())
+	set_progress(0, _bars.size(), "把 %d 层货架拖到同一条虚线（±%.1f%%）" % [_bars.size(), _tol])
 
 
 func _draw() -> void:
@@ -67,7 +70,7 @@ func _gui_input(event: InputEvent) -> void:
 func _check() -> void:
 	var got := 0
 	for v in _bars:
-		if absf(float(v) - TARGET) <= TOL:
+		if absf(float(v) - TARGET) <= _tol:
 			got += 1
 	set_progress(got, _bars.size(), "齐平 %d / %d 层 —— 拖到同一条虚线" % [got, _bars.size()])
 	if got == _bars.size():

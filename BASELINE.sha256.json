@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-09",
+  "generated": "2026-11-10",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
     "version": "3.6.0",
     "gameVersion": "返航录V3.6"
   },
-  "file_count": 451,
+  "file_count": 454,
   "files": {
     "assets/MANIFEST.json": {
-      "sha256": "26d078ba4fd1d15d8ce4195c412019b1c134fc86feb2085fc4edacb88beca0fb",
-      "size": 12965
+      "sha256": "ea12399462641aa75216ce10e93259410596de1ba50f39114025e9d627e90438",
+      "size": 12966
     },
     "assets/minigame/CREDITS.md": {
       "sha256": "4f2f64a80bc3a36e275097928286c7f447d8831ba0ad6c43055ea8e049546b65",
@@ -53,16 +53,16 @@
       "size": 1494
     },
     "assets/qwen-lib/armory-floor_768.png": {
-      "sha256": "c84cdbaa8e0d65febd81eec41ec50dbf887e3fa3655b578dd0ab316a84aedee7",
-      "size": 1416925
+      "sha256": "27e443bac69097a8ada44dfaa72d9cd3215f1208988ca2449c4f168ccc95e7f9",
+      "size": 1701378
     },
     "assets/qwen-lib/armory-wall_768.png": {
       "sha256": "1310533afa4d50f529c6049dd890bedb4c4911b9d56ce3ad84b4bb9202f0ea48",
       "size": 1282927
     },
     "assets/qwen-lib/bridge-floor_768.png": {
-      "sha256": "12e2a1e58b6cff208933ba82b78ae6c3ac69b0e5f81cc5e34a967e7d52d51313",
-      "size": 1910282
+      "sha256": "b7af3e2832a913a3ca2c11356e59c6430a70d3f18dae521eeabcdcb49971a269",
+      "size": 1712508
     },
     "assets/qwen-lib/bridge-wall_768.png": {
       "sha256": "3fe4b2e296051e203d1f0225f903f72500dd50f20222fc44553cab2db6bd1060",
@@ -73,8 +73,8 @@
       "size": 4073153
     },
     "assets/qwen-lib/cam-floor_768.png": {
-      "sha256": "967f82dde521d165bcfdf71de2923a459f1b6090224ff0550ce801a0c12e5dbe",
-      "size": 1082419
+      "sha256": "50faf14bf25e93a0932bb83cb5ee215a56527c90c98d726b506117bf9a0a1272",
+      "size": 1235600
     },
     "assets/qwen-lib/cam-wall_768.png": {
       "sha256": "95480b37c7e555543a491a8b09fb2a85995a37f7e96eea79cc3eee6e7fe0b07e",
@@ -85,16 +85,16 @@
       "size": 4107247
     },
     "assets/qwen-lib/ecosys-floor_768.png": {
-      "sha256": "6196ee3cd92b3360bcc27c3bc8caa299db16b1ad65e15750f6fa672c438d129d",
-      "size": 1446042
+      "sha256": "1ce7b4a72cbcb4037ddab87d1dd306dbf2a923b017cdf70f76fd03b331021f7a",
+      "size": 1327182
     },
     "assets/qwen-lib/ecosys-wall_768.png": {
-      "sha256": "aac3c3569004b3ae06f6d89c2b98378432f77d08c35b5122f1b1495160c91f9f",
-      "size": 1468255
+      "sha256": "19e4fceb12778a2fb85d8420fd6a46410b2fbcfcd74f7770b1da11c536a63388",
+      "size": 1390803
     },
     "assets/qwen-lib/engine-floor_768.png": {
-      "sha256": "1954f3cd7c23327765be996fe009b432201f6a3da536d3387b151e8ceddf878e",
-      "size": 1671497
+      "sha256": "1eab1d38f1bec02460c2e97db5dde155688aceae174259a24c716b84efc72db0",
+      "size": 1501344
     },
     "assets/qwen-lib/engine-wall_768.png": {
       "sha256": "5654ce2bb75ca05fc2ccf856178818fc520b70558d9db9406fb0010cb0403612",
@@ -113,8 +113,8 @@
       "size": 3891287
     },
     "assets/qwen-lib/fun-floor_768.png": {
-      "sha256": "b739d09e8e32ea9454559f771505f535d9292940aaf415d93a6e72e8153b2dcf",
-      "size": 1450668
+      "sha256": "7d7d6a9004e86afba756d4af39ebbbb4ac3bf7f00fcb13dddf7891453f75f452",
+      "size": 1587336
     },
     "assets/qwen-lib/fun-wall_768.png": {
       "sha256": "83c08028059c81b0489a5ad867cda79b9876bc53bd2aa8809010556072d75b8d",
@@ -125,8 +125,8 @@
       "size": 3784161
     },
     "assets/qwen-lib/med-floor_768.png": {
-      "sha256": "a914b6cc6dbddb60f47d2bdf7e7a915650fc39083cddf1f75724dc1ed17fbcd9",
-      "size": 902532
+      "sha256": "d242ce4f8b5abdf31bf848916326aacb6843022f460506d4987af9925ca485ec",
+      "size": 1006184
     },
     "assets/qwen-lib/med-wall_768.png": {
       "sha256": "4d1ea9b5f71eaff986e95c4266aba31ee0dbcc72f0d297dae632d5a274b392e2",
@@ -141,8 +141,8 @@
       "size": 3988673
     },
     "assets/qwen-lib/power-floor_768.png": {
-      "sha256": "fff78eb59c718adf1e2b4e6474eef9468f18559672fc031f323d3961092104c4",
-      "size": 1101256
+      "sha256": "04e901b828e92a15e40e9edb09bbf3a670e3b44a76264b53757185383c1fff21",
+      "size": 1371810
     },
     "assets/qwen-lib/power-wall_768.png": {
       "sha256": "807697a1636e279b23c951ac81a067dc5bd71411808ddae6edf16600fb2954c3",
@@ -193,16 +193,20 @@
       "size": 4028259
     },
     "assets/qwen-lib/transit-floor_768.png": {
-      "sha256": "d6c3aa9cc6eed9337d96c5e6791548e3c09984d271c11dab8913d45ad9a6fcfb",
-      "size": 1562858
+      "sha256": "2c26d605f9a0347d93e7475097269473acb17d4e455ab3139f62775de1b9c8b9",
+      "size": 1760066
     },
     "assets/qwen-lib/transit-wall_768.png": {
       "sha256": "250637d5a4107a237829d7a821010a0e944ecda3a805fbb8dd03caaab5071a5e",
       "size": 1073219
     },
+    "assets/qwen-lib/vent-grille_768.png": {
+      "sha256": "6ba71a6f2fd59560b9dd1f356df44aee611f98124ccea844ba2af2a98752351a",
+      "size": 1123320
+    },
     "assets/qwen-lib/warehouse-floor_768.png": {
-      "sha256": "1f0bea278e8af7a278a69ae3f0103c96a08313f7f3e5765a0a8792742152e171",
-      "size": 1612820
+      "sha256": "10e7545f534541837c50f2e2f457874f35c7875065152c071dc5c1610d66ece7",
+      "size": 1737845
     },
     "assets/qwen-lib/warehouse-rack.png": {
       "sha256": "b0d8cbd646105380604a0e48587ff98536c48733e3bcd36a4eb1ed14aae036fe",
@@ -213,8 +217,8 @@
       "size": 1279720
     },
     "assets/qwen-lib/素材库清单.json": {
-      "sha256": "e8377374ba5c263f6b96729a98b0a04f283e95844688ef7e5de501bc3f783f1a",
-      "size": 10013
+      "sha256": "51640fb5cdd35f0b8515422236de05d148d628d544310fa19f88a9abc3de2667",
+      "size": 10014
     },
     "assets/scene/bg/departure-ring.svg": {
       "sha256": "3ae0a8fce8c7e16603aadd14152a7de7ba9f50f8c551563fbc34909a45fcf07b",
@@ -977,12 +981,12 @@
       "size": 3459
     },
     "assets/scene/v4/_preview.png": {
-      "sha256": "3461537ed665e0c862a3a53d55461ce22cb5a8596daaf75c9a47d24a1ce7cd0e",
-      "size": 736028
+      "sha256": "925685db055098a4a099ab39b6ffbcca164c1608ceaaa2c26231d6d5561ad1a0",
+      "size": 714819
     },
     "assets/scene/v4/base-lit.png": {
-      "sha256": "68e2d981d5d1e279cd9b2fdcec4505ebcccdaf78d68bfb0c856243e12bfb9be7",
-      "size": 15271096
+      "sha256": "7e73c60c4829c3295a203d915f1c1497909dd1f0ef5e2deb868f48a1bb185a42",
+      "size": 14194673
     },
     "assets/scene/v4/facility/_raw/breaker-c0.png": {
       "sha256": "ae8b6f8f6493b1736496b0a4b801477e1e8bd820d5b3c1b0735b763abe5d85c7",
@@ -1185,36 +1189,36 @@
       "size": 114347
     },
     "assets/scene/v4/facility/pipe-port-armory.png": {
-      "sha256": "d44797f3b9d2248bfec346e5e0fc94e38bab93161429f25a90f8c05e2794c5dc",
-      "size": 272727
+      "sha256": "7437d322cee399f6814212d9b36c56cdbfbe51388ee1cf37887664033aeaf9f5",
+      "size": 74533
     },
     "assets/scene/v4/facility/pipe-port-cam.png": {
-      "sha256": "8b83723a715e2b24bbeb39e2b0afc3196ec2412b63d0edf229d887d7a16fdfe6",
-      "size": 271752
+      "sha256": "778f5d0394534c752a6b1458fdad79c9031123825ac711da4b04425cdcb30c3a",
+      "size": 69979
     },
     "assets/scene/v4/facility/pipe-port-ecosys.png": {
-      "sha256": "ce0441f406bb76aacbfd827bd5e8ac83c5b67f302b8520913391a1424e0d05da",
-      "size": 273083
+      "sha256": "926364d98633fbc91877f78b9faae73a021f56f1639cba4e71365febfd9cf523",
+      "size": 39707
     },
     "assets/scene/v4/facility/pipe-port-engine.png": {
-      "sha256": "3df2aec8d53e1ec82bdfd8de7306ec50e1a1d645739798108759fb44d7832074",
-      "size": 272841
+      "sha256": "84bb25c4438d8c928d46d0708e4014eeca95eabaa0d0ccfcdf87e5ccb1183435",
+      "size": 64257
     },
     "assets/scene/v4/facility/pipe-port-fun.png": {
-      "sha256": "593976cfd8a0197b710162d4016ae8808b06d7970c4055d4b8568f0ed9b7f616",
-      "size": 272664
+      "sha256": "b8b6ad01c6bd20182c5c37bc97c666dc0d92d9f080b2b39b9109685cb379fe4e",
+      "size": 63567
     },
     "assets/scene/v4/facility/pipe-port-med.png": {
-      "sha256": "9f5fe96898ab3a9c1c017a64e724cb33eb2144d770a01f33f348c60220aa281a",
-      "size": 271758
+      "sha256": "f182e9e2f39363564d6ee7380a003a01d1fd384faa9a8df5f2a85ae4f54bc9dc",
+      "size": 94573
     },
     "assets/scene/v4/facility/pipe-port-transit.png": {
-      "sha256": "d255c06fa76cbdd66cda9a4e642070a6972f2686b3bd12619a6b4dce9e516ded",
-      "size": 272423
+      "sha256": "77a7fdca79d4788b390f64beaf9de5aa7d7c949eae45d4f0d239b42009e55f19",
+      "size": 69874
     },
     "assets/scene/v4/facility/pipe-port-warehouse.png": {
-      "sha256": "8af220d2b77ea331d322d06a02b935c53007540a65b0f0a6b5875b6a297f26a7",
-      "size": 272675
+      "sha256": "7a15b38eeba751648759cd9a37fc218ca14afe53fbdd8ddcdd41312b7bedc962",
+      "size": 35760
     },
     "assets/scene/v4/facility/secbot-c0.png": {
       "sha256": "85faa4004a962115f83f5746c96fdfc16ea5ace4b0a4365cbbe4a43c6261fb57",
@@ -1273,8 +1277,8 @@
       "size": 3191808
     },
     "audio/CREDITS.md": {
-      "sha256": "52ef431fd283391d79015f302c611b8f759872dfbfb5fc0b20beecd3ebf93d99",
-      "size": 5455
+      "sha256": "2575a5729aea901a1d85dc7a7a43e23c8b21811f8dbe28a4569abe7f4c69027a",
+      "size": 5392
     },
     "audio/music-bgm.m4a": {
       "sha256": "8d4a63bb1bfec500ef8390325a0117dc5354a48ee20951098f352d04296fabf4",
@@ -1365,8 +1369,8 @@
       "size": 20030
     },
     "js/ai/sanity.js": {
-      "sha256": "f4fa6f705938544815893f8d7d27906ba74d43f0fc15aad6e89cd9592dfd06ca",
-      "size": 72318
+      "sha256": "80eb88e5a75039cb06a3e03cf93495989b0e5e24b7e7e931664c01308cbb5010",
+      "size": 72480
     },
     "js/ai/traits.js": {
       "sha256": "df511c87be743dad39fc29717e64e23fbb1aa466334cf1dde9864e68e4a72370",
@@ -1377,12 +1381,12 @@
       "size": 1613
     },
     "js/data/lines.js": {
-      "sha256": "466f1aee5293b8a2c509043e017edd0cfffe897d55f7c6694fec02d5335a6206",
-      "size": 93130
+      "sha256": "95ac2a6bba8400bfc9ad681931e7c9045bdc9128467d396ba770718184471abb",
+      "size": 91040
     },
     "js/data/map.js": {
-      "sha256": "e40e6ac73b411ac60171bbfbfd889a792fb470892afa6842eb9908aed7dc1d11",
-      "size": 26553
+      "sha256": "ff0755cdd53a61296cb7a4603d6a675490d99b347521e79e203e0a0d37ea0937",
+      "size": 26062
     },
     "js/data/names.js": {
       "sha256": "e23159df4d8a7b7c1b1ce502e8a148cf55243ccdf680d8c528a7406777db3fdd",
@@ -1405,8 +1409,8 @@
       "size": 9025
     },
     "js/game.js": {
-      "sha256": "264b3a66de1f26ae6aed9f92da5adbd51f1ec507367fa70e028b4e83021dadbe",
-      "size": 651429
+      "sha256": "99eaca3f56a440d61181f3955c1a54d51e11761d0e6be720efb8c5b55fd9487e",
+      "size": 650872
     },
     "js/main.js": {
       "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",
@@ -1433,16 +1437,16 @@
       "size": 10567
     },
     "js/t2/minigame.js": {
-      "sha256": "7fa6101582453e8d09113072d05b83ad920564fedff77dba71f737eab4f1e116",
-      "size": 58888
+      "sha256": "f47de0bf9ddd830012c57ea178f94a2c44b5dc298cb8d4e0757cc12a49b17b96",
+      "size": 58205
     },
     "js/t2/space.js": {
       "sha256": "855f757e148282b5c0e904217367a16cb641539f533e6cd3cfe7b9a994a79d1e",
       "size": 5842
     },
     "js/ui/home.js": {
-      "sha256": "da28b31400a270025fb06f8c093d97c67ca38861bc979a4855583236b64c581c",
-      "size": 16266
+      "sha256": "d49036953cdb985abbc7a60254120a1f6d64e8d1ae78fbd9fd617e73a2dd9052",
+      "size": 15895
     },
     "js/ui/replay.js": {
       "sha256": "636ebd90a393c670c7c50a8c9adaeb3e308bb96c9b166d876c23de4569893c69",
@@ -1533,8 +1537,8 @@
       "size": 3191808
     },
     "tools/_style-report.txt": {
-      "sha256": "d32b5583226677fcbe1fe86ac328ffe1ac1a203309583047fb376c06e68292c5",
-      "size": 2909
+      "sha256": "38d145d3caa9e89f29f1dc68eb07cb5237269187775d23dcf5c4545dd138f789",
+      "size": 2880
     },
     "tools/align-tex-style.py": {
       "sha256": "afb011b0202a6f1f052925bf454588054b32f924a85d7fa6ea4eb9ae2308d16a",
@@ -1573,8 +1577,8 @@
       "size": 18520
     },
     "tools/blender-ship.py": {
-      "sha256": "34e36edb7dc949919828ddb00d007dd17e4b28edea1b59ebe0728f0c18add0fa",
-      "size": 80500
+      "sha256": "311f8a2efba319c1917be7d6de74ff2905ab7fdb3fe11abe75a898c0a9c9005b",
+      "size": 94482
     },
     "tools/build-apk-assets.cjs": {
       "sha256": "d1e84dac37d526954e92c78e2fa670075eea2cce261c260be51089ceff5df55c",
@@ -1612,6 +1616,10 @@
       "sha256": "eddb499648b0570d39ef3d878c35f1872fa97c3b48718c89defc265ac7bbe61f",
       "size": 3491
     },
+    "tools/gen-armory-deck.py": {
+      "sha256": "61409ae7edceabeabeca32a622ba72f22bd6c025ded3bbbe421598dc9f323303",
+      "size": 3722
+    },
     "tools/gen-facility-sprites.py": {
       "sha256": "7b4c867e96bc33fd5f85b81127e59749d192310189cf2fdcc1003d7309066db0",
       "size": 26379
@@ -1627,6 +1635,10 @@
     "tools/gen-qr.py": {
       "sha256": "1f3a69f71fbeb7d1ffb4ca5001896af412b4163b71ca17ca64d6ace09dab93aa",
       "size": 1500
+    },
+    "tools/grade-pipe-ports.py": {
+      "sha256": "84182a783e37db0d4024cd021a656e12b8bf3a95a55b38d5f1ff768718881309",
+      "size": 1929
     },
     "tools/layout-reach-report.md": {
       "sha256": "f616b9df2bf3c5fbf07b32885de93282baf8738c66f2f9047fb87e7ff9f8f4a9",
@@ -1729,8 +1741,8 @@
       "size": 1413
     },
     "tools/qwen-rooms-report.json": {
-      "sha256": "3287b365a91d4896abd6bf234704090ae98d1df3e75ff007fbf92d2f5a3a0bb2",
-      "size": 5030
+      "sha256": "c88c063f2df7eb17453838d8a6258da3252b414037f109678bfcaebe3988807c",
+      "size": 4686
     },
     "tools/serve.cjs": {
       "sha256": "de5635c9deb50cbed9a316ea19af32819632765f4e6d70d689ed0a444dd6a687",
@@ -1793,8 +1805,8 @@
       "size": 5518
     },
     "tools/test-v3.cjs": {
-      "sha256": "d1fcbc3bd4de45db7696622b34af03e9d6680776829f0eba6ac865ee75c8489d",
-      "size": 472760
+      "sha256": "89fc0d3446b496da842093b262d3f202848dab51be6f663f75dd20b3ce85c758",
+      "size": 465203
     },
     "tools/tex-detail-fusion-report.json": {
       "sha256": "ef34550dbc536609e2b2062bbc2741a2d19f71971ba1557e75ccf633e005e459",

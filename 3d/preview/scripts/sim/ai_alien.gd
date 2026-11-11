@@ -2,7 +2,8 @@ extends RefCounted
 
 ## 异形 AI（B3 最小版）：找人 → 走到刀程 → 出刀；偶尔去非会议室舱破坏。
 ## 不做完整的计划/伪装/管道，这些留给后续批次；先把“夜里真的会死人”跑起来。
-## 口径：异形互不知道身份，这里也不读队友表；目标只按“最近的活人”选。
+## 口径：异形互不知道身份，这里也不读队友表；目标只按「现在看得见 / 本夜亲眼见过
+## 的最后位置（≤HUNT.memorySec）」选，完全没印象的人不进候选（2.5D 取消全图锁敌）。
 
 const SpaceData := preload("res://scripts/space_data.gd")
 
@@ -55,6 +56,85 @@ func _exit_dist(p: Vector2) -> float:
 	for d: Vector2 in _doors:
 		best = minf(best, p.distance_to(d))
 	return best
+
+
+## 2.5D exposureAt（js/game.js:3156）：异形此刻在 at 动手会被多少人看见。
+## 目击者按 witnessWeight 加权；做事的人注意力不在线，完全排除；
+## 逃逸成本按离最近门/管道口的距离算（escapeCost）。
+func _exposure_at(a: Dictionary, at: Vector2, except_v: Dictionary) -> float:
+	if sim.mind == null:
+		return 0.0
+	var R: float = maxf(SpaceData.num(space, "sight", "human_light_r"),
+		sim.sight_range_at(at))
+	var ws: Array = []
+	for w: Dictionary in sim.agents:
+		if w == a or w == except_v:
+			continue
+		if not bool(w.get("alive", false)) or bool(w.get("downed", false)) \
+				or bool(w.get("detained", false)):
+			continue
+		if bool(w.get("alien", false)) and sim.mind._is_mate(a, int(w.get("i", -1))):
+			continue
+		if float(w.get("doing", 0.0)) > 0.0:
+			continue
+		var wp: Vector2 = w.get("pos", Vector2.ZERO)
+		var d := wp.distance_to(at)
+		if d > R or not sim.ai_can_see(w, at):
+			continue
+		ws.append(sim.mind.witness_weight(d, R, false))
+	return sim.mind.exposure(ws, sim.mind.escape_cost(_exit_dist(at)))
+
+
+## 2.5D huntSpotFor（js/game.js:3616-3665）：无目标时去哪找人。
+## ① 本夜最后一条 saw_agent 的位置；② 本夜见过最多的舱室；
+## ③ 任务点最多且不是当前舱的舱室（确定性，便于门禁断言）。
+func _hunt_spot(a: Dictionary) -> Vector2:
+	var why: Dictionary = a.get("why", {}) as Dictionary
+	var best_t := -1.0
+	var best_pos := Vector2.INF
+	var cnt: Dictionary = {}
+	for tgt: int in why.keys():
+		for e: Variant in (why[tgt] as Array):
+			var rec := e as Dictionary
+			if String(rec.get("kind", "")) != "saw_agent":
+				continue
+			if int(rec.get("night", -1)) != int(sim.night):
+				continue
+			var t := float(rec.get("t", 0.0))
+			if t > best_t:
+				best_t = t
+				best_pos = Vector2(float(rec.get("x", 0.0)), float(rec.get("y", 0.0)))
+			var rid := String(rec.get("room", ""))
+			if rid != "" and rid != "corridor":
+				cnt[rid] = int(cnt.get(rid, 0)) + 1
+	if best_pos != Vector2.INF:
+		return best_pos
+	var here: String = sim.room_at(a.get("pos", Vector2.ZERO))
+	var room := ""
+	var bc := 0
+	for k: String in cnt.keys():
+		if int(cnt[k]) > bc:
+			bc = int(cnt[k])
+			room = k
+	if room == "":
+		var tally: Dictionary = {}
+		for p: Dictionary in (sim.map.get("points", []) as Array):
+			var pr := String(p.get("room", ""))
+			if pr == "" or pr == here:
+				continue
+			tally[pr] = int(tally.get(pr, 0)) + 1
+		var bn := 0
+		for k2: String in tally.keys():
+			if int(tally[k2]) > bn:
+				bn = int(tally[k2])
+				room = k2
+	if room == "":
+		return Vector2.INF
+	var c: Vector2 = sim.room_center(room)
+	if sim.nav != null:
+		var nf: Vector2 = sim.nav.nearest_free(c)
+		return nf
+	return c
 
 
 ## 管道突袭（2.5D alienPipeMove，js/game.js:3613）：
@@ -287,67 +367,145 @@ func _decide(a: Dictionary) -> void:
 	var bd := 1.0e9
 	var bpos := Vector2.ZERO
 	var bvic: Dictionary = {}
-	# 目标承诺（2.5D a.target 的粘性）：上一夜目标仍活着就优先继续追，
-	# 不再每秒重选最近的人 —— 真人猎手不会因为别人更近就立刻换目标。
-	var prev_i := int(a.get("_tgtI", -1))
-	var prev: Dictionary = sim.agent(prev_i)
-	var have_prev := false
-	if not prev.is_empty() and bool(prev.get("alive", false)) \
-			and not bool(prev.get("downed", false)) and not bool(prev.get("alien", false)) \
-			and not (float(a.get("_avoid_t", 0.0)) > 0.0 and prev_i == int(a.get("_avoid_i", -1))):
-		have_prev = true
+	var fallback := -1
+	var fb := 1.0e9
+	var fpos := Vector2.ZERO
+	# 2.5D aiAlien 挑目标（js/game.js:3849-3896，2026-11-03 用户裁定「取消全图锁敌」）：
+	# 只有三档信息 ——
+	#   ① 现在看得见 → 用实时位置；
+	#   ② 看不见但**本夜亲眼见过** → 用最后目击位置，超过 HUNT.memorySec(25s) 跟丢；
+	#   ③ 完全没印象 → 不进候选（只能巡逻 / 钻管道 / 破坏）。
+	# 3D 之前直接遍历所有活人的实时坐标，等于给异形开全图挂；本批按真源收回。
+	var now: float = sim.night_len() - maxf(0.0, float(sim.t))
+	var stale: float = sim.rules.n("HUNT", "memorySec", 25.0)
 	for v: Dictionary in sim.agents:
 		if bool(v.get("alien", false)) or not bool(v.get("alive", false)):
 			continue
-		if float(a.get("_avoid_t", 0.0)) > 0.0 and int(v.get("i", -1)) == int(a.get("_avoid_i", -1)):
-			continue
-		if bool(v.get("downed", false)):
+		if bool(v.get("downed", false)) or bool(v.get("detained", false)):
 			continue
 		# B4 起玩家也能还手（左键出刀 / 右键开枪），所以这里不再对玩家留手。
 		# 保安机器人会抓现行：在它 6 格 + 180° 视野内动手，出刀就会被追。
+		var vi := int(v.get("i", -1))
 		var vp: Vector2 = v.get("pos", Vector2.ZERO)
-		# 2.5D HUNT：按目击风险挑落单的人，别无脑往人群里扎。
-		var near := 0
-		for w: Dictionary in sim.agents:
-			if w == v or bool(w.get("alien", false)) or not bool(w.get("alive", false)):
+		var seen_now: bool = sim.ai_can_see(a, vp)
+		var hpos := vp
+		if not seen_now:
+			# 2.5D ②：只看本夜 saw_agent 记忆，最后一条在 25 秒内才作数。
+			var mem: Array = ((a.get("why", {}) as Dictionary).get(vi, []) as Array)
+			var last: Dictionary = {}
+			for k in range(mem.size() - 1, -1, -1):
+				var e: Dictionary = mem[k]
+				if String(e.get("kind", "")) != "saw_agent":
+					continue
+				if int(e.get("night", -1)) != int(sim.night):
+					continue
+				if now - float(e.get("t", 0.0)) > stale:
+					continue
+				last = e
+				break
+			if last.is_empty():
 				continue
-			if bool(w.get("downed", false)) or bool(w.get("detained", false)):
+			hpos = Vector2(float(last.get("x", vp.x)), float(last.get("y", vp.y)))
+		# 2.5D aiAlien 评分（js/game.js:3868-3888）：
+		#   base = 距离 + 暴露度×knifeWatcherPenalty(a) + (队友已在追?8:0)
+		#          + (正在做事?knifeBusyBonus:0)
+		#   score = base × targetDistMul(hostileProb(a,v)) − HUMANISH.pull×humanT
+		# 暴露度按 watchersAt/exposureAt 同口径：亮区整片可见、做事的人看不见；
+		# 系数全部走 SKTrait.C / IDENTITY（rules.json），不在 GDScript 抄阈值。
+		var exp := _exposure_at(a, hpos, v if seen_now else {})
+		var mate_on := false
+		for m: Dictionary in sim.agents:
+			if m == a or not bool(m.get("alien", false)) or not bool(m.get("alive", false)):
 				continue
-			if float(w.get("doing", 0.0)) > 0.0:
-				continue
-			if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(vp) <= sim.rules.n("KNIFE", "crowdR", 9):
-				near += 1
-		var score: float = sim.distance_to(i, vp) + float(sim.rules.i("AVOID", "nearR", 6)) * float(near)
-		# 承诺中的目标获得距离当量折价（HUNT.memorySec 内不轻易换目标）
-		if have_prev and int(v.get("i", -1)) == prev_i:
-			score -= float(sim.rules.n("HUNT", "memorySec", 25.0)) * 0.2
+			if int(m.get("target", -1)) == vi and sim.mind != null \
+					and sim.mind._is_mate(a, int(m.get("i", -1))):
+				mate_on = true
+				break
+		var busy: bool = seen_now and float(v.get("doing", 0.0)) > 0.0
+		var base: float = sim.distance_to(i, hpos) \
+			+ exp * sim.mind.trait_c("knifeWatcherPenalty", a) \
+			+ (8.0 if mate_on else 0.0) \
+			+ (sim.mind.trait_c("knifeBusyBonus", a) if busy else 0.0)
+		var score: float = base * sim.mind.target_dist_mul(
+			sim.mind.hostile_prob(a, v))
+		# 他合过闸 → 在异形眼里更像对手（2.5D HUMANISH.pull，最多拉近 6 格）。
+		var hi: float = sim.mind.humanish_of(a, vi)
+		if hi > 0.0:
+			score -= sim.rules.n("HUMANISH", "pull", 6.0) * hi
+		# 2.5D _avoid：被晾过的目标只当兜底，不占正常候选。
+		if float(a.get("_avoid_t", 0.0)) > 0.0 and vi == int(a.get("_avoid_i", -1)):
+			if score < fb:
+				fb = score
+				fallback = vi
+				fpos = hpos
+			continue
 		if score < bd:
 			bd = score
-			best = int(v.get("i", -1))
-			bpos = vp
+			best = vi
+			bpos = hpos
 			bvic = v
+	if best < 0 and fallback >= 0:
+		best = fallback
+		bpos = fpos
+		bvic = sim.agent(fallback)
 	if best < 0:
 		_bump("no_target")
+		# 2.5D huntSpotFor（js/game.js:3616-3665）：没目标时也去“可能有人”的位置，
+		# 只给管道机动用，不进任何攻击判定。
+		var hunt := _hunt_spot(a)
+		if hunt != Vector2.INF:
+			var hd: float = sim.distance_to(i, hunt)
+			if _pipe_move(a, hunt, hd, 0.0):
+				a["_aiT"] = 1.0
+				a["target"] = -1
+				return
+		# 2.5D js/game.js:4151-4155：刀用完且没有目标 → 随机游荡；
+		# 有刀时原地等下一拍（真源同样不随机走动，避免"有刀还乱逛"）。
+		if int(a.get("knife", 0)) <= 0:
+			var rooms: Array = sim.map.get("rooms", []) as Array
+			if not rooms.is_empty():
+				var rr: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
+				var rc: Vector2 = sim.room_center(String(rr.get("id", "")))
+				sim.set_path(i, rc)
 		a["_aiT"] = 1.0
-		a["_tgtI"] = -1
+		a["target"] = -1
 		return
-	a["_tgtI"] = best
+	a["target"] = best
 	var real_d: float = sim.distance_to(i, bpos)
 	# 2.5D aiAlien 的开枪分支（js/game.js:3877）：异形有子弹也会开枪 ——
 	# 远距离/没刀时优先用枪，而不是永远只贴脸出刀。
 	# 条件：有弹 + 不是队友 + (没进刀程 或 没刀) + 枪程内 + LOS + alienFireP 概率。
 	if int(a.get("bullet", 0)) > 0 and real_d > SpaceData.num(space, "reach", "knife"):
 		var shoot_range: float = SpaceData.num(space, "shoot", "range")
+		var shot_cfg: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("SHOT", {}) as Dictionary
 		if real_d <= shoot_range and sim.ai_can_see(a, bpos):
 			var fire_p := 0.7
-			var shot_cfg: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("SHOT", {}) as Dictionary
 			fire_p = float(shot_cfg.get("alienFireP", 0.7))
 			if sim._rng.randf() < fire_p:
 				if sim.shoot(i, best):
 					_bump("shot_ok")
 					a["_aiT"] = 1.5
 					return
+		# 追猎（2.5D js/game.js:3877 chaseR）：枪程外但在追猎距离内 → 主动贴上去再开枪。
+		# 距离是**意愿**不是能力：有确证 chaseKnown(14)、只有嫌疑 chaseSus(10)，
+		# 与玩家同一个 SHOT.range 判定能不能打中。
+		var sure: bool = (a.get("known", {}) as Dictionary).has(best)
+		var chase_r: float = float(shot_cfg.get("chaseKnown", 14.0)) if sure \
+			else float(shot_cfg.get("chaseSus", 10.0))
+		if real_d > shoot_range and real_d < chase_r:
+			var tpos: Vector2 = sim.agent(best).get("pos", Vector2.ZERO)
+			if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+				sim.set_path(i, tpos)
+			a["_aiT"] = 0.3
+			return
 	if real_d <= SpaceData.num(space, "reach", "knife"):
+		# AI 预判（2.5D js/game.js:4146）：这一刀会不会被保安看见。
+		# 与 botTick 的判定同源（6m + 180° + 只看墙），看见就这一拍收手、2.5 秒后再来。
+		if sim.bots != null and sim.bots.would_see(a.get("pos", Vector2.ZERO)):
+			a["_avoid_t"] = 2.5
+			a["target"] = -1
+			a["path"] = PackedVector2Array()
+			return
 		# 2.5D 理智兜底（js/game.js 4108-4128 / SKSanity.KNIFE）：
 		# 先过三条与性格无关的硬线，过了才轮到性格冒险率。
 		# 数值全部读 sim.json#rules.KNIFE，不在 GDScript 里抄。

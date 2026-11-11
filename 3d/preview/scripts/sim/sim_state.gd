@@ -43,8 +43,17 @@ var speech
 var speech_enabled := false
 ## B6′：供电 / 拖尸 / 机器人 HP / 旁观
 var power_on := true
+## 2.5D G.lightState：0 常态 / 1 电路修好全亮 / 2 拉闸断电
+var light_state := 0
 var breaker_pulls := 0
 var spectator := false
+## 2.5D G.dev（js/game.js:671 toggleDev / 4238 / 4287 / 7675 / 8275）：
+## 调试用「无敌 + 全知」。只影响玩家本人受击/被驱逐，不改变 AI 判定与数值。
+## 全知属表现层，读 dev 的视图（main.gd / crew_view.gd / minimap.gd）自己实现。
+var dev := false
+## DEV 拦截记录：**不进 events**（事件流要和 2.5D 对账，调试信息不能污染它）。
+## 只给 DEV 面板与探针显示；条目超过 30 条丢最旧的。
+var dev_log: Array = []
 var bot_hp: Dictionary = {"secbot": 2, "medbot": 1}
 var terminator_on := false
 
@@ -66,6 +75,8 @@ var _track_t: float = 0.0
 var point_done: Dictionary = {}
 var dmg: Array = []
 var meeting: Dictionary = {}
+## 2.5D G.meetSeq：每场会议一个全局序号，结算页的投票矩阵按它分组。
+var meet_seq := 0
 var night_meets := 0
 var ai_enabled := true
 
@@ -143,8 +154,10 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	agents = []
 	dmg = []
 	meeting = {}
+	meet_seq = 0
 	night_meets = 0
 	power_on = true
+	light_state = 0
 	breaker_pulls = 0
 	bot_hp = {"secbot": 2, "medbot": 1}
 	terminator_on = false
@@ -237,6 +250,8 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"deathAt": 0.0,
 			"downedT": 0.0,
 			"downedBy": -1,
+			"downRoom": "",
+			"deathRoom": "",
 			"suspect": {},
 			"bodyReported": false,
 			"detained": false,
@@ -247,6 +262,7 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 			"aimAng": 0.0,
 			"hidden": false,
 			"bodyPos": spawn_pos,
+			"bodyMoved": false,
 		})
 
 	# S 轨：语料 / 认知 / 发言调度。lines.json 缺失时降级为"无发言"但不崩模拟。
@@ -677,15 +693,75 @@ func _start_night(inc: bool) -> void:
 	bot_hp = {"secbot": int(bc.get("hp_secbot", 2)), "medbot": int(bc.get("hp_medbot", 1))}
 	dmg = []
 	power_fixed = false
-	# 2.5D：天亮给每只异形补 1 把刀（不是时间冷却，是每夜额度），
-	# 同时重置「今晚破坏过没」—— 2.5D openSabPick 的 sabUsed 是每夜额度，不是全局。
+	# 2.5D startNight 的逐人复位（js/game.js:7800-7827）：只属于这一夜的状态清干净。
+	# 3D 原先只复位刀数与 sabUsed，其余（报告计划 / 藏尸冷却 / 伪装冷却 / 躲人计时 /
+	# 拖尸 / 红身 / 击杀加速 / 眩晕 / 假动作名额）都会跨夜残留。
 	for a: Dictionary in agents:
-		if bool(a.get("alive", false)):
-			a["knife"] = 1
-			a["sabUsed"] = false
+		_reset_agent_night(a)
 	check_terminator()
 	_log("dawn", {"night": night, "prog": prog})
 	check_win()
+
+
+## 逐人夜间复位。只清「当夜」字段；known / cred / trust / grudge / almost /
+## reliability 这些跨夜记忆由 mind.reset_night 处理，不在这里动。
+func _reset_agent_night(a: Dictionary) -> void:
+	a["knife"] = 1
+	a["sabUsed"] = false
+	a["path"] = PackedVector2Array()
+	a["pathI"] = 0
+	a["moving"] = false
+	a["doing"] = 0.0
+	a["_doing"] = ""
+	a["target"] = -1
+	a["_item"] = ""
+	a["detained"] = false
+	a["detainedT"] = 0.0
+	if bool(a.get("alive", false)):
+		a["reported"] = false
+	# 拖拽 / 红身 / 击杀加速 / 眩晕（2.5D: a.drag/draggedBy/redT/rushT/stunT 全清）
+	a["drag"] = -1
+	a["draggedBy"] = -1
+	a["redT"] = 0.0
+	a["rushT"] = 0.0
+	a["stunT"] = 0.0
+	# 报告 / 搜尸 / 藏尸 / 破坏 / 伪装 / 管道 / 躲人
+	a["_reportT"] = 0.0
+	a["_reportBody"] = -1
+	a["_reportMemo"] = {}
+	a["_alienReports"] = 0
+	a["_hideCD"] = 0.0
+	a["_hides"] = 0
+	a["_dragTo"] = ""
+	a["_botCD"] = 0.0
+	a["_pipeCD"] = 0.0
+	a["_pipePlan"] = {}
+	a["_pipeSeeks"] = 0
+	a["_fakeCD"] = 0.0
+	a["_fakeKind"] = ""
+	a["_sabDone"] = false
+	a["_sabT"] = 0.0
+	a["_sabNight"] = -1
+	a["_killAt"] = 0.0
+	a["_lightGo"] = false
+	a["_fleeT"] = 0.0
+	a["_aiT"] = 0.0
+	a["_rv"] = null
+	a["_lie"] = {}
+	a["_retract"] = null
+	a["_busTarget"] = -1
+	a["_stuckN"] = 0
+	a["_lastSaw"] = {}
+	a["_avoid_i"] = -1
+	a["_avoid_t"] = 0.0
+	a["_breakerWant"] = false
+	# 这个字段存的是**夜号的字符串**（ai_alien.gd:279 用 String() 比对），
+	# 置空串才会在新夜重掷；写成整数会让 String() 构造失败。
+	a["_breakerRollN"] = ""
+	a["accuse"] = -1
+	a["accuseWhy"] = {}
+	a["_abstain"] = false
+	a["detainSeen"] = {}
 
 
 ## 胜负口径与 2.5D checkWin 逐条一致：先看维修分，再看异形是否出局，最后看人类是否全灭。
@@ -714,6 +790,9 @@ func check_win() -> bool:
 func kill(agent_i: int, cause: String, by: int = -1) -> bool:
 	var a := agent(agent_i)
 	if a.is_empty() or not bool(a.get("alive", false)):
+		return false
+	if dev and not spectator and agent_i == me_idx:
+		_dev_note("DEV 无敌：死亡被拦截（%s）" % cause)
 		return false
 	a["alive"] = false
 	a["downed"] = false
@@ -744,6 +823,15 @@ func knife(killer_i: int, victim_i: int) -> bool:
 		return false
 	k["knife"] = int(k.get("knife", 0)) - 1
 	k["knifeUsed"] = int(k.get("knifeUsed", 0)) + 1
+	# 2.5D knife()（js/game.js:4230-4243）：先记危险行为、先扣刀，再进 DEV 免伤。
+	# 刀数照样消耗，否则 AI 对 DEV 玩家能无限连刀（2.5D 同一口径）。
+	k["redT"] = float((cfg.get("rules", {}) as Dictionary).get("RED_BODY", {}).get("dur", 1.5))
+	if dev and not spectator and victim_i == me_idx:
+		if bots != null:
+			bots.on_crime(killer_i, k.get("pos", Vector2.ZERO))
+		_dev_note("DEV 无敌：%s 的出刀没有生效" % String(k.get("name", "?")),
+			{"actor": killer_i, "victim": victim_i})
+		return false
 	if bool(v.get("downed", false)):
 		return die(v)
 	v["downed"] = true
@@ -751,6 +839,8 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	v["downedBy"] = killer_i
 	v["medTried"] = false
 	v["bodyPos"] = v.get("pos", Vector2.ZERO)
+	# 2.5D downRoom：倒地地点（结算身份表用；拖尸不会改它）
+	v["downRoom"] = room_at(v.get("pos", Vector2.ZERO))
 	v["deathCause"] = "knife"
 	v["killedBy"] = killer_i
 	# 目击者：7m 内、真实视线不被墙/掩体挡住的人记一笔"我看见他动手"。
@@ -759,7 +849,6 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	_broadcast_noise(v.get("pos", Vector2.ZERO), 16.0)
 	# 刀者红身（2.5D RED_BODY.dur=1.5）：刚出刀的人身上带红光，
 	# 1.5 秒内被看见 → saw_red（EV_W 最高权重 0.85）。
-	k["redT"] = float((cfg.get("rules", {}) as Dictionary).get("RED_BODY", {}).get("dur", 1.5))
 	_witness_action(k, "saw_red", k.get("pos", Vector2.ZERO))
 	_log("knife", {"actor": killer_i, "victim": victim_i, "cause": "knife"})
 	# RUSH 逃逸加速：绑"放倒"不绑致死（2.5D killRushStart，只给异形）
@@ -767,7 +856,8 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	# 2.5D knife():4211 —— 异形作案记账（当晚要编自己的假口供 _lie）
 	if bool(k.get("alien", false)):
 		k["_killAt"] = night_len() - maxf(0.0, float(t))
-	if bots != null:
+	# 2.5D js/game.js:4782：DEV 玩家作案时保安机器人「没有看见你」
+	if bots != null and not (dev and not spectator and killer_i == me_idx):
 		bots.on_crime(killer_i, k.get("pos", Vector2.ZERO))
 	return true
 
@@ -805,11 +895,19 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	if nav != null and not nav.los(kp, vp):
 		return false
 	k["bullet"] = int(k.get("bullet", 0)) - 1
+	# 2.5D fireShot()（js/game.js:8270-8282）：先扣子弹、先记危险行为，再进 DEV 免伤。
+	if dev and not spectator and target_i == me_idx:
+		if bots != null:
+			bots.on_crime(shooter_i, kp)
+		_dev_note("DEV 无敌：%s 的一枪没有生效" % String(k.get("name", "?")),
+			{"actor": shooter_i, "victim": target_i})
+		return false
 	v["downed"] = true
 	v["downedT"] = 12.0
 	v["downedBy"] = shooter_i
 	v["medTried"] = false
 	v["bodyPos"] = vp
+	v["downRoom"] = room_at(vp)
 	v["deathCause"] = "shot"
 	v["killedBy"] = shooter_i
 	# 2.5D fireShot：目击者按 noticeAction(7 格) 记 **saw_shot**（目击证据 0.55），
@@ -824,7 +922,7 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	_kill_rush_start(k)
 	if bool(k.get("alien", false)):
 		k["_killAt"] = night_len() - maxf(0.0, float(t))
-	if bots != null:
+	if bots != null and not (dev and not spectator and shooter_i == me_idx):
 		bots.on_crime(shooter_i, kp)
 	return true
 
@@ -860,10 +958,18 @@ func revive(agent_i: int, method: String = "manual", stun: float = 0.0) -> bool:
 func die(v: Dictionary) -> bool:
 	if v.is_empty() or not bool(v.get("alive", false)):
 		return false
+	# 2.5D die()（js/game.js:4287）：DEV 玩家的死亡被拦截（失血 / 处决 / 驱逐共用）。
+	if dev and not spectator and int(v.get("i", -1)) == me_idx:
+		_dev_note("DEV 无敌：死亡被拦截")
+		return false
 	v["alive"] = false
 	v["downed"] = false
 	v["deathAt"] = elapsed
 	v["bodyPos"] = v.get("pos", Vector2.ZERO)
+	# 2.5D deathRoom：优先用倒地房间；没有就按尸体位置补。
+	v["deathRoom"] = String(v.get("downRoom", ""))
+	if String(v.get("deathRoom", "")) == "":
+		v["deathRoom"] = room_at(v.get("bodyPos", Vector2.ZERO))
 	if String(v.get("deathCause", "")) == "":
 		v["deathCause"] = "bleed"
 	_log("kill", {"actor": int(v.get("i", -1)), "cause": String(v.get("deathCause", "")),
@@ -887,17 +993,17 @@ func _stat_by(group: String, key: String, n: int = 1) -> void:
 ##   · 亮舱室 → 房间最长边 × SIGHT.litRoomMul（整间可见）
 ##   · 亮走廊 → SIGHT.corrR（整条可见）
 ##   · 暗舱室 / 断电 → SIGHT.humanDarkR（近身圆）
-## 3D 用 power_on 近似 2.5D 的 lightState（常态 / 断电两态）。
+## 3D 用 light_state 对齐 2.5D 的三态（0 常态 / 1 全亮 / 2 断电）。
 func sight_range_at(p: Vector2) -> float:
 	var S: Dictionary = (cfg.get("rules", {}) as Dictionary).get("SIGHT", {}) as Dictionary
 	var dark_r := float(S.get("humanDarkR", 2.3))
-	if not power_on:
+	if light_state == 2:
 		return dark_r
 	var rid := room_at(p)
 	if rid == "":
 		return float(S.get("corrR", 12.0))
 	var r: Dictionary = rooms_by_id.get(rid, {}) as Dictionary
-	if String(r.get("light", "")) == "bright":
+	if light_state == 1 or String(r.get("light", "")) == "bright":
 		var rect: Array = r.get("rect", []) as Array
 		if rect.size() >= 4:
 			return maxf(float(rect[2]), float(rect[3])) * float(S.get("litRoomMul", 1.15))
@@ -1088,16 +1194,41 @@ func _track_pass() -> void:
 				w["_lastSaw"] = ls
 				var rid := room_at(ap)
 				mind.note_track(int(w.get("i", -1)), ai, ap, rid)
-			# 红身目击：刚出刀的人被看见
+			# 红身目击：刚出刀的人被看见。
+			# 2.5D trackNight:1352-1360：同一段红光 **5 秒内只写一次**证据
+			# （redSeen 闸门）。3D 原先每 0.5 秒写一次，1.5 秒红身会写 3 条
+			# saw_red（每条约 0.85 sus），证据被凭空放大 3 倍。
 			if float(a.get("redT", 0.0)) > 0.0:
-				if not bool(w.get("alien", false)):
-					mind.note_sight(int(w.get("i", -1)), ai, "saw_red", ap)
-				else:
-					# 2.5D trackNight:1322：红身只可能来自刚出的刀 ——
-					# 异形看见红身异形 = 认出队友（markMate）
-					var mates2: Dictionary = (w.get("mates", {}) as Dictionary).duplicate()
-					mates2[ai] = {"t": now, "kind": "saw_red"}
-					w["mates"] = mates2
+				var rs: Dictionary = w.get("redSeen", {}) as Dictionary
+				if now - float(rs.get(ai, -999.0)) > 5.0:
+					var rs2: Dictionary = rs.duplicate()
+					rs2[ai] = now
+					w["redSeen"] = rs2
+					if not bool(w.get("alien", false)):
+						mind.note_sight(int(w.get("i", -1)), ai, "saw_red", ap)
+					else:
+						# 2.5D trackNight:1322：红身只可能来自刚出的刀 ——
+						# 异形看见红身异形 = 认出队友（markMate）
+						var mates2: Dictionary = (w.get("mates", {}) as Dictionary).duplicate()
+						mates2[ai] = {"t": now, "kind": "saw_red"}
+						w["mates"] = mates2
+			# 2.5D trackNight:1325-1340「回避可观察」：被回避者（w）在 6 格内
+			# 看见「他躲我」→ saw_avoid 0.10，每夜每人只记一次。
+			# _avoidHuman 是**粘性**字段（2.5D 的 startNight 也不清它）。
+			if int(w.get("_avoidHuman", -1)) == ai:
+				var wi := int(w.get("i", -1))
+				# 记账在**观察者**身上（2.5D a.mind.avoidSeen[w.i]）：a 看见 w 在躲自己。
+				var av: Dictionary = a.get("avoidSeen", {}) as Dictionary
+				if int(av.get(wi, -1)) != int(night):
+					if wp.distance_to(ap) <= rules.n("AVOID", "nearR", 6.0):
+						var av2: Dictionary = av.duplicate()
+						av2[wi] = int(night)
+						a["avoidSeen"] = av2
+						mind.sus_add(a, wi, rules.n("AVOID", "sus", 0.10),
+							"他刚才在躲我",
+							{"kind": "saw_avoid", "src": "sight",
+								"night": int(night)})
+						_stat("avoidSus", 1)
 
 
 ## 破坏：登记一处 30 秒故障；到点未修则全船进度 -faultPenalty。
@@ -1250,6 +1381,15 @@ func open_meeting_kind(kind: String, reporter_i: int, victim_i: int) -> bool:
 		a["path"] = PackedVector2Array()
 		a["pathI"] = 0
 		a["moving"] = false
+	# 2.5D openMeeting：案发地点按**尸体 / 濒死者当前身体位置**算（清场前），
+	# 会议信息行要显示「报告地点」；走廊与未知区域分开标（js/game.js:6908-6911）。
+	var meet_room := ""
+	var meet_in_corr := false
+	if not v.is_empty():
+		var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+		meet_room = room_at(bp)
+		if meet_room == "" and nav != null and nav.corridor_at(bp) != null:
+			meet_in_corr = true
 	if kind == MEET_NIGHT and not v.is_empty():
 		v["bodyReported"] = true
 		v["bodyGone"] = true
@@ -1266,18 +1406,76 @@ func open_meeting_kind(kind: String, reporter_i: int, victim_i: int) -> bool:
 			discuss_sec = float(meet_cfg.get("discussNight", 35.0))
 			vote_sec = float(meet_cfg.get("voteNight", 5.0))
 	var reveal_sec := float(meet_cfg.get("reveal", 3.0))
+	meet_seq += 1
 	meeting = {
 		"kind": kind, "phase": "discuss", "t": discuss_sec,
 		"vote_sec": vote_sec, "reveal_sec": reveal_sec,
 		"reporter": reporter_i, "victim": victim_i, "votes": {}, "result": {},
+		"room": meet_room, "in_corr": meet_in_corr, "seq": meet_seq,
 		"discuss_sec": discuss_sec,
+		# 带头追责（2.5D ctx.lead，js/game.js:5181/5252/5294/5321）：
+		# 目标 → **第一个带节奏的席位**。3D 之前从不写这张表，
+		# 结算时 settle_accountability 只能退回「第一个投票的人」，追责打错人。
+		"lead": {},
 	}
 	_log("meeting", {"mkind": kind, "reporter": reporter_i, "victim": victim_i})
 	if kind == MEET_NIGHT:
 		_log("report", {"actor": reporter_i, "victim": victim_i})
+		_quick_report_sus(reporter_i, victim_i)
 	if speech_enabled and speech != null:
 		speech.on_meeting_open(reporter_i, victim_i, kind)
+	# 手里有确证 / 准-确证的人，会议一开始就把票压上（2.5D castEarlyVotes）。
+	if speech_enabled and mind != null:
+		cast_early_votes()
 	return true
+
+
+## 报案太快（2.5D js/game.js:5030-5041）：夜会、死者刚倒下 ≤10 秒时，
+## **先看见过这具尸体**的人类会怀疑报案人「是不是他干的」。
+## 权重 0.24，reason/kind 都是 quick_report；不写 known。
+func _quick_report_sus(reporter_i: int, victim_i: int) -> void:
+	if mind == null or reporter_i < 0 or victim_i < 0:
+		return
+	var reporter := agent(reporter_i)
+	var victim := agent(victim_i)
+	if reporter.is_empty() or victim.is_empty():
+		return
+	if not bool(reporter.get("alive", false)):
+		return
+	var t_death := float(victim.get("downAt", victim.get("deathAt", 0.0)))
+	var age := maxf(0.0, elapsed - t_death)
+	if age > 10.0:
+		return
+	for w: Dictionary in agents:
+		if int(w.get("i", -1)) == reporter_i or bool(w.get("alien", false)) \
+				or not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		if not (w.get("bodySeen", {}) as Dictionary).has(victim_i):
+			continue
+		mind.sus_add(w, reporter_i, 0.24, "quick_report",
+			{"kind": "quick_report", "src": "vote"})
+
+
+## 尸体观察（2.5D observeBody）：看见尸体的人类记一条「见过」。
+func note_body(witness_i: int, victim_i: int) -> void:
+	if mind == null or witness_i < 0 or victim_i < 0 or witness_i == victim_i:
+		return
+	var w := agent(witness_i)
+	var v := agent(victim_i)
+	if w.is_empty() or v.is_empty() or bool(v.get("alive", false)):
+		return
+	mind.note_body_seen(w, victim_i)
+
+
+## 带头追责登记（2.5D ctx.lead）：只记**第一个**带节奏的人，后来的不覆盖。
+func note_accuse(accuser_i: int, target_i: int) -> void:
+	if meeting.is_empty() or accuser_i < 0 or target_i < 0 or accuser_i == target_i:
+		return
+	var lead: Dictionary = (meeting.get("lead", {}) as Dictionary)
+	if lead.has(target_i):
+		return
+	lead[target_i] = accuser_i
+	meeting["lead"] = lead
 
 
 ## 夜晚会议入口（保留旧签名，供 main.gd 与 ai_human.gd 调用）。
@@ -1337,8 +1535,33 @@ func skip_discussion() -> bool:
 	return true
 
 
-func cast_vote(voter_i: int, target_i: int) -> void:
+## 「跳过投票」（2.5D #m-skip-vote，js/game.js:10898-10903）：
+## 只结束剩余投票时间；**已经投给谁就保留那一票**，没投才记弃权（-1）。
+## 不修改任何 AI 票，也不是第二种票。仅可行动者（活着且未濒死）能用。
+func skip_vote() -> bool:
 	if meeting.is_empty() or String(meeting.get("phase", "")) != "vote":
+		return false
+	if spectator:
+		return false
+	var me := agent(me_idx)
+	if me.is_empty() or not bool(me.get("alive", false)) or bool(me.get("downed", false)):
+		return false
+	var votes: Dictionary = meeting.get("votes", {})
+	if not votes.has(me_idx):
+		votes[me_idx] = -1
+		meeting["votes"] = votes
+	_close_meeting()
+	return true
+
+
+func cast_vote(voter_i: int, target_i: int) -> void:
+	# 2.5D 2026-11-05 用户裁定：**讨论阶段就可以投，投票结束前都可以改**
+	# （js/game.js:7436-7439）。m.votes 从会议开始就存在，只有 closeVote 才结算，
+	# 所以早投不会提前锁定。3D 原先只在 vote 相位收票，等于没有「听完再改票」。
+	if meeting.is_empty():
+		return
+	var phase := String(meeting.get("phase", ""))
+	if phase != "vote" and phase != "discuss":
 		return
 	var v := agent(voter_i)
 	if v.is_empty() or not bool(v.get("alive", false)) or bool(v.get("downed", false)):
@@ -1357,9 +1580,10 @@ func cast_vote(voter_i: int, target_i: int) -> void:
 	# 3D 此前把 `votes.has(voter_i)` 写在赋值之后，恒为 true —— 每一票都被记成改票；
 	# 第七批按真源修正。讨论期陆续投 + 跟票的完整时序仍是已知缺口，见 PORT-DIFF-AUDIT.md。
 	if had_vote and prev_vote != tgt:
-		_log("vote_change", {"actor": voter_i, "from": prev_vote, "target": tgt})
-	else:
-		_log("vote", {"actor": voter_i, "target": tgt})
+		# 2.5D logEvent('vote_change')（js/game.js:7398）只在**真的改票**时记，并带 from。
+		# 首投不在这里记：终票由 _close_meeting 统一按 seq 落账（js/game.js:7669-7672）。
+		_log("vote_change", {"actor": voter_i, "from": prev_vote, "target": tgt,
+			"seq": int(meeting.get("seq", 0))})
 
 
 ## 本场会议里该角色公开点过名的目标（2.5D：「说了却不投等于打自己脸」）。
@@ -1397,6 +1621,15 @@ func _ai_vote_target(a: Dictionary) -> int:
 		pool.append(int(t.get("i", -1)))
 	if pool.is_empty():
 		return -1
+	# 2.5D 情绪先于从众（js/game.js:7487-7499）：被当众咬狠了（grudge≥0.6），
+	# 激进的人大概率把票砸回去。只读自己的 grudge，不读对方内心。
+	if speech_enabled and mind != null:
+		var emo: Dictionary = mind.best_grudge(a)
+		var ei := int(emo.get("i", -1))
+		if ei >= 0 and pool.has(ei) and float(emo.get("score", 0.0)) >= 0.6 \
+				and _rng.randf() < mind.trait_c("voteGrudgePull", a) / 10.0:
+			_stat("grudgeVotes", 1)
+			return ei
 	if bool(a.get("alien", false)):
 		# 2.5D startVote 异形分支（js/game.js:7409 起）：
 		# ① 票跟公开口供一致（构陷/反咬/大义灭亲都写 accuse —— 嘴上说是 A、票上写 B 会穿帮）
@@ -1428,21 +1661,28 @@ func _ai_vote_target(a: Dictionary) -> int:
 				return int(k)
 		# 2.5D 票权层级：确证 → 准-确证 / 公开指认 → 明确 suspect → 假说竞争弃权。
 		var am: Dictionary = mind.best_almost_target(a)
-		if not am.is_empty() and pool.has(int(am.get("i", -1))):
+		if not am.is_empty() and pool.has(int(am.get("i", -1))) \
+				and not mind.is_patron(a, int(am.get("i", -1))):
 			return int(am.get("i", -1))
 		var pub_target := int(a.get("accuse", -1))
 		if pub_target < 0:
 			pub_target = _public_accuse_target(a)
-		if pub_target >= 0 and pool.has(pub_target):
+		if pub_target >= 0 and pool.has(pub_target) \
+				and not mind.is_patron(a, pub_target):
 			return pub_target
 		# 2.5D bestSusTarget：综合嫌疑（a.sus），不再读 3D 自造的 suspect 计数字典
 		var bs: Dictionary = mind.best_sus_target(a, rule_f("ALMOST", "foeSus"))
-		if not bs.is_empty() and pool.has(int(bs.get("i", -1))):
+		if not bs.is_empty() and pool.has(int(bs.get("i", -1))) \
+				and not mind.is_patron(a, int(bs.get("i", -1))):
 			return int(bs.get("i", -1))
 		var scores: Array = []
 		for i: int in pool:
+			if mind.is_patron(a, i):
+				continue
 			scores.append({"i": i, "s": mind.vote_score(a, i)})
 		scores.sort_custom(func(x, y): return float(x["s"]) > float(y["s"]))
+		if scores.is_empty():
+			return -1
 		var top_s := float(scores[0]["s"])
 		var second_s := -1.0e9
 		if scores.size() > 1:
@@ -1467,17 +1707,156 @@ func _ai_vote_target(a: Dictionary) -> int:
 	return int(pool[_rng.randi_range(0, pool.size() - 1)])
 
 
-## 2.5D 投票是"讨论期陆续投 + 跟票"，3D 在进 vote 相位时一次结算。
+## 2.5D voteLean（js/game.js:7239）：会前先投谁 + 这条依据有多硬（s）。
+## s ≥ 2 才允许「讨论期先投」；s == 3 是确信，之后不再松绑（改票闸读 why == known）。
+## 3D 没有 a.suspect 这个字段（第七批已删），所以真源里的 suspect 档在这里不存在。
+func vote_lean(a: Dictionary) -> Dictionary:
+	if mind == null:
+		return {"v": -1, "s": 0.0, "why": "none"}
+	var kn: Dictionary = mind.best_known_target(a)
+	if not kn.is_empty():
+		return {"v": int(kn.get("i", -1)), "s": 3.0, "why": "known"}
+	var af: Dictionary = mind.best_almost_target(a)
+	if not af.is_empty():
+		var afi := int(af.get("i", -1))
+		if afi >= 0 and not (bool(a.get("alien", false)) and _is_mate(a, afi)):
+			return {"v": afi, "s": 2.5, "why": "almost"}
+	var spread: Dictionary = mind.hypothesis_spread(a)
+	if bool(spread.get("competing", false)):
+		return {"v": -1, "s": 0.0, "why": "competing"}
+	var bs: Dictionary = mind.best_sus_target(a, 0.55)
+	if not bs.is_empty():
+		return {"v": int(bs.get("i", -1)), "s": 1.0, "why": "sus"}
+	return {"v": -1, "s": 0.0, "why": "none"}
+
+
+## 手里有确证 / 准-确证的人，会议一开始就把票压上（js/game.js:6967）。
+## 这是「可改票」的另一半：先投，才有「听完改票」这回事。
+func cast_early_votes() -> int:
+	if meeting.is_empty() or float(meeting.get("vote_sec", 0.0)) <= 0.0:
+		return 0
+	var meta: Dictionary = (meeting.get("voteMeta", {}) as Dictionary).duplicate()
+	var n := 0
+	for a: Dictionary in agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		if int(a.get("i", -1)) == me_idx and not spectator:
+			continue
+		var lean := vote_lean(a)
+		if float(lean.get("s", 0.0)) < 2.0:
+			continue
+		var vi := int(a.get("i", -1))
+		cast_vote(vi, int(lean.get("v", -1)))
+		meta[vi] = {"v": int(lean.get("v", -1)), "s": float(lean.get("s", 0.0)),
+			"why": String(lean.get("why", "")), "chg": 0, "early": 1,
+			"rev": int(a.get("rev", 0)), "t": float(meeting.get("t", 0.0))}
+		n += 1
+	meeting["voteMeta"] = meta
+	meeting["earlyVotes"] = n
+	_stat("earlyVotes", n)
+	return n
+
+
+## 公共声势：**已经说出口**的指控分量（封顶 0.30，js/game.js:7351）。
+## 真人改票很少因为嫌疑分动了 0.02，而是「三个人都这么说」。
+func vote_pressure(a: Dictionary, tgt: int) -> float:
+	if tgt < 0 or mind == null:
+		return 0.0
+	var p := 0.0
+	for w: Dictionary in agents:
+		if int(w.get("i", -1)) == int(a.get("i", -1)):
+			continue
+		if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		if _public_accuse_target(w) != tgt:
+			continue
+		p += 0.10 * clampf(mind.cred_of(a, int(w.get("i", -1))), 0.5, 1.0)
+	return minf(0.30, p)
+
+
+## 改票时的目标选择：自己的嫌疑 + 已经说出口的公开声势（js/game.js:7367）。
+func best_vote_target(a: Dictionary) -> Dictionary:
+	var best := -1
+	var bs := -1.0
+	for t: Dictionary in agents:
+		var ti := int(t.get("i", -1))
+		if ti == int(a.get("i", -1)):
+			continue
+		if not bool(t.get("alive", false)) or bool(t.get("downed", false)):
+			continue
+		if bool(a.get("alien", false)) and _is_mate(a, ti):
+			continue
+		var s: float = mind.sus_of(a, ti) + vote_pressure(a, ti)
+		if s > bs:
+			bs = s
+			best = ti
+	if best < 0:
+		return {"v": -1, "s": 0.0, "why": "none"}
+	return {"v": best, "s": bs, "why": "score"}
+
+
+## 听进新证词后改票（js/game.js:7411）：确信不松绑；公开声势要盖过原判断 0.10，
+## 再按「我对说话人有多信」掷一次（0.35 + 0.34 × cred）。
+func reconsider_votes(by_id: int) -> int:
+	if meeting.is_empty() or String(meeting.get("phase", "")) != "discuss":
+		return 0
+	if mind == null or not meeting.has("voteMeta"):
+		return 0
+	var meta: Dictionary = (meeting.get("voteMeta", {}) as Dictionary).duplicate()
+	var sp := agent(by_id)
+	var changed := 0
+	for a: Dictionary in agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		var vi := int(a.get("i", -1))
+		if vi == me_idx and not spectator:
+			continue
+		if not meta.has(vi):
+			continue
+		var mm: Dictionary = meta[vi]
+		if String(mm.get("why", "")) == "known":
+			continue
+		var lean := best_vote_target(a)
+		var lv := int(lean.get("v", -1))
+		if lv < 0 or lv == int(mm.get("v", -1)):
+			continue
+		var now := float(lean.get("s", 0.0))
+		var old_v := int(mm.get("v", -1))
+		var old: float = (mind.sus_of(a, old_v) + vote_pressure(a, old_v)) if old_v >= 0 else 0.0
+		if now <= old + 0.10:
+			continue
+		var cred: float = float(mind.cred_of(a, by_id)) if not sp.is_empty() else 0.5
+		if _rng.randf() > 0.35 + 0.34 * clampf(cred, 0.0, 1.0):
+			continue
+		cast_vote(vi, lv)
+		meta[vi] = {"v": lv, "s": now, "why": String(lean.get("why", "")),
+			"chg": int(mm.get("chg", 0)) + 1, "early": mm.get("early", 0),
+			"rev": int(a.get("rev", 0)), "t": float(meeting.get("t", 0.0))}
+		changed += 1
+		_stat("voteChanges", 1)
+	meeting["voteMeta"] = meta
+	return changed
+
+
+## 2.5D 投票是"讨论期陆续投 + 跟票"，3D 原先只在进 vote 相位时一次结算。
 ## 分两轮：先各自独立形成意向，再让无主张者按 WARM.followChance 跟领先者、
 ## 异形按 SOCIAL.pileOn 顺势踩一脚，最后才真正落票。这样票能形成 4 票集中，
 ## 同时保留"跟错票"造成的误逐（2.5D 误逐率约 20%，是平衡阀之一）。
 func _cast_ai_votes() -> void:
 	var intents: Dictionary = {}
 	var tally: Dictionary = {}
+	var meta0: Dictionary = (meeting.get("voteMeta", {}) as Dictionary)
 	for a: Dictionary in agents:
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
 			continue
 		if int(a.get("i", -1)) == me_idx and not spectator:
+			continue
+		# 早投且之后信念没动过（mind.rev 未变）→ 保留那一票，不重新猜
+		# （js/game.js:7539-7542 earlyKept）。
+		var mm0: Dictionary = (meta0.get(int(a.get("i", -1)), {}) as Dictionary)
+		if not mm0.is_empty() and int(mm0.get("early", 0)) == 1 \
+				and int(mm0.get("rev", 0)) == int(a.get("rev", 0)):
+			_stat("earlyKept", 1)
 			continue
 		var v := _ai_vote_target(a)
 		intents[int(a.get("i", -1))] = v
@@ -1549,9 +1928,9 @@ func _tick_meeting(dt: float) -> void:
 		# 讨论结束才开票：AI 在开场投票会造成"还没讨论就已经投完"的假象
 		meeting["phase"] = "vote"
 		meeting["t"] = float(meeting.get("vote_sec", 5.0))
-		# 玩家在讨论期说"我投 X"只是意向，进投票相位时自动落票
-		if meeting.has("player_intent"):
-			cast_vote(me_idx, int(meeting.get("player_intent", -1)))
+		# 2.5D 里玩家说"我投 X"只是**公开意向**（m.ctx.playerVote，js/game.js:6566），
+		# 不会替他落票；真正落票只有点席位按钮这一条路。3D 原先在这里自动 caste，
+		# 等于多了一条 2.5D 没有的机制，本批按真源去掉。
 		_cast_ai_votes()
 	elif phase == "vote":
 		_close_meeting()
@@ -1581,6 +1960,11 @@ func _after_meeting(kind: String) -> void:
 
 func _close_meeting() -> void:
 	var votes: Dictionary = meeting.get("votes", {})
+	# 2.5D closeVote（js/game.js:7669-7672）：**终票**在这里逐人落事件，带会议 seq；
+	# 结算页的「谁投了谁」就按这个分组。中途改票另走 vote_change。
+	var mseq := int(meeting.get("seq", 0))
+	for vk: int in votes.keys():
+		_log("vote", {"actor": vk, "target": int(votes[vk]), "seq": mseq})
 	var tally: Dictionary = {}
 	for k: int in votes.keys():
 		var tgt := int(votes[k])
@@ -1609,7 +1993,12 @@ func _close_meeting() -> void:
 	if voters <= int(vcfg.get("lateAt", 7)):
 		need = int(vcfg.get("lateNeed", 3))
 	var ejected_ok: bool = top >= 0 and tn >= need and not tie
-	if ejected_ok:
+	# 2.5D closeVote（js/game.js:7673-7679）：DEV 玩家被投出去时「驱逐无效」，
+	# 结果里带 devSaved，结算页/会议结果必须写明，不能假装无人出局。
+	var dev_saved: bool = ejected_ok and dev and not spectator and top == me_idx
+	if dev_saved:
+		_dev_note("DEV 无敌：驱逐无效（%d 票）" % tn)
+	if ejected_ok and not dev_saved:
 		var t := agent(top)
 		if not t.is_empty():
 			t["alive"] = false
@@ -1621,15 +2010,17 @@ func _close_meeting() -> void:
 			# 追责：结果公布后清算带节奏的人（必须在身份已定之后）
 			# 2.5D settleAccountability（js/game.js:1529）。
 			if speech_enabled and mind != null:
-				var lead := int(meeting.get("lead", -1))
+				var lead_map: Dictionary = (meeting.get("lead", {}) as Dictionary)
+				var lead := int(lead_map.get(top, -1))
 				mind.settle_accountability(top, votes, lead)
 	var matrix: Dictionary = (meeting.get("votes", {}) as Dictionary).duplicate()
 	meeting["result"] = {
-		"ejected": (top if ejected_ok else -1),
+		"ejected": (top if ejected_ok and not dev_saved else -1),
 		"name": (agent(top).get("name", "") if ejected_ok else ""),
 		"alien": (bool(agent(top).get("alien", false)) if ejected_ok else false),
 		"votes": tally.duplicate(), "matrix": matrix,
 		"need": need, "max": tn, "tie": tie, "voters": voters,
+		"devSaved": dev_saved,
 	}
 	meeting["phase"] = "result"
 	meeting["t"] = float(meeting.get("reveal_sec", 3.0))
@@ -1671,6 +2062,9 @@ func start_drag(agent_i: int, body_i: int) -> bool:
 	# 2.5D bodyPos()：濒死者用当前坐标当身体位置，拖行时由 tick_agents 同步。
 	if bool(b.get("downed", false)):
 		b["bodyPos"] = b.get("pos", Vector2.ZERO)
+	# 2.5D startDrag：记下拖行起点，松手时移动 >1.2 格才置 bodyMoved
+	# （js/game.js:2438-2440：现场被布置过才算"尸体被移动"）。
+	b["_dragFrom"] = b.get("bodyPos", b.get("pos", Vector2.ZERO))
 	a["path"] = PackedVector2Array()
 	_log("drag_start", {"actor": agent_i, "victim": body_i, "downed": bool(b.get("downed", false))})
 	return true
@@ -1685,6 +2079,12 @@ func release_drag(agent_i: int) -> bool:
 	a["drag"] = -1
 	if not b.is_empty():
 		b["draggedBy"] = null
+		# 2.5D releaseDrag（js/game.js:2438）：拖行距离 >1.2 格 → bodyMoved。
+		var from: Variant = b.get("_dragFrom", null)
+		if from != null:
+			var moved: float = (b.get("bodyPos", Vector2.ZERO) as Vector2).distance_to(from as Vector2)
+			if moved > 1.2:
+				b["bodyMoved"] = true
 		var rid: String = room_at(b.get("bodyPos", Vector2.ZERO))
 		# 拖到医疗间：濒死者被救起（2.5D dragToMed）
 		if rid == "med" and bool(b.get("downed", false)):
@@ -1736,12 +2136,56 @@ func hit_bot(shooter_i: int, kind: String) -> bool:
 
 
 ## ---- B6′：供电（breaker）----
+## 三态灯（2.5D refreshLight，js/game.js:678-690）：
+##   0 常态（只亮 light==bright 的舱）· 1 电路修好（全舱全亮）· 2 拉闸（只剩会议室）。
+## power_on 只是"没断电"的派生值，判定一律读 light_state。
 func toggle_power(by: int) -> bool:
-	power_on = not power_on
-	if not power_on:
+	var was_off: bool = light_state == 2
+	light_state = (1 if power_fixed else 0) if was_off else 2
+	power_on = light_state != 2
+	# 本夜拉闸次数只在**真正拉黑**那一次 +1（站桩被打断不消耗名额）
+	if not was_off and light_state == 2:
 		breaker_pulls += 1
-	_log("breaker", {"actor": by, "on": power_on, "pulls": breaker_pulls})
+	_log("breaker", {"actor": by, "on": light_state != 2, "state": light_state,
+		"pulls": breaker_pulls})
+	var br := breaker_pos()
+	# 证据链两种语义相反（2.5D noticeAction + credBroadcast）：
+	#   拉闸断电 = 身份级，目击者写 known；合闸复电 = 正向信任，只给 cred，不洗清任何人。
+	if mind != null and br != Vector2.ZERO:
+		if light_state == 2:
+			for w: Dictionary in agents:
+				var wi := int(w.get("i", -1))
+				if wi == by or not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+					continue
+				if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(br) <= 6.0 \
+						and ai_can_see(w, br):
+					mind.note_sight(wi, by, "saw_breaker", br)
+		else:
+			mind.cred_broadcast(by, "breakerOn", br)
+			# 2.5D noticeAction breakerOn（js/game.js:1969-1977）：异形目击合闸
+			# → humanT +0.28。只是「这人更像对手」的倾向，不写 known/mates；
+			# 已认出的队友不加（合闸伪装不该反噬队友）。
+			for w: Dictionary in agents:
+				var wi := int(w.get("i", -1))
+				if wi == by or not bool(w.get("alien", false)) \
+						or not bool(w.get("alive", false)) or bool(w.get("downed", false)) \
+						or bool(w.get("detained", false)):
+					continue
+				if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(br) > 6.0:
+					continue
+				if not ai_can_see(w, br):
+					continue
+				if mind._is_mate(w, by):
+					continue
+				mind.humanish_add(w, by, rules.n("HUMANISH", "onSight", 0.28))
 	return true
+
+
+## 站桩秒数（2.5D breakerPullTime）：断电 → 合闸时间；供电 → 本夜第 n 次的拉闸时间。
+func breaker_pull_time() -> float:
+	if light_state == 2:
+		return breaker_on_time()
+	return minf(9.0, 3.0 * float(maxi(0, breaker_pulls) + 1))
 
 
 ## 电闸设施坐标（map_v2.facility kind=breaker，2.5D M.facility 同源）
@@ -1837,6 +2281,17 @@ func _end(win: bool, why: String) -> void:
 ##   {kind, night, pt(已过秒), t(本夜剩余秒), actor, victim, room, x, y} + 业务字段。
 ## 注意 2.5D 的 Object.assign 顺序：data 可以覆盖信封字段（meeting 事件就被 data.kind
 ## 覆盖成 pre/day/night）。3D 端不要复制这个坑；B5 用 meeting + mkind，diff 时做映射。
+## DEV 面板/探针专用记录（不写进 events；见 dev_log 声明处）。
+func _dev_note(text: String, data: Dictionary = {}) -> void:
+	var e := data.duplicate()
+	e["text"] = text
+	e["night"] = night
+	e["pt"] = snappedf(elapsed, 0.01)
+	dev_log.append(e)
+	if dev_log.size() > 30:
+		dev_log.pop_front()
+
+
 func _log(kind: String, data: Dictionary) -> void:
 	var e: Dictionary = {
 		"kind": kind,

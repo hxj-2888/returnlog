@@ -14,9 +14,12 @@ const SimStateScript := preload("res://scripts/sim/sim_state.gd")
 const CrewViewScript := preload("res://scripts/sim/crew_view.gd")
 const HomeViewScript := preload("res://scripts/home_view.gd")
 const UiPanelsScript := preload("res://scripts/ui_panels.gd")
+const MinimapScript := preload("res://scripts/minimap.gd")
+const MinigameData := preload("res://scripts/minigame/mg_data.gd")
 const AudioScript := preload("res://scripts/audio.gd")
 
-const KINDS := ["wire", "place", "lever", "sync", "pour", "swap", "align", "aim", "match", "level"]
+const KINDS := ["wire", "place", "lever", "sync", "pour", "swap", "align", "aim",
+	"match", "level", "sequence", "sort", "valve", "code"]
 
 var builder
 var player: CharacterBody3D
@@ -43,6 +46,13 @@ var alive_label: Label
 var feed_label: Label
 var end_panel: ColorRect
 var end_label: Label
+## 结算页（2.5D #end）：只在 sim.over 时显示，身份表 + 谁投了谁。
+var settle_panel: ColorRect
+var settle_title: Label
+var settle_sub: Label
+var settle_stats: Label
+var settle_ids: RichTextLabel
+var settle_votes: RichTextLabel
 var _sim_hud_timer: float = 0.0
 var _player_dead := false
 var _down_toast := false
@@ -50,14 +60,25 @@ var hud_layer: CanvasLayer
 var meeting_panel: ColorRect
 var meeting_title: Label
 var meeting_time: Label
+var meeting_info: Label
 var meeting_list: VBoxContainer
+var meeting_list_scroll: ScrollContainer
 var meeting_buttons: Dictionary = {}
+var meeting_abstain: Button
 var meeting_hint: Label
 var meeting_result: Label
 var meeting_skip: Button
+var meeting_skip_vote: Button
 var meeting_feed: RichTextLabel
+var meeting_new_btn: Button
 var meeting_input: LineEdit
 var meeting_send: Button
+var meeting_tpl: VBoxContainer
+var meeting_tpl_target: OptionButton
+var meeting_tpl_room: OptionButton
+var _meeting_feed_start := 0
+var _meeting_feed_synced := 0
+var _meeting_unread := 0
 var _meeting_open := false
 ## 门禁用：devicetest / e2e 要打开任意设备，不受“只做自己的任务”限制。
 var _sim_gate := true
@@ -72,9 +93,7 @@ var pipe_buttons: VBoxContainer
 var pipe_hint: Label
 var _pipe_open := false
 
-## ---- 供电（对应 2.5D 的 G.lightState；3D 侧只有"有电/断电"两态）----
 var power_on := true
-var _breaker_pulls := 0          # 2.5D 每夜重置；3D 没有夜循环，这里单调累加（只会更保守）
 
 ## ---- 站桩（对应 2.5D 的 _doing + doing 计时；一移动就打断）----
 var station: Dictionary = {}
@@ -89,7 +108,26 @@ var role := "alien"
 ## 开始页：只有「无门禁参数」的正常游玩才显示；门禁/截图一律直接进对局。
 var home
 var started := true
+## 用户按 Esc 主动释放鼠标：`_refresh_mouse_mode()` 每帧都会跑，如果只把
+## mouse_mode 设成 VISIBLE、不记这个状态，下一帧就会被重新 CAPTURED —— 表现
+## 就是「鼠标被框在窗口里、怎么都放不出去」。点击画面收回鼠标时清零。
+var mouse_released := false
 var _cur_seed := 20261108
+## --mgtest / --devicetest 的判定结果；让自测失败时退出码非 0
+## （旧夹具恒打印失败读数却 exit 0）。
+var _mgtest_ok := false
+var _devicetest_ok := false
+var _leadtest_ok := false
+var _uitest_ok := false
+var _meetuitest_ok := false
+var _aiporttest_ok := false
+var _mousetest_ok := false
+var _settletest_ok := false
+var _minimaptest_ok := false
+var _socialtest_ok := false
+var _knifetest_ok := false
+var _specttest_ok := false
+var _ceil_hidden := false
 var ui_panels
 ## 信息面板：2.5D 的 #b（尸检 / 伤情记录卡）与 #cam（全船监控）在 3D 的 Control 版。
 ## 只呈现信息，不参与判定；画法属允许的美术差异，字段口径照抄 2.5D。
@@ -101,13 +139,41 @@ var spectator_mode := false
 var audio
 var _last_event_n := 0
 
+## ---- DEV（2.5D F2，js/game.js:594-676）：全知卡片栏 + 无敌开关 ----
+## 开关状态放在 sim.dev（判定层要读），这里只做表现与探针记录。
+var dev_layer: CanvasLayer
+var dev_panel: PanelContainer
+var dev_title: Label
+var dev_sub: Label
+var dev_rows: VBoxContainer
+var dev_stats: Label
+var dev_probe: Label
+var _dev_row_labels: Array = []
+var _dev_timer := 0.0
+var _dev_log_n := 0
+## 玩家探针：最近 8 条「按了什么 / 交互项 / 结果」，DEV 面板底部实时显示。
+var _probe_lines: Array = []
+var _probetest_ok := false
+
 var room_label: Label
 var fps_label: Label
 var prompt_label: Label
 var power_label: Label
 var toast_label: Label
+var report_label: Label
+var minimap
 var _hud_timer: float = 0.0
 var _toast_t: float = 0.0
+
+
+func _notification(what: int) -> void:
+	# CAPTURED 会把光标裁在游戏窗口里：切去截图工具 / 别的窗口时必须自动释放，
+	# 否则用户在截图工具里根本拖不出选区（现场反馈「鼠标被框在游戏栏」）。
+	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT \
+			or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if started and player != null and not _want_mouse_visible():
+			mouse_released = true
+			_refresh_mouse_mode()
 
 
 func _ready() -> void:
@@ -137,6 +203,8 @@ func _ready() -> void:
 	add_child(wheel)
 
 	var args := OS.get_cmdline_user_args()
+	# 2026-11-11 用户裁定：人物默认走 3D 体块；--crew-billboard 只作回退/对比。
+	var crew_model_mode := not args.has("--crew-billboard")
 	## 先建模拟核心，再把玩家放进它的席位。地图直接注入 builder 已读的那份，
 	## 避免同一份 map_v2.json 在内存里存两份（数据单一真源）。
 	sim = SimStateScript.new()
@@ -149,6 +217,7 @@ func _ready() -> void:
 		push_error("模拟核心初始化失败：先跑 node 3d/tools/export-sim.cjs")
 
 	crew_view = CrewViewScript.new()
+	crew_view.set_model_mode(crew_model_mode)
 	add_child(crew_view)
 	crew_view.build(sim)
 
@@ -177,6 +246,16 @@ func _ready() -> void:
 		return
 
 	_build_hud()
+
+	## 人物 blockout 同框验收：真实会议室里并排摆 2.5D billboard / 3D 体块 + 1.75m 标尺。
+	if args.has("--crewshot"):
+		await _run_crewshot()
+		get_tree().quit()
+		return
+	if args.has("--doorshot"):
+		await _run_doorshot()
+		get_tree().quit()
+		return
 
 	ui_panels = UiPanelsScript.new()
 	var ui_layer := CanvasLayer.new()
@@ -339,12 +418,76 @@ func _ready() -> void:
 
 	if args.has("--mgtest"):
 		await _run_mgtest()
-		get_tree().quit()
+		get_tree().quit(0 if _mgtest_ok else 1)
+		return
+
+	if args.has("--specttest"):
+		await _run_specttest()
+		get_tree().quit(0 if _specttest_ok else 1)
+		return
+
+	if args.has("--knifetest"):
+		await _run_knifetest()
+		get_tree().quit(0 if _knifetest_ok else 1)
+		return
+
+	## 玩家探针（2026-11-10 用户现场「异形按 E 打不倒人」）：
+	## 用真实 InputEvent 走 E / 数字键 / 左键 / F2，断言玩家实际能完成什么，
+	## 不直接调 sim 或内部动作函数当“按过键”。详见 _run_probetest。
+	if args.has("--probetest"):
+		await _run_probetest()
+		get_tree().quit(0 if _probetest_ok else 1)
+		return
+
+	if args.has("--uitest"):
+		await _run_uitest()
+		get_tree().quit(0 if _uitest_ok else 1)
+		return
+
+	## 会议 UI 功能自测（真实鼠标点模板 / 投票 / 改票 / 弃权 / 跳过投票 / 只读会议）。
+	if args.has("--meetuitest"):
+		await _run_meetuitest()
+		get_tree().quit(0 if _meetuitest_ok else 1)
+		return
+
+	## A 档判定层自测：取消全图锁敌 / humanT / saw_red 节流 / saw_avoid / 空闲游荡。
+	if args.has("--aiporttest"):
+		_run_aiporttest()
+		get_tree().quit(0 if _aiporttest_ok else 1)
+		return
+
+	## 鼠标口径自测：Esc 释放必须能维持，不被下一帧重新捕获。
+	if args.has("--mousetest"):
+		await _run_mousetest()
+		get_tree().quit(0 if _mousetest_ok else 1)
+		return
+
+	## 结算页自测：终票按 seq 落账 / 投票矩阵 / 身份表结局与死亡地点。
+	if args.has("--settletest"):
+		_run_settletest()
+		get_tree().quit(0 if _settletest_ok else 1)
+		return
+
+	## 局内小地图自测：尺寸/点击穿透/灯态三态/任务点与地图数据。
+	if args.has("--minimaptest"):
+		await _run_minimaptest()
+		get_tree().quit(0 if _minimaptest_ok else 1)
+		return
+
+	## 证据/情绪/口供自测：evalAlmost 全量 / trust-grudge / claimHist / DESC。
+	if args.has("--socialtest"):
+		_run_socialtest()
+		get_tree().quit(0 if _socialtest_ok else 1)
+		return
+
+	if args.has("--leadtest"):
+		await _run_leadtest()
+		get_tree().quit(0 if _leadtest_ok else 1)
 		return
 
 	if args.has("--devicetest"):
 		await _run_devicetest()
-		get_tree().quit()
+		get_tree().quit(0 if _devicetest_ok else 1)
 		return
 
 	if args.has("--e2e"):
@@ -370,6 +513,11 @@ func _ready() -> void:
 		return
 
 	if args.has("--walktest"):
+		## 夹具修正（2026-11-10）：new_game 会开 MEET_PRE，会议期间 player.ui_locked
+		## 把 velocity 钉成 0 —— 旧写法在开局讨论里按 W，恒打印 distance=0.0 且 exit 0，
+		## 是一条静默失败的验收。先把会正常走完（_finish_meeting 与其他自测同一口径），
+		## 再量真实按键位移，并对「有没有动 / 有没有超过真源移速」双向断言。
+		_finish_meeting(sim)
 		await get_tree().create_timer(0.4).timeout
 		var start := player.global_position
 		var down := InputEventKey.new()
@@ -382,9 +530,13 @@ func _ready() -> void:
 		up.pressed = false
 		Input.parse_input_event(up)
 		var finish := player.global_position
-		print("WALK_TEST distance=", start.distance_to(finish),
-			" start=", start, " end=", finish)
-		get_tree().quit()
+		var dist := start.distance_to(finish)
+		var want := SpaceData.num(space, "move", "speed")
+		var ok := dist > 0.05 and dist <= want * 1.0 + 0.35
+		print("WALK_TEST distance=", dist, " 期望≤", want, "m/1.0s",
+			" ui_locked=", player.ui_locked, " start=", start, " end=", finish)
+		print("WALKTEST ", "OK" if ok else "FAIL", " 1/1" if ok else " 0/1")
+		get_tree().quit(0 if ok else 1)
 		return
 
 	## 2026-11-06 掩体本体验收：`--covershot <room_id>` 把相机摆到该舱正上方，出一张俯视截图。
@@ -417,10 +569,34 @@ func _ready() -> void:
 		get_tree().quit()
 		return
 
+	if args.has("--endshot") and DisplayServer.get_name() != "headless":
+		await _run_endshot()
+		get_tree().quit()
+		return
+
+	if args.has("--minishot") and DisplayServer.get_name() != "headless":
+		# 局内小地图实拍：先关掉开局会，让 HUD/小地图露出来。
+		_finish_meeting(sim)
+		sim.meeting = {}
+		await get_tree().create_timer(0.7).timeout
+		await RenderingServer.frame_post_draw
+		var mimg := get_viewport().get_texture().get_image()
+		var mpath := "user://mini.png"
+		mimg.save_png(mpath)
+		print("MINISHOT_PATH=", ProjectSettings.globalize_path(mpath))
+		get_tree().quit()
+		return
+
 	if args.has("--shot") and DisplayServer.get_name() != "headless":
 		# --blackout 用来出"拉闸后"的对照图（熄灯必须在画面上真的看得出来）
 		if args.has("--blackout"):
 			set_power(false)
+		# --above：旁观者飞到天花板以上，验"俯视剖面"（天花板整层隐藏）
+		if args.has("--above") and player != null:
+			_finish_meeting(sim)
+			player.spectator = true
+			player.global_position.y = builder.ceiling_height() + 11.0
+			_update_spectator_view()
 		var wait_sec := 2.5
 		var wait_arg := _arg_value(args, "--wait")
 		if wait_arg != "":
@@ -492,7 +668,12 @@ func _arg_value(args: PackedStringArray, key: String) -> String:
 
 
 func _run_mgtest() -> void:
-	mg_layer.capture_on_close = false
+	## 夹具修正（2026-11-10）：new_game 会开 MEET_PRE，而 _process 里
+	## 「会议开着就收掉小游戏卡片」会把每张刚打开的卡在下一帧 cancel 掉，
+	## 于是旧夹具恒定 MGTEST 0/10（dbg: cancel=true、open=false）。
+	## 与 --walktest 同一处理：先把会正常走完，再逐型验。
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
 	var passed := 0
 	for kind in KINDS:
 		var state := {"ok": false, "cancel": false}
@@ -518,13 +699,41 @@ func _run_mgtest() -> void:
 	var still_open: bool = mg_layer.is_open()
 	mg_layer.cancel()
 	await get_tree().create_timer(0.2).timeout
-	print("MGTEST_FAIL held_open=%s closed=%s canceled=%s" % [
-		str(still_open), str(not mg_layer.is_open()), str(fail_state.cancel)])
+	var fail_ok: bool = still_open and not mg_layer.is_open() and bool(fail_state.cancel)
+	print("MGTEST_FAIL held_open=%s closed=%s canceled=%s ok=%s" % [
+		str(still_open), str(not mg_layer.is_open()), str(fail_state.cancel), str(fail_ok)])
 	print("MGTEST_RESULT %d/%d pass" % [passed, KINDS.size()])
+
+	## 26 个真实任务标签各开一次：证明「按 label 取到自己的 cfg」这条路真的通
+	## （n / shapes / icons / lo / hi / hold / targets 全部来自 minigames.json#tasks）。
+	var data: Dictionary = MinigameData.load_data()
+	var task_labels: Array = data.get("tasks", {}).keys()
+	var labels_ok := 0
+	for label in task_labels:
+		var want := String(MinigameData.task_cfg(data, String(label)).get("k", ""))
+		var mark := {"kind": ""}
+		var cb := func(k: String) -> void: mark.kind = k
+		mg_layer.opened.connect(cb, CONNECT_ONE_SHOT)
+		mg_layer.open(want, String(label), "normal", String(label),
+			func() -> void: pass, func() -> void: pass)
+		await get_tree().process_frame
+		var opened: bool = mg_layer.is_open()
+		var got := String(mark.kind)
+		mg_layer.cancel()
+		await get_tree().process_frame
+		if opened and got == want:
+			labels_ok += 1
+		else:
+			print("MGTEST_LABEL FAIL %s 期望 %s 实得 %s open=%s" % [
+				label, want, got, str(opened)])
+	print("MGTEST_LABELS %d/%d" % [labels_ok, task_labels.size()])
+	_mgtest_ok = passed == KINDS.size() and fail_ok and labels_ok == task_labels.size()
 
 
 func _run_mgshot(spec: String) -> void:
-	mg_layer.capture_on_close = false
+	## 同 --mgtest：会议开着时 _process 会把卡片收掉，拍出来的是会议面板而不是小游戏。
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
 	var kinds: Array = KINDS.duplicate()
 	if spec != "all" and KINDS.has(spec):
 		kinds = [spec]
@@ -630,8 +839,1782 @@ func _run_pipeshot() -> void:
 	print("PIPESHOT ", ProjectSettings.globalize_path(path), " room=", p.get("room"))
 
 
+## 旁观者飞到天花板以上 → 天花板整层（含灯带）隐藏，从上面看是完整剖面；
+## 回到舱内 → 恢复。非旁观者永远保持可见。
+func _update_spectator_view() -> void:
+	if builder == null or player == null:
+		return
+	var hide: bool = player.spectator \
+		and player.global_position.y > builder.ceiling_height() - 0.15
+	if hide != _ceil_hidden:
+		_ceil_hidden = hide
+		builder.set_ceiling_visible(not hide)
+
+
+func _run_specttest() -> void:
+	## 旁观者三条（用户 2026-11-10）：
+	## ① 舱内天花板正常；② 飞到天花板以上 → 整层隐藏（俯视剖面）；
+	## ③ 向下穿不出地板（下层只是贴板，不允许掉进虚空）。
+	var fails: Array = []
+	player.spectator = true
+	await get_tree().process_frame
+	var ceil_y: float = builder.ceiling_height()
+
+	player.global_position.y = 1.0
+	_update_spectator_view()
+	var in_ship: bool = not _ceil_hidden
+	player.global_position.y = ceil_y + 2.0
+	_update_spectator_view()
+	var above: bool = _ceil_hidden
+	print("SPECTTEST 天花板%.1f 舱内保持=%s 飞越隐藏=%s" % [ceil_y, str(in_ship), str(above)])
+	if not in_ship:
+		fails.append("舱内就隐藏了天花板")
+	if not above:
+		fails.append("飞越天花板后没有透视")
+
+	player.global_position.y = -5.0
+	player._physics_process(0.016)
+	var y_after: float = player.global_position.y
+	print("SPECTTEST 下穿夹取 y=-5 → %.2f（下限 %.2f）" % [y_after, player.SPECT_MIN_Y])
+	if y_after < player.SPECT_MIN_Y - 0.001:
+		fails.append("旁观者可以穿到地板以下（y=%.2f）" % y_after)
+
+	player.global_position.y = 1.2
+	_update_spectator_view()
+	if _ceil_hidden:
+		fails.append("回到舱内后天花板没恢复")
+	print("SPECTTEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL", fails.size(), str(fails)])
+	_specttest_ok = fails.is_empty()
+
+
+## 人物 blockout 同框验收（2026-11-11）：在真实会议室并排摆
+## 2.5D billboard / 3D blockout / 1.75 m 标尺，只做表现核对，不参与判定。
+func _run_crewshot() -> void:
+	started = false
+	if player != null:
+		player.ui_locked = true
+		player.camera.current = false
+	if hud_layer != null:
+		hud_layer.visible = false
+	if crew_view != null:
+		crew_view.visible = false
+	if minimap != null:
+		minimap.visible = false
+	var cam := Camera3D.new()
+	cam.fov = 50.0
+	cam.near = 0.03
+	cam.far = 60.0
+	add_child(cam)
+	cam.global_position = Vector3(31.0, 1.55, 37.6)
+	cam.look_at(Vector3(31.0, 0.95, 33.5), Vector3.UP)
+	cam.current = true
+
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
+
+	# 左：2.5D billboard（与 crew_view 完全相同的纹理/像素尺寸）
+	var tex := load("res://assets/crew/crew-01.png") as Texture2D
+	if tex != null:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = tex
+		atlas.region = Rect2(0, 0, 96, 160)
+		var sp := Sprite3D.new()
+		sp.texture = atlas
+		sp.pixel_size = 0.012
+		sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sp.shaded = false
+		sp.double_sided = true
+		sp.position = Vector3(30.15, 0.96, 33.5)
+		add_child(sp)
+	_crewshot_label("2.5D billboard", Vector3(30.15, 2.18, 33.5), font,
+		Color(0.82, 0.90, 1.0))
+
+	# 右：3D lowpoly（参考图建模 + idle/walk）
+	var shot_glb := "res://assets/models/char_crew_lowpoly.glb"
+	if not ResourceLoader.exists(shot_glb):
+		shot_glb = "res://assets/models/char_crew_blockout.glb"
+	var packed := load(shot_glb) as PackedScene
+	var model: Node3D = null
+	if packed != null:
+		model = packed.instantiate() as Node3D
+	if model != null:
+		model.position = Vector3(31.85, 0.0, 33.5)
+		add_child(model)
+		model.look_at(Vector3(31.85, 0.0, 37.0), Vector3.UP)
+		var ap := model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+		if ap != null:
+			for n in ap.get_animation_list():
+				if String(n).to_lower().contains("walk"):
+					ap.play(String(n))
+					ap.seek(0.3, true)
+					break
+		var meshes: Array = model.find_children("*", "MeshInstance3D", true, false)
+		for n: Node in meshes:
+			var mi := n as MeshInstance3D
+			if mi.mesh == null:
+				continue
+			var mats: Array = []
+			for s in mi.mesh.get_surface_count():
+				var m := mi.mesh.surface_get_material(s)
+				mats.append("?" if m == null else String(m.resource_name))
+			print("CREW_MESH %s aabb=%s surfaces=%d mats=%s" % [
+				String(mi.name), str(mi.get_aabb()), mats.size(), str(mats)])
+		print("CREW_MODEL root=%s meshes=%d" % [String(model.name), meshes.size()])
+		_crewshot_label("3D lowpoly · walk", Vector3(31.85, 2.18, 33.5), font,
+			Color(0.82, 0.96, 0.86))
+		# 第二个体块只换制服色，验证 15 人共用骨架/网格的配色路径
+		var m2: Node3D = packed.instantiate() as Node3D
+		if m2 != null:
+			m2.position = Vector3(33.20, 0.0, 33.5)
+			add_child(m2)
+			m2.look_at(Vector3(33.20, 0.0, 37.0), Vector3.UP)
+			var ap2 := m2.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if ap2 != null:
+				for n in ap2.get_animation_list():
+					if String(n).to_lower().contains("walk"):
+						ap2.play(String(n))
+						ap2.seek(0.3, true)
+						break
+			if crew_view != null:
+				crew_view._tint_model(m2, Color("#5E7A6A"))
+			_crewshot_label("换色 · 15 共用", Vector3(33.20, 2.18, 33.5), font,
+				Color(0.82, 0.96, 0.86))
+	else:
+		_crewshot_label("3D blockout 缺失", Vector3(31.85, 2.18, 33.5), font,
+			Color(1.0, 0.55, 0.50))
+
+	# 1.75 m 标尺（放在两人后方，不挡剪影）
+	var bar := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.025, 1.75, 0.025)
+	bar.mesh = bm
+	var wm := StandardMaterial3D.new()
+	wm.albedo_color = Color(0.95, 0.95, 0.95)
+	wm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	bar.material_override = wm
+	bar.position = Vector3(31.0, 0.875, 32.40)
+	add_child(bar)
+	_crewshot_label("1.75 m", Vector3(31.0, 1.92, 32.40), font, Color(0.95, 0.95, 0.95))
+
+	await get_tree().create_timer(0.8).timeout
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	var dir := "res://screenshots"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	var path := dir.path_join("crew-lowpoly.png")
+	img.save_png(path)
+	print("CREWSHOT_PATH=", ProjectSettings.globalize_path(path))
+
+
+## 门扇闭合对照图（2026-11-11）：同一机位拍 open=0 / open=1，
+## 验收「关闭时两扇中线合拢、打开时让出整段门洞」，不是半开。
+func _run_doorshot() -> void:
+	started = false
+	if player != null:
+		player.ui_locked = true
+		player.camera.current = false
+	if hud_layer != null:
+		hud_layer.visible = false
+	if crew_view != null:
+		crew_view.visible = false
+	if minimap != null:
+		minimap.visible = false
+	if extras == null or extras.doors.is_empty():
+		print("DOORSHOT FAIL 没有门")
+		return
+	var door: Dictionary = extras.doors[0]
+	var center: Vector3 = door["center"]
+	var normal := Vector3(0, 0, 1) if bool(door["along_x"]) else Vector3(1, 0, 0)
+	var to_player: Vector3 = player.global_position - center
+	var side := signf(to_player.dot(normal))
+	if absf(side) < 0.01:
+		side = 1.0
+	var cam := Camera3D.new()
+	cam.fov = 48.0
+	cam.near = 0.03
+	cam.far = 40.0
+	add_child(cam)
+	cam.global_position = center + normal * (2.8 * side) + Vector3(0, 1.55, 0)
+	cam.look_at(center + Vector3(0, 1.15, 0), Vector3.UP)
+	cam.current = true
+	var pass_r := SpaceData.num(space, "door", "pass")
+	var scan_sec := SpaceData.num(space, "door", "scan_sec")
+	var dir := "res://screenshots"
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir))
+	for state: Array in [[0.0, "door-closed.png"], [1.0, "door-open.png"]]:
+		var open := float(state[0])
+		extras._apply_door_state(door, open, pass_r, true, scan_sec)
+		await get_tree().create_timer(0.35).timeout
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var path := dir.path_join(String(state[1]))
+		img.save_png(path)
+		print("DOORSHOT %s open=%.1f" % [ProjectSettings.globalize_path(path), open])
+
+
+func _crewshot_label(txt: String, pos: Vector3, font: Font, col: Color) -> void:
+	var lb := Label3D.new()
+	lb.text = txt
+	lb.font = font
+	lb.font_size = 32
+	lb.outline_size = 8
+	lb.pixel_size = 0.0032
+	lb.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lb.modulate = col
+	lb.position = pos
+	add_child(lb)
+
+
+func _run_knifetest() -> void:
+	## 玩家侧真实攻击链（用户 2026-11-10 反馈「作为异形无法出手」）：
+	## 以异形身份开局 → 目标站到刀程内正前方 → 派发**真实左键** → 必须把人放倒。
+	var fails: Array = []
+	role = "alien"
+	if not sim.new_game(_cur_seed, 0, map_data, space, true):
+		print("KNIFETEST FAIL new_game")
+		_knifetest_ok = false
+		return
+	sim.ai_enabled = true
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
+	var me: Dictionary = sim.me()
+	if not bool(me.get("alien", false)):
+		fails.append("玩家没被设成异形")
+	var vic: Dictionary = {}
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) != int(sim.me_idx):
+			vic = a
+			break
+	# 目标放在正前方 1.0m（刀程默认 1.4），并把朝向真正对准它。
+	# Godot 的前方是 -Z：rotation.y=θ 时 forward=(-sinθ,0,-cosθ)，
+	# 所以 θ = atan2(-dir.x, -dir.z)。写成 atan2(dir.x, dir.z) 会正好朝反。
+	var base: Vector3 = player.global_position
+	var dir := Vector3(0, 0, -1)
+	player.rotation.y = atan2(-dir.x, -dir.z)
+	var p: Vector3 = base + dir * 1.0
+	vic["pos"] = Vector2(p.x, p.z)
+	vic["alive"] = true
+	vic["downed"] = false
+	me["knife"] = 1
+	me["alive"] = true
+	me["downed"] = false
+	me["detained"] = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	# 真实左键（不带坐标，走 _input 的 CAPTURED 分支）
+	var dn := InputEventMouseButton.new()
+	dn.button_index = MOUSE_BUTTON_LEFT
+	dn.pressed = true
+	Input.parse_input_event(dn)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	Input.parse_input_event(up)
+	await get_tree().create_timer(0.3).timeout
+
+	var downed := bool(vic.get("downed", false))
+	var knife_after := int(me.get("knife", -1))
+	var aimed := _aim_target(SpaceData.num(space, "reach", "knife"), 0.55)
+	print("KNIFETEST 异形=%s 目标=%s 命中=%s 剩余刀=%d 瞄到=%s" % [
+		str(bool(me.get("alien", false))), String(vic.get("name", "")), str(downed),
+		knife_after, String(aimed.get("name", ""))])
+	if not downed:
+		fails.append("左键出刀没放倒目标")
+	if knife_after != 0:
+		fails.append("刀数没有扣（=%d）" % knife_after)
+	# 右键开枪链（人类也能用；这里只验入口不被吞）
+	print("KNIFETEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL", fails.size(), str(fails)])
+	_knifetest_ok = fails.is_empty()
+
+
+## 真实按键/鼠标注入（玩家探针用）：按下 → 至少跨一帧 → 松开。
+## 不能用直接调 sim / 内部动作函数代替——那验不出「输入链有没有接上」。
+func _tap_key(key: Key) -> void:
+	var d := InputEventKey.new()
+	d.keycode = key
+	d.physical_keycode = key
+	d.pressed = true
+	Input.parse_input_event(d)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var u := InputEventKey.new()
+	u.keycode = key
+	u.physical_keycode = key
+	u.pressed = false
+	Input.parse_input_event(u)
+	await get_tree().process_frame
+
+
+func _tap_mouse(btn: MouseButton) -> void:
+	var d := InputEventMouseButton.new()
+	d.button_index = btn
+	d.pressed = true
+	Input.parse_input_event(d)
+	await get_tree().process_frame
+	var u := InputEventMouseButton.new()
+	u.button_index = btn
+	u.pressed = false
+	Input.parse_input_event(u)
+	await get_tree().process_frame
+
+
+## 玩家探针（--probetest）：复现用户现场「作为异形按 E 打不倒人」。
+## 全程真实 InputEvent：E / 数字键 / 左键 / F2，不直接调动作函数。
+## 断言：① E 在活人身上给出出刀并真的放倒；② 左键出刀；③ E 多项轮盘选 1；
+##       ④ F2 DEV 面板出现 + 枪/刀/死亡/驱逐对玩家无效。
+func _run_probetest() -> void:
+	var fails: Array = []
+	role = "alien"
+	sim.ai_enabled = false
+	if not sim.new_game(_cur_seed, 0, map_data, space, true):
+		print("PROBETEST FAIL new_game")
+		_probetest_ok = false
+		return
+	sim.spectator = false
+	_finish_meeting(sim)
+	sim.meeting = {}
+	if crew_view != null:
+		crew_view.build(sim)
+		print("CREW_VIEW models=%d billboards=%d" % [
+			crew_view._models.size(), crew_view._sprites.size()])
+		# 漂移回归：moving=true 必须切 walk，回到静止必须切 idle。
+		var anim_i := -1
+		for a: Dictionary in sim.agents:
+			var ai := int(a.get("i", -1))
+			if ai != int(sim.me_idx) and crew_view._anims.has(ai):
+				anim_i = ai
+				break
+		if anim_i >= 0:
+			var aa: Dictionary = sim.agent(anim_i)
+			aa["moving"] = true
+			crew_view.sync(sim, 0.016)
+			var walk_now := String((crew_view._anims[anim_i] as AnimationPlayer).current_animation)
+			aa["moving"] = false
+			crew_view.sync(sim, 0.016)
+			var idle_now := String((crew_view._anims[anim_i] as AnimationPlayer).current_animation)
+			print("CREW_ANIM_SWITCH walk=%s idle=%s" % [walk_now, idle_now])
+			if not walk_now.to_lower().contains("walk"):
+				fails.append("moving=true 没有切 walk（=%s）" % walk_now)
+			if not idle_now.to_lower().contains("idle"):
+				fails.append("moving=false 没有切 idle（=%s）" % idle_now)
+	var me: Dictionary = sim.me()
+	if not bool(me.get("alien", false)):
+		fails.append("玩家没被设成异形")
+	# 其他人先挪到远处：AI 关了但 tick 仍会跑，避免目标被别的逻辑拖走。
+	var victim: Dictionary = {}
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) == int(sim.me_idx):
+			continue
+		a["pos"] = Vector2(6.0, 6.0)
+		a["path"] = PackedVector2Array()
+		a["moving"] = false
+		a["doing"] = 0.0
+		if victim.is_empty() and not bool(a.get("alien", false)):
+			victim = a
+	if victim.is_empty():
+		print("PROBETEST FAIL 夹具没找到人类目标")
+		_probetest_ok = false
+		return
+	player.global_position = Vector3(31.0, 0.05, 33.5)
+	player.rotation.y = 0.0   # 前方 -Z
+	player.ui_locked = false
+	mouse_released = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_e_down = false
+	if wheel != null and wheel.is_open():
+		wheel.close()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var place_pair := func() -> void:
+		me["alive"] = true
+		me["downed"] = false
+		me["detained"] = false
+		me["knife"] = 1
+		victim["pos"] = Vector2(player.global_position.x, player.global_position.z - 1.0)
+		victim["alive"] = true
+		victim["downed"] = false
+		victim["detained"] = false
+		victim["killedBy"] = -1
+		victim["deathCause"] = ""
+
+	# ① 交互扫描：站位正前方 1.0m 有人，E 的候选里必须有 attack
+	place_pair.call()
+	await get_tree().process_frame
+	var offers := _collect_offers()
+	var ids: Array = []
+	var has_attack := false
+	for o: Dictionary in offers:
+		var oid := String(o.get("id", ""))
+		ids.append(oid)
+		if oid == "attack":
+			has_attack = true
+	print("PROBE ① 交互项=%d [%s] 有出刀=%s" % [offers.size(),
+		", ".join(PackedStringArray(ids)), str(has_attack)])
+	if not has_attack:
+		fails.append("E 的候选里没有 attack（旁边有人却打不了）")
+
+	# ② 真实 E：单项直接执行 → 目标濒死、刀数 -1
+	_e_down = false
+	await _tap_key(KEY_E)
+	await get_tree().process_frame
+	var e_downed := bool(victim.get("downed", false))
+	print("PROBE ② 真实 E → 濒死=%s 剩余刀=%d" % [str(e_downed), int(me.get("knife", -1))])
+	if not e_downed:
+		fails.append("真实 E 没有放倒目标")
+	if int(me.get("knife", -1)) != 0:
+		fails.append("E 出刀后刀数不是 0（=%d）" % int(me.get("knife", -1)))
+
+	# ③ 真实左键：同一套结算
+	place_pair.call()
+	_knife_cd = 0.0
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	await get_tree().process_frame
+	var aim_dbg := _aim_target(SpaceData.num(space, "reach", "knife"), 0.55)
+	print("PROBE ③ 前置 mouse=%d released=%s cd=%.2f 瞄到=%s 目标pos=%s 我pos=%s" % [
+		Input.mouse_mode, str(mouse_released), _knife_cd, String(aim_dbg.get("name", "")),
+		str(victim.get("pos", Vector2.ZERO)), str(me.get("pos", Vector2.ZERO))])
+	await _tap_mouse(MOUSE_BUTTON_LEFT)
+	await get_tree().process_frame
+	print("PROBE ③ 真实左键 → 濒死=%s 剩余刀=%d 探针=%s" % [
+		str(bool(victim.get("downed", false))), int(me.get("knife", -1)), str(_probe_lines)])
+	if not bool(victim.get("downed", false)):
+		fails.append("真实左键没有放倒目标")
+
+	# ④ 多项轮盘：站在设备旁、目标仍在刀程内 → E 打开轮盘，按 1 选「出刀」
+	var dev = null
+	for d in extras.devices:
+		if is_instance_valid(d) and d.point_index >= 0:
+			dev = d
+			break
+	if dev == null:
+		fails.append("夹具没找到任务设备")
+	else:
+		var face: Vector3 = dev.face_dir()
+		player.global_position = Vector3(dev.global_position.x, 0.05, dev.global_position.z) + face * 1.6
+		player.rotation.y = atan2(face.x, face.z)
+		place_pair.call()
+		victim["pos"] = Vector2(player.global_position.x - sin(player.rotation.y) * 1.0,
+			player.global_position.z - cos(player.rotation.y) * 1.0)
+		_knife_cd = 0.0
+		_e_down = false
+		await get_tree().process_frame
+		var multi := _collect_offers()
+		var multi_ids: Array = []
+		for o2: Dictionary in multi:
+			multi_ids.append(String(o2.get("id", "")))
+		print("PROBE ④ 设备旁交互项=%d [%s]" % [multi.size(),
+			", ".join(PackedStringArray(multi_ids))])
+		if multi.size() < 2:
+			fails.append("设备旁没有形成多项轮盘（只有 %d 项）" % multi.size())
+		else:
+			await _tap_key(KEY_E)
+			await get_tree().process_frame
+			if wheel == null or not wheel.is_open():
+				fails.append("多项交互按 E 没打开轮盘")
+			else:
+				await _tap_key(KEY_1)
+				await get_tree().process_frame
+				print("PROBE ④ 轮盘选 1 → 濒死=%s 轮盘关闭=%s" % [
+					str(bool(victim.get("downed", false))), str(not wheel.is_open())])
+				if not bool(victim.get("downed", false)):
+					fails.append("轮盘选 1 没有放倒目标")
+				if wheel.is_open():
+					fails.append("轮盘选 1 后没有关闭")
+
+	# ⑤ F2 DEV：面板 / 无敌
+	# 先保证玩家活着、回到会议室开阔处（设备旁边可能有掩体挡枪线）
+	player.global_position = Vector3(31.0, 0.05, 33.5)
+	player.rotation.y = 0.0
+	me["alive"] = true
+	me["downed"] = false
+	me["knife"] = 1
+	await get_tree().process_frame
+	await _tap_key(KEY_F2)
+	await get_tree().process_frame
+	var dev_on := bool(sim.dev)
+	var panel_on: bool = dev_panel != null and dev_panel.visible
+	var row0 := String((_dev_row_labels[0] as Label).text) if not _dev_row_labels.is_empty() else ""
+	print("PROBE ⑤ F2 → dev=%s 面板=%s 首行=%s" % [str(dev_on), str(panel_on), row0])
+	if not dev_on:
+		fails.append("F2 没有打开 DEV")
+	if not panel_on:
+		fails.append("DEV 面板没有显示")
+	if not row0.contains("异形") or not row0.contains("（你）"):
+		fails.append("DEV 首行没有显示玩家身份（%s）" % row0)
+	# 真实窗口下留一张 DEV 实拍，方便人工核对排版（headless 没有渲染目标）。
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var shot_path := "user://probe-dev.png"
+		img.save_png(shot_path)
+		print("PROBESHOT_PATH=", ProjectSettings.globalize_path(shot_path))
+	# 无敌：人类开枪打玩家 → 不濒死、子弹照扣
+	victim["downed"] = false
+	victim["alive"] = true
+	victim["bullet"] = 1
+	victim["pos"] = Vector2(player.global_position.x + 2.0, player.global_position.z)
+	var shot: bool = sim.shoot(int(victim.get("i", -1)), int(sim.me_idx))
+	var shot_blocked: bool = (not shot) and not bool(me.get("downed", false)) \
+		and int(victim.get("bullet", -1)) == 0
+	print("PROBE ⑤ DEV 挨枪 → 生效=%s 玩家濒死=%s 子弹=%d" % [
+		str(shot), str(bool(me.get("downed", false))), int(victim.get("bullet", -1))])
+	if not shot_blocked:
+		fails.append("DEV 没有拦住 AI 开枪（shot=%s downed=%s bullet=%d）" % [
+			str(shot), str(bool(me.get("downed", false))), int(victim.get("bullet", -1))])
+	if sim.die(me):
+		fails.append("DEV 没有拦住死亡")
+	# 无敌：驱逐
+	sim.meeting = {"kind": "day", "phase": "vote", "seq": 900,
+		"votes": {0: int(sim.me_idx), 1: int(sim.me_idx), 2: int(sim.me_idx),
+			3: int(sim.me_idx), 4: int(sim.me_idx)}}
+	sim._close_meeting()
+	var res: Dictionary = sim.meeting.get("result", {}) as Dictionary
+	print("PROBE ⑤ DEV 被投 → 存活=%s devSaved=%s" % [
+		str(bool(me.get("alive", false))), str(bool(res.get("devSaved", false)))])
+	if not bool(me.get("alive", false)) or not bool(res.get("devSaved", false)):
+		fails.append("DEV 没有拦住驱逐")
+	sim.meeting = {}
+	await _tap_key(KEY_F2)
+	await get_tree().process_frame
+	if bool(sim.dev):
+		fails.append("F2 第二次没有关闭 DEV")
+	if dev_panel != null and dev_panel.visible:
+		fails.append("DEV 关闭后面板还在")
+
+	print("PROBETEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL", fails.size(),
+		str(fails)])
+	_probetest_ok = fails.is_empty()
+
+
+func _run_uitest() -> void:
+	## 真实 UI 输入链（不是直接调 sim.skip_discussion）：
+	##   ① 开局会议的「跳过讨论」按钮必须在视口内；
+	##   ② 真实鼠标点击必须真的推进会议；
+	##   ③ 会议结束后 ui_locked 解除、W 键真的能走。
+	## 触发：2026-11-10 用户现场反馈「玩家无法正常操作、跳不过界面」。
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.new_game(_cur_seed, 0, map_data, space, false)
+	sim.ai_enabled = true
+	await get_tree().create_timer(0.4).timeout
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	if sim.meeting.is_empty():
+		fails.append("开局没有会议（夹具前提不成立）")
+	else:
+		var skip_btn := meeting_skip
+		if skip_btn == null or not skip_btn.is_visible_in_tree():
+			fails.append("讨论期「跳过讨论」按钮不可见")
+		else:
+			var r: Rect2 = skip_btn.get_global_rect()
+			var vp: Vector2 = get_viewport().get_visible_rect().size
+			var inside: bool = r.size.y > 0.0 and r.position.y >= -0.5 \
+				and r.end.y <= vp.y + 0.5 and r.end.x <= vp.x + 0.5
+			print("UITEST 跳过按钮 rect=%s 视口=%s 在屏内=%s" % [str(r), str(vp), str(inside)])
+			if not inside:
+				fails.append("「跳过讨论」超出视口：%s / %s" % [str(r), str(vp)])
+			var c := r.get_center()
+			var mv := InputEventMouseMotion.new()
+			mv.position = c
+			Input.parse_input_event(mv)
+			var dn := InputEventMouseButton.new()
+			dn.button_index = MOUSE_BUTTON_LEFT
+			dn.pressed = true
+			dn.position = c
+			Input.parse_input_event(dn)
+			var up := InputEventMouseButton.new()
+			up.button_index = MOUSE_BUTTON_LEFT
+			up.pressed = false
+			up.position = c
+			Input.parse_input_event(up)
+			for i in 24:
+				await get_tree().process_frame
+			var phase := String(sim.meeting.get("phase", ""))
+			var advanced: bool = sim.meeting.is_empty() or phase != "discuss"
+			print("UITEST 点击后 phase=%s 推进=%s" % [phase, str(advanced)])
+			if not advanced:
+				fails.append("点「跳过讨论」没推进会议（phase=%s）" % phase)
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
+	if player.ui_locked:
+		fails.append("会议结束后 ui_locked 仍为 true")
+	var p0: Vector3 = player.global_position
+	var kd := InputEventKey.new()
+	kd.physical_keycode = KEY_W
+	kd.pressed = true
+	Input.parse_input_event(kd)
+	await get_tree().create_timer(0.8).timeout
+	var ku := InputEventKey.new()
+	ku.physical_keycode = KEY_W
+	ku.pressed = false
+	Input.parse_input_event(ku)
+	var dist := p0.distance_to(player.global_position)
+	print("UITEST 会议后位移=%.2f ui_locked=%s" % [dist, str(player.ui_locked)])
+	if dist < 0.5:
+		fails.append("会议结束后 WASD 走不动（位移 %.2f）" % dist)
+	print("UITEST %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL", fails.size(), str(fails)])
+	_uitest_ok = fails.is_empty()
+
+
+## 真实鼠标点击一个控件（与 --uitest 同一套 InputEvent 派发）。
+## 控件不在视口内时返回 false，让自测报「点不到」而不是静默失败。
+func _click_ctrl(b: Control) -> bool:
+	if b == null or not b.is_visible_in_tree():
+		return false
+	var r: Rect2 = b.get_global_rect()
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	if r.size.y <= 0.0 or r.position.x < 0.0 or r.end.x > vp.x + 0.5 \
+			or r.position.y < 0.0 or r.end.y > vp.y + 0.5:
+		return false
+	var c := r.get_center()
+	var mv := InputEventMouseMotion.new()
+	mv.position = c
+	Input.parse_input_event(mv)
+	var dn := InputEventMouseButton.new()
+	dn.button_index = MOUSE_BUTTON_LEFT
+	dn.pressed = true
+	dn.position = c
+	Input.parse_input_event(dn)
+	var up := InputEventMouseButton.new()
+	up.button_index = MOUSE_BUTTON_LEFT
+	up.pressed = false
+	up.position = c
+	Input.parse_input_event(up)
+	return true
+
+
+## 会议 UI 功能自测（2.5D 会议面板的功能层，2026-11-10 第 12 批）：
+## 真实鼠标点 8 模板 / 席位投票 / 改票 / 弃权 / 跳过讨论 / 跳过投票，
+## 并验证夜会信息行、幽灵与旁观者的只读口径。
+func _run_meetuitest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.new_game(_cur_seed, 0, map_data, space, false)
+	sim.ai_enabled = true
+	await get_tree().create_timer(0.3).timeout
+	_finish_meeting(sim)
+	sim.meeting = {}
+	if not sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1):
+		print("MEETUITEST FAIL 白会开不起来")
+		_meetuitest_ok = false
+		return
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var me_i := int(sim.me_idx)
+	# ① 8 个模板 + 对象/舱室下拉在讨论期可见，对象默认「未选择」
+	var grid: GridContainer = null
+	for c in meeting_tpl.get_children():
+		if c is GridContainer:
+			grid = c
+	var tpl_n: int = grid.get_child_count() if grid != null else 0
+	if meeting_tpl.visible and tpl_n == 8 and meeting_tpl_target.item_count >= 2:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("模板区 可见=%s 按钮=%d 对象项=%d" % [
+			str(meeting_tpl.visible), tpl_n, meeting_tpl_target.item_count])
+	# ② 没选对象点「怀疑」→ 不发言 + 「先选对象」提示
+	var feed_n: int = sim.speech.feed.size()
+	if _click_ctrl(grid.get_child(0) as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("「怀疑」按钮点不到")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if sim.speech.feed.size() == feed_n and toast_label.text.find("先选对象") >= 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("空对象没拦住 feed=%d→%d toast=%s" % [
+			feed_n, sim.speech.feed.size(), toast_label.text])
+	# ②b 发言流新消息提示（2.5D markNewLines）：先把内容撑满并滚到顶部，
+	# 新行只累计条数、不强行跟底；点提示回到底部并清零。
+	for k in 20:
+		sim.speech.sys_say("系统", "填充行 %d" % k)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	meeting_feed.get_v_scroll_bar().value = 0.0
+	await get_tree().process_frame
+	var before_unread := _meeting_unread
+	sim.speech.sys_say("系统", "测试新消息")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if meeting_new_btn.visible and _meeting_unread > before_unread:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("新消息提示没出现 unread=%d btn=%s" % [
+			_meeting_unread, str(meeting_new_btn.visible)])
+	if _click_ctrl(meeting_new_btn as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("新消息按钮点不到")
+	await get_tree().process_frame
+	if _meeting_unread == 0 and not meeting_new_btn.visible:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("新消息清零失败 unread=%d" % _meeting_unread)
+	# ③ 选对象 → 「投他」只记公开意向，不替玩家落票（2.5D ctx.playerVote）
+	var pick := 1
+	var ti := -1
+	for k in meeting_tpl_target.item_count:
+		var md: Variant = meeting_tpl_target.get_item_metadata(k)
+		if md != null and int(md) >= 0 and int(md) != me_i:
+			pick = k
+			ti = int(md)
+			break
+	meeting_tpl_target.select(pick)
+	# 真实点击前让下拉/新消息按钮的布局稳定两帧：否则按钮 rect 可能还在上一帧的位置，
+	# 点击会落到旁边的控件上（2026-11-10 偶发一次「投他模板 intent=-1」）。
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var had_vote_before := (sim.meeting.get("votes", {}) as Dictionary).has(me_i)
+	if _click_ctrl(grid.get_child(1) as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("「投他」按钮点不到")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var intent := int(sim.meeting.get("player_intent", -1))
+	if intent == ti and not had_vote_before \
+			and not (sim.meeting.get("votes", {}) as Dictionary).has(me_i):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("投他模板 intent=%d ti=%d 落票=%s" % [
+			intent, ti, str((sim.meeting.get("votes", {}) as Dictionary).has(me_i))])
+	# ④ 讨论期点席位 → 真落票；再点另一个 → 改票；点弃权 → -1
+	var seat_keys: Array = meeting_buttons.keys()
+	seat_keys.sort()
+	if seat_keys.size() >= 2 and _click_ctrl(meeting_buttons[seat_keys[0]] as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("席位投票按钮点不到（%d 个）" % seat_keys.size())
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var v1 := int((sim.meeting.get("votes", {}) as Dictionary).get(me_i, -99))
+	if v1 == int(seat_keys[0]):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("讨论期投票没落账 v=%d 期望 %d" % [v1, int(seat_keys[0])])
+	if _click_ctrl(meeting_buttons[seat_keys[1]] as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("第二个席位点不到")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var v2 := int((sim.meeting.get("votes", {}) as Dictionary).get(me_i, -99))
+	if v2 == int(seat_keys[1]) and v2 != v1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("改票没生效 v=%d→%d" % [v1, v2])
+	if meeting_list_scroll != null and meeting_abstain != null:
+		meeting_list_scroll.ensure_control_visible(meeting_abstain)
+		await get_tree().process_frame
+	if _click_ctrl(meeting_abstain as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("弃权按钮点不到")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var v3 := int((sim.meeting.get("votes", {}) as Dictionary).get(me_i, -99))
+	if v3 == -1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("弃权没写 -1（v=%d）" % v3)
+	# ⑤ 跳过讨论 → 投票期 → 跳过投票（已选保留；未选才记弃权）
+	if _click_ctrl(meeting_skip as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("跳过讨论点不到")
+	for i in 16:
+		await get_tree().process_frame
+	var ph := String(sim.meeting.get("phase", ""))
+	if ph == "vote":
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("跳过讨论后没进投票期 phase=%s" % ph)
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	if meeting_skip_vote != null and meeting_skip_vote.is_visible_in_tree():
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("投票期没有「跳过投票」")
+	if _click_ctrl(meeting_skip_vote as Control):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("跳过投票点不到")
+	for i in 4:
+		await get_tree().process_frame
+	var ph2 := String(sim.meeting.get("phase", ""))
+	if ph2 == "result":
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("跳过投后没进公布 phase=%s" % ph2)
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	if meeting_result.text.find("弃权") >= 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("结果没显示弃权票：%s" % meeting_result.text)
+	# ⑥ 夜会信息行：报告地点 / 发起人 / 伤者（死者）
+	_finish_meeting(sim)
+	var rep: Dictionary = sim.agent(4)
+	var vic: Dictionary = sim.agent(7)
+	rep["alive"] = true
+	rep["downed"] = false
+	rep["reportLeft"] = 2
+	vic["alive"] = false
+	vic["downed"] = false
+	vic["bodyGone"] = false
+	vic["bodyReported"] = false
+	vic["bodyPos"] = sim.room_center("med")
+	sim.night_meets = 0
+	if sim.open_meeting_kind(SimStateScript.MEET_NIGHT, 4, 7):
+		_refresh_meeting_ui()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var info := meeting_info.text
+		if meeting_info.visible and info.find("报告地点") >= 0 and info.find("死者") >= 0 \
+				and info.find("医疗间") >= 0:
+			pass_n += 1
+		else:
+			fail_n += 1
+			fails.append("夜会信息行不全：%s" % info)
+	else:
+		fail_n += 1
+		fails.append("夜会开不起来（信息行）")
+	# ⑦ 幽灵只读：面板保留可读，输入/模板/投票/跳过全部关掉
+	sim.me()["alive"] = false
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if meeting_panel.visible and not meeting_input.editable \
+			and not meeting_tpl.visible and not meeting_list.visible and not meeting_skip.visible:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("幽灵只读口径错：panel=%s edit=%s tpl=%s list=%s skip=%s" % [
+			str(meeting_panel.visible), str(meeting_input.editable),
+			str(meeting_tpl.visible), str(meeting_list.visible), str(meeting_skip.visible)])
+	sim.me()["alive"] = true
+	# ⑧ 旁观者只读：可跳过讨论（文案带「旁观」），不能投票/发言
+	sim.spectator = true
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if meeting_panel.visible and meeting_skip.visible \
+			and meeting_skip.text.find("旁观") >= 0 and not meeting_list.visible:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("旁观只读口径错：skip=%s/%s list=%s" % [
+			str(meeting_skip.visible), meeting_skip.text, str(meeting_list.visible)])
+	sim.spectator = false
+	sim.meeting = {}
+	_finish_meeting(sim)
+	print("MEETUITEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_meetuitest_ok = fail_n == 0
+
+
+func _count_why(w: Dictionary, target_i: int, kind: String) -> int:
+	var n := 0
+	for e: Variant in ((w.get("why", {}) as Dictionary).get(target_i, []) as Array):
+		if String((e as Dictionary).get("kind", "")) == kind:
+			n += 1
+	return n
+
+
+## A 档判定层自测（2026-11-10 第 13 批）：
+## ① 异形挑目标只认「现在看得见 / 本夜 25 秒内亲眼见过」，不许全图锁敌；
+## ② humanT 合闸目击 +0.28、封顶 1、跨夜 ×0.8；③ saw_red 5 秒节流；
+## ④ saw_avoid 每夜一次且记在观察者身上；⑤ 人类 AI 任务做完会巡舱/躲人。
+func _run_aiporttest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.ai_enabled = false
+	sim.meeting = {}
+	var a: Dictionary = {}
+	var h1: Dictionary = {}
+	var h2: Dictionary = {}
+	for x: Dictionary in sim.agents:
+		if bool(x.get("alien", false)) and a.is_empty():
+			a = x
+		elif not bool(x.get("alien", false)) and h1.is_empty():
+			h1 = x
+		elif not bool(x.get("alien", false)) and h2.is_empty():
+			h2 = x
+	if a.is_empty() or h1.is_empty() or h2.is_empty():
+		print("AIPORTTEST FAIL 席位缺失")
+		_aiporttest_ok = false
+		return
+	var ai0 := int(a.get("i", -1))
+	var h1i := int(h1.get("i", -1))
+	var h2i := int(h2.get("i", -1))
+	var bridge: Vector2 = sim.room_center("bridge")
+	var engine: Vector2 = sim.room_center("engine")
+	# 只留 h1/h2 作为候选：其余人类全部拘留（挑目标会排除 detained）。
+	for x: Dictionary in sim.agents:
+		var xi := int(x.get("i", -1))
+		x["detained"] = xi != ai0 and xi != h1i and xi != h2i
+		x["downed"] = false
+		x["redT"] = 0.0
+		x["_avoidHuman"] = -1
+		x["accuse"] = -1
+		x["target"] = -1
+		x["path"] = PackedVector2Array()
+	a["mates"] = {}
+	a["alive"] = true
+	a["knife"] = 1
+	a["bullet"] = 0
+	a["qual"] = 0
+	a["qualPending"] = 0
+	a["_sabDone"] = true
+	a["drag"] = -1
+	a["_fakeCD"] = 999.0
+	a["_breakerRollN"] = str(int(sim.night))
+	a["_breakerWant"] = false
+	a["_avoid_i"] = -1
+	a["_avoid_t"] = 0.0
+	a["why"] = {}
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	a["pos"] = bridge
+	h1["alive"] = true
+	h1["downed"] = false
+	h1["detained"] = false
+	h1["pos"] = bridge + Vector2(4, 0)
+	h2["alive"] = true
+	h2["downed"] = false
+	h2["detained"] = false
+	h2["pos"] = bridge + Vector2(0, 6)
+	# ① 看得见的更近者优先
+	sim._ai_alien._decide(a)
+	if int(a.get("target", -1)) == h1i:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("看得见的目标没选中：%d（期望 %d）" % [int(a.get("target", -1)), h1i])
+	# ② 看不见且没有记忆 → 不进候选（取消全图锁敌）
+	h2["detained"] = true
+	h1["pos"] = engine
+	a["why"] = {}
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	sim._ai_alien._decide(a)
+	if int(a.get("target", -1)) < 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("没记忆的远处目标仍被选中：%d" % int(a.get("target", -1)))
+	# ③ 本夜亲眼见过 → 用最后目击位置（25 秒内）
+	sim.mind.note_track(ai0, h1i, bridge + Vector2(2, 0), "bridge")
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	sim._ai_alien._decide(a)
+	if int(a.get("target", -1)) == h1i:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("25 秒内的记忆目标没选中：%d" % int(a.get("target", -1)))
+	# ④ 超过 HUNT.memorySec(25s) → 跟丢
+	var mem: Array = (a.get("why", {}) as Dictionary).get(h1i, []) as Array
+	if not mem.is_empty():
+		var last: Dictionary = mem[mem.size() - 1]
+		last["t"] = (sim.night_len() - maxf(0.0, float(sim.t))) - 30.0
+		(a["why"] as Dictionary)[h1i] = mem
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	sim._ai_alien._decide(a)
+	if int(a.get("target", -1)) < 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("过期记忆仍被使用：%d" % int(a.get("target", -1)))
+	# ⑤ humanT：远 2 格但合过闸的人优先（HUMANISH.pull 6 格当量）
+	a["why"] = {}
+	h2["detained"] = false
+	h1["pos"] = bridge + Vector2(6, 0)
+	h2["pos"] = bridge + Vector2(4, 0)
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	sim._ai_alien._decide(a)
+	var no_ht := int(a.get("target", -1))
+	sim.mind.humanish_add(a, h1i, 1.0)
+	a["path"] = PackedVector2Array()
+	a["target"] = -1
+	sim._ai_alien._decide(a)
+	var with_ht := int(a.get("target", -1))
+	if no_ht == h2i and with_ht == h1i:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("humanT 拉近失效：无=%d 有=%d（期望 %d→%d）" % [
+			no_ht, with_ht, h2i, h1i])
+	# ⑥ 合闸目击：异形 observer 写 humanT +0.28，上限 1
+	var br: Vector2 = sim.breaker_pos()
+	sim.light_state = 2
+	sim.power_on = false
+	h1["pos"] = br
+	a["pos"] = br + Vector2(1.2, 0)
+	a["humanT"] = {}
+	a["mates"] = {}
+	sim.toggle_power(h1i)
+	var ht1: float = sim.mind.humanish_of(a, h1i)
+	sim.mind.humanish_add(a, h1i, 1.0)
+	var ht_cap: float = sim.mind.humanish_of(a, h1i)
+	if absf(ht1 - 0.28) < 0.001 and absf(ht_cap - 1.0) < 0.001:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("humanT 写入/封顶错：%0.2f / %0.2f" % [ht1, ht_cap])
+	# ⑦ saw_red 5 秒节流：同一段红光只写一条证据
+	h2["alive"] = true
+	h2["downed"] = false
+	h2["detained"] = false
+	h2["pos"] = bridge + Vector2(3, 0)
+	h2["why"] = {}
+	h2["redSeen"] = {}
+	a["pos"] = bridge
+	a["redT"] = 1.0
+	var e0: float = sim.elapsed
+	sim._track_pass()
+	var n1 := _count_why(h2, ai0, "saw_red")
+	sim._track_pass()
+	var n2 := _count_why(h2, ai0, "saw_red")
+	sim.elapsed = e0 + 6.0
+	a["redT"] = 1.0
+	sim._track_pass()
+	var n3 := _count_why(h2, ai0, "saw_red")
+	a["redT"] = 0.0
+	if n1 == 1 and n2 == 1 and n3 == 2:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("saw_red 节流错：%d/%d/%d（期望 1/1/2）" % [n1, n2, n3])
+	# ⑧ saw_avoid：每夜一次，记在**观察者**身上
+	h2["why"] = {}
+	h2["avoidSeen"] = {}
+	h2["pos"] = bridge + Vector2(3, 0)
+	h1["pos"] = bridge
+	h1["_avoidHuman"] = h2i
+	sim._track_pass()
+	var av1 := _count_why(h2, h1i, "saw_avoid")
+	sim._track_pass()
+	var av2 := _count_why(h2, h1i, "saw_avoid")
+	var av_seen := int((h2.get("avoidSeen", {}) as Dictionary).get(h1i, -1))
+	if av1 == 1 and av2 == 1 and av_seen == int(sim.night):
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("saw_avoid 错：%d/%d seen=%d" % [av1, av2, av_seen])
+	# ⑨ 空闲游荡 + 躲避：任务做完不再站桩
+	h1["_avoidHuman"] = -1
+	h1["tasks"] = [0]
+	h1["tIdx"] = 1
+	h1["path"] = PackedVector2Array()
+	h1["doing"] = 0.0
+	h1["qualPending"] = 0
+	h1["warm"] = {}
+	h1["cred"] = {}
+	h1["known"] = {}
+	h1["alive"] = true
+	h1["downed"] = false
+	h1["detained"] = false
+	sim.dmg = []
+	h2["accuse"] = -1
+	sim._ai_human._idle_roam(h1)
+	var roam_ok := (h1.get("path", PackedVector2Array()) as PackedVector2Array).size() > 0
+	h1["path"] = PackedVector2Array()
+	h2["accuse"] = h1i
+	sim._ai_human._idle_roam(h1)
+	var avoid_ok := int(h1.get("_avoidHuman", -1)) == h2i \
+		and (h1.get("path", PackedVector2Array()) as PackedVector2Array).size() > 0
+	if roam_ok and avoid_ok:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("idle roam 错：roam=%s avoid=%s/%d" % [
+			str(roam_ok), str(avoid_ok), int(h1.get("_avoidHuman", -1))])
+	# ⑩ 身份轴 / 目标距离乘子 / trait 系数
+	a["almost"] = {"foe": {}, "friend": {}}
+	a["known"] = {}
+	a["mates"] = {}
+	a["cred"] = {}
+	(a["almost"] as Dictionary)["foe"] = {h1i: {"kinds": ["saw_knife"]}}
+	var h_id: float = sim.mind.identity_axis(a, h1)
+	(a["almost"] as Dictionary)["foe"] = {h1i: {"kinds": ["heard_accuse"]}}
+	var h_soft: float = sim.mind.identity_axis(a, h1)
+	(a["mates"] as Dictionary)[h2i] = {"t": 1.0}
+	var h_mate: float = sim.mind.identity_axis(a, h2)
+	a["mates"] = {}
+	a["almost"] = {"foe": {}, "friend": {}}
+	if absf(h_id - 0.05) < 0.001 and h_soft > 0.5 and absf(h_mate) < 0.001 \
+			and absf(sim.mind.target_dist_mul(1.0) - 0.5) < 0.001 \
+			and absf(sim.mind.target_dist_mul(0.0) - 1.25) < 0.001:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("身份轴错：id=%.2f soft=%.2f mate=%.2f mul=%.2f/%.2f" % [
+			h_id, h_soft, h_mate, sim.mind.target_dist_mul(1.0),
+			sim.mind.target_dist_mul(0.0)])
+	# ⑪ 暴露度：亮舱有目击者 >0；目击者做事 / 是目标本人 → 0
+	var wit := h2
+	wit["alive"] = true
+	wit["downed"] = false
+	wit["detained"] = false
+	wit["doing"] = 0.0
+	wit["pos"] = bridge + Vector2(2, 0)
+	h1["detained"] = true
+	h1["doing"] = 0.0
+	var exp_seen: float = sim._ai_alien._exposure_at(a, bridge, {})
+	wit["doing"] = 3.0
+	var exp_busy: float = sim._ai_alien._exposure_at(a, bridge, {})
+	wit["doing"] = 0.0
+	var exp_except: float = sim._ai_alien._exposure_at(a, bridge, wit)
+	h1["detained"] = false
+	if exp_seen > 0.0 and exp_busy == 0.0 and exp_except == 0.0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("暴露度错：seen=%.2f busy=%.2f except=%.2f" % [
+			exp_seen, exp_busy, exp_except])
+	# ⑫ 无目标寻人点 + 特征系数
+	a["why"] = {}
+	sim.mind.note_track(ai0, h1i, engine, "engine")
+	var hunt: Vector2 = sim._ai_alien._hunt_spot(a)
+	var hunt_ok := hunt.distance_to(engine) < 1.0
+	a["why"] = {}
+	var hunt2: Vector2 = sim._ai_alien._hunt_spot(a)
+	var here_room: String = sim.room_at(a.get("pos", Vector2.ZERO))
+	var tally: Dictionary = {}
+	for p: Dictionary in (sim.map.get("points", []) as Array):
+		var pr := String(p.get("room", ""))
+		if pr == "" or pr == here_room:
+			continue
+		tally[pr] = int(tally.get(pr, 0)) + 1
+	var best_room := ""
+	var best_n := 0
+	for k2: String in tally.keys():
+		if int(tally[k2]) > best_n:
+			best_n = int(tally[k2])
+			best_room = k2
+	var hunt_room: String = sim.room_at(hunt2)
+	var saved_trait: Dictionary = (a.get("trait", {}) as Dictionary).duplicate()
+	a["trait"] = {"aggr": 50, "caut": 50, "soc": 50, "cur": 50}
+	var p1: float = sim.mind.trait_c("knifeWatcherPenalty", a)
+	var p2: float = sim.mind.trait_c("knifeBusyBonus", a)
+	var p3: float = sim.mind.trait_c("grudgeGain", a)
+	var p4: float = sim.mind.trait_c("trustGain", a)
+	var p5: float = sim.mind.trait_c("voteGrudgePull", a)
+	a["trait"] = saved_trait
+	if hunt_ok and hunt_room == best_room and absf(p1 - 12.0) < 0.01 \
+			and absf(p2 + 12.0) < 0.01 and absf(p3 - 1.0) < 0.01 \
+			and absf(p4 - 1.0) < 0.01 and absf(p5 - 6.0) < 0.01:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("寻人点/系数错：hunt=%s room=%s/%s coef=%.1f/%.1f/%.1f/%.1f/%.1f" % [
+			str(hunt_ok), hunt_room, best_room, p1, p2, p3, p4, p5])
+	# ⑬ humanT 跨夜 ×0.8（1.0 → 0.8）
+	sim.mind.humanish_add(a, h1i, 1.0)
+	sim.mind.reset_night()
+	var ht_decay: float = sim.mind.humanish_of(a, h1i)
+	if absf(ht_decay - 0.8) < 0.01:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("humanT 跨夜衰减错：%0.2f" % ht_decay)
+	print("AIPORTTEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_aiporttest_ok = fail_n == 0
+
+
+func _press_escape() -> void:
+	var e := InputEventKey.new()
+	e.keycode = KEY_ESCAPE
+	e.physical_keycode = KEY_ESCAPE
+	e.pressed = true
+	Input.parse_input_event(e)
+	var u := InputEventKey.new()
+	u.keycode = KEY_ESCAPE
+	u.physical_keycode = KEY_ESCAPE
+	u.pressed = false
+	Input.parse_input_event(u)
+
+
+## 鼠标口径自测（2026-11-10 现场反馈「开截图工具时鼠标被框在游戏窗口里」）：
+##   ① 自由游玩 CAPTURED；
+##   ② Esc → VISIBLE，并且**多帧之后仍然 VISIBLE**（旧版下一帧被重新捕获，Esc 等于无效）；
+##   ③ 点击画面 → CAPTURED；
+##   ④ 会议打开 → VISIBLE，关闭 → CAPTURED（未释放时）；
+##   ⑤ 先 Esc 释放再开/关会议 → 关闭后仍 VISIBLE（不吞掉用户释放的状态）。
+func _run_mousetest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.meeting = {}
+	mouse_released = false
+	_refresh_mouse_mode()
+	await get_tree().process_frame
+	if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("自由游玩不是 CAPTURED：%d" % Input.mouse_mode)
+	_press_escape()
+	for i in 20:
+		await get_tree().process_frame
+	if mouse_released and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("Esc 释放无效：released=%s mode=%d" % [
+			str(mouse_released), Input.mouse_mode])
+	var dn := InputEventMouseButton.new()
+	dn.button_index = MOUSE_BUTTON_LEFT
+	dn.pressed = true
+	Input.parse_input_event(dn)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not mouse_released and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("点击收回无效：released=%s mode=%d" % [
+			str(mouse_released), Input.mouse_mode])
+	# 会议打开 / 关闭
+	sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var meet_open_mode := Input.mouse_mode
+	_finish_meeting(sim)
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if meet_open_mode == Input.MOUSE_MODE_VISIBLE \
+			and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("会议鼠标口径错：开=%d 关=%d" % [meet_open_mode, Input.mouse_mode])
+	# 先 Esc 释放，再开 / 关会议：关闭后仍保持 VISIBLE
+	_press_escape()
+	await get_tree().process_frame
+	sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	_refresh_meeting_ui()
+	await get_tree().process_frame
+	_finish_meeting(sim)
+	_refresh_meeting_ui()
+	for i in 6:
+		await get_tree().process_frame
+	if mouse_released and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("会议吞掉了 Esc 释放：released=%s mode=%d" % [
+			str(mouse_released), Input.mouse_mode])
+	# 收尾
+	mouse_released = false
+	_refresh_mouse_mode()
+	print("MOUSETEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_mousetest_ok = fail_n == 0
+
+
+## 结算页自测（2026-11-10 第 14 批）：
+## ① 终票在 close 时按 seq 落「vote」事件（中途改票只记 vote_change）；
+## ② 投票矩阵按场次分组、含弃权；③ 身份表 15 行、含阵营/结局/死亡地点/刀在；
+## ④ 阵亡态（sim.over=false）不显示结算身份表。
+func _run_settletest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.meeting = {}
+	settle_panel.visible = false
+	# ① 一场干净投票：0→2、1→2、2→弃权；0 先改 3 再改回 2
+	sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	var seq0 := int(sim.meeting.get("seq", 0))
+	sim.meeting["phase"] = "vote"
+	sim.meeting["votes"] = {}
+	sim.cast_vote(0, 2)
+	sim.cast_vote(1, 2)
+	sim.cast_vote(2, -1)
+	sim.cast_vote(0, 3)
+	sim.cast_vote(0, 2)
+	sim._close_meeting()
+	var votes: Array = []
+	var changes: Array = []
+	for e: Dictionary in sim.events:
+		if String(e.get("kind", "")) == "vote":
+			votes.append(e)
+		elif String(e.get("kind", "")) == "vote_change":
+			changes.append(e)
+	var mine: Dictionary = {}
+	for e: Dictionary in votes:
+		if int(e.get("seq", -1)) == seq0:
+			mine[int(e.get("actor", -1))] = int(e.get("target", -2))
+	if mine.size() == 3 and int(mine.get(0, -9)) == 2 \
+			and int(mine.get(1, -9)) == 2 and int(mine.get(2, 9)) == -1 \
+			and not changes.is_empty():
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("终票落账错：seq=%d votes=%s changes=%d" % [
+			seq0, str(mine), changes.size()])
+	var vtxt := _settle_votes_text()
+	if vtxt.find("场投票") >= 0 and vtxt.find("弃权") >= 0 and vtxt.find("→") >= 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("投票矩阵缺内容：%s" % vtxt)
+	sim.meeting = {}
+	# ② knife 倒地 / 死亡地点
+	var alien_i := -1
+	var human_i := -1
+	for a: Dictionary in sim.agents:
+		if bool(a.get("alien", false)) and alien_i < 0:
+			alien_i = int(a.get("i", -1))
+		elif not bool(a.get("alien", false)) and human_i < 0:
+			human_i = int(a.get("i", -1))
+	if alien_i >= 0 and human_i >= 0:
+		var k: Dictionary = sim.agent(alien_i)
+		var h: Dictionary = sim.agent(human_i)
+		k["alive"] = true
+		k["downed"] = false
+		k["knife"] = 1
+		h["alive"] = true
+		h["downed"] = false
+		h["pos"] = sim.room_center("bridge")
+		sim.knife(alien_i, human_i)
+		var down_room := String(h.get("downRoom", ""))
+		sim.die(h)
+		var death_room := String(h.get("deathRoom", ""))
+		if down_room == "bridge" and death_room == "bridge" \
+				and String(h.get("deathCause", "")) == "knife":
+			pass_n += 1
+		else:
+			fail_n += 1
+			fails.append("死亡地点错：down=%s death=%s cause=%s" % [
+				down_room, death_room, String(h.get("deathCause", ""))])
+	else:
+		fail_n += 1
+		fails.append("席位缺失（结算）")
+	# ③ 结算页：15 行身份表 + 结局/地点
+	sim.over = true
+	sim.over_win = true
+	sim.over_why = "自测结算"
+	_show_end()
+	var rows := settle_ids.text.split("\n").size()
+	var ids := settle_ids.text
+	if settle_panel.visible and rows == sim.agents.size() \
+			and ids.find("异形") >= 0 and ids.find("人类") >= 0 \
+			and ids.find("被出刀") >= 0 and ids.find("中央会议室") >= 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("身份表错：visible=%s rows=%d/%d" % [
+			str(settle_panel.visible), rows, sim.agents.size()])
+	# ④ 阵亡态（局未结束）不显示结算身份表
+	sim.over = false
+	settle_panel.visible = false
+	_refresh_sim_hud()
+	if not settle_panel.visible:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("阵亡态泄露了结算身份表")
+	# 收尾
+	sim.over = false
+	sim.over_win = false
+	sim.over_why = ""
+	settle_panel.visible = false
+	print("SETTLETEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_settletest_ok = fail_n == 0
+
+
+## 局内小地图自测（2026-11-10 第 15 批）：
+## ① 尺寸固定、鼠标穿透；② 灯态 0/1/2 三态；③ 自己的任务点与 sim.remaining_tasks 同源；
+## ④ 静态地图数据齐全（10 舱 / 走廊 / 8 管道 / 设施 / 26 任务点）。
+func _run_minimaptest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.meeting = {}
+	await get_tree().process_frame
+	if minimap != null and minimap.size.x >= 200.0 and minimap.size.y > minimap.size.x \
+			and minimap.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("小地图尺寸/穿透错：%s" % (
+			str(minimap.size) if minimap != null else "null"))
+	var old := int(sim.light_state)
+	sim.light_state = 0
+	var b0: bool = minimap._room_lit("bridge", "bright")
+	var p0: bool = minimap._room_lit("power", "dark")
+	sim.light_state = 1
+	var p1: bool = minimap._room_lit("power", "dark")
+	sim.light_state = 2
+	var b2: bool = minimap._room_lit("bridge", "bright")
+	var p2: bool = minimap._room_lit("power", "dark")
+	sim.light_state = old
+	if b0 and not p0 and p1 and b2 and not p2:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("灯态错：0=%s/%s 1=%s 2=%s/%s" % [
+			str(b0), str(p0), str(p1), str(b2), str(p2)])
+	if bool(sim.spectator):
+		pass_n += 1
+	else:
+		var mine: Array = sim.remaining_tasks()
+		var me: Dictionary = sim.me()
+		var total: int = (me.get("tasks", []) as Array).size()
+		if mine.size() > 0 and mine.size() <= total:
+			pass_n += 1
+		else:
+			fail_n += 1
+			fails.append("任务点集合错：mine=%d total=%d" % [mine.size(), total])
+	var map_ok: bool = (sim.map.get("rooms", []) as Array).size() >= 10 \
+		and (sim.map.get("corridors", []) as Array).size() > 0 \
+		and (sim.map.get("pipes", []) as Array).size() == 8 \
+		and (sim.map.get("facility", []) as Array).size() >= 4 \
+		and (sim.map.get("points", []) as Array).size() == 26
+	if map_ok:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("地图数据不全")
+	print("MINIMAPTEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_minimaptest_ok = fail_n == 0
+
+
+## 证据/情绪/口供自测（2026-11-10 第 16 批）：
+## ① grudge/trust 写值 + isPatron；② best_grudge + 投票砸票；③ patron 不过票；
+## ④ claimHist 只留 3 场 + claim_recall 台词；⑤ evalAlmost 的 WEAK/heard/fresh/friend；
+## ⑥ note_testimony 一次只写一条 why（DESC 后的种类），DESC 会真的制造描述失真。
+func _run_socialtest() -> void:
+	var pass_n := 0
+	var fail_n := 0
+	var fails: Array = []
+	_finish_meeting(sim)
+	sim.meeting = {}
+	var h: Dictionary = {}
+	var t: Dictionary = {}
+	var l: Dictionary = {}
+	for a: Dictionary in sim.agents:
+		var i := int(a.get("i", -1))
+		if i == int(sim.me_idx) or bool(a.get("alien", false)):
+			continue
+		if h.is_empty():
+			h = a
+		elif t.is_empty():
+			t = a
+		elif l.is_empty():
+			l = a
+	if h.is_empty() or t.is_empty() or l.is_empty():
+		print("SOCIALTEST FAIL 席位缺失")
+		_socialtest_ok = false
+		return
+	var hi := int(h.get("i", -1))
+	var ti := int(t.get("i", -1))
+	var li := int(l.get("i", -1))
+	# ① grudge / trust / is_patron（中立性格系数 = 1）
+	h["trait"] = {"aggr": 50, "caut": 50, "soc": 50, "cur": 50}
+	h["grudge"] = {}
+	h["trust"] = {}
+	h["alive"] = true
+	h["downed"] = false
+	t["alive"] = true
+	t["downed"] = false
+	sim.mind.grudge_add(h, ti, 0.45)
+	var g1 := float((h.get("grudge", {}) as Dictionary).get(ti, 0.0))
+	sim.mind.trust_add(h, ti, 0.40)
+	var tr1 := float((h.get("trust", {}) as Dictionary).get(ti, 0.0))
+	var patron0: bool = sim.mind.is_patron(h, ti)
+	sim.mind.trust_add(h, ti, 0.40)
+	var patron1: bool = sim.mind.is_patron(h, ti)
+	if absf(g1 - 0.45) < 0.001 and absf(tr1 - 0.40) < 0.001 \
+			and not patron0 and patron1:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("grudge/trust 错：g=%.2f t=%.2f patron=%s/%s" % [
+			g1, tr1, str(patron0), str(patron1)])
+	# ② best_grudge + 投票砸票（grudge 0.7，20 次至少中一次）
+	h["grudge"] = {ti: 0.7}
+	var bg: Dictionary = sim.mind.best_grudge(h)
+	var hit := 0
+	for k in 20:
+		if sim._ai_vote_target(h) == ti:
+			hit += 1
+	if int(bg.get("i", -1)) == ti and hit > 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("grudge 投票错：best=%d hit=%d" % [int(bg.get("i", -1)), hit])
+	# ③ patron 不过票：trust=1，sus 最高也不投他
+	h["trust"] = {ti: 1.0}
+	h["grudge"] = {}
+	h["sus"] = {ti: 0.95}
+	h["susNight"] = {ti: int(sim.night)}
+	h["known"] = {}
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["accuse"] = -1
+	h["why"] = {}
+	var patron_hits := 0
+	for k2 in 10:
+		if sim._ai_vote_target(h) == ti:
+			patron_hits += 1
+	if patron_hits == 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("patron 被投了 %d 次" % patron_hits)
+	# ④ claimHist 只留 3 场 + claim_recall
+	sim.mind.record_claim(h, "bridge")
+	sim.mind.record_claim(h, "engine")
+	sim.mind.record_claim(h, "med")
+	sim.mind.record_claim(h, "power")
+	var ch: Array = h.get("claimHist", []) as Array
+	var hist_ok := ch.size() == 3 and String((ch[2] as Dictionary).get("roomId", "")) == "power"
+	# 造一场会：h 上一场在 bridge，本场在 engine → 另一个 AI 说 claim_recall
+	h["claimHist"] = [{"night": int(sim.night), "room": "中央会议室", "roomId": "bridge"}]
+	h["_lie"] = {}
+	h["pos"] = sim.room_center("engine")
+	h["alive"] = true
+	h["downed"] = false
+	sim.stats["claimRecall"] = 0
+	sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	var recall_n := int(sim.stats.get("claimRecall", 0))
+	sim.meeting = {}
+	if hist_ok and recall_n > 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("claimHist 错：hist=%d recall=%d" % [ch.size(), recall_n])
+	# ⑤ evalAlmost 全量
+	var cur := int(sim.night)
+	h["known"] = {}
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["cred"] = {}
+	h["credWhy"] = {}
+	h["sus"] = {ti: 0.6}
+	h["susNight"] = {ti: cur}
+	h["why"] = {ti: [
+		{"kind": "empty_accuse", "night": cur},
+		{"kind": "quick_report", "night": cur},
+	]}
+	sim.mind.eval_almost(h, ti)
+	var weak_ok: bool = not (h.get("almost", {}) as Dictionary).get("foe", {}).has(ti)
+	h["why"] = {ti: [
+		{"kind": "saw_knife", "night": cur},
+		{"kind": "saw_pipe", "night": cur},
+	]}
+	sim.mind.eval_almost(h, ti)
+	var foe_ok: bool = (h.get("almost", {}) as Dictionary).get("foe", {}).has(ti)
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["why"] = {ti: [
+		{"kind": "saw_knife", "night": cur - 5},
+		{"kind": "saw_pipe", "night": cur - 5},
+	]}
+	sim.mind.eval_almost(h, ti)
+	var stale_ok: bool = not (h.get("almost", {}) as Dictionary).get("foe", {}).has(ti)
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["why"] = {ti: [
+		{"kind": "saw_knife", "night": cur},
+		{"kind": "heard_accuse", "night": cur},
+	]}
+	sim.mind.eval_almost(h, ti)
+	var heard_ok: bool = (h.get("almost", {}) as Dictionary).get("foe", {}).has(ti)
+	# friend：cred + credWhy 两种新鲜
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["why"] = {}
+	h["cred"] = {ti: 0.6}
+	h["credWhy"] = {ti: [
+		{"kind": "task", "night": cur},
+		{"kind": "fix", "night": cur},
+	]}
+	sim.mind.eval_almost(h, ti)
+	var friend_ok: bool = (h.get("almost", {}) as Dictionary).get("friend", {}).has(ti)
+	if weak_ok and foe_ok and stale_ok and heard_ok and friend_ok:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("evalAlmost 错：weak=%s foe=%s stale=%s heard=%s friend=%s" % [
+			str(weak_ok), str(foe_ok), str(stale_ok), str(heard_ok), str(friend_ok)])
+	# ⑥ DESC + 单条 why
+	h["why"] = {ti: []}
+	h["almost"] = {"foe": {}, "friend": {}}
+	h["sus"] = {}
+	l["why"] = {ti: []}
+	l["heard"] = []
+	l["sus"] = {}
+	l["alive"] = true
+	l["downed"] = false
+	sim.stats["descErrors"] = 0
+	for k3 in 60:
+		sim.mind.note_testimony(li, hi, ti, "saw_knife", 0.3, "bridge")
+	var why_arr: Array = (l.get("why", {}) as Dictionary).get(ti, []) as Array
+	var last_kind := ""
+	if not why_arr.is_empty():
+		last_kind = String((why_arr[why_arr.size() - 1] as Dictionary).get("kind", ""))
+	var desc_n := int(sim.stats.get("descErrors", 0))
+	if (l.get("heard", []) as Array).size() > 0 and why_arr.size() == 60 \
+			and last_kind != "heard_testimony" and desc_n > 0:
+		pass_n += 1
+	else:
+		fail_n += 1
+		fails.append("DESC/单写错：heard=%d why=%d kind=%s desc=%d" % [
+			(l.get("heard", []) as Array).size(), why_arr.size(), last_kind, desc_n])
+	print("SOCIALTEST pass=%d fail=%d %s" % [pass_n, fail_n, str(fails)])
+	_socialtest_ok = fail_n == 0
+
+
+func _run_leadtest() -> void:
+	## 第 3 批的两条新判定各自钉一条：
+	## ① meeting.lead 只记**第一个**带节奏的人（2.5D ctx.lead）；
+	## ② quick_report：夜会报案 ≤10 秒且目击者见过尸体 → 怀疑报案人；超过 10 秒不记。
+	_finish_meeting(sim)
+	var s = sim
+	var pass_n := 0
+	var fail_n := 0
+
+	s.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	s.note_accuse(3, 5)
+	s.note_accuse(9, 5)
+	var lead_map: Dictionary = s.meeting.get("lead", {}) as Dictionary
+	if int(lead_map.get(5, -1)) == 3:
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("LEADTEST FAIL 带头追责 lead=%s（期望 3）" % str(lead_map.get(5, -1)))
+	s.meeting = {}
+
+	# ② 快报案
+	var rep: Dictionary = s.agent(4)
+	var vic: Dictionary = s.agent(7)
+	# 目击者必须是**人类**：quick_report 只写给人类（异形不因报案快而怀疑人）。
+	var wit: Dictionary = {}
+	for cand: Dictionary in s.agents:
+		var ci := int(cand.get("i", -1))
+		if ci == 4 or ci == 7 or bool(cand.get("alien", false)):
+			continue
+		wit = cand
+		break
+	if rep.is_empty() or wit.is_empty() or vic.is_empty():
+		print("LEADTEST FAIL 席位缺失")
+		_leadtest_ok = false
+		return
+	var wit_i := int(wit.get("i", -1))
+	rep["alive"] = true
+	rep["downed"] = false
+	rep["reportLeft"] = 2
+	wit["alive"] = true
+	wit["downed"] = false
+	wit["bodySeen"] = {}
+	wit["why"] = {}
+	vic["alive"] = false
+	vic["downed"] = false
+	vic["bodyReported"] = false
+	vic["deathAt"] = s.elapsed - 3.0
+	s.night_meets = 0
+	s.note_body(wit_i, 7)
+	if s.open_meeting_kind(SimStateScript.MEET_NIGHT, 4, 7) and _why_has(wit, 4, "quick_report"):
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("LEADTEST FAIL quick_report 未写入（wit=%d bodySeen=%s）" % [
+			wit_i, str(wit.get("bodySeen", {}))])
+	s.meeting = {}
+
+	# ③ 反例：报案太慢（>10 秒）不记
+	wit["why"] = {}
+	vic["deathAt"] = s.elapsed - 30.0
+	s.night_meets = 0
+	s.open_meeting_kind(SimStateScript.MEET_NIGHT, 4, 7)
+	if not _why_has(wit, 4, "quick_report"):
+		pass_n += 1
+	else:
+		fail_n += 1
+		print("LEADTEST FAIL 慢报案也记了 quick_report")
+	s.meeting = {}
+
+	# ④ 讨论期先投：手里有确证的人会议一开始就把票压上
+	s.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1)
+	var e: Dictionary = s.agent(6)
+	var kn_t: Dictionary = s.agent(8)
+	if e.is_empty() or kn_t.is_empty():
+		fail_n += 2
+		print("LEADTEST FAIL 席位缺失（早投）")
+	else:
+		e["alive"] = true
+		e["downed"] = false
+		kn_t["alive"] = true
+		kn_t["downed"] = false
+		e["known"] = {8: {"t": s.elapsed}}
+		var n_early: int = s.cast_early_votes()
+		var votes0: Dictionary = (s.meeting.get("votes", {}) as Dictionary).duplicate()
+		var vm: Dictionary = (s.meeting.get("voteMeta", {}) as Dictionary).get(6, {}) as Dictionary
+		if n_early >= 1 and int(votes0.get(6, -1)) == 8 \
+				and int(vm.get("early", 0)) == 1 and String(vm.get("why", "")) == "known":
+			pass_n += 1
+		else:
+			fail_n += 1
+			print("LEADTEST FAIL 早投 n=%d votes=%s meta=%s" % [n_early, str(votes0), str(vm)])
+		# ⑤ 确信不松绑：why==known 的早投票不被改票闸改动
+		s.reconsider_votes(0)
+		if int((s.meeting.get("votes", {}) as Dictionary).get(6, -1)) == 8:
+			pass_n += 1
+		else:
+			fail_n += 1
+			print("LEADTEST FAIL known 早投票被改掉")
+	s.meeting = {}
+	print("LEADTEST pass=%d fail=%d" % [pass_n, fail_n])
+	_leadtest_ok = fail_n == 0 and pass_n == 5
+
+
+func _why_has(w: Dictionary, target_i: int, reason: String) -> bool:
+	var why: Dictionary = (w.get("why", {}) as Dictionary)
+	for e: Variant in (why.get(target_i, []) as Array):
+		if String((e as Dictionary).get("reason", "")) == reason:
+			return true
+	return false
+
+
 func _run_devicetest() -> void:
 	_sim_gate = false
+	## 与 --mgtest 同一条坑：会议开着时 _process 会把小游戏卡片收掉，
+	## 旧夹具因此在开局讨论里恒报 open=false。先把会正常走完。
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
 	var kinds := {}
 	for d in extras.devices:
 		kinds[d.kind] = true
@@ -646,12 +2629,15 @@ func _run_devicetest() -> void:
 	_open_device(dev)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	var opened: bool = mg_layer.is_open() and player.ui_locked
 	print("DEVICE_TEST open=%s kind=%s locked=%s" % [
 		str(mg_layer.is_open()), dev.kind, str(player.ui_locked)])
 	mg_layer.debug_solve()
 	await get_tree().create_timer(0.9).timeout
+	var closed: bool = not mg_layer.is_open() and not player.ui_locked
 	print("DEVICE_TEST closed=%s unlocked=%s" % [
 		str(not mg_layer.is_open()), str(not player.ui_locked)])
+	_devicetest_ok = opened and closed
 	if not extras.devices.is_empty():
 		_open_device(extras.devices[0])
 		await get_tree().process_frame
@@ -733,10 +2719,44 @@ func _run_powertest() -> void:
 		extras.door_update(0.1, away, false)
 	print("POWERTEST 门 离开后 scan=%.2f open=%.2f 重新拦人=%s" % [
 		float(door["scan_t"]), float(door["open"]), str(float(door["open"]) <= pass_r)])
+	# 门扇几何：关闭时两扇必须在中线合拢（gap=0），完全打开时让出整段门洞（gap=2*half）。
+	var half := float(door["half"])
+	var off: Vector3 = door["offset"]
+	var leaves: Array = door["leaves"]
+	var blockers: Array = door["blockers"]
+	extras._apply_door_state(door, 0.0, pass_r, true, scan_sec)
+	var c0: Vector3 = (leaves[0] as MeshInstance3D).position
+	var c1: Vector3 = (leaves[1] as MeshInstance3D).position
+	var gap_closed := absf(((c1 - off * (half * 0.5)) - (c0 + off * (half * 0.5))).dot(off))
+	var closed_blocked := not (blockers[0]["shape"] as CollisionShape3D).disabled
+	extras._apply_door_state(door, 1.0, pass_r, true, scan_sec)
+	c0 = (leaves[0] as MeshInstance3D).position
+	c1 = (leaves[1] as MeshInstance3D).position
+	var gap_open := absf(((c1 - off * (half * 0.5)) - (c0 + off * (half * 0.5))).dot(off))
+	var open_blocked := not (blockers[0]["shape"] as CollisionShape3D).disabled
+	print("POWERTEST 门扇 closed_gap=%.3f closed_blocked=%s open_gap=%.3f open_blocked=%s" % [
+		gap_closed, str(closed_blocked), gap_open, str(open_blocked)])
+	extras._apply_door_state(door, 0.0, pass_r, true, scan_sec)
 	set_power(true)
 	var s2: Dictionary = builder.light_stats()
 	print("POWERTEST 复电 rooms_on=%d corridor_on=%d ambient=%.3f" % [
 		s2.rooms_on, s2.corridor_on, s2.ambient])
+	# 三态：电路修好后合闸是 1（全舱全亮），不是常态 0（只亮亮舱）。
+	# 2.5D refreshLight：st===1 → G.lit[r.id]=true for all rooms。
+	var all_rooms: int = (map_data.get("rooms", []) as Array).size()
+	if sim != null:
+		sim.power_fixed = true
+		sim.light_state = 2
+		apply_light_state(2)
+		sim.light_state = 1
+		apply_light_state(1)
+	var s3: Dictionary = builder.light_stats()
+	print("POWERTEST 三态 全亮 rooms_on=%d/%d 通过=%s" % [
+		s3.rooms_on, all_rooms, str(int(s3.rooms_on) == all_rooms)])
+	if sim != null:
+		sim.power_fixed = false
+		sim.light_state = 0
+		apply_light_state(0)
 
 	# 电闸时长：拉闸 min(off_max, off_step×n)，合闸 on_default
 	var br = null
@@ -747,14 +2767,21 @@ func _run_powertest() -> void:
 	if br == null:
 		print("POWERTEST FAIL 找不到电闸设备")
 		return
-	_breaker_pulls = 0
+	if sim != null:
+		sim.breaker_pulls = 0
+		sim.light_state = 0
 	var seq: Array = []
 	for i in 4:
 		seq.append(String(_breaker_offer(br).get("hint", "")))
-		_breaker_pulls += 1
+		if sim != null:
+			sim.breaker_pulls += 1
 	print("POWERTEST 拉闸时长序列 %s" % str(seq))
+	if sim != null:
+		sim.light_state = 2
 	power_on = false
 	print("POWERTEST 合闸时长 %s" % String(_breaker_offer(br).get("hint", "")))
+	if sim != null:
+		sim.light_state = 0
 	power_on = true
 
 
@@ -1076,13 +3103,18 @@ func _run_interacttest() -> void:
 		if has_req:
 			var done := {"v": false}
 			var dur := SpaceData.num(space, "stand", "qual")
-			_start_station("领取物资申请单", dur,
-				func() -> void:
-					_on_claim_done()
-					done.v = true)
-			for i in int(ceil(dur / 0.1)) + 2:
-				_tick_station(0.1)
-			print("INTERACT 站桩结算 done=%s qual_pending=%d qual=%d" % [str(done.v), qual_pending, qual])
+			if dur <= 0.0:
+				# 2.5D 2026-11-10：交互即领，没有站桩
+				_claim_qual_now()
+				done.v = true
+			else:
+				_start_station("领取物资申请单", dur,
+					func() -> void:
+						_on_claim_done()
+						done.v = true)
+				for i in int(ceil(dur / 0.1)) + 2:
+					_tick_station(0.1)
+			print("INTERACT 领取 done=%s qual_pending=%d qual=%d" % [str(done.v), qual_pending, qual])
 	# 管道（2.5D 口径：人类管道禁用）
 	if extras.pipe_ports.size() > 0:
 		player.global_position = (extras.pipe_ports[0]["pos"] as Vector3) + Vector3(0.5, 0.05, 0.5)
@@ -1203,7 +3235,58 @@ func _add_floor_collision() -> void:
 	add_child(body)
 
 
+func _run_endshot() -> void:
+	## 结算页实拍夹具：一场投票 + 两具不同地点的尸体，强制 sim.over 后截图。
+	_finish_meeting(sim)
+	sim.meeting = {}
+	if sim.open_meeting_kind(SimStateScript.MEET_DAY, -1, -1):
+		sim.meeting["phase"] = "vote"
+		sim.meeting["votes"] = {}
+		sim.cast_vote(0, 2)
+		sim.cast_vote(1, 2)
+		sim.cast_vote(2, -1)
+		sim.cast_vote(3, 5)
+		sim._close_meeting()
+	sim.meeting = {}
+	var alien_i := -1
+	var humans: Array = []
+	for a: Dictionary in sim.agents:
+		if bool(a.get("alien", false)) and alien_i < 0:
+			alien_i = int(a.get("i", -1))
+		elif not bool(a.get("alien", false)):
+			humans.append(int(a.get("i", -1)))
+	if alien_i >= 0 and humans.size() >= 2:
+		var k: Dictionary = sim.agent(alien_i)
+		k["alive"] = true
+		k["downed"] = false
+		k["knife"] = 2
+		var h1: Dictionary = sim.agent(int(humans[0]))
+		h1["alive"] = true
+		h1["downed"] = false
+		h1["pos"] = sim.room_center("bridge")
+		sim.knife(alien_i, int(humans[0]))
+		sim.die(h1)
+		var h2: Dictionary = sim.agent(int(humans[1]))
+		h2["alive"] = true
+		h2["downed"] = false
+		h2["pos"] = sim.room_center("engine")
+		sim.knife(alien_i, int(humans[1]))
+		sim.die(h2)
+	sim.over = true
+	sim.over_win = true
+	sim.over_why = "异形全部出局"
+	_show_end()
+	await get_tree().create_timer(0.6).timeout
+	await RenderingServer.frame_post_draw
+	var path := "user://end.png"
+	get_viewport().get_texture().get_image().save_png(path)
+	print("ENDSHOT_PATH=", ProjectSettings.globalize_path(path))
+
+
 func _run_meetshot() -> void:
+	# 开局会（pre）还开着时，下面这场夜会根本开不出来 —— 截图会一直停在第 1 天的
+	# 开局讨论，夜会的「报告地点 / 伤者」信息行永远看不到。先正常走完它。
+	_finish_meeting(sim)
 	var alien := {}
 	var victim := {}
 	for a: Dictionary in sim.agents:
@@ -1216,6 +3299,10 @@ func _run_meetshot() -> void:
 		return
 	sim.knife(int(alien.get("i", -1)), int(victim.get("i", -1)))
 	sim.open_meeting(int(sim.me_idx), int(victim.get("i", -1)))
+	# 夹具必须**先**把面板打开再排台词：否则 9 秒的 tick 全发生在面板打开之前，
+	# _meeting_feed_start 会把已经说过的发言整段跳过，截图里发言流永远是空的。
+	_refresh_meeting_ui()
+	await get_tree().process_frame
 	var a2 := OS.get_cmdline_user_args()
 	# 默认拍讨论期（放 9 秒让台词排出来）；--meetvote 拍投票页；--meetresult 拍身份公布
 	if a2.has("--meetresult"):
@@ -1252,17 +3339,45 @@ func _build_hud() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.52))
 	layer.add_child(title)
 
-	var help := _label("WASD 移动 · Shift 加速 · E 交互 · 鼠标视角 · Esc 释放鼠标", Vector2(22, 50), 15, font)
+	## 操作提示必须把**攻击键**写出来：3D 用鼠标左右键出刀/开枪，
+	## 不写的话从 2.5D 过来的玩家（按 A/B）会以为「异形不能出手」。
+	var help := _label("WASD 移动 · E 交互/出刀 · 左键出刀 · 右键开枪 · F2 DEV · P 设置 · Esc 释放/收回鼠标", Vector2(22, 50), 15, font)
 	help.add_theme_color_override("font_color", Color(0.78, 0.84, 0.92))
 	layer.add_child(help)
 
 	room_label = _label("中央会议室", Vector2(1000, 18), 20, font)
 	room_label.add_theme_color_override("font_color", Color(0.82, 0.92, 1.0))
+	# 右上角让给局内小地图（2.5D HUD 同位置）：房间名/供电读数挪到地图下方。
+	room_label.anchor_left = 1.0
+	room_label.anchor_right = 1.0
+	room_label.offset_left = -240.0
+	room_label.offset_right = -16.0
+	room_label.offset_top = 292.0
+	room_label.offset_bottom = 316.0
+	room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	layer.add_child(room_label)
 
 	## 供电读数：文案与 2.5D 监控台同源（● N 路在线 / ● 信号中断 · 电闸断开）
 	power_label = _label("", Vector2(1000, 46), 15, font)
+	power_label.anchor_left = 1.0
+	power_label.anchor_right = 1.0
+	power_label.offset_left = -240.0
+	power_label.offset_right = -16.0
+	power_label.offset_top = 316.0
+	power_label.offset_bottom = 340.0
+	power_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	layer.add_child(power_label)
+
+	## 局内小地图（2.5D drawMini）：只读地图 + sim；不画其他活人/尸体。
+	minimap = MinimapScript.new()
+	minimap.setup(map_data, sim)
+	minimap.anchor_left = 1.0
+	minimap.anchor_right = 1.0
+	minimap.offset_left = -256.0
+	minimap.offset_right = -16.0
+	minimap.offset_top = 16.0
+	minimap.offset_bottom = 16.0 + minimap.custom_minimum_size.y
+	layer.add_child(minimap)
 
 	## ---- 模拟状态（B1）----
 	## 只读 sim_state：夜 / 计时 / 维修进度 / 自己的 4 个任务。
@@ -1279,11 +3394,16 @@ func _build_hud() -> void:
 	tasks_label.add_theme_constant_override("line_spacing", 4)
 	layer.add_child(tasks_label)
 
-	alive_label = _label("", Vector2(22, 270), 14, font)
+	alive_label = _label("", Vector2(22, 286), 14, font)
 	alive_label.add_theme_color_override("font_color", Color(0.92, 0.78, 0.62))
 	layer.add_child(alive_label)
 
-	feed_label = _label("", Vector2(22, 296), 12, font)
+	## 2.5D 规则：报告是稀缺资源（每人全局 2 次 / 每夜最多 2 场夜会），HUD 必须显示。
+	report_label = _label("", Vector2(22, 262), 13, font)
+	report_label.add_theme_color_override("font_color", Color(0.62, 0.70, 0.80))
+	layer.add_child(report_label)
+
+	feed_label = _label("", Vector2(22, 312), 12, font)
 	feed_label.add_theme_color_override("font_color", Color(0.62, 0.70, 0.80))
 	feed_label.add_theme_constant_override("line_spacing", 2)
 	layer.add_child(feed_label)
@@ -1347,7 +3467,279 @@ func _build_hud() -> void:
 	end_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	end_panel.add_child(end_label)
 
+	## 结算页（2.5D #end：本局身份 + 谁投了谁）。
+	## 玩家阵亡但局还没结束时仍用上面的 end_panel（**不泄露身份**）；
+	## 只有 sim.over 才显示这一层，两套口径不要混。
+	settle_panel = ColorRect.new()
+	settle_panel.color = Color(0.01, 0.02, 0.04, 0.90)
+	settle_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settle_panel.visible = false
+	settle_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	layer.add_child(settle_panel)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 36)
+	settle_panel.add_child(margin)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 7)
+	margin.add_child(col)
+	settle_title = _label("", Vector2.ZERO, 30, font)
+	settle_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settle_title.add_theme_color_override("font_color", Color(1.0, 0.86, 0.52))
+	col.add_child(settle_title)
+	settle_sub = _label("", Vector2.ZERO, 16, font)
+	settle_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(settle_sub)
+	settle_stats = _label("", Vector2.ZERO, 13, font)
+	settle_stats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settle_stats.add_theme_color_override("font_color", Color(0.62, 0.70, 0.80))
+	col.add_child(settle_stats)
+	var settle_scroll := ScrollContainer.new()
+	settle_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	settle_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(settle_scroll)
+	var settle_center := CenterContainer.new()
+	settle_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settle_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	settle_scroll.add_child(settle_center)
+	var content := VBoxContainer.new()
+	content.custom_minimum_size = Vector2(880, 0)
+	content.add_theme_constant_override("separation", 5)
+	settle_center.add_child(content)
+	content.add_child(_label("本局身份", Vector2.ZERO, 14, font))
+	settle_ids = RichTextLabel.new()
+	settle_ids.bbcode_enabled = true
+	settle_ids.fit_content = true
+	settle_ids.scroll_active = false
+	settle_ids.custom_minimum_size = Vector2(880, 0)
+	settle_ids.add_theme_font_size_override("normal_font_size", 13)
+	settle_ids.add_theme_color_override("default_color", Color(0.78, 0.84, 0.92))
+	content.add_child(settle_ids)
+	content.add_child(_label("谁投了谁", Vector2.ZERO, 14, font))
+	settle_votes = RichTextLabel.new()
+	settle_votes.bbcode_enabled = true
+	settle_votes.fit_content = true
+	settle_votes.scroll_active = false
+	settle_votes.custom_minimum_size = Vector2(880, 0)
+	settle_votes.add_theme_font_size_override("normal_font_size", 13)
+	settle_votes.add_theme_color_override("default_color", Color(0.78, 0.84, 0.92))
+	content.add_child(settle_votes)
+	var btns := HBoxContainer.new()
+	btns.alignment = BoxContainer.ALIGNMENT_CENTER
+	btns.add_theme_constant_override("separation", 10)
+	col.add_child(btns)
+	var again := Button.new()
+	again.text = "再来一局"
+	again.custom_minimum_size = Vector2(140, 36)
+	again.add_theme_font_size_override("font_size", 15)
+	again.pressed.connect(_restart_sim)
+	btns.add_child(again)
+	var rep := Button.new()
+	rep.text = "查看复盘"
+	rep.custom_minimum_size = Vector2(140, 36)
+	rep.add_theme_font_size_override("font_size", 15)
+	rep.pressed.connect(func() -> void: ui_panels.open_replay(sim.events))
+	btns.add_child(rep)
+
+	_build_dev_panel()
 	_refresh_sim_hud()
+
+
+## DEV 侧栏（2.5D renderDevPanel，js/game.js:594-623）：一人一行，
+## 名字 / 阵营 / 状态 / 舱室 / 随身资源。3D 用右侧可滚动栏，不压左上角 HUD。
+## 只读 sim，不反向写规则；开关状态在 sim.dev。
+func _build_dev_panel() -> void:
+	dev_layer = CanvasLayer.new()
+	dev_layer.layer = 13
+	add_child(dev_layer)
+	dev_panel = PanelContainer.new()
+	dev_panel.visible = false
+	dev_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dev_panel.anchor_left = 1.0
+	dev_panel.anchor_right = 1.0
+	dev_panel.anchor_top = 0.0
+	dev_panel.anchor_bottom = 1.0
+	dev_panel.offset_left = -390.0
+	dev_panel.offset_right = -16.0
+	dev_panel.offset_top = 352.0   # 让开小地图 + 舱室/供电读数（2.5D DEV 横栏同样下移 HUD）
+	dev_panel.offset_bottom = -24.0
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.027, 0.047, 0.071, 0.93)
+	sb.border_color = Color(0.20, 0.275, 0.361, 0.95)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(3)
+	dev_panel.add_theme_stylebox_override("panel", sb)
+	dev_layer.add_child(dev_panel)
+	var margin := MarginContainer.new()
+	for side: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 9)
+	dev_panel.add_child(margin)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 4)
+	margin.add_child(col)
+
+	var font := SystemFont.new()
+	font.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
+	dev_title = Label.new()
+	dev_title.text = "DEV · 全知总览"
+	dev_title.add_theme_font_override("font", font)
+	dev_title.add_theme_font_size_override("font_size", 15)
+	dev_title.add_theme_color_override("font_color", Color(0.498, 0.827, 0.941))
+	col.add_child(dev_title)
+	dev_sub = Label.new()
+	dev_sub.text = "F2 关闭 · 攻击与驱逐对你无效 · 尸体卡显示凶手"
+	dev_sub.add_theme_font_override("font", font)
+	dev_sub.add_theme_font_size_override("font_size", 9)
+	dev_sub.add_theme_color_override("font_color", Color(0.478, 0.529, 0.596))
+	dev_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(dev_sub)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(scroll)
+	dev_rows = VBoxContainer.new()
+	dev_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dev_rows.add_theme_constant_override("separation", 2)
+	scroll.add_child(dev_rows)
+	for i in 15:
+		var lb := Label.new()
+		lb.add_theme_font_override("font", font)
+		lb.add_theme_font_size_override("font_size", 10)
+		lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		dev_rows.add_child(lb)
+		_dev_row_labels.append(lb)
+
+	dev_stats = Label.new()
+	dev_stats.add_theme_font_override("font", font)
+	dev_stats.add_theme_font_size_override("font_size", 10)
+	dev_stats.add_theme_color_override("font_color", Color(0.647, 0.702, 0.776))
+	dev_stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(dev_stats)
+
+	dev_probe = Label.new()
+	dev_probe.add_theme_font_override("font", font)
+	dev_probe.add_theme_font_size_override("font_size", 9)
+	dev_probe.add_theme_color_override("font_color", Color(0.498, 0.698, 0.780))
+	dev_probe.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dev_probe.custom_minimum_size = Vector2(0, 96)
+	dev_probe.text = "探针 · 最近 8 条\n（按 E / 左键 / 右键 / F2 会记在这里）"
+	col.add_child(dev_probe)
+
+
+## 状态文案与资源行照 2.5D renderDevPanel（js/game.js:601-620）。
+func _refresh_dev_panel() -> void:
+	if dev_panel == null:
+		return
+	var on: bool = sim != null and not sim.agents.is_empty() \
+		and (bool(sim.dev) or bool(sim.spectator))
+	dev_panel.visible = on
+	if not on:
+		return
+	dev_title.text = "DEV · 全知总览" if bool(sim.dev) else "旁观者 · 全知总览"
+	dev_sub.text = ("F2 关闭 · 攻击与驱逐对你无效 · 尸体卡显示凶手" if bool(sim.dev)
+		else "旁观者不参与对局 · 名字与阵营全知")
+	var i := 0
+	for a: Dictionary in sim.agents:
+		if i >= _dev_row_labels.size():
+			break
+		var lb: Label = _dev_row_labels[i]
+		var st := "待机"
+		if not bool(a.get("alive", false)):
+			st = "幽灵" if bool(a.get("ghost", false)) else "出局"
+		elif bool(a.get("downed", false)):
+			st = "濒死"
+		elif bool(a.get("detained", false)):
+			st = "被擒"
+		elif float(a.get("doing", 0.0)) > 0.0:
+			match String(a.get("_doing", "")):
+				"task": st = "做任务"
+				"fix": st = "修故障"
+				"revive": st = "施救"
+				"qual": st = "领申请单"
+				"ammo": st = "取子弹"
+				"med": st = "取医疗包"
+				"breaker": st = "拉闸"
+				"fake": st = "假装做任务"
+				_: st = "行动"
+		elif bool(a.get("moving", false)):
+			st = "移动"
+		var where_pos: Vector2 = a.get("pos", Vector2.ZERO)
+		if not bool(a.get("alive", false)):
+			var bp: Variant = a.get("bodyPos", null)
+			if bp is Vector2:
+				var bpv: Vector2 = bp
+				if bpv != Vector2.ZERO:
+					where_pos = bpv
+		var where: String = sim.room_name(sim.room_at(where_pos))
+		var extra := ""
+		if bool(a.get("detained", false)):
+			extra = " · 被锁"
+		elif int(a.get("draggedBy", -1)) >= 0:
+			extra = " · 被拖"
+		elif int(a.get("drag", -1)) >= 0:
+			extra = " · 拖尸"
+		var res := "弹%d 包%d 单%d%s" % [int(a.get("bullet", 0)), int(a.get("medkit", 0)),
+			int(a.get("qual", 0)),
+			("+%d" % int(a.get("qualPending", 0))) if int(a.get("qualPending", 0)) > 0 else ""]
+		res += " · 任务%d/%d" % [int(a.get("tIdx", 0)), (a.get("tasks", []) as Array).size()]
+		if bool(a.get("alien", false)):
+			res += " · 刀%d" % int(a.get("knife", 0))
+		var who := String(a.get("name", "?"))
+		if int(a.get("i", -1)) == int(sim.me_idx) and not bool(sim.spectator):
+			who += "（你）"
+		lb.text = "%02d %s · %s · %s · %s%s\n   %s" % [int(a.get("i", 0)) + 1, who,
+			"异形" if bool(a.get("alien", false)) else "人类", st, where, extra, res]
+		var col := Color(0.898, 0.341, 0.310) if bool(a.get("alien", false)) \
+			else Color(0.867, 0.890, 0.925)
+		if not bool(a.get("alive", false)):
+			col = Color(0.55, 0.58, 0.62, 0.85)
+		elif int(a.get("i", -1)) == int(sim.me_idx):
+			col = Color(0.941, 0.776, 0.455)
+		lb.add_theme_color_override("font_color", col)
+		lb.visible = true
+		i += 1
+	for j in range(i, _dev_row_labels.size()):
+		(_dev_row_labels[j] as Label).visible = false
+	var downed_n := 0
+	for a2: Dictionary in sim.agents:
+		if bool(a2.get("alive", false)) and bool(a2.get("downed", false)):
+			downed_n += 1
+	dev_stats.text = "存活 %d/%d · 濒死 %d · 维修 %d/%d · 夜 %d · %.0fs · 探针 %d" % [
+		_alive_count(), sim.agents.size(), downed_n, int(sim.prog), int(sim.win_pts()),
+		int(sim.night), maxf(0.0, float(sim.t)), _probe_lines.size()]
+	dev_probe.text = "探针 · 最近 8 条\n" + "\n".join(PackedStringArray(_probe_lines))
+
+
+## 探针记录：只读、不判定。DEV 开着时同时打到 stdout，方便无头复现。
+func _probe(text: String) -> void:
+	var line := text
+	if sim != null:
+		line = "[第%d夜 %5.1fs] %s" % [int(sim.night), float(sim.t), text]
+	_probe_lines.append(line)
+	if _probe_lines.size() > 8:
+		_probe_lines.pop_front()
+	if sim != null and bool(sim.dev):
+		print("PROBE " + line)
+	if dev_probe != null:
+		dev_probe.text = "探针 · 最近 8 条\n" + "\n".join(PackedStringArray(_probe_lines))
+
+
+## DEV 拦截消息（sim.dev_log 不进 events）：只在 DEV 开着时提示并记入探针。
+func _poll_dev_log() -> void:
+	if sim == null:
+		return
+	if _dev_log_n > sim.dev_log.size():
+		_dev_log_n = 0
+	if sim.dev_log.size() > _dev_log_n:
+		for i in range(_dev_log_n, sim.dev_log.size()):
+			var txt := String((sim.dev_log[i] as Dictionary).get("text", ""))
+			if txt != "" and bool(sim.dev):
+				_toast(txt)
+				_probe(txt)
+	_dev_log_n = sim.dev_log.size()
 
 
 func _label(text: String, pos: Vector2, size: int, font: Font) -> Label:
@@ -1497,8 +3889,19 @@ func _run_b6test() -> bool:
 		print("B6TEST FAIL 拖尸 d1=%s follow=%s hidden=%s ev=%s" % [
 			str(d1), str(followed), str(hidden), str(drag_ev)])
 	# ② 机器人 HP：保安 2 发拆掉
+	# 站位由 map_v2 的 facility.secbot 推出来（正下方 4.6m），不再写死坐标：
+	# 地图换布局后写死的点会被新掩体挡住射线，hit_bot 直接返回 false
+	# （2026-11-10 实测旧坐标 80,75 已被 armory_workbench 挡住）。
+	var sec_fac := {}
+	for f0: Dictionary in (s.map.get("facility", []) as Array):
+		if String(f0.get("kind", "")) == "secbot":
+			sec_fac = f0
+			break
 	var me: Dictionary = s.me()
-	me["pos"] = Vector2(80.0, 75.0)
+	if sec_fac.is_empty():
+		me["pos"] = Vector2(80.0, 75.0)
+	else:
+		me["pos"] = Vector2(float(sec_fac.get("x", 0)), float(sec_fac.get("y", 0)) + 4.6)
 	me["bullet"] = 3
 	var h1: bool = s.hit_bot(0, "secbot")
 	var h2: bool = s.hit_bot(0, "secbot")
@@ -1834,9 +4237,21 @@ func _run_speechtest() -> bool:
 	else:
 		fail_n += 1
 		print("SPEECHTEST FAIL 同场去重没生效")
-	print("SPEECHTEST pass=%d fail=%d 讨论台词=%d feed=%d 残留=%d 复读=%d 玩家解析=%s" % [
+	# 席位号解析（2.5D decision.js:96-99）：补零 / 「第 N 席」/ 中文数字都要认得出。
+	# 3D 原先只匹配「%d号」，玩家写「07号」「第七号」全被当成没点名。
+	var seat_cases := ["7号 是异形", "07号 是异形", "第七号 是异形", "第7席 是异形"]
+	var seat_hit := 0
+	for c in seat_cases:
+		var ps: Dictionary = s2.lines_data.parse_speech(String(c), s2)
+		if (ps.get("people", []) as Array).has(6):
+			seat_hit += 1
+		else:
+			print("SPEECHTEST FAIL 席位号没认出：%s → %s" % [c, str(ps.get("people", []))])
+	if seat_hit != seat_cases.size():
+		fail_n += 1
+	print("SPEECHTEST pass=%d fail=%d 讨论台词=%d feed=%d 残留=%d 复读=%d 玩家解析=%s 席位号=%d/%d" % [
 		pass_n, fail_n, chat_n, feed_n, bad_slot, dup,
-		String(claim.get("kind", "none"))])
+		String(claim.get("kind", "none")), seat_hit, seat_cases.size()])
 	return fail_n == 0
 
 
@@ -2072,6 +4487,28 @@ func _run_bottest() -> bool:
 		fail_n += 1
 		print("BOTTEST FAIL 医疗无人机没救人 was_downed=%s revived=%s downed=%s" % [
 			str(was_downed), str(revived), str(v2.get("downed", false))])
+	# 追捕超时 7 秒 → 放弃（2.5D：贴不到人就 G.secCatch=null，不是硬拖走）。
+	# 把目标放到很远的地方，模拟"追不上"，tick 满 8 秒后必须已释放。
+	var far: Dictionary = s.agent(9)
+	if not far.is_empty():
+		b.sec_uses = 0
+		b.catch_state = {}
+		far["alive"] = true
+		far["downed"] = false
+		b._start_catch(9)
+		far["pos"] = b.sec_pos + Vector2(60.0, 0.0)
+		for k3 in 90:
+			s.tick(0.1)
+		if s.bots.catch_state.is_empty() and not bool(far.get("detained", false)):
+			pass_n += 1
+		else:
+			fail_n += 1
+			print("BOTTEST FAIL 追捕超时没放弃 phase=%s detained=%s" % [
+				str(s.bots.catch_state.get("phase", "")), str(far.get("detained", false))])
+		b.sec_uses = 0
+	else:
+		fail_n += 1
+		print("BOTTEST FAIL 追捕超时夹具没能起手")
 	print("BOTTEST pass=%d fail=%d 保安(%.1f,%.1f) 巡逻位移=%.2f 视野=%.1fm 拘留=%.0fs 每夜=%d" % [
 		pass_n, fail_n, b.sec_pos.x, b.sec_pos.y, moved, b.SEC_RANGE, b.DETAIN_TIME, b.SEC_USES_MAX])
 	return fail_n == 0
@@ -2192,7 +4629,8 @@ func _run_hometest() -> bool:
 func _has_gate_arg(args: PackedStringArray) -> bool:
 	for a in args:
 		if a.begins_with("--") and a != "--seed" \
-				and a != "--homeshot" and a != "--hometest":
+				and a != "--homeshot" and a != "--hometest" \
+				and a != "--crew-model" and a != "--crew-billboard":
 			return true
 	return false
 
@@ -2214,6 +4652,10 @@ func _show_home() -> void:
 func _exit_to_home() -> void:
 	if ui_panels != null:
 		ui_panels.close_all()
+	if settle_panel != null:
+		settle_panel.visible = false
+	if end_panel != null:
+		end_panel.visible = false
 	_show_home()
 
 
@@ -2235,7 +4677,6 @@ func _on_start(p_role: String) -> void:
 	player.set_spectator(spectator_mode)
 	power_on = true
 	set_power(true)
-	_breaker_pulls = 0
 	qual_pending = 0
 	qual = 0
 	station = {}
@@ -2243,12 +4684,16 @@ func _on_start(p_role: String) -> void:
 	_down_toast = false
 	if end_panel != null:
 		end_panel.visible = false
+	if settle_panel != null:
+		settle_panel.visible = false
 	if crew_view != null:
 		crew_view.build(sim)
 	var p: Vector2 = sim.me().get("pos", Vector2(27.0, 34.8))
 	player.global_position = Vector3(p.x, 0.05, p.y)
 	player.rotation.y = -PI * 0.5 + 0.05
 	player.process_mode = Node.PROCESS_MODE_INHERIT
+	# 新一局从「鼠标已被捕获」开始；上一局按 Esc 释放过的状态不能带进来。
+	mouse_released = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_refresh_sim_hud()
 	_toast("你是 %s · %s · 第 %d 夜" % [
@@ -2256,24 +4701,50 @@ func _on_start(p_role: String) -> void:
 		"异形" if role == "alien" else "人类", int(sim.night)])
 
 
+func _meeting_mk_button(text: String, cb: Callable, fs: int = 14) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(0, 30)
+	b.add_theme_font_size_override("font_size", fs)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.07, 0.09, 0.13, 0.94)
+	sb.border_color = Color(0.20, 0.26, 0.34, 1.0)
+	sb.set_border_width_all(1)
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", sb)
+	b.add_theme_stylebox_override("pressed", sb)
+	b.add_theme_color_override("font_color", Color(0.86, 0.92, 1.0))
+	b.pressed.connect(cb)
+	return b
+
+
+## 会议面板（2.5D 三栏的功能层：左发言+模板 / 中标题+跳过 / 右投票）。
+## 3D 保留单面板，但左右分两列，保证 1280×720 下「跳过讨论」与投票区都够得着；
+## 像素排布属表现层，功能项逐条对齐 js/ui/templates.js:286-328。
 func _build_meeting_ui() -> void:
 	if meeting_panel != null:
 		return
 	var font := SystemFont.new()
 	font.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
 	meeting_panel = ColorRect.new()
-	meeting_panel.color = Color(0.01, 0.02, 0.04, 0.82)
+	meeting_panel.color = Color(0.01, 0.02, 0.04, 0.90)
 	meeting_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	meeting_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	meeting_panel.visible = false
 	hud_layer.add_child(meeting_panel)
 
+	# 会议内容必须**永远够得着**：外面的 ScrollContainer 兜底，内容再长也能滚到。
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	meeting_panel.add_child(scroll)
 	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	meeting_panel.add_child(center)
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(560, 0)
-	box.add_theme_constant_override("separation", 8)
+	box.custom_minimum_size = Vector2(980, 0)
+	box.add_theme_constant_override("separation", 7)
 	center.add_child(box)
 
 	meeting_title = _label("发现尸体 · 投票", Vector2.ZERO, 26, font)
@@ -2284,30 +4755,93 @@ func _build_meeting_ui() -> void:
 	meeting_time.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	meeting_time.add_theme_color_override("font_color", Color(0.78, 0.86, 0.95))
 	box.add_child(meeting_time)
-	meeting_list = VBoxContainer.new()
-	meeting_list.add_theme_constant_override("separation", 4)
-	box.add_child(meeting_list)
-	meeting_hint = _label("", Vector2.ZERO, 14, font)
-	meeting_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	meeting_hint.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72))
-	box.add_child(meeting_hint)
-	meeting_result = _label("", Vector2.ZERO, 13, font)
-	meeting_result.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	meeting_result.add_theme_color_override("font_color", Color(0.72, 0.80, 0.90))
-	box.add_child(meeting_result)
-	# S 轨：讨论期的发言流 + 玩家自由发言输入
+	# 逃逸阀必须在标题正下方：讨论期同时显示投票区时，放在最底部会被挤出 720p。
+	meeting_skip = _meeting_mk_button("跳过讨论", func() -> void: sim.skip_discussion())
+	meeting_skip.custom_minimum_size = Vector2(360, 30)
+	meeting_skip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(meeting_skip)
+	# 会议信息三行（2.5D #m-rows：报告地点 / 发起报告 / 伤者）
+	meeting_info = _label("", Vector2.ZERO, 13, font)
+	meeting_info.add_theme_color_override("font_color", Color(0.72, 0.80, 0.90))
+	meeting_info.add_theme_constant_override("line_spacing", 2)
+	box.add_child(meeting_info)
+
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(body)
+	var left := VBoxContainer.new()
+	left.custom_minimum_size = Vector2(540, 0)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_constant_override("separation", 5)
+	body.add_child(left)
+	var right := VBoxContainer.new()
+	right.custom_minimum_size = Vector2(420, 0)
+	right.add_theme_constant_override("separation", 5)
+	body.add_child(right)
+
+	# ---- 左栏：发言流 → 新消息提示 → 一键模板 → 自由发言 ----
+	left.add_child(_label("发言", Vector2.ZERO, 15, font))
 	meeting_feed = RichTextLabel.new()
 	meeting_feed.bbcode_enabled = true
-	meeting_feed.scroll_following = true
-	meeting_feed.custom_minimum_size = Vector2(560, 210)
+	# 2.5D 2026-11-08：**不再无条件滚到底** —— 玩家往上翻读旧发言时只提示条数
+	# （js/game.js:4954-4960）。自动跟底改由 _append_feed_new 按「是否在底部」决定。
+	meeting_feed.scroll_following = false
+	meeting_feed.custom_minimum_size = Vector2(540, 220)
 	meeting_feed.add_theme_font_size_override("normal_font_size", 14)
 	meeting_feed.add_theme_color_override("default_color", Color(0.78, 0.84, 0.92))
-	box.add_child(meeting_feed)
+	# 发言区必须有深色底：会议遮罩是半透明的，纯文字直接压在三 D 场景上读不清
+	# （2.5D 的 .say 也是深底面板）。
+	var feed_bg := StyleBoxFlat.new()
+	feed_bg.bg_color = Color(0.015, 0.025, 0.045, 0.92)
+	feed_bg.border_color = Color(0.14, 0.18, 0.24, 1.0)
+	feed_bg.set_border_width_all(1)
+	feed_bg.set_content_margin_all(6)
+	meeting_feed.add_theme_stylebox_override("normal", feed_bg)
+	meeting_feed.get_v_scroll_bar().value_changed.connect(func(_v: float) -> void: _on_feed_scroll())
+	left.add_child(meeting_feed)
+	meeting_new_btn = _meeting_mk_button("↓ 0 条新发言", func() -> void: _jump_feed_bottom(), 13)
+	meeting_new_btn.visible = false
+	left.add_child(meeting_new_btn)
+
+	meeting_tpl = VBoxContainer.new()
+	meeting_tpl.add_theme_constant_override("separation", 5)
+	left.add_child(meeting_tpl)
+	var sel_row := HBoxContainer.new()
+	sel_row.add_theme_constant_override("separation", 6)
+	meeting_tpl.add_child(sel_row)
+	meeting_tpl_target = OptionButton.new()
+	meeting_tpl_target.custom_minimum_size = Vector2(250, 30)
+	meeting_tpl_target.add_theme_font_size_override("font_size", 14)
+	sel_row.add_child(meeting_tpl_target)
+	meeting_tpl_room = OptionButton.new()
+	meeting_tpl_room.custom_minimum_size = Vector2(250, 30)
+	meeting_tpl_room.add_theme_font_size_override("font_size", 14)
+	sel_row.add_child(meeting_tpl_room)
+	_build_room_options()
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
+	meeting_tpl.add_child(grid)
+	# 8 个一键模板（2.5D #m-tpl-btns 的 data-tpl，顺序逐条对齐 templates.js:298-307）
+	var tpl_defs: Array = [
+		["accuse", "怀疑"], ["vote", "投他"], ["support", "作证"],
+		["pipe", "看见钻管道"], ["red", "看见红光"], ["knife", "看见出刀"],
+		["where", "我在…"], ["deny", "不是我"],
+	]
+	for pair: Array in tpl_defs:
+		var kind := String(pair[0])
+		var tb := _meeting_mk_button(String(pair[1]),
+			func() -> void: _on_meeting_template(kind), 13)
+		tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(tb)
+
 	var input_row := HBoxContainer.new()
 	input_row.add_theme_constant_override("separation", 7)
-	box.add_child(input_row)
+	left.add_child(input_row)
 	meeting_input = LineEdit.new()
-	meeting_input.placeholder_text = "说点什么…（例：我亲眼看见 名字 在监控室出刀）"
+	meeting_input.placeholder_text = "自由发言，回车发送"
 	meeting_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	meeting_input.custom_minimum_size = Vector2(0, 34)
 	meeting_input.add_theme_font_size_override("font_size", 14)
@@ -2319,40 +4853,251 @@ func _build_meeting_ui() -> void:
 	meeting_send.add_theme_font_size_override("font_size", 14)
 	meeting_send.pressed.connect(func() -> void: _on_player_say(meeting_input.text))
 	input_row.add_child(meeting_send)
-	meeting_skip = Button.new()
-	meeting_skip.text = "直接进入投票（跳过讨论）"
-	meeting_skip.custom_minimum_size = Vector2(0, 30)
-	meeting_skip.add_theme_font_size_override("font_size", 14)
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.10, 0.12, 0.17, 0.94)
-	sb.border_color = Color(0.30, 0.34, 0.44, 1.0)
-	sb.set_border_width_all(1)
-	meeting_skip.add_theme_stylebox_override("normal", sb)
-	meeting_skip.add_theme_color_override("font_color", Color(0.86, 0.90, 0.98))
-	meeting_skip.pressed.connect(func() -> void: sim.skip_discussion())
-	box.add_child(meeting_skip)
+
+	# ---- 右栏：席位投票（讨论期即可投、可改）→ 跳过投票 → 结果 ----
+	right.add_child(_label("投票", Vector2.ZERO, 15, font))
+	var list_scroll := ScrollContainer.new()
+	list_scroll.custom_minimum_size = Vector2(0, 300)
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right.add_child(list_scroll)
+	meeting_list_scroll = list_scroll
+	meeting_list = VBoxContainer.new()
+	meeting_list.add_theme_constant_override("separation", 4)
+	meeting_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_scroll.add_child(meeting_list)
+	meeting_skip_vote = _meeting_mk_button("跳过投票（结束剩余时间）",
+		func() -> void: sim.skip_vote(), 13)
+	right.add_child(meeting_skip_vote)
+	meeting_result = _label("", Vector2.ZERO, 13, font)
+	meeting_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	meeting_result.custom_minimum_size = Vector2(420, 0)
+	meeting_result.add_theme_color_override("font_color", Color(0.72, 0.80, 0.90))
+	right.add_child(meeting_result)
+
+	meeting_hint = _label("", Vector2.ZERO, 14, font)
+	meeting_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	meeting_hint.add_theme_color_override("font_color", Color(0.55, 0.62, 0.72))
+	box.add_child(meeting_hint)
+
+
+func _build_room_options() -> void:
+	if meeting_tpl_room == null or sim == null:
+		return
+	meeting_tpl_room.clear()
+	meeting_tpl_room.add_item("不指定舱室")
+	meeting_tpl_room.set_item_metadata(0, "")
+	for r: Dictionary in (sim.map.get("rooms", []) as Array):
+		var rid := String(r.get("id", ""))
+		var idx := meeting_tpl_room.item_count
+		meeting_tpl_room.add_item(String(r.get("name", rid)))
+		meeting_tpl_room.set_item_metadata(idx, rid)
+	var cor := meeting_tpl_room.item_count
+	meeting_tpl_room.add_item("走廊")
+	meeting_tpl_room.set_item_metadata(cor, "corridor")
+
+
+## 对象下拉：2.5D syncMeetTemplates（js/game.js:6837-6857）。
+## 默认必须是「未选择」—— 手快点「怀疑」不能凭空指控 02。
+func _build_tpl_targets() -> void:
+	if meeting_tpl_target == null or sim == null:
+		return
+	meeting_tpl_target.clear()
+	meeting_tpl_target.add_item("— 选择对象 —")
+	meeting_tpl_target.set_item_metadata(0, -1)
+	for a: Dictionary in sim.agents:
+		var i := int(a.get("i", -1))
+		if i == int(sim.me_idx) or not bool(a.get("alive", false)):
+			continue
+		var idx := meeting_tpl_target.item_count
+		meeting_tpl_target.add_item("%02d %s" % [i + 1, String(a.get("name", "?"))])
+		meeting_tpl_target.set_item_metadata(idx, i)
+	meeting_tpl_target.select(0)
+
+
+func _select_current_room() -> void:
+	if meeting_tpl_room == null or sim == null:
+		return
+	var me: Dictionary = sim.me()
+	var rid := ""
+	if not me.is_empty():
+		rid = sim.room_at(me.get("pos", Vector2.ZERO))
+	var pick := 0
+	if rid != "":
+		for k in meeting_tpl_room.item_count:
+			if String(meeting_tpl_room.get_item_metadata(k)) == rid:
+				pick = k
+				break
+	meeting_tpl_room.select(pick)
+
+
+func _selected_tpl_target() -> int:
+	if meeting_tpl_target == null or meeting_tpl_target.selected < 0:
+		return -1
+	var md: Variant = meeting_tpl_target.get_item_metadata(meeting_tpl_target.selected)
+	return int(md) if md != null else -1
+
+
+func _selected_tpl_room() -> String:
+	if meeting_tpl_room == null or meeting_tpl_room.selected < 0:
+		return ""
+	var md: Variant = meeting_tpl_room.get_item_metadata(meeting_tpl_room.selected)
+	return String(md) if md != null else ""
+
+
+func _is_pipe_room(rid: String) -> bool:
+	if rid == "":
+		return false
+	for p: Dictionary in (sim.map.get("pipes", []) as Array):
+		if String(p.get("room", "")) == rid:
+			return true
+	return false
+
+
+## 2.5D meetTemplateText（js/game.js:6812-6829）：生成一句一定能被 parseSpeech
+## 识别的标准句。槽位/时间词/管道口限制逐条对齐，不新增句式。
+func _meet_template_text(kind: String, t: Dictionary, rid: String) -> String:
+	var tag := ""
+	if not t.is_empty():
+		tag = "%02d %s" % [int(t.get("i", 0)) + 1, String(t.get("name", ""))]
+	var rn := ""
+	if rid == "corridor":
+		rn = "走廊"
+	elif rid != "":
+		rn = sim.room_name(rid)
+	var when: String = sim.speech._when_word() if sim.speech != null else "今晚"
+	if kind == "where":
+		return "我%s在%s干活，手都没停过" % [when, rn if rn != "" else "走廊"]
+	if kind == "deny":
+		if rn == "":
+			return "不是我"
+		return "不是我，我%s在%s，哪儿也没去" % [when, rn]
+	if t.is_empty():
+		return ""
+	match kind:
+		"accuse":
+			return "我怀疑%s，先说给大伙听" % tag
+		"vote":
+			return "这票我投%s" % tag
+		"support":
+			return "我可以为%s作证，他干的是正经事" % tag
+		"pipe":
+			var at := ("，就在%s" % rn) if (rn != "" and _is_pipe_room(rid)) else ""
+			return "我亲眼看见%s 钻管道%s" % [tag, at]
+		"red":
+			return "我亲眼看见%s 身上有红光%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
+		"knife":
+			return "我亲眼看见%s 出刀%s" % [tag, ("，就在%s" % rn) if rn != "" else ""]
+	return ""
+
+
+## 模板点击（2.5D js/game.js:10878-10891）：讨论期、非旁观、非幽灵；
+## 「怀疑/投他/作证/三种亲眼」必须先选对象，空值不能变成 0 号。
+func _on_meeting_template(kind: String) -> void:
+	if sim == null or sim.speech == null or sim.meeting.is_empty():
+		return
+	if String(sim.meeting.get("phase", "")) != "discuss":
+		return
+	if not _meeting_can_act_now():
+		return
+	var need_t := kind != "where" and kind != "deny"
+	var ti := _selected_tpl_target()
+	if need_t and ti < 0:
+		_toast("先选对象")
+		return
+	var rid := _selected_tpl_room()
+	if rid == "":
+		var me: Dictionary = sim.me()
+		if not me.is_empty():
+			rid = sim.room_at(me.get("pos", Vector2.ZERO))
+	if rid == "":
+		rid = "corridor"
+	var text := _meet_template_text(kind, sim.agent(ti), rid)
+	if text != "":
+		_on_player_say(text)
+
+
+func _meeting_can_act_now() -> bool:
+	if sim == null:
+		return false
+	var a: Dictionary = sim.me()
+	return not a.is_empty() and bool(a.get("alive", true)) \
+		and not bool(a.get("downed", false)) and not sim.spectator
+
+
+func _feed_at_bottom() -> bool:
+	if meeting_feed == null:
+		return true
+	var sb := meeting_feed.get_v_scroll_bar()
+	return sb == null or sb.value + sb.page >= sb.max_value - 24.0
+
+
+func _on_feed_scroll() -> void:
+	if _feed_at_bottom() and _meeting_unread != 0:
+		_meeting_unread = 0
+		_update_new_btn()
+
+
+func _update_new_btn() -> void:
+	if meeting_new_btn == null:
+		return
+	meeting_new_btn.visible = _meeting_unread > 0
+	meeting_new_btn.text = "↓ %d 条新发言" % _meeting_unread
+
+
+func _jump_feed_bottom() -> void:
+	if meeting_feed == null:
+		return
+	_meeting_unread = 0
+	_update_new_btn()
+	meeting_feed.scroll_to_line(maxi(0, meeting_feed.get_line_count() - 1))
+
+
+## 发言流增量追加：只把「本场会议新产生的行」追加进去，保留玩家当前滚动位置；
+## 不在底部时只累计条数（2.5D markNewLines，js/game.js:4964-4974）。
+func _append_feed_new() -> void:
+	if meeting_feed == null or sim == null or sim.speech == null:
+		return
+	if _meeting_feed_synced < _meeting_feed_start:
+		_meeting_feed_synced = _meeting_feed_start
+	var total: int = sim.speech.feed.size()
+	if total <= _meeting_feed_synced:
+		return
+	var at_bottom := _feed_at_bottom()
+	var added := 0
+	for k in range(_meeting_feed_synced, total):
+		var l: Dictionary = sim.speech.feed[k]
+		var who := String(l.get("who", ""))
+		var txt := String(l.get("text", ""))
+		var col := "#8FA6C0"
+		if bool(l.get("sys", false)):
+			col = "#6B7686"
+		elif bool(l.get("me", false)):
+			col = "#F0C674"
+		meeting_feed.append_text("[color=%s]%s：%s[/color]\n" % [col, who, txt])
+		added += 1
+	_meeting_feed_synced = total
+	if at_bottom:
+		_jump_feed_bottom()
+	else:
+		_meeting_unread += added
+		_update_new_btn()
 
 
 func _refresh_meeting_ui() -> void:
 	if sim == null or (meeting_panel == null and sim.meeting.is_empty()):
 		return
 	var active: bool = not sim.meeting.is_empty()
-	# 玩家死了就不弹会议面板：让位给"你已阵亡"；会议本身仍由 sim 计时结束。
-	if active and not bool(sim.me().get("alive", true)):
-		active = false
-		if _meeting_open and meeting_panel != null:
-			meeting_panel.visible = false
-		_meeting_open = false
-		return
 	if not active:
 		if _meeting_open:
 			_meeting_open = false
 			if meeting_panel != null:
 				meeting_panel.visible = false
+			_meeting_unread = 0
 			if player != null:
 				player.ui_locked = false
-			if not bool(sim.over) and bool(sim.me().get("alive", true)):
-				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			# 鼠标模式由 `_refresh_mouse_mode()` 统一决定：不能在这里无条件 CAPTURED，
+			# 否则玩家先按 Esc 释放的光标会在会议结束时被锁回去。
 		return
 	if not _meeting_open:
 		_build_meeting_ui()
@@ -2362,22 +5107,60 @@ func _refresh_meeting_ui() -> void:
 			player.ui_locked = true
 		# 会议面板要能点按钮、能打字：鼠标必须释放，否则 CAPTURED 状态下点不到任何控件
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_build_tpl_targets()
+		_select_current_room()
 		_build_meeting_buttons()
+		meeting_feed.clear()
+		_meeting_feed_start = sim.speech.feed.size() if sim.speech != null else 0
+		_meeting_feed_synced = _meeting_feed_start
+		_meeting_unread = 0
+		_update_new_btn()
+		# 2.5D openMeeting 的只读系统行（js/game.js:6971）：幽灵与旁观者**照常看会议**，
+		# 只是不能发言/投票。3D 原先直接隐藏整个面板，把复盘信息也一起藏了。
+		if not _meeting_can_act_now() and sim.speech != null:
+			var who := "旁观者" if sim.spectator else String(sim.me().get("name", "你"))
+			var txt := "（旁观）只读观战，不参与讨论与投票。" if sim.spectator else "（幽灵）我在看着。"
+			sim.speech.sys_say(who, txt)
+		_append_feed_new()
 	var phase := String(sim.meeting.get("phase", "vote"))
 	var left := maxf(0.0, float(sim.meeting.get("t", 0.0)))
-	var a: Dictionary = sim.me()
+	var can_act := _meeting_can_act_now()
 	var votes: Dictionary = sim.meeting.get("votes", {})
-	var voted := votes.has(int(sim.me_idx))
-	var can_vote := not a.is_empty() and bool(a.get("alive", true)) and not bool(a.get("downed", false))
-	meeting_skip.visible = phase == "discuss"
-	meeting_feed.visible = phase == "discuss"
-	meeting_input.visible = phase == "discuss"
-	meeting_send.visible = phase == "discuss"
-	meeting_list.visible = phase == "vote"
-	var mkind := String(sim.meeting.get("kind", "night"))
+	# 可见性：跳过讨论 = 可行动者或旁观者（旁观只看能快进）；幽灵只能等计时器
+	# （2.5D canSkip=canAct||spectMode，js/game.js:6951-6955）。
+	meeting_skip.visible = phase == "discuss" and (can_act or sim.spectator)
+	meeting_skip.text = "跳过讨论（旁观）" if sim.spectator else "跳过讨论"
+	meeting_input.editable = can_act and phase == "discuss"
+	meeting_send.disabled = not (can_act and phase == "discuss")
 	if phase == "discuss":
-		meeting_feed.text = _meeting_feed_text()
-
+		meeting_input.placeholder_text = ("自由发言，回车发送" if can_act else
+			("旁观者只读" if sim.spectator else "幽灵只能旁观"))
+	elif phase == "vote":
+		meeting_input.placeholder_text = "投票中…"
+	else:
+		meeting_input.placeholder_text = "投票已结束"
+	# 8 模板 + 对象/舱室下拉只在「讨论期 + 可行动」显示（2.5D syncMeetTemplates）
+	meeting_tpl.visible = phase == "discuss" and can_act
+	# 投票区讨论期与投票期共用（2.5D renderVoteButtons，js/game.js:7413-7447）
+	meeting_list.visible = can_act and (phase == "discuss" or phase == "vote")
+	meeting_skip_vote.visible = can_act and phase == "vote"
+	meeting_info.visible = int(sim.meeting.get("victim", -1)) >= 0
+	meeting_info.text = _meeting_info_text() if meeting_info.visible else ""
+	# 当前票目标金框高亮；弃权 = -1 单独一颗按钮。改票直接覆盖，close 前不锁定。
+	var cur := int(votes.get(sim.me_idx, -2))
+	for k: int in meeting_buttons.keys():
+		var b: Button = meeting_buttons[k]
+		var sb := b.get_theme_stylebox("normal") as StyleBoxFlat
+		if sb != null:
+			sb.border_color = Color(0.94, 0.78, 0.45) if k == cur else Color(0.20, 0.26, 0.34)
+		b.disabled = not can_act or not (phase == "discuss" or phase == "vote")
+	if meeting_abstain != null:
+		var sb2 := meeting_abstain.get_theme_stylebox("normal") as StyleBoxFlat
+		if sb2 != null:
+			sb2.border_color = Color(0.94, 0.78, 0.45) if cur == -1 else Color(0.20, 0.26, 0.34)
+		meeting_abstain.disabled = not can_act or not (phase == "discuss" or phase == "vote")
+	var mkind := String(sim.meeting.get("kind", "night"))
+	# 标题 / 计时 / 提示
 	var mtitle := "第 %d 夜 · 发现尸体 · 讨论" % int(sim.night)
 	var vtitle := "第 %d 夜 · 投 票" % int(sim.night)
 	if mkind == "pre":
@@ -2402,27 +5185,40 @@ func _refresh_meeting_ui() -> void:
 		meeting_time.text = "身份公布 · %.0fs" % left
 		meeting_hint.text = ""
 		meeting_result.text = _meeting_result_text()
-	for k: int in meeting_buttons.keys():
-		var b: Button = meeting_buttons[k]
-		var t: Dictionary = sim.agent(k)
-		b.disabled = phase != "vote" or voted or not can_vote or not bool(t.get("alive", false))
+	_append_feed_new()
 
 
-## 讨论期发言流：玩家金色 / 系统灰 / 其余统一浅蓝（**绝不按 alien 标色**，那会泄露身份）。
-func _meeting_feed_text() -> String:
-	if sim == null or sim.speech == null:
+## 席位标签（2.5D tagName，js/t2/decision.js:40-41）：补零席位号 + 空格 + 名字。
+## 模板句、投票按钮与会议信息行共用同一个口径，避免「02」与「2号」混用。
+func _tag_name(i: int) -> String:
+	if i < 0:
+		return "—"
+	var a: Dictionary = sim.agent(i)
+	if a.is_empty():
+		return "—"
+	return "%02d %s" % [i + 1, String(a.get("name", "?"))]
+
+
+## 会议信息三行（2.5D #m-rows，js/ui/templates.js:315-319 / js/game.js:6944-6949）：
+## 报告地点 / 发起报告 / 伤者（区分死者与濒死者）。只在有受害者的夜会显示。
+func _meeting_info_text() -> String:
+	if sim == null or sim.meeting.is_empty():
 		return ""
-	var lines: Array = []
-	for l: Dictionary in sim.speech.feed_tail(14):
-		var who := String(l.get("who", ""))
-		var txt := String(l.get("text", ""))
-		var col := "#8FA6C0"
-		if bool(l.get("sys", false)):
-			col = "#6B7686"
-		elif bool(l.get("me", false)):
-			col = "#F0C674"
-		lines.append("[color=%s]%s：%s[/color]" % [col, who, txt])
-	return "\n".join(lines)
+	var victim_i := int(sim.meeting.get("victim", -1))
+	if victim_i < 0:
+		return ""
+	var rid := String(sim.meeting.get("room", ""))
+	var room_label := "未知位置"
+	if rid != "":
+		room_label = sim.room_name(rid)
+	elif bool(sim.meeting.get("in_corr", false)):
+		room_label = "走廊"
+	var rep_i := int(sim.meeting.get("reporter", -1))
+	var v: Dictionary = sim.agent(victim_i)
+	var alive := bool(v.get("alive", false))
+	return "报告地点：%s\n发起报告：%s\n伤者：%s · %s" % [
+		room_label, _tag_name(rep_i), _tag_name(victim_i),
+		"濒死者" if alive else "死者"]
 
 
 func _on_player_say(text: String) -> void:
@@ -2430,40 +5226,57 @@ func _on_player_say(text: String) -> void:
 		meeting_input.clear()
 	if sim == null or sim.speech == null or sim.meeting.is_empty():
 		return
+	# 2.5D sendPlayerSpeech（js/game.js:6874-6882）：只有讨论期能发言；
+	# 旁观直接返回，幽灵/濒死给提示。输入框禁用只是第一道闸，函数这里再守一次。
+	if String(sim.meeting.get("phase", "")) != "discuss":
+		return
+	if sim.spectator:
+		return
+	var me: Dictionary = sim.me()
+	if me.is_empty():
+		return
+	if not bool(me.get("alive", true)) or bool(me.get("downed", false)):
+		_toast("你现在不能发言")
+		return
 	if text.strip_edges() == "":
 		return
 	sim.speech.player_say(text)
-	if meeting_feed != null:
-		meeting_feed.text = _meeting_feed_text()
+	_append_feed_new()
 
 
-## 驱逐结论 + 投票矩阵：谁投了谁，一眼可见（2.5D 复盘页的同一份 votes 数据）。
+## 投票结果（2.5D renderTally，js/game.js:7719-7736）：**只公布聚合票数**，
+## 逐人矩阵属结算页（2.5D #e-votes），会议里「过程不可见」。
 func _meeting_result_text() -> String:
 	var r: Dictionary = sim.meeting.get("result", {}) as Dictionary
 	if r.is_empty():
 		return ""
+	var tally: Dictionary = r.get("votes", {}) as Dictionary
+	var matrix: Dictionary = r.get("matrix", {}) as Dictionary
+	var abstain := 0
+	for k in matrix.keys():
+		if int(matrix[k]) < 0:
+			abstain += 1
+	var rows: Array = []
+	for k in tally.keys():
+		rows.append([int(k), int(tally[k])])
+	rows.sort_custom(func(x, y): return int(x[1]) > int(y[1]))
+	var lines: Array = ["投票结果（过程不可见）"]
+	for row: Array in rows:
+		lines.append("%s  %d 票" % [_tag_name(int(row[0])), int(row[1])])
+	lines.append("弃权  %d 票" % abstain)
 	var top := int(r.get("ejected", -1))
-	var lines: Array = []
-	if top < 0:
-		lines.append("无人被驱逐 · 最高 %d 票 / 需 %d 票%s（%d 人可投）" % [
-			int(r.get("max", 0)), int(r.get("need", 4)),
-			"，平票" if bool(r.get("tie", false)) else "", int(r.get("voters", 0))])
+	var mx := int(r.get("max", 0))
+	var need := int(r.get("need", 4))
+	if bool(r.get("devSaved", false)):
+		lines.append("DEV 无敌：最高票 %d 指向你，驱逐无效" % mx)
+	elif top >= 0:
+		lines.append("驱逐 %s —— %d 票，唯一最高票且达到 %d 票门槛" % [
+			_tag_name(top), mx, need])
+		lines.append("身份：%s" % ("异形" if bool(r.get("alien", false)) else "人类"))
+	elif mx < need:
+		lines.append("最高票 %d 票，未达 %d 票门槛 ⇒ 无人出局" % [mx, need])
 	else:
-		lines.append("%s 被驱逐 · %s（%d 票）" % [
-			String(r.get("name", "?")),
-			"是异形" if bool(r.get("alien", false)) else "不是异形",
-			int((r.get("votes", {}) as Dictionary).get(top, 0))])
-	var m: Dictionary = r.get("matrix", {}) as Dictionary
-	var n := 0
-	lines.append("— 投票矩阵 —")
-	for k: int in m.keys():
-		if n >= 8:
-			lines.append("… 其余 %d 票" % (m.size() - n))
-			break
-		var tgt := int(m[k])
-		var tn := "弃权" if tgt < 0 else String(sim.agent(tgt).get("name", "?"))
-		lines.append("%s → %s" % [String(sim.agent(k).get("name", "?")), tn])
-		n += 1
+		lines.append("最高票 %d 票但有平票 ⇒ 无人出局" % mx)
 	return "\n".join(lines)
 
 
@@ -2473,26 +5286,24 @@ func _build_meeting_buttons() -> void:
 	for c in meeting_list.get_children():
 		c.queue_free()
 	meeting_buttons.clear()
+	meeting_abstain = null
+	if sim == null:
+		return
+	# 2.5D renderVoteButtons（js/game.js:7422-7446）：排除自己与死者；
+	# 濒死者 alive=true 仍可被投 —— 3D 原先把他一起排除了。
 	for a: Dictionary in sim.agents:
-		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+		if not bool(a.get("alive", false)):
 			continue
 		var i := int(a.get("i", -1))
-		var seat := i
-		var b := Button.new()
-		b.text = String(a.get("name", "?")) + ("（你）" if i == int(sim.me_idx) else "")
-		b.custom_minimum_size = Vector2(0, 30)
-		b.add_theme_font_size_override("font_size", 16)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.07, 0.09, 0.13, 0.94)
-		sb.border_color = Color(0.20, 0.26, 0.34, 1.0)
-		sb.set_border_width_all(1)
-		b.add_theme_stylebox_override("normal", sb)
-		b.add_theme_stylebox_override("hover", sb)
-		b.add_theme_stylebox_override("pressed", sb)
-		b.add_theme_color_override("font_color", Color(0.86, 0.92, 1.0))
-		b.pressed.connect(func() -> void: sim.cast_vote(int(sim.me_idx), seat))
+		if i == int(sim.me_idx):
+			continue
+		var b := _meeting_mk_button("%02d %s" % [i + 1, String(a.get("name", "?"))],
+			func() -> void: sim.cast_vote(int(sim.me_idx), i), 15)
 		meeting_list.add_child(b)
 		meeting_buttons[i] = b
+	meeting_abstain = _meeting_mk_button("弃权",
+		func() -> void: sim.cast_vote(int(sim.me_idx), -1), 15)
+	meeting_list.add_child(meeting_abstain)
 
 
 func _process(delta: float) -> void:
@@ -2501,8 +5312,13 @@ func _process(delta: float) -> void:
 	# 开始页还开着：不推进模拟、不刷 HUD，画面停在开局那一帧。
 	if not started:
 		return
-	if extras != null:
-		extras.door_update(delta, player.global_position, power_on)
+	if minimap != null:
+		minimap.player_pos = Vector2(player.global_position.x, player.global_position.z)
+		minimap.player_spectator = player.spectator
+	if extras != null and (sim == null or (sim.meeting.is_empty() and not sim.over)):
+		# 2.5D doorTick 在会议/结算期间冻结；触发范围检查所有活人，不只是玩家。
+		var door_agents: Array = sim.agents if sim != null else []
+		extras.door_update(delta, player.global_position, power_on, door_agents)
 	_knife_cd = maxf(0.0, _knife_cd - delta)
 	_shot_cd = maxf(0.0, _shot_cd - delta)
 	_pipe_cd = maxf(0.0, _pipe_cd - delta)
@@ -2524,6 +5340,13 @@ func _process(delta: float) -> void:
 			_sim_hud_timer = 0.25
 			_refresh_sim_hud()
 	_update_interaction(delta)
+	_poll_dev_log()
+	if sim != null and (bool(sim.dev) or bool(sim.spectator)):
+		_dev_timer -= delta
+		if _dev_timer <= 0.0:
+			_dev_timer = 0.5
+			_refresh_dev_panel()
+	_update_spectator_view()
 	_refresh_mouse_mode()
 	_toast_t -= delta
 	if _toast_t <= 0.0 and toast_label != null:
@@ -2600,13 +5423,16 @@ func _want_mouse_visible() -> bool:
 		return true
 	if _info_open:
 		return true
+	# 结算 / 阵亡面板上有「查看复盘」按钮：光标必须能点，不能锁在窗口里。
+	if sim != null and (sim.over or _player_dead):
+		return true
 	return false
 
 
 func _refresh_mouse_mode() -> void:
 	if player == null or not started:
 		return
-	var want := Input.MOUSE_MODE_VISIBLE if _want_mouse_visible() else Input.MOUSE_MODE_CAPTURED
+	var want := Input.MOUSE_MODE_VISIBLE if (mouse_released or _want_mouse_visible()) else Input.MOUSE_MODE_CAPTURED
 	if Input.mouse_mode != want:
 		Input.mouse_mode = want
 
@@ -2626,23 +5452,113 @@ func _update_interaction(_delta: float) -> void:
 	var offers := _collect_offers()
 	if offers.is_empty():
 		prompt_label.text = "" if station.is_empty() else "站桩中 · %s（移动即中断）" % String(station.get("label", ""))
+		# 2.5D 的用户裁定「点错要有反馈」同样适用于按键：没有可交互项时按 E
+		# 不能毫无反应，否则玩家会以为是"交互坏了"（2026-11-10 现场）。
+		if pressed and station.is_empty():
+			_probe("E · 交互项 0")
+			_toast(_no_offer_hint())
 		return
 	_near = offers[0].get("dev", null)
 	if station.is_empty():
 		if offers.size() == 1:
-			prompt_label.text = "[E] %s" % String(offers[0].get("label", ""))
+			var hint1 := String(offers[0].get("hint", ""))
+			prompt_label.text = "[E] %s%s" % [String(offers[0].get("label", "")),
+				(" · " + hint1) if hint1 != "" else ""]
 		else:
 			prompt_label.text = "[E] 附近 %d 项交互（1-%d 直接选）" % [offers.size(), offers.size()]
 	if pressed:
+		var ids: Array = []
+		for o: Dictionary in offers:
+			ids.append(String(o.get("id", "")))
+		_probe("E · 交互项 %d [%s]" % [offers.size(), ", ".join(PackedStringArray(ids))])
 		if offers.size() == 1:
+			_probe("E → " + String(offers[0].get("label", "")))
 			(offers[0]["act"] as Callable).call()
 		else:
+			_probe("E → 轮盘 %d 项" % offers.size())
 			player.ui_locked = true
 			wheel.open(offers,
 				func(it: Dictionary) -> void:
 					player.ui_locked = false
+					_probe("轮盘 → " + String(it.get("label", "")))
 					(it["act"] as Callable).call(),
-				func() -> void: player.ui_locked = false)
+				func() -> void:
+					player.ui_locked = false
+					_probe("轮盘 → 取消"))
+
+
+## 按 E 却没有任何交互项时的具体解释。2.5D 也要求「点错要有反馈」；
+## 这里优先回答「旁边有人为什么打不倒」，而不是一律说“附近没有可交互的东西”。
+func _no_offer_hint() -> String:
+	if sim == null or sim.agents.is_empty():
+		return "附近没有可交互的东西 —— 走近设备 / 尸体 / 电闸 / 圆桌再按 E"
+	var me: Dictionary = sim.me()
+	if not bool(me.get("alien", false)):
+		return "人类没有刀 —— 右键开枪（子弹在军械库领）；E 只做维修 / 搜尸 / 报告等交互"
+	var reach := SpaceData.num(space, "reach", "knife")
+	var me_pos: Vector2 = me.get("pos", Vector2.ZERO)
+	# 刀程内有人却没有交互项：只可能是墙/掩体挡住了（2.5D stab() 的 losNow）。
+	var in_reach := _nearest_living_agent(reach)
+	if not in_reach.is_empty():
+		if int(me.get("knife", 0)) < 1:
+			return "本夜的刀已用完（每夜 1 把，天亮补）"
+		return "中间有墙 / 掩体挡着，刀够不到"
+	var p := _nearest_living_agent(reach + 1.6)
+	if p.is_empty():
+		return "附近没有可交互的东西 —— 走近设备 / 尸体 / 电闸 / 圆桌再按 E"
+	var p_pos: Vector2 = p.get("pos", Vector2.ZERO)
+	var d := me_pos.distance_to(p_pos)
+	if int(me.get("knife", 0)) < 1:
+		return "本夜的刀已用完（每夜 1 把，天亮补）"
+	return "再靠近一点（刀程 %.1f 米，当前 %.1f 米）" % [reach, d]
+
+
+## 2.5D stab()（js/game.js:8243-8248）：刀程内最近、且 losNow 有视线的活人。
+## 这是 E 的选人口径；左键仍走准星（输入映射差异）。
+func _nearest_knife_target() -> Dictionary:
+	if sim == null or sim.agents.is_empty():
+		return {}
+	var me: Dictionary = sim.me()
+	var p: Vector2 = me.get("pos", Vector2.ZERO)
+	var reach := SpaceData.num(space, "reach", "knife")
+	var best: Dictionary = {}
+	var best_d := reach
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) == int(sim.me_idx):
+			continue
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+				or bool(a.get("detained", false)):
+			continue
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		var d := p.distance_to(ap)
+		if d > best_d:
+			continue
+		if sim.nav != null and not sim.nav.los(p, ap):
+			continue
+		best_d = d
+		best = a
+	return best
+
+
+## 最近的活人（不含自己、濒死、被擒、出局）；只用于提示，不参与命中判定。
+func _nearest_living_agent(max_d: float) -> Dictionary:
+	if sim == null or sim.agents.is_empty():
+		return {}
+	var p: Vector2 = sim.me().get("pos", Vector2.ZERO)
+	var best: Dictionary = {}
+	var best_d := max_d
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) == int(sim.me_idx):
+			continue
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+				or bool(a.get("detained", false)):
+			continue
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		var d := p.distance_to(ap)
+		if d < best_d:
+			best_d = d
+			best = a
+	return best
 
 
 ## 交互收集（对应 2.5D 的 collectInteractions）：不再"固定优先级吞掉选择"，
@@ -2656,6 +5572,27 @@ func _collect_offers() -> Array:
 	var dev_r := SpaceData.num(space, "reach", "fix")
 	var fwd := -player.global_transform.basis.z
 	fwd.y = 0.0
+	## 3D 输入映射（允许的差异）：2.5D 出刀是 A 键（js/game.js:7986），3D 映射到左键；
+	## E 轮盘也列同一个动作，避免「旁边有人、按 E 却像什么都没发生」。
+	## 只调用同一个 _player_knife（reach.knife / sim.knife 全不变），不新增规则。
+	if sim != null and not sim.agents.is_empty() and not bool(sim.spectator):
+		var me_a: Dictionary = sim.me()
+		if bool(me_a.get("alien", false)) and bool(me_a.get("alive", true)) \
+				and not bool(me_a.get("downed", false)) \
+				and not bool(me_a.get("detained", false)):
+			var atk_tgt := _nearest_knife_target()
+			if not atk_tgt.is_empty():
+				var atk_name := String(atk_tgt.get("name", "?"))
+				var has_knife := int(me_a.get("knife", 0)) > 0
+				out.append({
+					"id": "attack",
+					"label": ("出刀 · " + atk_name) if has_knife \
+						else ("出刀（本夜刀已用完） · " + atk_name),
+					"hint": ("左键同效 · 剩余刀 %d" % int(me_a.get("knife", 0))) if has_knife \
+						else "天亮补 1 把",
+					"accent": Color("#FF9E96"),
+					"act": func() -> void: _player_knife(me_a, atk_tgt),
+				})
 	for dev in extras.devices:
 		if not is_instance_valid(dev):
 			continue
@@ -2804,10 +5741,13 @@ func _collect_offers() -> Array:
 		if sqrt(dx * dx + dy * dy) <= SpaceData.num(space, "reach", "round_table"):
 			out.append({
 				"id": "req", "label": "领物资申请单",
-				"hint": "站桩 %.0fs · 待领 %d" % [SpaceData.num(space, "stand", "qual"), qual_pending],
+				# 2.5D 2026-11-10 改成**交互即领**（grantQual，无站桩、无小游戏），
+				# STAND.qual 已归 0；这里跟着走，dur<=0 时直接结算不站桩。
+				"hint": "交互即领 · 待领 %d" % qual_pending
+					if SpaceData.num(space, "stand", "qual") <= 0.0
+					else "站桩 %.0fs · 待领 %d" % [SpaceData.num(space, "stand", "qual"), qual_pending],
 				"accent": Color("#FFE8B0"),
-				"act": func() -> void: _start_station("领取物资申请单",
-					SpaceData.num(space, "stand", "qual"), _on_claim_done),
+				"act": func() -> void: _claim_qual_now(),
 			})
 	for fac in map_data.get("facility", []):
 		if String(fac.get("kind", "")) != "supply":
@@ -2947,10 +5887,15 @@ func _open_body_card(body_i: int) -> void:
 	var bp: Vector2 = b.get("bodyPos", Vector2.ZERO)
 	if bp == Vector2.ZERO:
 		bp = b.get("pos", Vector2.ZERO)
+	var kb := int(b.get("killedBy", -1))
+	var killer_text := "无法判断"
+	if bool(sim.dev) and kb >= 0 and kb != int(b.get("i", -1)):
+		killer_text = _tag_name(kb) + "（DEV 全知）"
 	var lines: Array = [
 		"状态：" + ("濒死 · 还有呼吸，拖进医疗间可由机器人救活" if alive else "已死亡"),
 		"发现地点：" + sim.room_name(sim.room_at(bp)),
 		"检查：" + ("已检查 · 伤口与拖拽痕迹完整" if bool(b.get("searched", false)) else "未检查"),
+		"凶手：" + killer_text,
 		"随身物资：弹 %d / 包 %d / 单 %d" % [int(b.get("bullet", 0)),
 			int(b.get("medkit", 0)), int(b.get("qual", 0))],
 		"第 %d 夜 · 剩余 %.0fs" % [int(sim.night), maxf(0.0, float(sim.t))],
@@ -2982,20 +5927,23 @@ func _open_cams() -> void:
 
 
 func _breaker_offer(dev) -> Dictionary:
-	## 时长口径照 2.5D：合闸 = breaker.on_default（电力修好后 on_fixed），
-	## 拉闸 = min(off_max, off_step × 本夜第 n 次)。
+	## 时长口径照 2.5D breakerPullTime：断电 → 合闸时间（修好电路 3s / 否则 4.5s）；
+	## 供电 → min(off_max, off_step × 本夜第 n 次)。计数只在 sim 里。
 	var dur: float
 	var label: String
 	if power_on:
-		dur = minf(SpaceData.num(space, "breaker", "off_max"),
-			SpaceData.num(space, "breaker", "off_step") * (float(_breaker_pulls) + 1.0))
+		dur = sim.breaker_pull_time() if sim != null else minf(
+			SpaceData.num(space, "breaker", "off_max"),
+			SpaceData.num(space, "breaker", "off_step"))
 		label = "拉闸断电"
 	else:
-		dur = SpaceData.num(space, "breaker", "on_default")
+		dur = sim.breaker_on_time() if sim != null else \
+			SpaceData.num(space, "breaker", "on_default")
 		label = "合闸复电"
 	return {
 		"id": "breaker", "label": label,
-		"hint": "站桩 %.1fs · 当前%s" % [dur, "断电" if not power_on else "照明"],
+		"hint": "站桩 %.1fs · 当前%s" % [dur, "断电" if not power_on else
+			("全亮（配电已修）" if sim != null and int(sim.light_state) == 1 else "照明")],
 		"accent": Color("#BFE9F7"), "dev": dev,
 		"act": func() -> void: _start_station(label, dur, _on_breaker_done),
 	}
@@ -3040,9 +5988,17 @@ func _moving_input() -> bool:
 
 
 func _on_breaker_done() -> void:
-	if power_on:
-		_breaker_pulls += 1
 	set_power(not power_on)
+
+
+## 领申请单：2.5D 2026-11-10 起是**交互即领**（`grantQual`，无站桩、无小游戏）。
+## 只有旧数据（`stand.qual > 0`）才退回站桩，避免把老地图卡住。
+func _claim_qual_now() -> void:
+	var dur := SpaceData.num(space, "stand", "qual")
+	if dur > 0.0:
+		_start_station("领取物资申请单", dur, _on_claim_done)
+		return
+	_on_claim_done()
 
 
 func _on_claim_done() -> void:
@@ -3184,7 +6140,8 @@ func _close_pipe_ui() -> void:
 		pipe_panel.visible = false
 	if player != null:
 		player.ui_locked = false
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 不直接 CAPTURED：用户可能按过 Esc 释放鼠标，交给统一口径判断。
+	_refresh_mouse_mode()
 
 
 func _travel_pipe(to: Dictionary) -> void:
@@ -3205,18 +6162,31 @@ func _travel_pipe(to: Dictionary) -> void:
 
 
 ## 供电切换：舱灯 + 走廊顶灯 + 常亮材质 + 环境光 + 门扫描锁一起走。
+## 三态的唯一真源在 sim（light_state）；这里只把场景与 HUD 跟上。
 func set_power(on: bool) -> void:
-	power_on = on
-	if sim != null and bool(sim.power_on) != on:
-		# 供电状态以 main 的灯为准，但事件与拉闸计数记在 sim 里（唯一真源）
-		sim.toggle_power(int(sim.me_idx))
-		sim.power_on = on
+	if sim != null:
+		if (int(sim.light_state) != 2) != on:
+			sim.toggle_power(int(sim.me_idx))
+		apply_light_state(int(sim.light_state))
+	else:
+		apply_light_state(0 if on else 2)
+
+
+func apply_light_state(st: int) -> void:
+	power_on = st != 2
 	if builder != null:
-		builder.set_power(on)
+		builder.set_light_state(st)
 	if extras != null:
-		extras.set_power(on)
+		extras.set_power(power_on)
 	_refresh_power_hud()
-	_toast("已合闸 · 全船恢复照明" if on else "已拉闸 · 全船断电")
+	# 2.5D 的 toast 分三态：常态 / 电路修好全亮 / 拉闸断电。
+	if st == 2:
+		_toast("已拉闸 · 全船断电（本夜第 %d 次）" % int(sim.breaker_pulls)
+			if sim != null else "已拉闸 · 全船断电")
+	elif st == 1:
+		_toast("已合闸 · 配电已修复 · 全船照明恢复")
+	else:
+		_toast("已合闸 · 全船恢复照明")
 
 
 func _refresh_power_hud() -> void:
@@ -3321,42 +6291,84 @@ func _handle_attack(btn: int) -> void:
 	if bool(me.get("downed", false)) or bool(me.get("detained", false)):
 		return
 	if btn == MOUSE_BUTTON_LEFT:
+		_probe("左键 · 出刀请求")
 		_player_knife(me)
 	elif btn == MOUSE_BUTTON_RIGHT:
+		_probe("右键 · 开枪请求")
 		_player_fire(me)
 
 
-func _player_knife(me: Dictionary) -> void:
+func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 	if role != "alien" and not bool(me.get("alien", false)):
+		_probe("出刀 × 人类没有刀")
 		_toast("人类没有刀 —— 右键开枪，子弹在军械库换")
 		return
 	if _knife_cd > 0.0:
+		_probe("出刀 × 冷却 %.1fs" % _knife_cd)
+		_toast("出刀冷却中（%.1fs）" % _knife_cd)
 		return
-	var tgt := _aim_target(SpaceData.num(space, "reach", "knife"), 0.55)
+	# 没刀了要明说：2.5D 是每夜 1 把（点击没反应最容易被当成「不能出手」）
+	if int(me.get("knife", 0)) < 1:
+		_probe("出刀 × 本夜刀已用完")
+		_toast("本夜的刀已用完（每夜 1 把，天亮补）")
+		return
+	# E 轮盘带的是「2.5D stab() 的最近目标」；左键没带目标才走准星。
+	var tgt: Dictionary = forced
 	if tgt.is_empty():
+		tgt = _aim_target(SpaceData.num(space, "reach", "knife"), 0.55)
+	if tgt.is_empty():
+		_probe("出刀 × 刀程内没有目标")
 		_toast("刀锋够不到 —— 再靠近、把人对准屏幕中央")
 		return
+	# 轮盘可能停留了几秒：目标已经倒下/出局就不要再补刀（2.5D stab 也排除 downed）。
+	if not bool(tgt.get("alive", false)) or bool(tgt.get("downed", false)) \
+			or bool(tgt.get("detained", false)):
+		_probe("出刀 × 目标已倒下/出局")
+		_toast("目标已经不在了")
+		return
+	# 2.5D stab() 的 losNow 同源：墙/掩体挡着就不出刀（3D sim.knife 不自己查）。
+	var me_pos: Vector2 = me.get("pos", Vector2.ZERO)
+	var tgt_pos: Vector2 = tgt.get("pos", Vector2.ZERO)
+	if me_pos.distance_to(tgt_pos) > SpaceData.num(space, "reach", "knife"):
+		_probe("出刀 × 目标已离开刀程")
+		_toast("目标离开了刀程 —— 再靠近")
+		return
+	if sim.nav != null and not sim.nav.los(me_pos, tgt_pos):
+		_probe("出刀 × 中间有墙/掩体")
+		_toast("中间有墙 / 掩体挡着，刀够不到")
+		return
 	if not sim.knife(int(sim.me_idx), int(tgt.get("i", -1))):
+		_probe("出刀 × 结算拒绝（目标已倒下 / 刀数不足）")
+		_toast("出刀没有生效（目标已倒下 / 刀数不足）")
 		return
 	_knife_cd = 1.2
-	_toast("出刀 · " + String(tgt.get("name", "")))
+	_probe("出刀 → %s · 濒死 · 剩余刀 %d" % [String(tgt.get("name", "")),
+		int(me.get("knife", 0))])
+	_toast("出刀 · " + String(tgt.get("name", "")) + " 濒死")
 
 
 func _player_fire(me: Dictionary) -> void:
 	if int(me.get("bullet", 0)) <= 0:
+		_probe("开枪 × 没有子弹")
 		_toast("没有子弹 —— 去军械库领（圆桌领申请单 → 军械补给点）")
 		return
 	if _shot_cd > 0.0:
+		_probe("开枪 × 冷却 %.1fs" % _shot_cd)
+		_toast("开枪冷却中（%.1fs）" % _shot_cd)
 		return
 	var tgt := _aim_target(SpaceData.num(space, "shoot", "range"), 0.90)
 	if tgt.is_empty():
+		_probe("开枪 × 射程内没有对准的目标")
 		_toast("射程内没有对准的目标")
 		return
 	if not sim.shoot(int(sim.me_idx), int(tgt.get("i", -1))):
+		_probe("开枪 × 结算拒绝（视线被挡 / 目标已倒下）")
 		_toast("这一枪没打中（视线被挡住或目标已倒下）")
 		return
 	_shot_cd = 0.8
-	_toast("开枪 · " + String(tgt.get("name", "")))
+	_probe("开枪 → %s · 濒死 · 剩余弹 %d" % [String(tgt.get("name", "")),
+		int(me.get("bullet", 0))])
+	_toast("开枪击中 " + String(tgt.get("name", "")))
 
 
 ## 在给定距离内挑「最贴近准星」的活人：点积越大越接近屏幕中央。
@@ -3452,8 +6464,12 @@ func _tick_detained() -> void:
 	if me.is_empty():
 		return
 	var held := bool(me.get("detained", false))
+	## 小游戏卡片开着也算锁输入：2.5D 里 #mg 遮罩把 attention 归零、点击地面失效；
+	## 3D 若不算这一项，_tick_detained 每帧会把它重新写回 false，
+	## 玩家就能一边解题一边用 WASD 走开（卡片挡着画面）。
+	var ui_open: bool = _pipe_open or (mg_layer != null and bool(mg_layer.is_open()))
 	player.ui_locked = held or bool(me.get("downed", false)) \
-		or (not sim.meeting.is_empty()) or _pipe_open
+		or (not sim.meeting.is_empty()) or ui_open
 	if held:
 		if not _detained_toast:
 			_detained_toast = true
@@ -3475,6 +6491,11 @@ func _refresh_sim_hud() -> void:
 	# 申请单/补给以 sim 为唯一真源；本地变量只做 UI 缓存。
 	qual_pending = int(a.get("qualPending", 0))
 	qual = int(a.get("qual", 0))
+	# 2.5D 报告稀缺资源：个人额度 + 每夜夜会上限，HUD 常驻。
+	var meet_cfg: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("MEET", {}) as Dictionary
+	report_label.text = "报告 %d · 夜会 %d/%d" % [
+		int(a.get("reportLeft", 0)), int(sim.night_meets),
+		int(meet_cfg.get("perNight", 2))]
 	var role_text := "旁观 · 全知视角" if bool(sim.spectator) else \
 		("异形 · 假装维修不给进度" if bool(a.get("alien", false)) else "人类")
 	role_text += " · 弹 %d · 包 %d" % [int(a.get("bullet", 0)), int(a.get("medkit", 0))]
@@ -3546,35 +6567,95 @@ func _event_feed() -> String:
 	return "\n".join(lines)
 
 
+## 结算页（2.5D endGame + renderEnd）：只在 sim.over 时调用，只填一次。
+## 身份表 / 投票矩阵都是只读数据；按钮固定在最下面，表格自己滚。
 func _show_end() -> void:
-	if end_panel == null or sim == null:
+	if settle_panel == null or sim == null:
 		return
-	end_panel.visible = true
-	if not end_panel.has_node("ReplayBtn"):
-		var rb := Button.new()
-		rb.name = "ReplayBtn"
-		rb.text = "查看复盘"
-		rb.position = Vector2(320, 18)
-		rb.custom_minimum_size = Vector2(120, 34)
-		rb.add_theme_font_size_override("font_size", 14)
-		rb.pressed.connect(func() -> void: ui_panels.open_replay(sim.events))
-		end_panel.add_child(rb)
-	var title := "人类胜利" if bool(sim.over_win) else "异形胜利"
-	end_label.text = "%s\n%s\n维修 %d/%d · 第 %d 夜\n\n按 R 重开一局（新种子 %d）" % [
-		title, String(sim.over_why), int(sim.prog), int(sim.win_pts()),
-		int(sim.night), int(sim.seed_used) + 1]
+	if end_panel != null:
+		end_panel.visible = false
+	var first := not settle_panel.visible
+	settle_panel.visible = true
+	if not first:
+		return
+	settle_title.text = "人类胜利" if bool(sim.over_win) else "异形胜利"
+	settle_sub.text = String(sim.over_why)
+	settle_stats.text = "维修 %d/%d · 第 %d 夜 · 按 R 重开一局（新种子 %d）" % [
+		int(sim.prog), int(sim.win_pts()), int(sim.night), int(sim.seed_used) + 1]
+	settle_ids.text = _settle_ids_text()
+	settle_votes.text = _settle_votes_text()
+
+
+## 2.5D #e-ids（js/game.js:4802-4817）：席位 + 阵营 + 结局 + 死亡地点 + 刀在谁。
+## 只在 sim.over 后显示，不涉及任何判定。
+func _settle_ids_text() -> String:
+	var lines: Array = []
+	for a: Dictionary in sim.agents:
+		var i := int(a.get("i", -1))
+		var alien := bool(a.get("alien", false))
+		var role := "异形" if alien else "人类"
+		var fate := ""
+		if bool(a.get("alive", false)):
+			fate = "濒死存活" if bool(a.get("downed", false)) else "存活"
+		else:
+			match String(a.get("deathCause", "")):
+				"vote":
+					fate = "被驱逐"
+				"knife":
+					fate = "被出刀"
+				"shot":
+					fate = "被枪杀"
+				"bleed":
+					fate = "天亮失血"
+				_:
+					fate = "死亡"
+		var extra := ""
+		var rid := String(a.get("deathRoom", ""))
+		if rid != "" and String(a.get("deathCause", "")) != "vote":
+			extra = " · " + sim.room_name(rid)
+		var killer := ""
+		var kb := int(a.get("killedBy", -1))
+		if kb >= 0 and kb != i:
+			killer = " · 刀在 " + _tag_name(kb)
+		var col := "#E0574F" if alien else "#7FB0E6"
+		lines.append("[color=%s]%s · %s[/color]  [color=#B8C6D8]%s%s[/color]%s" % [
+			col, _tag_name(i), role, fate, extra,
+			("[color=#F0C674]%s[/color]" % killer) if killer != "" else ""])
+	return "\n".join(lines) if not lines.is_empty() else "（无席位数据）"
+
+
+## 2.5D #e-votes（js/game.js:4819-4838）：按会议 seq 分组，列每场的终票。
+## 终票由 _close_meeting 统一落「vote」事件（带 seq），中途改票另有 vote_change。
+func _settle_votes_text() -> String:
+	var by_seq: Dictionary = {}
+	for e: Dictionary in sim.events:
+		if String(e.get("kind", "")) != "vote":
+			continue
+		var seq := int(e.get("seq", 0))
+		if not by_seq.has(seq):
+			by_seq[seq] = []
+		(by_seq[seq] as Array).append(e)
+	if by_seq.is_empty():
+		return "本局没有进行到投票"
+	var keys: Array = by_seq.keys()
+	keys.sort()
+	var lines: Array = []
+	for key: int in keys:
+		var arr: Array = by_seq[key]
+		var night := int((arr[0] as Dictionary).get("night", 0))
+		lines.append("[color=#F0C674]第 %d 夜 · 第 %d 场投票[/color]" % [night, key])
+		for e: Variant in arr:
+			var ev := e as Dictionary
+			var actor := int(ev.get("actor", -1))
+			var tgt := int(ev.get("target", -1))
+			var an := String(sim.agent(actor).get("name", "?"))
+			var tn := "弃权" if tgt < 0 else String(sim.agent(tgt).get("name", "?"))
+			lines.append("  %s → %s" % [an, tn])
+	return "\n".join(lines)
 
 
 func _input(event: InputEvent) -> void:
 	if sim == null or not started:
-		return
-	## 信息面板（尸检记录 / 全船监控）在最上层：只剩 ESC 关闭，其余按键不落到对局。
-	## 对应 2.5D 的 G.inspect / G.camView 输入屏蔽（js/game.js:7932 起）。
-	if _info_open:
-		if event is InputEventKey and (event as InputEventKey).pressed \
-				and (event as InputEventKey).keycode == KEY_ESCAPE:
-			_close_info()
-			get_viewport().set_input_as_handled()
 		return
 	## 设置 / 复盘面板在最上层（2.5D 的 SKSettings.isOpen() 守卫）：
 	## 只允许 P / ESC 关闭，其余按键一律不落到对局，避免面板开着时误触发交互。
@@ -3584,6 +6665,26 @@ func _input(event: InputEvent) -> void:
 			if pk == KEY_P or pk == KEY_ESCAPE:
 				ui_panels.close_all()
 				get_viewport().set_input_as_handled()
+		return
+	## F2 = DEV（2.5D js/game.js:7928）：设置面板之外一律可用，会议/轮盘/信息面板都不挡。
+	if event is InputEventKey and (event as InputEventKey).pressed \
+			and not (event as InputEventKey).echo \
+			and (event as InputEventKey).keycode == KEY_F2:
+		sim.dev = not bool(sim.dev)
+		# 打开时把旧拦截记录视为已读：不要一开 DEV 就吐一屏历史 toast。
+		_dev_log_n = sim.dev_log.size() if bool(sim.dev) else 0
+		_refresh_dev_panel()
+		_toast("DEV：无敌 + 全知（F2 关闭）" if bool(sim.dev) else "DEV：已关闭")
+		_probe("F2 → DEV %s" % ("开" if bool(sim.dev) else "关"))
+		get_viewport().set_input_as_handled()
+		return
+	## 信息面板（尸检记录 / 全船监控）在最上层：只剩 ESC 关闭，其余按键不落到对局。
+	## 对应 2.5D 的 G.inspect / G.camView 输入屏蔽（js/game.js:7932 起）。
+	if _info_open:
+		if event is InputEventKey and (event as InputEventKey).pressed \
+				and (event as InputEventKey).keycode == KEY_ESCAPE:
+			_close_info()
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		if (event as InputEventKey).keycode == KEY_P and started:
@@ -3597,6 +6698,23 @@ func _input(event: InputEvent) -> void:
 			_close_pipe_ui()
 			get_viewport().set_input_as_handled()
 			return
+		# Esc 释放 / 收回鼠标（自由游玩时）。面板 / 小游戏 / 轮盘各自处理 Esc，
+		# 这里只在没有任何模态时生效 —— 旧版 player.gd 设了 VISIBLE，但
+		# `_refresh_mouse_mode()` 下一帧又把它 CAPTURED，等于 Esc 完全无效。
+		if (event as InputEventKey).keycode == KEY_ESCAPE and not (event as InputEventKey).echo:
+			if _want_mouse_visible():
+				return
+			mouse_released = not mouse_released
+			_refresh_mouse_mode()
+			get_viewport().set_input_as_handled()
+			return
+	# 点击画面收回鼠标（自由游玩时）。UI 面板的点击由 GUI 处理，不能在这里抢。
+	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed \
+			and mouse_released and not _want_mouse_visible():
+		mouse_released = false
+		_refresh_mouse_mode()
+		get_viewport().set_input_as_handled()
+		return
 	# 攻击输入：左键出刀（异形）/ 右键开枪（人类），都要在鼠标已被捕获时才生效，
 	# 否则第一次点击是"从 UI 夺回鼠标"，不该顺带打一枪。
 	if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
@@ -3618,14 +6736,17 @@ func _restart_sim() -> void:
 		return
 	power_on = true
 	set_power(true)
-	_breaker_pulls = 0
 	qual_pending = 0
 	qual = 0
 	station = {}
 	if end_panel != null:
 		end_panel.visible = false
+	if settle_panel != null:
+		settle_panel.visible = false
 	_player_dead = false
 	_down_toast = false
+	# 新一局从「鼠标已被捕获」开始：结算页可能按过 Esc 释放，不能带进下一局。
+	mouse_released = false
 	if crew_view != null:
 		crew_view.build(sim)
 	player.global_position = Vector3(31.0, 0.05, 33.5)
@@ -3912,6 +7033,11 @@ func _run_taskflowtest() -> bool:
 	if sim == null or sim.agents.is_empty():
 		print("TASKFLOW FAIL sim 未初始化")
 		return false
+	## 夹具修正（2026-11-10）：与 --mgtest / --devicetest 同一条坑 ——
+	## 会议开着时 _process 会把小游戏卡片收掉，旧夹具因此在开局讨论里恒报 open=false，
+	## 任务进度自然一动不动。先把会正常走完，再验「打开 → 解题 → 结算」。
+	_finish_meeting(sim)
+	await get_tree().create_timer(0.3).timeout
 	var remaining: Array = sim.remaining_tasks()
 	if remaining.is_empty():
 		print("TASKFLOW FAIL 没有剩余任务")

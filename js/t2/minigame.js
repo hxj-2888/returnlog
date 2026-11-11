@@ -29,19 +29,19 @@
     '引擎组同步': { k:'sync', n:3, hold:0.6, targets:[[16,28],[46,60],[33,49]], color:'#F5A64A',
       hint:'三条引擎通道各自调进亮带，并同时保持 0.6 秒' },
     '零件台': { k:'place', n:4, shapes:['▲','●','■','◆','✦','✚'], color:'#73A7FF',
-      hint:'把四种零件按形状放回对应槽位；放错整组重来' },
+      hint:'把四种零件按形状放回对应槽位；放错不重置' },
     '工具架': { k:'place', n:4, shapes:['✦','✚','◈','◇','▲','■'], color:'#5AD1C0',
       hint:'工具按形状归位；注意有一个诱饵槽' },
     '备用配电盘': { k:'wire', n:2, color:'#F0C674',
-      hint:'接回配电盘上的两处断线；接错整组重来' },
+      hint:'接回配电盘上的两处断线；接错不重置' },
     '氧气循环': { k:'pour', lo:58, hi:72, rate:32, color:'#57DB70',
       hint:'把氧气注到 58~72 的亮带内再松手' },
     '培养罐补液': { k:'pour', lo:44, hi:56, rate:44, color:'#00E5B0',
-      hint:'补液到 44~56 之间再松手；溢出或不足都重来' },
+      hint:'补液到 44~56 之间再松手；溢出或不足可重注' },
     '温控面板': { k:'sync', n:2, hold:0.8, targets:[[25,40],[55,70]], color:'#3DC7F2',
       hint:'两路温控同时进入亮带并保持 0.8 秒' },
     '电路维修': { k:'wire', n:3, color:'#E0574F',
-      hint:'直接操控面板图里的三处断线；接错整组重来' },
+      hint:'直接操控面板图里的三处断线；接错不重置' },
     '变压器换芯': { k:'swap', color:'#B07CFF',
       hint:'先取出旧芯，再插入同型号新芯' },
     '餐台清洁': { k:'sort', n:5, bins:['餐具','垃圾'], items:['盘','杯','叉','纸','壳'],
@@ -57,7 +57,7 @@
     '手术台校准': { k:'align', n:3, tol:0.022, color:'#00E5B0',
       hint:'把三个探针拖进虚线靶心；这次容差更小' },
     '药柜': { k:'match', n:4, icons:['◈','◇','▣','▤','◐','◑'], color:'#5AD1C0',
-      hint:'翻两瓶药，图标相同即配对；错 3 次整组重来' },
+      hint:'翻两瓶药，图标相同即配对；配错不重置' },
     '消毒循环': { k:'valve', n:3, color:'#00E5B0',
       hint:'把三个阀门转到各自的刻度线；每点一次转 15°' },
     '靶道校准': { k:'aim', hits:3, speed:58, zone:7, color:'#E0574F',
@@ -68,20 +68,19 @@
       assign:[0,0,0,1,1], color:'#F0C674',
       hint:'把子弹和弹壳分开清点' },
     '监控墙重连': { k:'code', code:'4271', clue:'屏幕角落的旧编号：4 - 2 - 7 - 1',
-      color:'#3DC7F2', hint:'按旧编号重连监控墙；输错从头来' },
+      color:'#3DC7F2', hint:'按旧编号重连监控墙；输错不重置' },
     '操作台': { k:'sequence', n:4, symbols:['▣','▤','◐','◑'], color:'#73A7FF',
       hint:'按操作台提示的顺序依次按下四个键' },
     '录像归档': { k:'code', code:'317', clue:'档案盒侧面：A - 3 - 7',
-      color:'#5AD1C0', hint:'把录像归到正确档号；输错从头来' },
+      color:'#5AD1C0', hint:'把录像归到正确档号；输错不重置' },
     '货架校准': { k:'level', n:5, tol:2.5, color:'#F0C674',
       hint:'把五层货架拖到同一条虚线，容差 ±2.5%' },
-    '库存盘点': { k:'sort', n:4, bins:['在库','缺货'], items:['A','B','C','D'],
-      assign:[0,1,0,1], color:'#F5A64A',
-      hint:'按在库 / 缺货把库存分到两个筐' },
+    '库存盘点': { k:'match', n:4, icons:['▣','▤','◈','◇','◐','◑'], color:'#F5A64A',
+      hint:'翻两张库存卡，货单与实物相同即配对（与货箱封条玩法区分）' },
     '货箱封条': { k:'place', n:4, shapes:['✚','✦','◈','●','▲','■'], color:'#F0C674',
       hint:'选择正确形状的封条，封住四个货箱' },
     '出库扫描': { k:'code', code:'8142', clue:'出库单号：8 - 1 - 4 - 2',
-      color:'#73A7FF', hint:'按出库单号完成扫描；输错从头来' }
+      color:'#73A7FF', hint:'按出库单号完成扫描；输错不重置' }
   };
   const BY_LABEL = {};
   for (const k in TASKS) BY_LABEL[k] = TASKS[k].k;
@@ -92,20 +91,20 @@
     breaker: 'lever'
   };
   const HINT = {
-    wire: '点断口这头 → 再点那头，直接把图里的线接回去；接错线整组重来',
-    place: '零件 → 槽位，形状要对上；放错整组重来',
-    lever: '按住不放直到充满；松早了整组重来',
+    wire: '点断口这头 → 再点那头，直接把图里的线接回去；接错线不重置',
+    place: '零件 → 槽位，形状要对上；放错不重置',
+    lever: '按住不放直到充满；松手保持进度',
     sync: '把三条通道都调进亮带并保持 0.6 秒',
-    pour: '注到亮带内再松手；溢出或不足都重来',
+    pour: '注到亮带内再松手；溢出或不足可重注',
     swap: '先取出旧芯，再插入同型号新芯',
     align: '把三个探针拖到虚线靶心',
-    aim: '准星进带时点击，连中 3 次；脱靶清零',
-    match: '翻两张，图标相同即配对；错配 3 次整组重来',
+    aim: '准星进带时点击，连中 3 次；脱靶不重置',
+    match: '翻两张，图标相同即配对；配错不重置',
     level: '拖动四层货架，全部对齐到虚线',
-    sequence: '按提示顺序依次按下；按错整组重来',
-    sort: '先点物品，再点它应该去的筐；分错会记一次错误',
+    sequence: '按提示顺序依次按下；按错不重置',
+    sort: '先点物品，再点它应该去的筐；分错不重置',
     valve: '点阀门旋转，把指针转到刻度线；三个都到位即完成',
-    code: '按提示编号在键盘上输入；输错从头开始'
+    code: '按提示编号在键盘上输入；输错不重置'
   };
 
   const CSS = `
@@ -484,14 +483,6 @@
         });
       });
     }
-    function resetAll() {
-      state.forEach(function (st) { st.held = -1; st.done = false; });
-      heldWire = -1;
-      pulses.innerHTML = '';
-      setCuts();
-      setEmbers();
-      setProg(0, wires.length, '接错线 → 整组重来，断口全部复位');
-    }
     function repair(i) {
       const w = wires[i];
       state[i].done = true; state[i].held = -1; heldWire = -1;
@@ -520,15 +511,19 @@
       if (!api || api.done) return;
       const st = state[i];
       if (st.done) return;
-      /* 捏住 A 的一头却点了 B 的端头 = 串错线，和旧玩法一样整组重来 */
-      if (heldWire >= 0 && heldWire !== i) { resetAll(); tip('接错线 → 整组重来', true); return; }
+      /* 捏住 A 的一头却点了 B 的端头 = 串错线：只松开手、提示，不清已接好的进度
+         （2026-11-09 用户裁定取消「接错不重置」惩罚）。 */
+      if (heldWire >= 0 && heldWire !== i) {
+        state[heldWire].held = -1; heldWire = -1; setEmbers();
+        tip('接错线 · 已接的保留，重新捏这头', true); return;
+      }
       if (st.held === k) {
         st.held = -1; heldWire = -1;
         setEmbers(); tip('松开线头 · 这头那头都行'); return;
       }
       if (st.held >= 0) { repair(i); return; }
       st.held = k; heldWire = i;
-      setEmbers(); tip('已捏住这头 · 点另一头接上（接错线整组重来）');
+      setEmbers(); tip('已捏住这头 · 点另一头接上（接错线不重置）');
     }
     function setPeek(on) {
       face.setAttribute('mask', on ? 'none' : 'url(#mgCutMask)');
@@ -542,7 +537,7 @@
     setCuts();
     setEmbers();
     setProg(0, wires.length,
-      '共 ' + wires.length + ' 处断口：点断口这头 → 再点那头，接错线整组重来');
+      '共 ' + wires.length + ' 处断口：点断口这头 → 再点那头，接错线不重置');
   }
 
   /* ---------- 接线 · 旧版（无板数据时的降级玩法） ---------- */
@@ -571,11 +566,8 @@
       p.onclick = function () {
         if (api.done || !sel || p.classList.contains('done')) return;
         if (p.dataset.c !== sel.dataset.c) {
-          pairs = []; svg.innerHTML = '';
-          Array.prototype.forEach.call(box.querySelectorAll('.port'), function (x) {
-            x.classList.remove('done', 'sel', 'hint');
-          });
-          sel = null; setProg(0, cols.length, '颜色不对 → 整组重来，从中断处重新接线'); return;
+          sel.classList.remove('sel', 'hint'); sel = null;
+          tip('颜色不对 · 已接的保留，另选同色端', true); return;
         }
         const a = sel; a.classList.remove('sel'); a.classList.remove('hint');
         a.classList.add('done'); p.classList.add('done');
@@ -622,9 +614,8 @@
       d.onclick = function () {
         if (api.done || !sel || d.classList.contains('filled')) return;
         if (d.dataset.s !== sel.dataset.s) {
-          Array.prototype.forEach.call(grid.children, function (x) { x.classList.remove('filled'); x.textContent = ''; });
-          Array.prototype.forEach.call(tray.children, function (x) { x.classList.remove('used', 'sel', 'hint'); });
-          placed = 0; sel = null; setProg(0, N, '形状不符 → 整组重来，每个零件只认一个槽'); return;
+          sel.classList.remove('sel', 'hint'); sel = null;
+          tip('形状不符 · 已放的保留，每个零件只认一个槽', true); return;
         }
         d.classList.add('filled'); d.textContent = sel.dataset.s;
         sel.classList.add('used'); sel.classList.remove('sel', 'hint'); sel = null; placed++;
@@ -672,7 +663,7 @@
       if (!last) last = ts;
       const dt = Math.min(.05, (ts - last) / 1000); last = ts;
       if (held && charge < 1) charge = Math.min(1, charge + dt / cfg('hold', 1.2));
-      if (!held && charge > 0) charge = Math.max(0, charge - dt * 2.4);
+      /* 2026-11-09 取消「松手保持进度」：松手保持已充进度，可分多次按住 */
       fill.style.height = (charge * 100).toFixed(0) + '%';
       arm.style.transform = 'rotate(' + (-70 * charge).toFixed(1) + 'deg)';
       if (fire > 0) { fire -= dt; if (fire <= 0) svg.classList.remove('fire'); }
@@ -747,8 +738,8 @@
     hold.addEventListener('pointerup', function () {
       if (!held || !api || api.done) return;
       held = false;
-      if (v > hi) settle(false, '注过头了 → 整组重来');
-      else if (v < lo) settle(false, '注得不够 → 整组重来');
+      if (v > hi) { v = 0; fill.style.height = '0%'; tip('注过头了 · 倒掉重注这一杯，任务不重置', true); }
+      else if (v < lo) { v = 0; fill.style.height = '0%'; tip('注得不够 · 重新按住注液', true); }
       else settle(true, '配比到位 · 任务成功');
     });
     function loop(ts) {
@@ -781,7 +772,7 @@
       b.style.width = '56px'; b.style.height = '32px'; b.style.border = '1px solid #313B4B'; b.style.cursor = 'pointer';
       b.onclick = function () {
         if (!api || api.done || !removed) return;
-        if (c !== target) { settle(false, '型号不对 → 整组重来'); return; }
+        if (c !== target) { tip('型号不对 · 旧芯已取出，另选同型号新芯', true); return; }
         sock.appendChild(el('div', 'core ' + c, '新芯'));
         settle(true, '换芯完成 · 任务成功');
       };
@@ -866,7 +857,7 @@
       if (x >= zlo && x <= zhi) {
         hits++; setProg(hits, need, '命中 ' + hits + ' / ' + need);
         if (hits >= need) settle(true, '靶道校准完成 · 任务成功');
-      } else { hits = 0; setProg(0, need, '脱靶 → 计数清零，等准星进带再点'); }
+      } else { tip('脱靶 · 已中的保留，等准星进带再点', true); }
     };
     api.anim = requestAnimationFrame(loop);
   }
@@ -880,7 +871,7 @@
     const deck = shuffled(pool.concat(pool));
     const grid = el('div', 'cards');
     let open = [], lock = false, pairs = 0, miss = 0;
-    setProg(0, N, '共 ' + N + ' 对：翻两张，图案相同即配对（错 3 次整组重来）');
+    setProg(0, N, '共 ' + N + ' 对：翻两张，图案相同即配对（配错不重置）');
     deck.forEach(function (ic) {
       const c = el('div', 'cd', '·');
       c.dataset.ic = ic;
@@ -900,8 +891,7 @@
             a.classList.remove('up'); b.classList.remove('up');
             a.textContent = '·'; b.textContent = '·';
             open = []; lock = false;
-            if (miss >= 3) settle(false, '错配 3 次 → 整组重来');
-            else tip('配错了（' + miss + ' / 3）—— 记一下位置重来', true);
+            tip('配错了 · 已配对的保留，记一下位置再翻', true);
           }, 420);
         }
       };
@@ -969,10 +959,7 @@
       b.onclick = function () {
         if (!api || api.done) return;
         if (s !== seq[idx]) {
-          idx = 0;
-          targets.forEach(function (x) { x.classList.remove('on'); });
-          setProg(0, n, '顺序错了 → 从头再来');
-          tip('顺序错了 → 从头再来', true);
+          tip('顺序错了 · 已按的保留，再按当前这格', true);
           return;
         }
         targets[idx].classList.add('on');
@@ -982,7 +969,7 @@
       };
       row.appendChild(b); buttons.push(b);
     });
-    bd.appendChild(el('div', 'tip', '亮起的顺序就是答案；按错从头来'));
+    bd.appendChild(el('div', 'tip', '亮起的顺序就是答案；按错不重置'));
     bd.appendChild(show);
     bd.appendChild(row);
     setProg(0, n, '按提示顺序依次按下 ' + n + ' 个符号');
@@ -1013,9 +1000,7 @@
       b.onclick = function () {
         if (!api || api.done || sel < 0) return;
         if (assign[sel] !== bi) {
-          miss++;
-          tip('分错了（' + miss + ' / 3）—— 再想想', true);
-          if (miss >= 3) settle(false, '分错 3 次 → 整组重来');
+          tip('分错了 · 已分拣的保留，再想想它该去哪筐', true);
           return;
         }
         itemBtns[sel].classList.add('used');
@@ -1027,7 +1012,7 @@
       binsRow.appendChild(b);
       return b;
     });
-    bd.appendChild(el('div', 'tip', '先点物品，再点筐；错 3 次整组重来'));
+    bd.appendChild(el('div', 'tip', '先点物品，再点筐；分错不重置'));
     bd.appendChild(row);
     bd.appendChild(binsRow);
     setProg(0, n, '把 ' + n + ' 件物品分进「' + bins.join(' / ') + '」');
@@ -1093,8 +1078,8 @@
       const b = el('button', 'blk', String(d));
       b.onclick = function () {
         if (!api || api.done) return;
+        if (!code.startsWith(entered + String(d))) { tip('编号不对 · 已输入的保留，再试这位', true); return; }
         entered += String(d);
-        if (!code.startsWith(entered)) { reset('编号不对 → 从头开始'); tip('编号不对 → 从头开始', true); return; }
         cells[entered.length - 1].textContent = String(d);
         setProg(entered.length, code.length, '已输入 ' + entered.length + ' / ' + code.length);
         if (entered.length === code.length) settle(true, '编号正确 · 任务成功');

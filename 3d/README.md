@@ -1,6 +1,8 @@
 # 新返航录 3D 预演（独立子项目）
 
-> 状态：**垂直切片 / 可行性验证**，不是正式 3D 客户端。
+> 状态：**2.5D 的完整功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
+> 33 项 Godot 自测全绿、`npm run check` 6/0、parity 0 WARN）。仍是本地预演、不发行。
+> **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
 > 2026-11-04 早补：完整版（含 .NET / `GodotSharp`）已装，GDScript 工程两份编辑器读数一致，见 §3。
 > 主项目 2.5D 的 `file://` 红线**不适用**于本目录；这里不通过 `index.html` 加载。
@@ -58,12 +60,12 @@
 ## 2. 已实现
 
 - `js/data/map.js` → `3d/preview/data/map.json`（10 舱室 / 11 走廊 / 110 墙体线段 / 59 掩体 / 26 任务点）。
-- **26 个任务点 + 电闸**已落成 3D 设备（27 个交互点，10 种玩法全覆盖），设备优先用
+- **26 个任务点 + 电闸**已落成 3D 设备（27 个交互点，14 种玩法全覆盖），设备优先用
   `3d/assets/export/*.glb`，缺失时程序化兜底；按掩体顶面自动抬升，正面朝向舱室中心。
-- **10 型基础交互全部移植**（`scripts/minigame/`）：wire / place / lever / sync / pour /
-  swap / align / aim / match / level；2.5D 的 2026-11-06 **26 任务定制**通过
-  `minigames.json#tasks` 同步到 3D：任务标题 / 提示 / 配色按任务读取；
-  新交互 sequence / sort / valve / code 在 3D 预演里先映射到 match / place / lever / sync。卡片遮罩、保底倒计时、中断清零、失败重来与 2.5D 同口径。
+- **14 型基础交互全部移植**（`scripts/minigame/`）：wire / place / lever / sync / pour /
+  swap / align / aim / match / level / sequence / sort / valve / code；2.5D 的
+  2026-11-06 **26 任务定制**通过 `minigames.json#tasks` 同步到 3D：
+  任务标题 / 提示 / 配色按任务读取。卡片遮罩、保底倒计时、中断清零、失败重来与 2.5D 同口径。
 - `E` 交互 + 相机推近 + 小游戏遮罩 + 完成后自动收回；正对优先、距离次之选设备。
 - 设施（电闸 / 医疗无人机 / 保安机器人 / 补给点 / 监控台）、**8 个管道口**（除中央会议室 / 配电室外每舱一个）、
   32 个装饰、22 扇门框；管道用 `prop_pipe_port.glb`（Blender + SDXL 舱盖贴图），2.5D 同款精灵由 Blender 渲染。
@@ -94,7 +96,10 @@
   玩家左键出刀 / 右键开枪 / `E` 钻管道选出口 / `E` 搜尸；玩家位置每帧同步进 sim。
   **B3 的「异形不刀玩家」保护已撤销**。`--bottest` 6/0、`--b4test` 8/0。
 - **B5 · 会议三段相位（2026-11-08）**：`discuss(35s，可跳过) → vote(5s) → result(3s)`，
-  秒数读 `sim.json#rules.MEET`；结果页显示身份公布 + 投票矩阵。`--meetshot --meetresult` 实拍。
+  秒数读 `sim.json#rules.MEET`。第 12 批起会议 UI 功能层同源：8 个一键模板 + 对象/舱室下拉、
+  `01–15` 席位号、弃权、讨论期先投/改票、跳过投票、幽灵/旁观只读；结果页按 2.5D
+  「过程不可见」只公布聚合票数与门槛（逐人矩阵在结算页，第 14 批已迁）。`--meetshot` 三态实拍、
+  `--meetuitest` 23/0。
 - **S 轨 · 发言（2026-11-08）**：`export-lines.cjs` 从 2.5D 四个真源导出 `data/lines.json`
   （62 类 / 1,201 行台词 / 74 证据短语 / 21 规则表 / 发言解析词表）；`lines_data.gd` +
   `mind.gd` + `speech.gd` 接模板填充、hot-cold、组合槽、去重、talkScore 排期、证词→嫌疑、
@@ -102,6 +107,14 @@
 - **B6′ · 剩余系统（2026-11-08）**：拖尸/藏尸/医疗救起、机器人 HP 与反制、供电合并、
   改票/报账/讨论超时/天亮/终结者、旁观者第 16 人自由相机、设置与复盘面板、
   20 条 `.ogg` 事件音效、版本号单一真源。**事件词表 31/31/31 静态全覆盖**。`--b6test` 6/0。
+- **UI 收尾（2026-11-10 第 12–15 批）**：会议 8 模板/席位号/弃权/先投改票/跳过投票/只读；
+  结算页身份表 + 逐人投票矩阵；局内小地图（短名/灯态/任务点/故障/圆桌脉冲/玩家/图例，
+  不画他人、不可点击）；HUD 报告余量 + 夜会场次。`--meetuitest` / `--settletest` /
+  `--minimaptest` 全绿。
+- **判定层收尾（2026-11-10 第 16 批）**：身份轴 / `exposureAt` / trait 系数 / `huntSpotFor`、
+  `evalAlmost` 全量、`trust`/`grudge`/`patron`、`claimHist`/`claim_recall`、`DESC`、
+  构陷/大义灭亲编排补齐；parity 的 20 个源字面量带 `js` 行号回读校验，**0 WARN**。
+  `--socialtest` 6/0、`--aiporttest` 13/0。
 
 ## 3. 快速运行
 
@@ -120,7 +133,7 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_mono_win64/Godot_v4.6-stable_mono_win
 
 # 数据契约（2.5D 真源 → 3D JSON，三个导出器全部 fail-loud）
 npm run 3d:export:map        # map.json v2：含 rooms[].theme 与 cover[].v / decor[].v 美术变体
-npm run 3d:export:minigames  # minigames.json（10 型 / 26 任务）
+npm run 3d:export:minigames  # minigames.json（14 型 / 26 任务）
 npm run 3d:export:space      # space.json：门/视野/站桩/电闸/管道/补给 全部数值（含 22 个走廊灯位）
 npm run 3d:export:sim        # sim.json：角色规模/任务分值/夜长/胜负 + 非发言规则表（不导出发言表）
 npm run 3d:port:check        # 移植清单校验：js 全覆盖 / target 存在 / 依赖无环 / 契约版本
@@ -177,10 +190,13 @@ pwsh -File 3d/tools/gen-art-refs.ps1 -Size 512 # 草稿档，约 47 s/张
 # 留档 docs\qwen21\{cabin-refs,task-refs}\（含 manifest.json：模型/seed/prompt/许可/耗时）
 ```
 
-操作：`WASD` 移动 · `Shift` 加速 · `E` 交互（多项时 `1-9` 选轮盘项，ESC 取消）· 鼠标视角 · `Esc` 释放鼠标。
+操作：`WASD` 移动 · `E` 交互 / 出刀（多项时 `1-9` 选轮盘项，ESC 取消）· 鼠标左键出刀 ·
+鼠标右键开枪 · `F2` DEV（全知 + 无敌 + 玩家探针）· 鼠标视角 · `Esc` 释放鼠标。
 
-> ⚠ 键位与 2.5D 不一致且**暂无法统一**：2.5D 已把交互并入 `W`，但 3D 的 `W` 是前进键。
-> 这里保留 `E` 交互（FPS 惯例），语义与 2.5D 的轮盘一致，只有键不同。
+> ⚠ 键位与 2.5D 不一致且**暂无法统一**：2.5D 已把交互并入 `W`、出刀是 `A`，但 3D 的 `W` 是前进键。
+> 这里保留 `E` 交互（FPS 惯例），并把出刀同时挂到左键与 E 轮盘；语义与 2.5D 的
+> `collectInteractions` / `stab()` 一致，只有键不同。E 的选人是「刀程内最近 + 有视线」，
+> 左键仍走准星，两者都过同一套 `sim.knife` 结算。
 
 ### 截图与自测
 
@@ -205,7 +221,7 @@ pwsh -File 3d/tools/gen-art-refs.ps1 -Size 512 # 草稿档，约 47 s/张
 - 截图输出在 `user://preview.png` / `user://preview-corridor.png`，实际路径会打印 `SHOT_PATH=`；
   仓库内留档：`3d/preview/screenshots/bridge.png` / `corridor.png`。
 
-### 10 型小游戏与设备交互（2026-11-06）
+### 14 型小游戏与设备交互（2026-11-06）
 
 ```bash
 GODOT="E:/ai-tools/godot/Godot_v4.6-stable_win64_console.exe"
@@ -214,13 +230,13 @@ GODOT="E:/ai-tools/godot/Godot_v4.6-stable_win64_console.exe"
 npm run 3d:export:map
 npm run 3d:export:minigames
 
-# 10 型小游戏无头自测（期望 10/10 pass）
+# 14 型小游戏无头自测（期望 14/14 pass）
 "$GODOT" --headless --path 3d/preview -- --mgtest
 
-# 27 个设备 / 10 种玩法 + E 交互开关自测
+# 27 个交互点 / 14 种玩法 + E 交互开关自测
 "$GODOT" --headless --path 3d/preview -- --devicetest
 
-# 10 型小游戏截图（输出 3d/preview/screenshots/mg-<kind>.png）
+# 14 型小游戏截图（输出 3d/preview/screenshots/mg-<kind>.png）
 "$GODOT" --path 3d/preview --resolution 1280x720 -- --mgshot all
 
 # 设备特写（0,4,7,8,13,26 = sync/pour/wire/swap/align/lever）
@@ -231,6 +247,18 @@ npm run 3d:export:minigames
 
 # 真实输入 E2E：走到设备前 → 按 E → 遮罩 → 解题 → 自动收起
 "$GODOT" --path 3d/preview --resolution 1280x720 -- --e2e
+
+# 玩家探针（2026-11-10）：真实 E / 数字键 / 左键 / F2，验「异形按 E 能放倒人」+ DEV 无敌。
+# 必须真实窗口：headless 下 MOUSE_MODE_CAPTURED 不成立，左键会被“先夺回鼠标”分支吃掉。
+npm run 3d:probe
+
+# 人物 blockout 同框验收（2026-11-11）：2.5D billboard / 3D 体块 / 1.75m 标尺
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --crewshot
+
+# 门扇闭合/全开对照（2026-11-11）：closed 时中线合拢，open 时让出整段门洞
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --doorshot
+# 默认就是 3D 体块；要回退旧 billboard 用 --crew-billboard
+"$GODOT" --path 3d/preview --resolution 1280x720 -- --role alien --crew-billboard
 
 # 任务点**站位可达性**（2026-11-09）：逐点扫描半径内的可走格子，
 # 查「走过去站得下、且仍在交互半径内」——tasktest 是传送验证，查不出走不到的点
@@ -243,13 +271,16 @@ npm run 3d:export:minigames
 实测（2026-11-09 复跑）：`--reachtest` **26 点 / 走不到 0**（改钳位距离前是 3 个走不到）；
 `--audiotest` **文件=true 时长=151.2s 导入循环=true 播放=true**、档 0.35 → 增益 0.48（−6.4dB）、Master 回到 0dB；
 `--e2e` 先收束开局讨论再注 E，`E2E open=true`（旧写法在开局讨论还开着时注 E，永远 open=false）；
-`--mgtest` **10/10 pass**；`--tasktest` 26 点 0 失败；`--interacttest` 全绿。
+`--mgtest` **14/14 pass**；`--tasktest` 26 点 0 失败；`--interacttest` 全绿。
 `--actiontest`（2026-11-09 第四批新增）：真实输入链自测，**鼠标相位 5/5 + 2.5D 动作入口 5/5**，
 不靠 `skip_discussion()` 绕过开局会议；修的是「轮盘打开了却点不动」这类门禁测不到的缺陷。
-⚠ `--devicetest` 现在读的是 `open=false locked=true` / `closed=true unlocked=false`
-（本节此前写的是 `open=true closed=true unlocked=true`）——它在 `_ready` 当帧就调 `_open_device`，
-疑似小游戏层还没装配完；本批没动这条链路，留作下一批核对。
-截图留档：`screenshots/mg-*.png`、`screenshots/device-*.png`、`screenshots/e2e-device-minigame.png`。
+`--devicetest` 2026-11-10 实跑已回到 `open=true locked=true` / `closed=true unlocked=true`
+（此前记的 `open=false` 是 `_ready` 当帧夹具问题，已在第 16 批前修掉）。
+`--probetest`（2026-11-10 新增）：`PROBE ① [attack]` → `E 濒死=true 刀=0` →
+`左键 濒死=true` → `轮盘选 1 濒死=true` → `F2 dev=true 面板=true` →
+`DEV 挨枪/死亡/驱逐全部无效`，`PROBETEST OK 0 项失败`。
+截图留档：`screenshots/mg-*.png`、`screenshots/device-*.png`、`screenshots/e2e-device-minigame.png`；
+DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打印 `PROBESHOT_PATH=`）。
 
 ## 4. 资产复用结论
 
@@ -335,7 +366,7 @@ npm run 3d:export:minigames
     scripts/map_builder.gd  地图升维 / 碰撞 / 灯光
     scripts/device.gd       任务点设备（模型 / 朝向 / 镜头落点）
     scripts/scene_extras.gd 设施 / 管道 / 装饰 / 门框 / 设备清单
-    scripts/minigame/       遮挡层 + 10 型玩法（mg_*.gd）
+    scripts/minigame/       遮挡层 + 14 型玩法（mg_*.gd）
     data/map.json           由 export-map.cjs 生成（schema_version=1）
     data/minigames.json     由 export-minigames.cjs 生成
     data/sim.json           由 export-sim.cjs 生成（开局/分值/夜长/会议；发言表另见下）
@@ -361,7 +392,10 @@ npm run 3d:export:minigames
 - 机器人 HP 与反制已接，但没有"机器人被修好"的回路；BGM 是 `.m4a`，Godot 不支持，未接。
 - 设置面板有音量滑块与本机持久化，音效无 3D 空间衰减；复盘只读 `sim.events`，
   不载入外部回放 JSON。
-- 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理；角色是单帧 billboard。
+- 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理。
+- 角色默认已切 `char_crew_lowpoly`（1.75 m / 1812 tris / 17 骨 / idle+walk）；
+  参考图在 `docs/qwen21/crew-refs/`。`--crew-billboard` 回退旧单帧 billboard，
+  `char_crew_blockout` 只作模型缺失时的第二级回退；knife/down 待补。
 - 事件词表静态 31/31/31 全覆盖，但**同 seed 一局内不一定 31 种都触发**；
   `--simdiff` 报告会如实列出该局两边的 kind 差与首个分歧点。
 - 灯光是预演级；**SDXL 新贴图只有 256² 低步数版**（内存余量不足），

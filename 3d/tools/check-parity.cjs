@@ -101,6 +101,24 @@ collect(saved.fn_fingerprints);
 collect(saved.constants);
 collect(saved.dispatch);
 
+/* 已核对的 2.5D 源码字面量：3D 只是照抄，**不导出到 rules.json**（导出会造第二份定义）。
+   每项都带 js 源文件:行号，扫描时**回读该行验证数字确实存在**；上游改行后这里会直接 FAIL，
+   不会静默地把一个新阈值当成“已核对”。新增 3D 数字必须先在 js/ 找到出处再登记。 */
+const SOURCE_LITERALS = {
+  0.01: ['js/game.js', 7095],   // identityAxis 下界
+  0.99: ['js/game.js', 7095],   // identityAxis 上界
+  1.10: ['js/game.js', 1684],   // 传闻抖动上限
+  0.94: ['js/game.js', 1684],   // 传闻抖动基线
+  0.24: ['js/game.js', 5968],   // contradiction_lie 权重
+  0.26: ['js/game.js', 5977],   // heard_frame 权重
+  5.4: ['js/game.js', 2559],    // 尸体发现半径
+  5.8: ['js/game.js', 2535],    // 远程拉铃半径
+  1.8: ['js/game.js', 996],     // 医疗无人机/拾取近身半径
+  7.5: ['js/game.js', 2830],    // 人类 AI 找濒死者（有医疗包）
+  8.5: ['js/game.js', 2880],    // 人类 AI 找濒死者（拖去医疗间）
+  1.9: ['js/game.js', 2882],    // 拖尸/施救近身判定
+};
+
 const suspicious = [];
 for (const rel of GD_FILES) {
   const src = fs.readFileSync(path.join(ROOT, rel), 'utf8').split('\n');
@@ -110,6 +128,14 @@ for (const rel of GD_FILES) {
     for (const m of code.matchAll(/(?<![A-Za-z_$\d])\d+\.\d+/g)) {
       const num = Number(m[0]);
       if (allowed.has(num)) continue;
+      if (SOURCE_LITERALS[num]) {
+        const [srel, ln] = SOURCE_LITERALS[num];
+        const sline = fs.readFileSync(path.join(ROOT, srel), 'utf8').split('\n')[ln - 1] || '';
+        if (sline.includes(String(num))) continue;
+        errors.push('源字面量引用失配：' + num + ' 不在 ' + srel + ':' + ln +
+          '（2.5D 源码改行后必须重新登记）');
+        continue;
+      }
       // fallback 参数（rule(..., 0.5)）允许：真源存在时不会用到，且值必须等于真源
       if (/fallback|,\s*\d+\.\d+\s*\)/.test(code) && /rule\(|_r\(|_d\(|n\(|disp/.test(code)) continue;
       suspicious.push(rel + ':' + (idx + 1) + ' → ' + num + '  ' + code.trim().slice(0, 76));

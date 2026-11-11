@@ -945,17 +945,24 @@ function section(t) { console.log('\n== ' + t); }
     const t = SKV3._t, g = t.G();
     const q = t.qualDesk();
     g.me.path = null; g.me.moving = false; g.me.doing = 0; g.me._doing = null;
+    g.me._mg = false; g.me._taskPt = null; g.me.qual = 0; g.me.qualPending = 1;
+    g.me.tasks = [];   /* 清掉在途任务，避免其保底完成在领取等待期插入一份待领单 */
+    if (window.SKMiniGame && SKMiniGame.isOpen()) SKMiniGame.close();
     /* 站在圆桌外沿 2.1 格（旧 1.7 判定会拒绝，现在 2.3 内即可） */
     t.tp(0, q.x, q.y + 0.9);
     return { q, room: t.state()[0].room };
   });
-  await page.keyboard.press('w');
-  await page.waitForTimeout(170);
-  const CL = await T(() => { const g = SKV3._t.G(); return { do: g.me._doing, doing: g.me.doing }; });
-  ok(QD.room === 'bridge' && CL.do === 'qual' && CL.doing > 2.4,
-    '中央会议室圆桌：2.1 格外按 W 也能进入 3 秒领取动作（判定 2.3 格）');
-  await T(() => { SKV3._t.G().me.doing = 0.02; });
-  await page.waitForTimeout(240);
+  const CL = await T(() => {
+    const t = SKV3._t, g = t.G();
+    t.openWheel();
+    const w = t.wheel();
+    const i = w ? w.items.findIndex(x => x.id === 'req') : -1;
+    if (i >= 0) t.pickWheel(i);
+    return { do: g.me._doing, qual: g.me.qual, pending: g.me.qualPending, picked: i,
+      fx: t.fx(), msg: g.msg, qlPop: document.getElementById('ql').classList.contains('pop') };
+  });
+  ok(QD.room === 'bridge' && CL.do === null && CL.qual === 1 && CL.pending === 0,
+    '中央会议室圆桌：2.1 格外交互即领（无站桩无小游戏，判定 2.3 格）');
   const Q5 = await T(() => {
     const g = SKV3._t.G();
     return { qual: g.me.qual, pending: g.me.qualPending,
@@ -965,7 +972,7 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(Q5.qual === 1 && Q5.pending === 0 && Q5.ql === '1' && Q5.qp === '0',
     '领取成功：申请单 1 / 待领 0，HUD 同步');
-  ok(Q5.fx.includes('qual') && Q5.msg.indexOf('领取物资申请单') >= 0 && Q5.qlPop,
+  ok(CL.fx.includes('qual') && CL.msg.indexOf('领取物资申请单') >= 0 && CL.qlPop,
     '领取物资申请单：金色徽章特效 + HUD 弹跳 + 播报');
   await freezeFx();
   await shotClip('34_领取申请单动画.png', { x: 440, y: 220, width: 600, height: 460 });
@@ -981,7 +988,7 @@ function section(t) { console.log('\n== ' + t); }
   await page.keyboard.press('w');
   await page.waitForTimeout(120);
   const P0 = await T(() => ({ do: SKV3._t.G().me._doing, doing: SKV3._t.G().me.doing }));
-  ok(P0.do === 'med' && P0.doing > 4, '已领取申请单：医疗补给点按 W 进入取医疗包动作');
+  ok(P0.do === 'med' && P0.doing > 2 && P0.doing <= 3, '已领取申请单：医疗补给点按 W 进入 3s 取医疗包站桩');
   await T(() => { SKV3._t.G().me.doing = 0.02; });
   await page.waitForTimeout(240);
   const P = await T(() => {
@@ -2601,7 +2608,7 @@ function section(t) { console.log('\n== ' + t); }
   await shot('50_交互轮盘.png');
   const WH1 = await T(() => {
     const t = SKV3._t, g = t.G();
-    const w = t.wheel();
+    const w = t.wheel() || (t.openWheel(), t.wheel());
     const i = w.items.findIndex(x => x.id === 'task');
     const r = t.pickWheel(i);
     return { i, r, do: g.me._doing, doing: g.me.doing, wheel: t.wheel() };
@@ -2610,7 +2617,7 @@ function section(t) { console.log('\n== ' + t); }
   const WH2 = await T(() => {
     const t = SKV3._t, g = t.G();
     g.me.doing = 0; g.me._doing = null; g.me.path = null;
-    g.dmg = [];
+    g.dmg = [{ room: 'power', x: 49, y: 55.4, label: '测试故障', left: 60, dur: 60, by: 0 }];
     const pi = t.points().findIndex(p => p.label === '电路维修');
     g.me.tasks = [pi, 0, 1, 2]; g.me.tIdx = 0;
     t.tp(0, 49, 55.4);
@@ -2909,6 +2916,9 @@ function section(t) { console.log('\n== ' + t); }
     /* 监控台锚点 2026-10-31 从 (84,29) → (81,28.8) → (79.35,36.0)：
        最终贴在主控台上（屏幕斜躺在台面），玩家站主控台北侧 y34.7 调画面。 */
     t.tp(0, 80.1,34.7);
+    const pts0 = t.points();
+    const far0 = pts0.findIndex(p => p.room !== 'cam');
+    g.me.tasks = g.me.tasks.map(idx => pts0[idx].room === 'cam' ? far0 : idx);  /* 监控台旁不留任务点，避免多项轮盘 */
     return { room: t.state()[0].room, near: t.cams().near, inv: t.inv() };
   });
   await page.keyboard.press('w');
@@ -3993,7 +4003,7 @@ function section(t) { console.log('\n== ' + t); }
       fx: t.fx(), inv: t.inv() };
   });
   ok(AHC2.first.do === 'ammo' && AHC2.bullet === 1 && AHC2.qual === 0,
-    'AI 人类在军械补给点消耗申请单换子弹（10s，子弹 +1 / 申请单 -1）');
+    'AI 人类在军械补给点消耗申请单换子弹（5s，子弹 +1 / 申请单 -1）');
   ok(AHC2.fx.includes('pickup'), 'AI 领取补给留下拾取光柱');
   ok(AHC2.inv && AHC2.inv.fails.length === 0, 'AI 领取补给后不变量全过');
   await fresh(false);
@@ -4012,7 +4022,7 @@ function section(t) { console.log('\n== ' + t); }
     /* 2026-10-31 起「任务全做完」的 AI 会走 aiIdleRoam 巡舱——210 秒后 h 可能
        已经飘到别的舱室/掩体背后，玩家贴过去也未必可见。先把 h 拉回补给点再验开枪。 */
     t.tp(h.i, sp.x, sp.y);
-    t.tp(0, h.x + 1, h.y);
+    t.tp(0, h.x - 1, h.y);   /* 补给点在右边缘，玩家放内侧（-1）才在可行走区 */
     h.suspect = 0; h.doing = 0; h._doing = null; h.path = null;
     const a2 = t.aiTick(h.i, 1, 0.05);
     const a3 = t.aiTick(h.i, 210, 0.05);
@@ -4039,8 +4049,8 @@ function section(t) { console.log('\n== ' + t); }
     const first = t.aiTick(h.i, 1, 0.05);
     return { first, q, inv: t.inv() };
   });
-  ok(AIQ.first.do === 'qual' && AIQ.first.qualPending === 1,
-    'AI 人类同样必须回中央会议室圆桌领取物资申请单');
+  ok(AIQ.first.do === null && AIQ.first.qual === 1 && AIQ.first.qualPending === 0,
+    'AI 人类同样回圆桌领申请单（2026-11-10 交互即领，无站桩）');
   ok(AIQ.inv && AIQ.inv.fails.length === 0, 'AI 领取申请单状态不变量全过' +
     (AIQ.inv && AIQ.inv.fails.length ? '（失败项：' +
       AIQ.inv.fails.slice(0, 4).map(f => f.code + ':' + f.msg).join(' | ') + '）' : ''));
@@ -5278,7 +5288,8 @@ function section(t) { console.log('\n== ' + t); }
     g.secbotDead = true; g.medbotDead = true;
     k.qual = 1; k.bullet = 0; k.medkit = 0; k.knife = 1;
     k.sabUsed = true; k._delay = 0; k._rest = 0;
-    t.tp(k.i, 83.6,69.6);
+    const spA = t.supplies().find(q => q.item === 'ammo');
+    t.tp(k.i, spA.x, spA.y + 1.0);   /* 军械补给点 2026-11-10 移到右上角 (90.3,67.5)，夹具动态跟随 */
     t.aiTickAlien(k.i, 1, 0.05);
     const start = { do: k._doing, doing: k.doing };
     t.aiTickAlien(k.i, 220, 0.05);
@@ -8126,8 +8137,8 @@ function section(t) { console.log('\n== ' + t); }
     prog: document.getElementById('mg-s').textContent,
     hits: document.querySelectorAll('#mg .ember-hit').length
   }));
-  ok(!/scaleX\(0\)/.test(MIS.t) && MIS.prog === '0 / 3' && MIS.hits === 6,
-    '接错线 → 整组重来：已合拢的断口复位、进度清零、6 个线头全部回来');
+  ok(/scaleX\(0\)/.test(MIS.t) && MIS.prog === '1 / 3' && MIS.hits === 4,
+    '接错线不重置（2026-11-09 取消惩罚）：已合拢断口保持、进度保留 1 / 3、只松开串错的手');
 
   for (let i = 0; i < 3; i++) { await clickEnd(i, 0); await clickEnd(i, 1); }
   const ALL = await T(() => ({

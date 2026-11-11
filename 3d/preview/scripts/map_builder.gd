@@ -210,6 +210,9 @@ var _ceil_fill: DirectionalLight3D = null
 var _ceil_fill_base := 0.16
 var _fill_base := 0.28
 var power_on := true
+## 天花板整层（舱室顶面 / 走廊顶面 / 灯带）：旁观者飞到天花板以上时整层隐藏，
+## 从上面俯视就是一个完整剖面。2.5D 是 2D 俯视，不需要这套，属维度产物。
+var _ceil_nodes: Array = []
 
 
 func build() -> void:
@@ -233,12 +236,16 @@ func build() -> void:
 	_build_environment()
 
 
-## 供电状态（断电 = 2.5D 的 G.lightState===2）：舱灯、走廊顶灯、常亮材质、环境光一起切。
-## 判定不受这里影响 —— 3D 侧目前也没有视野判定，这一层纯表现。
-func set_power(on: bool) -> void:
-	power_on = on
-	for rec: Dictionary in _room_lights + _corr_lights:
-		(rec["light"] as OmniLight3D).visible = on
+## 供电三态（2.5D refreshLight）：0 常态（只亮亮舱）· 1 电路修好（全舱全亮）· 2 拉闸（只剩会议室灯）。
+## 舱灯、走廊顶灯、常亮材质、环境光、补光一起切。
+func set_light_state(st: int) -> void:
+	power_on = st != 2
+	for rec: Dictionary in _room_lights:
+		var lit: bool = st == 1 or (st == 0 and bool(rec.get("bright", true)))
+		(rec["light"] as OmniLight3D).visible = lit
+	for rec2: Dictionary in _corr_lights:
+		(rec2["light"] as OmniLight3D).visible = st != 2
+	var on: bool = st != 2
 	for mat: StandardMaterial3D in _emit_mats:
 		mat.emission_energy_multiplier = float(mat.get_meta("base_emit")) if on else 0.05
 	if _env != null:
@@ -249,6 +256,24 @@ func set_power(on: bool) -> void:
 		_fill.light_energy = _fill_base if on else 0.02
 	if _ceil_fill != null:
 		_ceil_fill.light_energy = _ceil_fill_base if on else 0.01
+
+
+## 兼容旧调用（布尔）：true = 常态，false = 断电。
+func set_power(on: bool) -> void:
+	set_light_state(0 if on else 2)
+
+
+## 旁观者俯视透视：天花板整层（含灯带）显隐。
+## 用户 2026-11-10：旁观者向上穿时，要能从上面看到完整的剖面；
+## 上层/下层只是"贴板"，作用是不让人掉进虚空，不是封死的盒子。
+func set_ceiling_visible(v: bool) -> void:
+	for mi: MeshInstance3D in _ceil_nodes:
+		if is_instance_valid(mi):
+			mi.visible = v
+
+
+func ceiling_height() -> float:
+	return CEILING_Y
 
 
 func _load_map() -> Dictionary:
@@ -364,6 +389,7 @@ func _add_ceiling_strip(room: Dictionary) -> void:
 		mi.rotation.y = -atan2(vb.y - va.y, vb.x - va.x)
 		mi.material_override = mat
 		add_child(mi)
+		_ceil_nodes.append(mi)
 
 
 ## 沿房间 poly 画一圈发光墙顶线。断电时它是照明件，跟着 set_power 一起暗下去。
@@ -795,7 +821,7 @@ func _build_lights() -> void:
 		light.light_color = Color(1.0, 0.93, 0.82) if bright else Color(0.62, 0.76, 1.0)
 		light.shadow_enabled = false
 		add_child(light)
-		_room_lights.append({"light": light, "room": String(room.get("id", ""))})
+		_room_lights.append({"light": light, "room": String(room.get("id", "")), "bright": bright})
 
 
 ## 走廊顶灯位来自真源：SKT2Space.corridorLampPos（每条走廊两盏，0.28 / 0.72 分位），
@@ -928,6 +954,8 @@ func _add_polygon_surface(poly: Array, y: float, normal: Vector3, mat: Material,
 	mi.mesh = mesh
 	mi.material_override = mat
 	add_child(mi)
+	if y >= CEILING_Y - 0.01:
+		_ceil_nodes.append(mi)
 
 
 func _add_corridor_quad(a: Vector2, b: Vector2, width: float, y: float,
@@ -950,6 +978,8 @@ func _add_corridor_quad(a: Vector2, b: Vector2, width: float, y: float,
 	mi.mesh = mesh
 	mi.material_override = mat
 	add_child(mi)
+	if y >= CEILING_Y - 0.01:
+		_ceil_nodes.append(mi)
 
 
 func _add_cylinder(center: Vector3, radius: float, height: float,
@@ -1023,8 +1053,9 @@ func _material(texture_name: String, tint: Color, triplanar: bool = false) -> St
 	return mat
 
 
-## v2：40 件墙面装饰 —— 外饰换成本机 SDXL 成品贴图，几何一件不动。
-## 数据是 map_v2.json 的 decor[]；旧 scene_extras._build_decor 对新 kind 无匹配分支，
+## v2：40 件墙面装饰 —— 外饰用千问本地成品贴图（SDXL 已退役），几何一件不动。
+## 数据是 map_v2.json 的 decor[]（唯一来源 tools/ship-layout-plan.json 的 3D 墙面美术，
+## 掩体不在这条链上）；旧 scene_extras._build_decor 对新 kind 无匹配分支，
 ## 不会重复建模，也不会破坏原有 floor_mark / camera 的行为。
 ## 每舱一组贴图（med / fun 的首张即 room-wall-art.py 出的已 grade 真图），
 ## 配合 theme.glow 微发光区分房间；不跨舱复制同一组顺序。
@@ -1066,7 +1097,7 @@ func _build_wall_decor_v2() -> void:
 			var n: int = int(per_room.get(rid, 0))
 			skin = String(arr[n % arr.size()])
 			per_room[rid] = n + 1
-		# 近白 tint 保留 SDXL 材质本色；主题色只留一层微发光，不再刷满整块板
+		# 近白 tint 保留千问材质本色；主题色只留一层微发光，不再刷满整块板
 		var mat := _material(skin, Color(0.92, 0.95, 1.0), false)
 		mat.emission = col
 		mat.emission_energy_multiplier = 0.12
@@ -1077,7 +1108,8 @@ func _build_wall_decor_v2() -> void:
 ## v2：任务点不再都压在掩体顶面 —— 给「无掩体可用」的设备补一个纯表现台座。
 ## 台座高 0.55m、无碰撞（不占通行、不进门净空判定），设备高度由
 ## scene_extras._cover_top 兜底 0.57（= 0.55 + 0.02 间隙）对齐。
-## 不写进 map_v2.json 的 cover，方案层 127 件与 82 项校验不受影响。
+## 不写进 map_v2.json 的 cover —— 掩体唯一真源是 js/data/map.js（现 120 件），
+## 台座只是表现层，不参与碰撞与 coverAudit。
 func _build_device_pedestals() -> void:
 	var marks := {}
 	for r: Dictionary in data.get("rooms", []):

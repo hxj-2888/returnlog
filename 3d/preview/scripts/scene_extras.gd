@@ -85,7 +85,7 @@ func set_power(on: bool) -> void:
 ##   · 断电：人离开就重新上锁（scanT=0），有人则 scanT 累加到 door.scan_sec 才放行；
 ##   · 会议室三门**不再豁免**（2.5D 已改为全船一致）。
 ## 放行阈值用 DOOR_PASS：open > DOOR_PASS 时撤掉碰撞，否则两扇门拦人。
-func door_update(dt: float, player_pos: Vector3, power_on: bool) -> void:
+func door_update(dt: float, player_pos: Vector3, power_on: bool, agents: Array = []) -> void:
 	var open_r := SpaceData.num(space, "door", "open_r")
 	var close_r := SpaceData.num(space, "door", "close_r")
 	var speed := SpaceData.num(space, "door", "speed")
@@ -96,7 +96,19 @@ func door_update(dt: float, player_pos: Vector3, power_on: bool) -> void:
 	for d: Dictionary in doors:
 		var center: Vector3 = d["center"]
 		var range_r := close_r if float(d["open"]) > 0.02 else open_r
-		var busy := Vector2(center.x - player_pos.x, center.z - player_pos.z).length() < range_r
+		var busy := false
+		# 2.5D doorTick 遍历 G.agents：任何活人（含 AI）靠近都触发，不是只看玩家。
+		if not agents.is_empty():
+			for a: Dictionary in agents:
+				if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+						or bool(a.get("detained", false)):
+					continue
+				var ap: Vector2 = a.get("pos", Vector2.ZERO)
+				if Vector2(center.x - ap.x, center.z - ap.y).length() < range_r:
+					busy = true
+					break
+		if not busy:
+			busy = Vector2(center.x - player_pos.x, center.z - player_pos.z).length() < range_r
 		var target := 0.0
 		if power_on:
 			d["scan_t"] = 0.0
@@ -134,10 +146,13 @@ func _apply_door_state(d: Dictionary, open: float, pass_r: float, power_on: bool
 	var offset: Vector3 = d["offset"]
 	var leaves: Array = d["leaves"]
 	var blockers: Array = d["blockers"]
-	var slide := half * 2.0 * open
+	# 2.5D drawDoors 的几何：两扇各半宽，关闭时在中线合拢（中心 ±half/2），
+	# 完全打开时各滑出 half，正好让出整段门洞；旧写法中心 ±half + slide 2*half，
+	# 关闭时中间留了 0.9m 缝，看起来永远是半开，人也能从缝里挤过去。
+	var slide := half * open
 	for i in leaves.size():
 		var s := -1.0 if i == 0 else 1.0
-		var base: Vector3 = d["center"] + offset * (s * half) + Vector3(0, 1.25, 0)
+		var base: Vector3 = d["center"] + offset * (s * half * 0.5) + Vector3(0, 1.25, 0)
 		(leaves[i] as MeshInstance3D).position = base + offset * (s * slide)
 		(blockers[i]["body"] as StaticBody3D).position = (leaves[i] as MeshInstance3D).position
 		(blockers[i]["shape"] as CollisionShape3D).disabled = open > pass_r
@@ -563,7 +578,7 @@ func _build_doors(data: Dictionary) -> void:
 			add_child(scan)
 			doors.append({
 				"center": center, "along_x": along_x, "offset": offset,
-				"half": half, "open": 1.0, "scan_t": 0.0,
+				"half": half, "open": 0.0, "scan_t": 0.0,
 				"leaves": leaves, "blockers": blockers, "scan": scan,
 			})
 

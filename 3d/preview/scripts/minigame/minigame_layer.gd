@@ -11,11 +11,9 @@ signal closed(ok: bool)
 
 const MinigameData := preload("res://scripts/minigame/mg_data.gd")
 const MGBase := preload("res://scripts/minigame/mg_base.gd")
-## 2.5D 的 2026-11-06 新交互在 3D 预演里先映射到最接近的现有玩法；
-## 任务标题 / 提示 / 配色仍从 minigames.json 的 tasks 表读取。
-const BASE_FALLBACK := {
-	"sequence": "match", "sort": "place", "valve": "lever", "code": "sync",
-}
+## 14 型与 2.5D 的 BUILD（js/t2/minigame.js:1097-1101）一一对应。
+## 2026-11-10 撤掉 BASE_FALLBACK（sequence→match / sort→place / valve→lever / code→sync
+## 的四型降级）—— 四种玩法已按真源补齐，再降级就是拿别的玩法冒充。
 const BUILDERS := {
 	"wire": preload("res://scripts/minigame/mg_wire.gd"),
 	"place": preload("res://scripts/minigame/mg_place.gd"),
@@ -27,6 +25,10 @@ const BUILDERS := {
 	"aim": preload("res://scripts/minigame/mg_aim.gd"),
 	"match": preload("res://scripts/minigame/mg_match.gd"),
 	"level": preload("res://scripts/minigame/mg_level.gd"),
+	"sequence": preload("res://scripts/minigame/mg_sequence.gd"),
+	"sort": preload("res://scripts/minigame/mg_sort.gd"),
+	"valve": preload("res://scripts/minigame/mg_valve.gd"),
+	"code": preload("res://scripts/minigame/mg_code.gd"),
 }
 
 const COL_TEXT := Color("#DDE3EC")
@@ -36,8 +38,6 @@ const COL_LINE := Color("#2A3240")
 const COL_BG := Color("#12161E")
 const COL_BAD := Color("#E08A86")
 const COL_BTN := Color("#1D2530")
-
-var capture_on_close := true
 
 var _root: Control
 var _card: PanelContainer
@@ -178,7 +178,10 @@ func open(kind: String, label: String, tier: String, title: String,
 		return
 	var real_kind := kind
 	if not BUILDERS.has(real_kind):
-		real_kind = String(BASE_FALLBACK.get(kind, "place"))
+		# 未知 kind 只可能来自数据错误（tasks / arch 里出现了 14 型以外的值）。
+		# 回落 place 保底能玩，但要吵出来，别让它静默变成别的玩法。
+		push_warning("未知小游戏 kind「%s」→ 回落 place" % kind)
+		real_kind = "place"
 	_close_builder()
 	_kind = real_kind
 	_on_done = on_done
@@ -341,8 +344,8 @@ func _hide() -> void:
 	visible = false
 	set_process(false)
 	_close_builder()
-	if capture_on_close and DisplayServer.get_name() != "headless":
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 关闭小游戏不直接 CAPTURED：main.gd 的 `_refresh_mouse_mode()` 会按
+	# 「是否有覆盖层 / 用户是否按过 Esc 释放」统一决定，避免把刚释放的光标锁回去。
 	closed.emit(_settling and not _cancel_fired)
 
 

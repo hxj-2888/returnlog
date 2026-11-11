@@ -1244,6 +1244,8 @@
     function playerMiniGame(a){
       if(a!==G.me||G.spectMode||G.simMode||SIM_RUN||TEST_RUN)return false;
       if(!global.SKMiniGame||!STAND_ACT[a._doing]||a._doing==='sab')return false;
+      /* 领单交互即领、补给纯站桩读秒：这三项不弹小游戏遮罩（2026-11-10 用户裁定）。 */
+      if(a._doing==='qual'||a._doing==='med'||a._doing==='ammo')return false;
       /* 收尾阈值：onDone 把 doing 置成 0.001 交给下一帧 finishDoing，
          这里必须放行，否则会被当成"新任务"立刻重开一局遮罩。 */
       if(a.doing<=0.05)return false;
@@ -2957,7 +2959,7 @@
         if(qd){
           if(Math.hypot(qd.x-a.x,qd.y-a.y)<1.8){
             a.path=null;a.moving=false;
-            a.doing=SKSanity.STAND.qual;a._dur=SKSanity.STAND.qual;a._doing='qual';return;
+            grantQual(a);return;
           }
           walkTo(a,qd.x,qd.y);stepMove(a,dt,moveSpeed(a));return;
         }
@@ -3551,7 +3553,7 @@
         const qd=roundTableClaimSpot();
         if(qd){
           if(Math.hypot(qd.x-a.x,qd.y-a.y)<1.8){
-            a.path=null;a.moving=false;a.doing=SKSanity.STAND.qual;a._dur=SKSanity.STAND.qual;a._doing='qual';return true;
+            a.path=null;a.moving=false;grantQual(a);return true;
           }
           if(!a.path||!a.path.length)walkTo(a,qd.x,qd.y);
           stepMove(a,dt,moveSpeed(a));return true;
@@ -4318,6 +4320,18 @@
       return true;
     }
     
+    /* 领申请单（2026-11-10 交互即领）：玩家与 AI 共用同一入口，无站桩、无小游戏。 */
+    function grantQual(a){
+      const actor=!G.spectMode&&a===G.me;
+      if(a.qualPending>0||G.designMode){
+        if(!G.designMode)a.qualPending--;
+        a.qual=Math.min(2,(a.qual||0)+1);
+        G.fx.push({type:'qual',x:a.x,y:a.y,t:1.5,dur:1.5,n:a.qual});
+        logEvent('qual',{actor:a.i,room:roomIdAt(a.x,a.y),
+          x:+a.x.toFixed(1),y:+a.y.toFixed(1),n:a.qual});
+        if(actor){toast('领取物资申请单 ×1 · 可去军械库/医疗间补给点兑换');pulseHud('ql');SND.qual();}
+      }else if(actor)toast('没有待领取的物资申请单');
+    }
     function finishDoing(a){
       const actor=!G.spectMode&&a===G.me;
       if(a._doing==='search'){
@@ -4378,14 +4392,7 @@
       }
       if(a._doing==='qual'){
         a._doing=null;
-        if(a.qualPending>0||G.designMode){
-          if(!G.designMode)a.qualPending--;
-          a.qual=Math.min(2,(a.qual||0)+1);
-          G.fx.push({type:'qual',x:a.x,y:a.y,t:1.5,dur:1.5,n:a.qual});
-          logEvent('qual',{actor:a.i,room:roomIdAt(a.x,a.y),
-            x:+a.x.toFixed(1),y:+a.y.toFixed(1),n:a.qual});
-          if(actor){toast('领取物资申请单 ×1 · 可去军械库/医疗间补给点兑换');pulseHud('ql');SND.qual();}
-        }else if(actor)toast('没有待领取的物资申请单');
+        grantQual(a);
         return;
       }
       if(a._doing==='breaker'){
@@ -7992,8 +7999,8 @@
        W 收集附近所有可交互项：只有 1 项直接执行，多项打开轮盘，避免按键语义重叠。 */
     function startClaim(me){
       me.path=null;me.moving=false;
-      me.doing=SKSanity.STAND.qual;me._dur=SKSanity.STAND.qual;me._doing='qual';
-      SND.interact();toast('领取物资申请单 3s · 移动会打断');
+      grantQual(me);
+      SND.interact();
     }
     function startSupply(me,sp){
       if(!sp)return false;
@@ -8004,7 +8011,7 @@
       const dur=sp.item==='ammo'?SUPPLY_AMMO_TIME:SUPPLY_MED_TIME;
       me.doing=dur;me._dur=dur;me._doing=sp.item==='ammo'?'ammo':'med';
       toast('消耗 1 张物资申请单领取'+(sp.item==='ammo'?'子弹 '+dur+'s':'医疗包 '+dur+'s')+
-        (miniGameOn()?' · 玩通即完成，中途退出要重做':' · 站桩，移动会打断'));
+        ' · 站桩，移动会打断');
       SND.interact();
       return true;
     }
@@ -8801,8 +8808,8 @@
     loadImg('tool_wrench','v4/facility/tool-wrench.png');
     loadImg('fx_supply_ammo','v4/facility/supply-ammo.png');
     loadImg('fx_supply_med','v4/facility/supply-med.png');
-    /* 管道舱盖：Blender 5.2.2 渲染 + SDXL 金属贴图，按舱室主题色出 8 张 2.5D 精灵。
-       冷启动没加载完时 drawPipes 仍回退到原来的菱形格栅矢量画法。 */
+    /* 通风管道口（2026-11-10 写实版）：千问出百叶风口贴图 + Blender 渲染 8 舱精灵，
+       边圈按 PIPE_TINT 舱室配色；不再矢量直接画。冷启动未加载完时回退暗色矩形不留白。 */
     for(const q of M.pipes) loadImg('pipe_'+q.room,'v4/facility/pipe-port-'+q.room+'.png');
     /* 监控台 / 电闸的贴图不再进运行时：它们的本体由 Blender 底图烘出来，
        面板与屏幕材质走 assets/scene/v4/tex/facility-*.png（见 tools/blender-ship.py）。
@@ -9297,30 +9304,16 @@
       for(const q of M.pipes){
         const x=SX(q.x),y=SY(q.y);
         const tint=pipeTint(q.room);
-        const rad=ctx.createRadialGradient(x,y,0,x,y,1.05*s);
-        rad.addColorStop(0,tint.a('.24'));
-        rad.addColorStop(1,tint.a('0'));
-        ctx.fillStyle=rad;ctx.beginPath();ctx.arc(x,y,1.05*s,0,7);ctx.fill();
-        /* 新画风（2026-11-06）：Blender 渲染的圆形舱盖，边圈颜色由 PIPE_TINT 决定。
-           图片没就绪时保持旧菱形格栅，file:// 冷启动不会留白。 */
+        /* 写实通风口精灵（千问贴图 + Blender 渲染，边圈已按舱室染色）。 */
         const im=IMG['pipe_'+q.room], size=1.9*s;
         if(ready(im)){
           ctx.drawImage(im,x-size/2,y-size/2,size,size);
         }else{
-          ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);
-          ctx.fillStyle='rgba(12,12,20,.96)';
-          ctx.strokeStyle=tint.a('.8');ctx.lineWidth=1.3;
-          ctx.fillRect(-0.33*s,-0.33*s,0.66*s,0.66*s);
-          ctx.strokeRect(-0.33*s,-0.33*s,0.66*s,0.66*s);
-          ctx.strokeStyle=tint.dim('.55');ctx.lineWidth=1;
-          for(let i=-1;i<=1;i++){
-            ctx.beginPath();ctx.moveTo(-0.24*s,i*0.13*s);ctx.lineTo(0.24*s,i*0.13*s);ctx.stroke();
-          }
-          ctx.restore();
+          ctx.fillStyle='rgba(10,12,16,.96)';
+          ctx.strokeStyle=tint.a('.85');ctx.lineWidth=1.4;
+          ctx.beginPath();ctx.roundRect(x-0.75*s,y-0.55*s,1.5*s,1.1*s,0.12*s);ctx.fill();ctx.stroke();
         }
-        const k=(T*0.55+q.x*0.07)%1;
-        ctx.strokeStyle=tint.a((0.55*(1-k)).toFixed(2));ctx.lineWidth=1.5;
-        ctx.beginPath();ctx.ellipse(x,y,(0.42+0.72*k)*s,(0.28+0.46*k)*s,0,0,7);ctx.stroke();
+        /* 2026-11-10：不再画彩色脉冲外框（用户否决"突兀色框"）；精灵已按舱室地板色调分级。 */
       }
     }
     /* 圆桌上的物资申请单：有待领时显示金色单据与脉冲环 */

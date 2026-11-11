@@ -8,9 +8,6 @@ const SpaceData := preload("res://scripts/space_data.gd")
 ## 以下三个数是 2.5D 真源经 space.json 覆盖的默认值，不是最终口径：
 ## speed ← SKT2Space.MOVE_SPEED，手电半径/锥角 ← SKSanity.SIGHT。
 @export var speed: float = 4.2
-## Shift 冲刺是 **3D 预演专属**：2.5D 没有玩家冲刺档（6.5 是幽灵、7.5 是追捕），
-## 所以这个倍数不进 space.json，也不要当成与 2.5D 同口径的能力。
-@export var sprint_multiplier: float = 1.55
 @export var mouse_sensitivity: float = 0.0022
 @export var gravity: float = 18.0
 @export var spawn_point: Vector3 = Vector3(31.0, 0.05, 33.5)
@@ -23,6 +20,10 @@ var flashlight: SpotLight3D
 var _pitch: float = 0.0
 ## 旁观者（第 16 人）：全知无碰撞、可上下飞，不占 15 席
 var spectator := false
+## 旁观者的高度夹取：地板只是"贴板"，不该让人穿到船底掉进虚空；
+## 上空放开（天花板会在飞越时整层隐藏，从上面看是剖面）。
+const SPECT_MIN_Y := 0.35
+const SPECT_MAX_Y := 60.0
 var _base_speed := 4.2
 
 
@@ -79,10 +80,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		_pitch = clampf(_pitch - event.relative.y * mouse_sensitivity, -1.35, 1.35)
 		camera.rotation.x = _pitch
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	elif event is InputEventMouseButton and event.pressed and Input.mouse_mode == Input.MOUSE_MODE_VISIBLE:
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# Esc 释放 / 点击收回鼠标统一由 main.gd 管理：这里只做视角。
+	# （旧实现在这里设 VISIBLE，但 main 的 `_refresh_mouse_mode()` 每帧又会
+	#  CAPTURED，Esc 实际无效 —— 用户反馈「鼠标被框在窗口里」的根因。）
 
 
 func set_spectator(on: bool) -> void:
@@ -120,6 +120,8 @@ func _physics_process(delta: float) -> void:
 		if Input.is_physical_key_pressed(KEY_CTRL):
 			fly.y -= 1.0
 		global_position += fly.normalized() * speed * delta
+		# 不允许钻到地板以下（下层没有东西，只会穿过船底看见虚空）
+		global_position.y = clampf(global_position.y, SPECT_MIN_Y, SPECT_MAX_Y)
 		return
 	var direction := Vector3.ZERO
 	if Input.is_physical_key_pressed(KEY_W):
@@ -132,9 +134,8 @@ func _physics_process(delta: float) -> void:
 		direction.x += 1.0
 
 	direction = direction.normalized().rotated(Vector3.UP, rotation.y)
+	# 统一移速：2.5D 只有 MOVE_SPEED 一档（没有玩家冲刺），3D 不再做 Shift 加速。
 	var target_speed := speed
-	if Input.is_physical_key_pressed(KEY_SHIFT):
-		target_speed *= sprint_multiplier
 
 	velocity.x = direction.x * target_speed
 	velocity.z = direction.z * target_speed

@@ -215,7 +215,8 @@ func close_all() -> void:
 	if replay_panel != null:
 		replay_panel.visible = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# 鼠标口径统一由 main.gd 的 `_refresh_mouse_mode()` 决定（要尊重 Esc 释放状态
+	# 与会议/小游戏等其它覆盖层）。这里再设 CAPTURED 会在关闭设置时把光标锁回去。
 
 
 func any_open() -> bool:

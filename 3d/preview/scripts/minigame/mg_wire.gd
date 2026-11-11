@@ -48,7 +48,7 @@ func build() -> void:
 	for i in all_wires.size():
 		order.append(i)
 	order = shuffled(order)
-	var count: int = mini(all_wires.size(), tier_n(2, 3, 3))
+	var count: int = maxi(1, mini(all_wires.size(), int(cfg("n", tier_n(2, 3, 3)))))
 	for k in count:
 		var w: Dictionary = all_wires[order[k]]
 		_wires.append(w)
@@ -68,7 +68,7 @@ func build() -> void:
 	add_child(_peek_btn)
 
 	set_progress(0, _wires.size(),
-		"共 %d 处断口：点这头 → 再点那头；接错线整组重来" % _wires.size())
+		"共 %d 处断口：点这头 → 再点那头；接错线不重置" % _wires.size())
 
 
 func _process(_delta: float) -> void:
@@ -157,8 +157,13 @@ func _on_end(i: int, k: int) -> void:
 	if st.done:
 		return
 	if _held_wire >= 0 and _held_wire != i:
-		_reset_all()
-		set_tip("接错线 → 整组重来", true)
+		# 2.5D 2026-11-09 取消「接错线整组重来」：只松开当前线头，已接的保留
+		# （js/t2/minigame.js:515-518）。
+		var prev: Dictionary = _state[_held_wire]
+		prev.held = -1
+		_held_wire = -1
+		set_tip("接错线 · 已接的保留，重新捏这头", true)
+		queue_redraw()
 		return
 	if int(st.held) == k:
 		st.held = -1
@@ -171,7 +176,7 @@ func _on_end(i: int, k: int) -> void:
 		return
 	st.held = k
 	_held_wire = i
-	set_tip("已捏住这头 · 点另一头接上（接错线整组重来）")
+	set_tip("已捏住这头 · 点另一头接上（接错线不重置）")
 	queue_redraw()
 
 
@@ -192,16 +197,6 @@ func _repair(i: int) -> void:
 	queue_redraw()
 	if done == _wires.size():
 		finish_ok()
-
-
-func _reset_all() -> void:
-	for s in _state:
-		s.held = -1
-		s.done = false
-	_held_wire = -1
-	_pulses.clear()
-	set_progress(0, _wires.size(), "整组复位：断口全部回来了")
-	queue_redraw()
 
 
 func _ends_of(w: Dictionary) -> Array:

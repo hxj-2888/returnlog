@@ -79,9 +79,12 @@ func tick(dt: float) -> void:
 				continue
 			var bpos2: Vector2 = v.get("bodyPos", Vector2.ZERO)
 			var dd2 := ap.distance_to(bpos2)
-			if dd2 < best_bd and sim.ai_can_see(a, bpos2):
-				best_bd = dd2
-				best_body = v
+			if dd2 < 5.4 and sim.ai_can_see(a, bpos2):
+				# 看见尸体就记一条（2.5D observeBody）：报案太快时用来怀疑报案人。
+				sim.note_body(int(a.get("i", -1)), int(v.get("i", -1)))
+				if dd2 < best_bd:
+					best_bd = dd2
+					best_body = v
 		if not best_body.is_empty() and float(a.get("_reportT", 0.0)) <= 0.0:
 			var bi := int(best_body.get("i", -1))
 			# 贴近且没搜过 → 先搜尸取证+拿物资（2.5D wantEvidence，1.2 秒站桩）
@@ -225,7 +228,14 @@ func _decide(a: Dictionary) -> void:
 	if qual_pending > 0 and qual < 2:
 		var spot: Vector2 = sim.claim_spot()
 		if sim.distance_to(i, spot) <= SpaceData.num(space, "reach", "round_table"):
-			sim.start_doing(i, "claim", SpaceData.num(space, "stand", "qual"))
+			# 2.5D 2026-11-10：领申请单改成**交互即领**（grantQual），STAND.qual 归 0。
+			# 站桩时长 <=0 时直接结算 —— 否则 start_doing 会以 dur<=0 报错、AI 永远领不到单。
+			var qdur := SpaceData.num(space, "stand", "qual")
+			if qdur <= 0.0:
+				sim.claim_qual(i)
+				a["_aiT"] = 0.6
+			else:
+				sim.start_doing(i, "claim", qdur)
 		elif not sim.set_path(i, spot):
 			_stuck(a)
 		return
@@ -282,7 +292,10 @@ func _decide(a: Dictionary) -> void:
 	# 4) 做任务：按 tIdx 顺序取下一个剩余任务。
 	var rem: Array = sim.remaining_tasks(i)
 	if rem.is_empty():
-		a["_aiT"] = 1.0
+		# 2.5D aiIdleRoam（js/game.js:2312-2363）：任务做完**不许站桩** ——
+		# 修故障 / 领申请单 / 危险时跟信任的人 / 躲开咬我的人 / 巡舱。
+		_idle_roam(a)
+		a["_aiT"] = 0.8
 		return
 	# 领袖指令服从（2.5D aiHuman:2948-2967）：领袖当众说"你去某舱"，
 	# 就把那个舱的任务换到当前位 —— obeyP = 号召力 × (cred(领袖)/trustObeyGate)。
@@ -326,6 +339,143 @@ func _decide(a: Dictionary) -> void:
 	if sim.distance_to(i, target) <= SpaceData.num(space, "reach", "fix"):
 		sim.start_doing(i, "task", float(p.get("dur", 0.0)), pi)
 	elif not sim.set_path(i, target):
+		_stuck(a)
+
+
+## 2.5D topCred（js/game.js:1508）：我信得最多的那个人（cred ≥ accuseShieldAt，
+## 且我没有亲眼确证他是异形）。只读 mind.cred / known，不读阵营。
+func _top_cred(a: Dictionary) -> Dictionary:
+	if sim.mind == null:
+		return {}
+	var cred: Dictionary = a.get("cred", {}) as Dictionary
+	var known: Dictionary = a.get("known", {}) as Dictionary
+	var th: float = sim.mind.trust_endorse_at()
+	var bi := -1
+	var bv := 0.0
+	for k: int in cred.keys():
+		var v := float(cred[k])
+		if v < th or known.has(k):
+			continue
+		if bi < 0 or v > bv:
+			bi = k
+			bv = v
+	if bi < 0:
+		return {}
+	var t: Dictionary = sim.agent(bi)
+	if t.is_empty() or not bool(t.get("alive", false)) or bool(t.get("downed", false)) \
+			or bool(t.get("detained", false)):
+		return {}
+	return t
+
+
+## 2.5D warmMate（js/game.js:1541）：warm ≥ minWarm、14 格内、活着且没被拘留的人里
+## 最聊得来的那个。warm 与 cred 是两条独立通道，不要合并。
+func _warm_mate(a: Dictionary) -> Dictionary:
+	var warm: Dictionary = a.get("warm", {}) as Dictionary
+	var minv: float = sim.rules.n("WARM", "minWarm", 0.22)
+	var rng: float = sim.rules.n("WARM", "range", 14.0)
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var bi := -1
+	var bv: float = minv
+	for k: int in warm.keys():
+		var v := float(warm[k])
+		if v < bv:
+			continue
+		var t: Dictionary = sim.agent(k)
+		if t.is_empty() or k == int(a.get("i", -1)) \
+				or not bool(t.get("alive", false)) or bool(t.get("downed", false)) \
+				or bool(t.get("detained", false)):
+			continue
+		if (t.get("pos", Vector2.ZERO) as Vector2).distance_to(ap) > rng:
+			continue
+		bi = k
+		bv = v
+	if bi < 0:
+		return {}
+	return sim.agent(bi)
+
+
+## 2.5D aiIdleRoam 的「躲避」：用 audSusEstimate 估谁最怀疑我。
+## **不读对方 mind.sus**（2026-11-05 读心清零）：只认当众指认 / 看见我在现场 / 红身。
+func _aud_hater(a: Dictionary) -> Dictionary:
+	if sim.mind == null:
+		return {}
+	var best: Dictionary = {}
+	var bs := 0.45
+	for w: Dictionary in sim.agents:
+		if w == a or not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		var est: Dictionary = sim.mind.aud_sus_estimate(a, w)
+		var s := float(est.get("score", 0.0))
+		if s > bs:
+			bs = s
+			best = w
+	return best
+
+
+## 2.5D aiIdleRoam（js/game.js:2312-2363）：任务做完后的移动。
+## 顺序：修故障 → 回圆桌领单 → 危险时跟信任的人 → 躲开咬我的人 → 随机巡舱。
+## 只设路径，真正的移动由 sim 的移动结算统一做。
+func _idle_roam(a: Dictionary) -> void:
+	var i := int(a.get("i", -1))
+	var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+	if path.size() > 0:
+		return
+	var tg := Vector2.INF
+	# 故障 / 申请单兜底（正常流程在 _decide 前段已处理，这里防止"任务刚做完就站住"）。
+	if sim.dmg.size() > 0:
+		var d: Dictionary = sim.dmg[sim._rng.randi_range(0, sim.dmg.size() - 1)]
+		tg = Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
+	elif int(a.get("qualPending", 0)) > 0:
+		var cs: Vector2 = sim.claim_spot()
+		tg = cs
+	if tg == Vector2.INF:
+		# 2.5D 正向信任：断电或场上有人倒下时，人本能地往"我信的那一个"靠。
+		var danger: bool = int(sim.light_state) == 2
+		if not danger:
+			for x: Dictionary in sim.agents:
+				if bool(x.get("alive", false)) and bool(x.get("downed", false)):
+					danger = true
+					break
+		var lead: Dictionary = _top_cred(a) if danger else {}
+		var lead_i := int(lead.get("i", -1))
+		var mate: Dictionary = lead
+		if mate.is_empty():
+			mate = _warm_mate(a)
+		if not mate.is_empty() \
+				and sim._rng.randf() < sim.rules.n("WARM", "followChance", 0.45):
+			var mp: Vector2 = mate.get("pos", Vector2.ZERO)
+			tg = mp
+			if lead_i >= 0 and int(mate.get("i", -1)) == lead_i:
+				sim._stat("credFollow", 1)
+	if tg == Vector2.INF:
+		var hater := _aud_hater(a)
+		if not hater.is_empty():
+			var ap: Vector2 = a.get("pos", Vector2.ZERO)
+			var hp: Vector2 = hater.get("pos", Vector2.ZERO)
+			var dv := ap - hp
+			var d2 := dv.length()
+			if d2 < 0.001:
+				dv = Vector2.RIGHT
+				d2 = 1.0
+			var r: float = 8.0 + sim._rng.randf() * 4.0
+			var t2: Vector2 = ap + dv / d2 * r
+			var nf: Vector2 = t2
+			if not sim.nav.is_free(t2):
+				nf = sim.nav.nearest_free(t2)
+			tg = nf
+			# 2.5D：_avoidHuman **不在 startNight 的重置清单里**（粘性），
+			# 谁最后一次被我躲开，之后每夜他靠近 6 格都会被我看见"他在躲我"。
+			a["_avoidHuman"] = int(hater.get("i", -1))
+			sim._stat("avoidCount", 1)
+	if tg == Vector2.INF:
+		var rooms: Array = sim.map.get("rooms", []) as Array
+		if rooms.is_empty():
+			return
+		var r2: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
+		var rc: Vector2 = sim.room_center(String(r2.get("id", "")))
+		tg = rc
+	if not sim.set_path(i, tg):
 		_stuck(a)
 
 

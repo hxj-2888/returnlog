@@ -4,8 +4,9 @@
 # 两套产物：
 #   -Set cabin  10 间舱室的墙面/表面材质参考        -> output\cabin-refs\
 #   -Set tasks  26 个任务小游戏的控制面板参考        -> output\task-refs\
-#   -Set all    两套都跑（默认）
-# 仓库留档：docs\qwen21\cabin-refs\ 与 docs\qwen21\task-refs\
+#   -Set crew   船员三视图 / 三配色 / 制服细节（2026-11-11） -> output\crew-refs\
+#   -Set all    三套都跑（默认）
+# 仓库留档：docs\qwen21\cabin-refs\、task-refs\ 与 crew-refs\
 #
 # 真源纪律：房间名 / 明暗 / 主题色 / 任务的玩法 kind / 元素数 n / 配色，
 #   全部运行时读 3d\preview\data\map.json 与 minigames.json，不在脚本里硬编码。
@@ -73,6 +74,9 @@ function To-Hex($rgb) {
 $NEG_BASE = "logo, watermark, signature, person, human, face, character, cartoon, sketch, lowres, blurry, jpeg artifacts, oversaturated, text, letters, words"
 $NEG_DIGIT = "$NEG_BASE, numbers, digits"          # 禁止出现编号的玩法
 $NEG_ALLOW = "$NEG_BASE"                            # code / valve / level 需要刻度与编号
+# 人物参考图不能用 NEG_BASE（它专门禁人）；这里只禁文字与解剖错误。
+$NEG_CREW = "logo, watermark, signature, text, letters, words, numbers, extra limbs, extra fingers, missing fingers, deformed hands, deformed face, asymmetric eyes, duplicate person, inconsistent outfit, helmet, armor, weapon, blurry, lowres, jpeg artifacts, cropped, out of frame, busy background, dramatic shadow"
+$CREW_BASE = "adult spaceship crew member, slim athletic build, 1.75 m tall, short dark hair, no helmet, pale grey utility jumpsuit with coral-red chest harness, shoulder panels and knee pads, dark utility boots, small black backpack, matte fabric with clean seams, soft utilitarian sci-fi uniform, neutral friendly face, full body"
 
 # ---------------- ① 十间舱室：表面材质 ----------------
 $CABIN_BODY = @{
@@ -161,6 +165,7 @@ function Render-Set($setName, $items, $outDir, $archDir) {
 
 $pickCabin = ($Set -eq "all" -or $Set -eq "cabin")
 $pickTasks = ($Set -eq "all" -or $Set -eq "tasks")
+$pickCrew  = ($Set -eq "all" -or $Set -eq "crew")
 $allResults = @()
 
 # ---------------- 组 cabin 清单 ----------------
@@ -216,6 +221,34 @@ if ($pickTasks) {
     $allResults += Render-Set "tasks" $taskItems (Join-Path $ROOT "output\task-refs") (Join-Path $REPO "docs\qwen21\task-refs")
 }
 
+# ---------------- 组 crew 清单（2026-11-11）----------------
+# 设计基准：项目自己的 assets/scene/crew/crew-01.png（浅灰/珊瑚红制服、短黑发、
+# 无头盔、背包）+ 通用宇航勤务服；不复制任何第三方角色资产。
+if ($pickCrew) {
+    $crewItems = @(
+        @{
+            slug = "crew-turnaround"; id = "crew_turnaround"; name = "船员三视图"; tag = "turnaround"
+            accent = "#D9DEE6"; seedOffset = 100
+            prompt = "$CREW_BASE, character turnaround reference sheet, front view, three-quarter view and back view of the same character, standing neutral A-pose, orthographic full-body views, evenly spaced, plain light neutral grey background, front and back clearly readable, concept art for 3D low-poly modeling, matte flat lighting, no text"
+            neg = $NEG_CREW
+        },
+        @{
+            slug = "crew-variants"; id = "crew_variants"; name = "船员三种配色"; tag = "variants"
+            accent = "#B9C2CC"; seedOffset = 101
+            prompt = "three spaceship crew members standing side by side, same slim 1.75 m body type and utility jumpsuit design, three colorways: pale grey with coral red, olive with amber, steel blue with teal, short hair, no helmets, no armor, full body neutral pose, plain light grey background, character lineup concept art for 3D low-poly modeling, evenly lit, no text"
+            neg = $NEG_CREW
+        },
+        @{
+            slug = "crew-detail"; id = "crew_detail"; name = "制服/装备细节"; tag = "detail"
+            accent = "#C96A5D"; seedOffset = 102
+            prompt = "character design detail sheet of the same sci-fi utility jumpsuit, chest harness, belt pouches, knee pads, dark boots, rolled sleeves, fabric seams, matte materials, pale grey with coral red accents, neutral grey background, three-quarter view, close-up, concept art for 3D modeling, no text"
+            neg = $NEG_CREW
+        }
+    )
+    if ($Only -ne "") { $crewItems = @($crewItems | Where-Object { $Only.Split(",") -contains $_.slug }) }
+    $allResults += Render-Set "crew" $crewItems (Join-Path $ROOT "output\crew-refs") (Join-Path $REPO "docs\qwen21\crew-refs")
+}
+
 # ---------------- 清单 ----------------
 $manifest = [ordered]@{
     model        = "Qwen-Image 2.1 Turbo Q4_K_M GGUF + Qwen3-VL-8B UD-Q4_K_XL + qwen_image_2.1_vae_bf16"
@@ -233,7 +266,7 @@ $manifest = [ordered]@{
     items        = $allResults
 } | ConvertTo-Json -Depth 6
 $utf8 = New-Object System.Text.UTF8Encoding($false)
-foreach ($d in @("cabin-refs", "task-refs")) {
+foreach ($d in @("cabin-refs", "task-refs", "crew-refs")) {
     $dir = Join-Path $ROOT "output\$d"
     if (Test-Path $dir) {
         [System.IO.File]::WriteAllText((Join-Path $dir "manifest.json"), $manifest, $utf8)

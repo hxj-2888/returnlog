@@ -1,7 +1,7 @@
 {
   "version": "1.0",
   "unit": "meter",
-  "updated": "2026-11-07",
+  "updated": "2026-11-11",
   "assets": [
     {
       "id": "ship_hull",
@@ -654,17 +654,17 @@
       "id": "char_crew_lowpoly",
       "name": "船员低模（待机/行走/出刀/倒地）",
       "category": "character",
-      "status": "todo",
+      "status": "wip",
       "source": "models/char_crew_lowpoly.blend",
       "export": "export/char_crew_lowpoly.glb",
       "budget": {
         "tris": 12000,
-        "materials": 2,
-        "textures": 2
+        "materials": 4,
+        "textures": 0
       },
       "dimensions": [
-        0.5,
-        0.5,
+        0.53,
+        0.42,
         1.75
       ],
       "pivot": "base_center",
@@ -674,7 +674,7 @@
         1
       ],
       "license": "原创",
-      "notes": "先用 2.5D 的 4×5 行走图做颜色参考；动画四条：idle / walk / knife / down。骨骼 ≤ 40。"
+      "notes": "2026-11-11 按 docs/qwen21/crew-refs 三视图建模：1812 tris / 17 形变骨 / 4 材质 / idle+walk 已导出；normal 对局默认使用，walk 2.9x 匹配 4.2m/s；knife/down 待补。浅灰勤务服 + 珊瑚红胸带/护膝、短黑发、背包、黑靴。"
     },
     {
       "id": "char_crew_rig",
@@ -698,6 +698,29 @@
       "lod": [],
       "license": "原创",
       "notes": "所有船员共用一套骨架，靠材质/换色区分席位；不要一人一套骨骼。"
+    },
+    {
+      "id": "char_crew_blockout",
+      "name": "船员 3D 体块（blockout 验证）",
+      "category": "character",
+      "status": "wip",
+      "source": "models/char_crew_blockout.blend",
+      "export": "export/char_crew_blockout.glb",
+      "budget": {
+        "tris": 2000,
+        "materials": 3,
+        "textures": 0
+      },
+      "dimensions": [
+        0.53,
+        0.42,
+        1.75
+      ],
+      "pivot": "base_center",
+      "collision": "none",
+      "lod": [],
+      "license": "原创",
+      "notes": "2026-11-11 用户裁定先 blockout 验证：1.75 m / 864 tris / 3 材质 / 无骨骼；只用来看比例、剪影与舱室尺度。通过后再做共享骨架 + idle/walk/knife/down。"
     },
     {
       "id": "fx_red_glow",

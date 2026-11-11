@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-08T07:37:55.489Z",
+  "generated_at": "2026-11-10T09:07:37.508Z",
   "note": "本文件由 3d/tools/export-lines.cjs 生成，勿手改。台词唯一真源是 js/data/lines.js。",
   "sources": {
     "lines": {
       "path": "js/data/lines.js",
-      "sha1": "f919772847d0"
+      "sha1": "3e81434a06eb"
     },
     "sanity": {
       "path": "js/ai/sanity.js",
-      "sha1": "6906d094d6c4"
+      "sha1": "a2dd222adc5c"
     },
     "traits": {
       "path": "js/ai/traits.js",

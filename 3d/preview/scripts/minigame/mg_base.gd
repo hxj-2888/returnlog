@@ -9,6 +9,8 @@ signal failed(reason: String)
 signal progress_changed(done: int, total: int, msg: String)
 signal tip_changed(text: String, bad: bool)
 
+const MinigameData := preload("res://scripts/minigame/mg_data.gd")
+
 const COL_TEXT := Color("#DDE3EC")
 const COL_DIM := Color("#8FA6C0")
 const COL_GOLD := Color("#F0C674")
@@ -85,6 +87,14 @@ func tier_n(normal: int, hard: int, circuit: int = -1) -> int:
 	if tier == "hard":
 		return hard
 	return normal
+
+
+## 任务专属配置（minigames.json#tasks[label]，真源 js/t2/minigame.js 的 cfg()）。
+## 缺项才回落到调用方给的默认值 —— 26 个任务点的 n / shapes / icons / lo / hi
+## 各不相同，只按难度档取数是把任务配置表丢了。
+func cfg(key: String, fallback: Variant) -> Variant:
+	var t := MinigameData.task_cfg(game_data, task_label)
+	return t.get(key, fallback)
 
 
 func rng_i(n: int) -> int:

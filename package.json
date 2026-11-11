@@ -10,7 +10,7 @@
   "private": true,
   "x-baseline": {
     "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
-    "captured": "2026-11-09",
+    "captured": "2026-11-10",
     "manifest": "BASELINE.sha256.json",
     "note": "js/ assets/ audio/ docs/ tools/ 为 2.5D 只读基线镜像，禁止修改；version/gameVersion 是上游基线标识（3d/tools/export-version.cjs 依赖），不是 3D 版本；3D 版本真源在 3d/version.json"
   },
@@ -30,6 +30,7 @@
     "3d:export:rules": "node 3d/tools/export-rules.cjs",
     "3d:export:version": "node 3d/tools/export-version.cjs",
     "3d:simdump": "node 3d/tools/simdump.cjs",
+    "3d:probe": "node 3d/tools/player-probe.cjs",
     "3d:port:check": "node 3d/tools/check-port-manifest.cjs",
     "3d:events:check": "node 3d/tools/check-events.cjs",
     "3d:lines:check": "node 3d/tools/check-lines.cjs",

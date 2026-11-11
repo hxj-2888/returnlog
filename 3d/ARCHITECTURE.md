@@ -111,7 +111,10 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
 - **移动**：`--walktest` 断言 1 秒位移 ≈ 4.2 米。
 - **碰撞**：`--walktest --corridor --wall` 断言在墙前停住（≈1.1 米）。
 - **视觉**：`--shot` / `--shot --corridor` 出图，人工检查比例、贴图、遮挡。
-- **小游戏**：`--mgtest`（10 型全过）、`--devicetest`（27 设备 / 10 玩法）、`--e2e`（真实 E 输入）。
+- **小游戏**：`--mgtest`（14 型全过）、`--devicetest`（26 设备 / 14 玩法）、`--e2e`（真实 E 输入）。
+- **玩家探针**：`--probetest` / `npm run 3d:probe`（2026-11-10）——真实 `InputEvent`
+  按 E / 数字键 / 左键 / F2，验「异形按 E 放倒人」与 DEV 无敌/面板。
+  **必须真实窗口**：headless 下 `MOUSE_MODE_CAPTURED` 不成立，左键会被「先夺回鼠标」分支吃掉。
 - **视觉批量**：`--mgshot all`、`--devshot 0,4,7,8,13,26`，出图在 `preview/screenshots/`。
 - 将来加 **golden screenshot**：固定机位、固定曝光、固定 seed，像素差异超过阈值就失败。
 - 所有决策写 `3d/DECISIONS.md`；所有可见变更写 `3d/CHANGELOG.md`。

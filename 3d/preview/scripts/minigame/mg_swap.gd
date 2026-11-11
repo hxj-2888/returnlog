@@ -1,7 +1,7 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 换芯（对应 2.5D 的 buildSwap）
-## 先取出旧芯，再插入同型号新芯；型号不对整组重来。
+## 先取出旧芯，再插入同型号新芯；型号不对只提示，不重置。
 
 const CORES := [
 	{"id": "c1", "name": "A 型", "color": "#00E5B0"},
@@ -72,7 +72,9 @@ func _on_pick_core(b: Button) -> void:
 		set_tip("先把旧芯取出来", true)
 		return
 	if String(b.get_meta("id")) != _target:
-		finish_fail("型号不对 → 整组重来")
+		# 2.5D 2026-11-09 取消「型号不对整组重来」：旧芯已取出，另选同型号即可
+		# （js/t2/minigame.js:775 只 tip，不 settle(false)）。
+		set_tip("型号不对 · 旧芯已取出，另选同型号新芯", true)
 		return
 	var core_col := Color("#00E5B0")
 	for c in CORES:

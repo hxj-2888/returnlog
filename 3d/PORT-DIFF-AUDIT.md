@@ -155,13 +155,33 @@
 
 ## C. 第七批**未做**（事实登记，不是立项）
 
-- `lightState` 0/1/2 三态：3D `power_on` 两态，涉及 5 文件 ~30 处使用点。
-- 讨论期陆续投 + 跟票 + `rev` 信念版本号驱动改票的完整时序（3D 在 vote 相位一次结算）。
-- `chaseKnown / chaseSus` 追猎分支（本批只接通射程内开枪）。
-- `startNight` 逐人清理的 20+ agent 级字段；`mindReset` 的 `credWhy / claimHist / trust / grudge / humanT / ally / mem / seenBy` 等跨夜字段。
-- `parseSpeech` 的 `CN_SEAT` 中文席位 / 补零席位号 / `whenWord()`（词表已导出未用）。
-- `buildMeetCtx` 完整上下文对象、`remainMs`。
-- 小游戏 14→10 型、事件信封 34→40 字段、kind 18→26、parity 非真源小数 WARN。
+> **2026-11-10 更新**：本节 7 条里有 6 条已在第 1–8 批落地，逐条见下面的「状态」。
+
+- ~~`lightState` 0/1/2 三态~~ → **第 6 批已做**：`sim.light_state` + `map_builder.set_light_state`，
+  含拉闸/合闸两种语义相反的证据广播（拉闸 → `saw_breaker` 写 known；合闸 → `cred`，不洗清）。
+- ~~讨论期陆续投 + 跟票 + `rev` 驱动改票的完整时序~~ → **第 4 批已做**：
+  `vote_lean / cast_early_votes / vote_pressure / best_vote_target / reconsider_votes`，
+  早投票按 `mind.rev` 是否变化决定保留（`earlyKept`）。
+- ~~`chaseKnown / chaseSus` 追猎分支~~ → **第 7 批已做**：枪程外按 14 / 10 格贴近再开枪。
+- ~~`startNight` 逐人清理 20+ 字段~~ → **第 5 批已做**：`sim._reset_agent_night`，
+  清 40 余项当夜状态。`mindReset` 的 `credWhy / trust / grudge / ally` 已按真源处理；
+  **仍未做**：`humanT`（异形眼里「这人像人类」+ `HUMANISH` 整套判定）、`claimHist`（口供史）、
+  `seenT / lastBody / redSeen / avoidSeen` —— 3D 没有这些字段，也没有消费方，
+  本批不造空壳状态来「对齐」。（第 13 批补 `humanT`/`seenT`/`lastBody`/`redSeen`/`avoidSeen`；
+  第 16 批补 `claimHist`。）
+- ~~`parseSpeech` 的 `CN_SEAT` / 补零席位号 / `whenWord()`~~ → **第 7 批已做**（`--speechtest 席位号=4/4`）。
+- `buildMeetCtx` 完整上下文对象、`remainMs`：**仍未做**。核实结论是「3D 用等价实现」——
+  `remainMs` 在 3D 是 `meeting.t` 倒计时，语义一致；`buildMeetCtx` 的字段 3D 分散在
+  `speech.gd` 的 ctx 字典里，没有单独的对象。**这条是记录口径差，不是缺陷**，
+  但也没有逐字段对账，别当成「已 100% 同源」。
+- ~~小游戏 14→10 型~~ → **第 2 批已做**（14/14 + 26 标签，撤掉 BASE_FALLBACK，取消失败惩罚）。
+  事件信封字段数 / kind 集合：第 1 批核实为「31 vs 31 逐字节一致」，
+  旧记录的 34→40 / 18→26 是**失实**，已在此更正。
+- parity 非真源小数 WARN：**第 16 批已清零**（20 个源字面量登记 `SOURCE_LITERALS`，带 js 行号回读校验；见 §J）。以下是第 9 批当时的历史读数：第 9 批实跑 19 条，列前 12。已核对前 12 条
+  都是**真源字面量**（jitter 0.94/1.10/0.72、`heard_frame` 0.26、`contradiction_lie` 0.24、
+  尸体扫描 5.4/5.8），不是 3D 自造阈值；但没逐条写进 rules.json —— 因为它们是
+  2.5D 业务代码里的字面量，不是 `SKSanity` 表项，导出反而会造出第二份定义。
+  这条作为**已知 WARN** 保留。
 
 ## D. 边界
 
@@ -170,3 +190,147 @@
 - 未把任何读数、胜率、门禁绿不绿当作改动依据；门禁/自测只回答「有没有写坏」。
 - 未自行列下一批立项；C 节只登记事实，方向由用户裁定。
 - §一 12 条红线逐字未动（脚本与原仓比对 3558 字符一致）。
+
+## E. 2026-11-10 移植批（第 1–8 批）的落地清单
+
+用户指令：「把 2.5D 里**非美术、非按键操作**的东西全部移植到 3D，严格按红线」。
+逐批细节见 `CHANGELOG.md`，这里只列**判定口径**层面的对应关系。
+
+| 2.5D 真源 | 3D 落点 | 批 |
+|---|---|---|
+| `js/data/map.js` 唯一地图真源 | `build-map-v2.cjs` 的 cover 改回取 `map.json`（撤掉方案层第二真源） | 1 |
+| 小游戏 14 型 / 取消失败惩罚 / 任务专属参数 | 新增 4 builder + `mg_base.cfg()` 接 `tasks[label]` | 2 |
+| `ctx.lead` 带头追责 + `quick_report` | `sim.note_accuse` / `sim.note_body` / `_quick_report_sus` | 3 |
+| 讨论期先投 + `voteMeta` + `reconsiderVotes` + `earlyKept` | `vote_lean` / `cast_early_votes` / `reconsider_votes` | 4 |
+| `startNight` 逐人复位 + `mindReset` 跨夜口径 | `_reset_agent_night` + `mind.reset_night` 补 susNight/trust/grudge/ally/credWhy/rev | 5 |
+| `refreshLight` 三态 + `pullBreaker` 证据 | `sim.light_state` + `map_builder.set_light_state` + 两种证据广播 | 6 |
+| `chaseKnown/chaseSus` / `CN_SEAT` / `whenWord` | `ai_alien` 追猎 + `parse_speech` 两条正则 + `speech._when_word` | 7 |
+| `losWalls` / `secbotWouldSee` / `secCatch` 状态机 | `grid_nav.los_walls` + `bots.would_see` + press/escort/超时放弃/拘留目击 | 8 |
+
+**仍未同源**：无（第 16 批结清判定层；`buildMeetCtx` 为等价实现，逐字段映射见 §J）。
+**判定层已清**：`humanT` / `seenT` / `redSeen` / `avoidSeen` / `lastBody`（第 13 批）；
+身份轴 / `exposureAt` / trait 系数 / `huntSpotFor`、`evalAlmost` 全量、`claimHist`、
+`trust` / `grudge`、`DESC`、构陷/大义灭亲编排（第 16 批）。
+**UI 层**：会议（§F）、结算（§H）、小地图（§I）已同源；像素布局属表现层差异。
+**parity**：20 个 2.5D 源字面量已登记 `check-parity.cjs#SOURCE_LITERALS`（带 js 行号回读校验），0 WARN。
+
+**验收层边界**（§五.7）：本批**没有采新的 1000 局平衡读数**，
+`3d-sim1000.md` 仍是第七批之前代码的读数；本批所有改动都以 `js/` 行号论证，
+不以任何读数论证。
+
+---
+
+## F. 2026-11-10 第 12 批：会议 UI 功能同源
+
+| 2.5D 真源 | 3D 落点 | 状态 |
+|---|---|---|
+| `js/game.js:7413-7447` renderVoteButtons | `main.gd::_build_meeting_buttons` / `_refresh_meeting_ui`（讨论期可投、可改、席位号、弃权） | 已同源 |
+| `js/game.js:10898-10903` #m-skip-vote | `sim_state.gd::skip_vote()` + `main.gd::meeting_skip_vote` | 已同源 |
+| `js/game.js:6812-6873` meetTemplateText / syncMeetTemplates | `main.gd::_meet_template_text` / `_build_tpl_targets` / `_build_room_options` | 已同源 |
+| `js/game.js:10878-10891` 模板点击分发 | `main.gd::_on_meeting_template` | 已同源 |
+| `js/game.js:6944-6949` #m-rows | `sim_state.gd` meeting.room/in_corr + `main.gd::_meeting_info_text` | 已同源 |
+| `js/game.js:6933 / 6951-6961 / 7417-7419 / 7468-7469` 只读会议 | `_refresh_meeting_ui`（can_act / spectator）+ `speech.sys_say` | 已同源 |
+| `js/game.js:4954-4974` markNewLines | `_append_feed_new` / `meeting_new_btn` | 已同源 |
+| `js/game.js:7719-7736` renderTally | `_meeting_result_text`（聚合票数 + 弃权 + 门槛；**不再显示逐人矩阵**） | 已同源（矩阵属结算页，未迁） |
+
+**仍未同源（UI 层）**：无。三栏像素布局保留为表现层差异（功能项已齐）；
+结算页身份表 + 投票矩阵见 §H，局内小地图见 §I。
+
+---
+
+## G. 2026-11-10 第 13 批：异形挑目标回归 + 判定层残项（A 档）
+
+| 2.5D 真源 | 3D 落点 | 状态 |
+|---|---|---|
+| `js/game.js:3849-3896` 取消全图锁敌（看得见 / 25s `saw_agent` 记忆 / 否则不选） | `ai_alien.gd::_decide` 挑目标块 | 已同源 |
+| `js/game.js:3872` mateOnIt +8 | 同上（读队友 `target`） | 已同源 |
+| `js/game.js:3879-3888` HUMANISH.pull 6 | 同上 + `mind.humanish_of` | 已同源 |
+| `js/game.js:3889-3894` `_avoid` 兜底 | 同上（`fallback`） | 已同源 |
+| `js/game.js:4151-4155` 没刀无目标 → 游荡 | `ai_alien.gd::_decide` 无目标分支 | 已同源 |
+| `js/game.js:1969-1977 / 2037-2045` humanT 写入 / 读取 | `sim_state.gd::toggle_power` + `mind.humanish_add/of` | 已同源 |
+| `js/t2/ai.js:280` humanT 跨夜 keepEmo ×0.8 | `mind.reset_night` | 已同源 |
+| `js/game.js:1352-1360` saw_red 5 秒节流 | `sim_state.gd::_track_pass` + `mind.redSeen` | 已同源 |
+| `js/game.js:2165-2190` lastBody / saw_body_moved / near_body | `mind.note_body_seen` + `sim_state.release_drag` 的 `bodyMoved` | 已同源 |
+| `js/game.js:2312-2363` aiIdleRoam | `ai_human.gd::_idle_roam` + `_top_cred` / `_warm_mate` / `_aud_hater` | 已同源 |
+| `js/game.js:1325-1340` saw_avoid（每夜一次，记在观察者） | `sim_state.gd::_track_pass` | 已同源 |
+| `js/t2/ai.js:676-700` audSusEstimate 方向 | `mind.aud_sus_estimate`（拨正 accuse/seenBy 方向） | 已同源 |
+| `js/game.js:3877-3888` trait / exposure / 身份轴评分 | `mind.trait_c` / `identity_axis` / `_exposure_at`（第 16 批） | 已同源 |
+| `js/game.js:3616-3645` huntSpotFor（无目标管道寻人） | `ai_alien::_hunt_spot`（第 16 批） | 已同源 |
+| `js/game.js:1624-1630 / 6315-6327` claimHist | `mind.record_claim` + `speech.on_meeting_open` 的 `claim_recall`（第 16 批） | 已同源 |
+
+**附**：`note_sight` 原先 `sus_add` + `_push_why` 双写 why，同一目击记两条；
+第 13 批改为只写一条（`far` 标记保留），与 2.5D `evPush` 一次一条对齐。
+`eval_almost` 同时排除 `saw_agent` / `saw_body_moved` 两类时间线记录
+（2.5D 只进 `mem`、不进 `why`）。`evalAlmost` 的其余简化（WEAK 名单 /
+`heardKinds` 上限 / `real≥1` / fresh 条件）已在第 16 批补齐（见 §J）。
+
+---
+
+## H. 2026-11-10 第 14 批：结算页身份表 + 逐人投票矩阵
+
+| 2.5D 真源 | 3D 落点 | 状态 |
+|---|---|---|
+| `js/game.js:7669-7672` closeVote 终票落事件（带 seq） | `sim_state.gd::_close_meeting`；`cast_vote` 只记 `vote_change` | 已同源 |
+| `js/game.js:2153-2163` bodyInfo 的 `downRoom/deathRoom` | `sim_state.gd` 的 `knife` / `shoot` / `die` | 已同源 |
+| `js/ui/templates.js:332-339` #end 结构 | `main.gd::settle_panel`（身份表 / 投票矩阵 / 固定按钮） | 已同源（像素排布属表现层） |
+| `js/game.js:4802-4817` #e-ids 身份表 | `main.gd::_settle_ids_text` | 已同源 |
+| `js/game.js:4819-4838` #e-votes 投票矩阵 | `main.gd::_settle_votes_text` | 已同源 |
+
+**仍未同源（全局）**：无。判定层已在 §J 结清，局内小地图见 §I。
+
+---
+
+## I. 2026-11-10 第 15 批：局内小地图
+
+| 2.5D 真源 | 3D 落点 | 状态 |
+|---|---|---|
+| `js/game.js:10507-10532` 面板/网格/头部 | `minimap.gd::_draw` | 已同源 |
+| `js/game.js:10533-10540` 走廊双描边（断电变灰） | 同上 | 已同源 |
+| `js/game.js:10541-10559` 房间轮廓 + `SHORT` 短名 | 同上 | 已同源 |
+| `js/game.js:10561-10570` 管道/电闸/设施/运行时机器人坐标 | 同上 | 已同源 |
+| `js/game.js:10571-10584` 自己的任务点亮 / 他人暗点 | 同上（`sim.remaining_tasks`） | 已同源 |
+| `js/game.js:10585-10612` 申请单脉冲 / 故障红点 / 自己的脉冲 | 同上 | 已同源 |
+| `js/game.js:10621-10630` 图例 | 同上 | 已同源 |
+| `js/game.js:10604-10612` 他人活人/尸体只 DEV 画 | `minimap.gd`：正常对局**不画**（防透视）；`sim.dev` 时画（死者用 `bodyPos`，异形红 / 人类白） | 已同源（第 17 批补 DEV 分支） |
+
+**附**：2.5D 规则「报告是稀缺资源，HUD 必须显示」→ 新增 `报告 N · 夜会 N/2`。
+**仍不同**：小地图每 0.1 秒重绘（2.5D 每帧），属表现层性能取舍。
+
+---
+
+## J. 2026-11-10 第 16 批：判定层收尾 + `buildMeetCtx` 字段映射
+
+| 2.5D 真源 | 3D 落点 | 状态 |
+|---|---|---|
+| `js/game.js:7040-7113` IDENTITY / identityPrior / identityAxis / hostileProb / targetDistMul | `rules.json#constants.IDENTITY` + `mind.identity_prior/axis/hostile_prob/target_dist_mul` | 已同源 |
+| `js/ai/traits.js` `b()` + `SKTrait.C` | `mind.trait_b/trait_c`（数值读 `SKTrait.C[*].nums`） | 已同源 |
+| `js/game.js:3156-3195` exposureAt / witnesses | `ai_alien::_exposure_at` | 已同源 |
+| `js/game.js:3616-3665` huntSpotFor | `ai_alien::_hunt_spot` | 已同源 |
+| `js/t2/ai.js:364-436` evalAlmost（WEAK/heardKinds/real/fresh/friend） | `mind.eval_almost` | 已同源 |
+| `js/game.js:1461-1476 / 7487-7499` grudge/trust/patron | `mind.grudge_add/trust_add/is_patron/best_grudge` + `_ai_vote_target` | 已同源 |
+| `js/game.js:1624-1630 / 6315-6327` claimHist/claim_recall | `mind.record_claim` + `speech.on_meeting_open` | 已同源 |
+| `js/game.js:2165-2190` DESC | `mind.note_testimony`（DESC 后种类 + 单条 why） | 已同源 |
+| `js/game.js:5820-6004` planAlienDeception（否认前缀/靶子回应/重申/defended_suspect/soft frame） | `speech.plan_alien_deception` | 已同源 |
+| `js/game.js:6062-6112` planMateBus（used/时间词/bestKnownTarget/soft frame） | `speech.plan_mate_bus` | 已同源 |
+| `js/game.js:7040-7113` 身份轴常数 | `rules.json#constants.IDENTITY`（导出器新增） | 已同源 |
+| `check-parity` 20 个源字面量 | `SOURCE_LITERALS`（js 行号回读校验） | 0 WARN |
+
+### `buildMeetCtx` 字段映射（等价实现，不另造对象）
+
+| 2.5D `buildMeetCtx` 字段 | 3D 存储 / 消费方 |
+|---|---|
+| `kind` / `reporter` / `victim` / `room` | `meeting.kind/reporter/victim/room/in_corr` |
+| `seq` | `meeting.seq`（`meet_seq` 每场 +1） |
+| `ctx.lead` | `meeting.lead`（`note_accuse`，只有 solid 指控写） |
+| `ctx.frames` / `ctx.opening` | `accuse` + `accuseWhy`（`opening/fake/bus`） |
+| `ctx.testimony` | 排期时直接 `mind.note_testimony`，无独立队列 |
+| `ctx.playerSays/playerVote/playerClaimRoom` | `meeting.player_intent` + `speech` 的 `alibi`；不建 ctx |
+| `ctx.victimInfo` | `meeting.victim` + `bodyPos` |
+| `remainMs` | 夜钟暂停，会议结束原样恢复（`_after_meeting`） |
+| `votes` / `voteMeta` / `tally` / `matrix` | `meeting.votes/voteMeta/result` |
+| `lines` | `speech.feed` + `sim.events#chat` |
+| `reveal` | `meeting.t = reveal_sec` + `phase=result` |
+| `startAt` | `meeting.t`（剩余秒） |
+
+> **结论**：判定层差异清单清零；剩余差异只有表现层像素排布与 3D 维度产物
+> （见 `parity-map.json#allowed_differences`）。

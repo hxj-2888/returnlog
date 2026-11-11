@@ -1,11 +1,271 @@
-# 《启航路 3D 版》资产工程化 · 交接文档
+# 《新返航录 3D 版》交接文档
 
-> 交接日期：2026-11-05 · 交接范围：**只做工程预设与文档，不建模、不渲染、不改游戏逻辑**。
-> 本轮同时把 2.5D 的「AI 推理优化」收尾并暂时结项，结论见 §7。
-> 读者：下一个接手 3D 的人（可能是另一个会话 / 另一个人）。本文假设你没看过本轮对话。
+> 本文最初是 2026-11-05「资产工程化」那一轮的交接，之后每轮追加一节。
+> 当前**最新交接在 §0（2026-11-10）**，§1 是长期有效的边界与红线口径，
+> §2 以后是历史章节（工程文件 / 工具链 / 资产流程），按需回查。
+> 读者：下一个接手 3D 的人（可能是另一个会话 / 另一个人）。本文假设你没看过任何对话。
 >
-> **最新交接：§12（2026-11-06 19:30 · 全船掩体重构 + Godot 主场景接线 + MCP 工具链）
-> —— 接手先读 §1 与 §12，其余章节按需回查。**
+> **最新交接：§0（2026-11-10 · 第 1–16 批移植 + 现场修复 + 判定层收尾）**
+> —— **接手先读 §0，再读 §1**；§2 及以前是历史章节，按需回查。
+> 逐批明细在 `3d/CHANGELOG.md`，差异登记在 `3d/PORT-DIFF-AUDIT.md` §C/§E/§J，
+> 数据契约在 `3d/spec/`，验收命令见 §0.8。
+
+---
+
+## 0. 最新交接（2026-11-10）
+
+> **一句话现状**：3D 已是 2.5D 的完整功能移植（判定 / 会议 / 结算 / 小地图 / HUD），
+> 33 项 Godot 自测全绿、`npm run check` 6/0、parity **0 WARN**；
+> 只剩表现层像素排布、3D 维度产物（A* / 相机 / 碰撞 / LOD）与 billboard 人物美术。
+> 当前工作区 **77 个文件未提交**（第 1–16 批 + 现场修复），提交前按 `AGENTS.md` §五.6 审阅。
+
+### 0.1 一分钟上手
+
+```powershell
+# 跑起来（Godot 不在 PATH 上）
+E:\ai-tools\godot\Godot_v4.6-stable_win64_console.exe --path 3d/preview --resolution 1280x720
+# 桌面快捷方式「启航路 3D 版」已于 2026-11-10 改指向本工程（旧仓 3d/ 保留未删）
+
+# 全量门禁（6 项）
+npm run check
+npm run baseline:check        # 只读基线未被手改
+npm run 3d:floor:check        # 地板口径单一真源
+node 3d/tools/sync-cover-height.cjs --check
+```
+
+**数据链（顺序不能反）**：
+`js/data/map.js` → `npm run export:all` → `node 3d/tools/build-map-v2.cjs` → `npm run 3d:export:sim`
+（`build-map-v2` 之后必须重跑 `export:sim`，否则 `sim.json` 还指着旧的 `map_v2.json` 哈希）
+
+**上游同步**：`npm run baseline:sync` → 上面整条数据链 → `npm run check`。只读基线禁止手改。
+
+### 0.2 现在能玩到什么程度（已验证）
+
+以下都是**本次实跑**，不是"应该能"：
+
+| 能力 | 验收方式 | 读数 |
+|---|---|---|
+| 开局 → 跳过讨论 → 夜里走动 | `--uitest`（真实窗口 + 真实鼠标） | 跳过按钮在屏内、点击推进、会后位移 3.20 |
+| E → 小游戏 → 结算 | `--e2e` / `--taskflowtest` | `open=true kind=wire`；`tIdx 0→1 prog 0→2` |
+| 14 型小游戏 | `--mgtest` | `14/14` + 26 个任务标签全通 |
+| 异形出刀 | `--knifetest`（真实左键） | `命中=true 剩余刀=0` |
+| 异形按 E 放倒 + 轮盘 + F2 DEV | `--probetest` / `npm run 3d:probe`（真实 E / 数字键 / 左键 / F2） | `PROBETEST OK 0 项失败`；DEV 挨枪/死亡/驱逐全无效 |
+| 会议：讨论期先投、改票、追责 | `--leadtest` / `--meetingtest` | `5/0` · `ok=true ejected=1` |
+| 会议 UI：8 模板 / 席位号 / 弃权 / 先投改票 / 跳过投票 / 只读 | `--meetuitest`（真实鼠标点击） | `23/0` |
+| 异形挑目标：无全图锁敌 / 25s 记忆 / humanT / 身份轴 / 暴露度 | `--aiporttest` | `13/0` |
+| 鼠标口径：Esc 释放 / 点击收回 / 失焦自动释放 | `--mousetest`（真实窗口） | `5/0` |
+| 结算页：身份表 + 逐人投票矩阵（按场次分组） | `--settletest` / `--endshot` | `5/0` |
+| 局内小地图：短名 / 任务点 / 故障 / 圆桌脉冲 / 玩家 | `--minimaptest` / `--minishot` | `4/0` |
+| 证据/情绪/口供：evalAlmost / trust-grudge / claimHist / DESC | `--socialtest` | `6/0` |
+| 照明三态 + 电闸证据 | `--powertest` | 常态 8 舱 / 修好全亮 10 / 断电 0；拉闸 3/6/9/9s |
+| 保安：追捕/压制/押送/拘留 | `--bottest` | `7/0` |
+| 旁观者俯视剖面 | `--specttest` | 飞越隐藏天花板、下穿夹取 0.35 |
+| 任务点可达性 | `--tasktest` / `--reachtest` / `--navtest` | `26/0` · `26/0` · `28/0` |
+
+**33 项无头/真实窗口自测全部 exit 0、0 条 `SCRIPT ERROR`**（清单与一键脚本见 §0.8）。
+
+### 0.3 16 个批次 + 2 次修复做了什么（一句话版）
+
+| 批 | 内容 |
+|---|---|
+| 1 | 基线重同步；**掩体回归 `map.js` 单一真源**（原来源是方案层第二真源） |
+| 2 | 小游戏 10→14 型、撤四型降级、**删掉全部失败惩罚**、接上 26 个任务点的专属参数 |
+| 3 | 会议 `lead` 带头追责（此前从不写入）+ `quick_report` 快报案怀疑 |
+| 4 | 讨论期先投 + 听完改票（`voteLean/castEarlyVotes/reconsiderVotes` + `earlyKept`） |
+| 5 | 跨夜逐人复位（`_reset_agent_night` 40 余项）+ `mindReset` 跨夜口径 |
+| 6 | 照明 0/1/2 三态 + 电闸两种相反证据（拉闸写 known / 合闸只给 cred） |
+| 7 | `chaseKnown/chaseSus` 追猎、中文与补零席位号、白天说"昨晚" |
+| 8 | `losWalls`、保安追捕超时放弃 / 压制 0.9s / 押送 1.2s / 拘留目击 |
+| 9 | 差异登记（`allowed_differences` 4→9 条）+ 全量验收 |
+| 10 | 桌面快捷方式改指向本工程 |
+| 11 | 同步最新 2.5D（`STAND` 改值 + 领申请单交互即领 + 掩体 123）+ **出手键提示 / 删 Shift / 交互无反馈 / 旁观者剖面** |
+| 12 | **会议 UI 功能同源**：8 模板 + 对象/舱室下拉、`01–15` 席位号、弃权、讨论期先投/改票、跳过投票、幽灵/旁观只读、报告地点/发起人/伤者三行、`↓N 条新发言` |
+| 13 | **判定层 A 档**：取消异形全图锁敌（只认看得见 / 本夜 25s 记忆）、`humanT`+`HUMANISH`、`saw_red` 5s 节流、`lastBody`/`saw_body_moved`/`near_body`、`aiIdleRoam`+`saw_avoid`、`audSusEstimate` 方向拨正、`note_sight` 重复记账修掉 |
+| 修复 | **鼠标口径**：Esc 释放/收回、窗口失焦自动释放（截图工具可拖出窗口）、删除四处无条件 CAPTURED |
+| 14 | **结算页**：`#e-ids` 身份表 + `#e-votes` 逐人投票矩阵（终票在 close 按 seq 落账）、`downRoom/deathRoom`、阵亡提示不泄露身份 |
+| 15 | **局内小地图**：短名/灯态三态/管道/设施/机器人/个人任务点/故障/圆桌脉冲/玩家/图例；不画他人、不可点击；HUD 补「报告 N · 夜会 N/2」 |
+| 16 | **判定层收尾**：身份轴/exposureAt/trait 系数/huntSpotFor、evalAlmost 全量、trust/grudge/patron、claimHist/claim_recall、DESC 单写、构陷/大义灭亲补齐、parity 0 WARN |
+
+### 0.4 差异与剩余（事实登记，不是待办清单）
+
+- **判定层（第 16 批已收尾）**：`humanT` / `seenT` / `redSeen` / `avoidSeen` / `lastBody`、
+  身份轴 / `exposureAt` / trait 系数 / `huntSpotFor`、`evalAlmost` 全量、`trust` / `grudge` /
+  `patron`、`claimHist` / `claim_recall`、`DESC` 均已同源。
+  仅剩 `buildMeetCtx` 为**等价实现**，已按字段映射登记在 `PORT-DIFF-AUDIT.md` §J（不另造对象）。
+- **UI 层（会议 / 结算 / 小地图已同源）**：会议功能层第 12 批、结算身份表 + 投票矩阵第 14 批、
+  局内小地图 + 报告读数第 15 批。三栏像素布局保留为表现层差异。
+- **人物建模**：2026-11-11 已按本地千问参考图（`docs/qwen21/crew-refs/`）建成
+  `char_crew_lowpoly`：1.75 m / 1812 tris / 4 材质 / 17 形变骨 / idle+walk；
+  正常对局默认使用，`--crew-billboard` 回退旧 billboard，`char_crew_blockout`
+  是第二级回退。`walk` 1 秒循环、Godot 侧 2.9× 播放以匹配 4.2 m/s 移速；
+  `knife/down` 仍待补。人物仍属美术栏，不在判定层加状态；外观不得泄露异形身份。
+- **鬼魂模式（2026-11-11 登记）**：2.5D `die()` 会 `ghost=true`，死亡后可穿墙、
+  修剩余任务（1.6× 时长 / `GHOST_TASK_CAP` 额度）、异形幽灵可破坏一次；
+  3D `die()` 只置 `alive=false`，玩家死亡直接出结算页。用户裁定**先做人物模型，鬼魂后置**，
+  这是当前唯一未迁的核心玩法。
+- **parity**：20 个 2.5D 源码字面量已登记 `3d/tools/check-parity.cjs#SOURCE_LITERALS`
+  （每项带 `js/game.js:行号`，扫描时回读该行验证）；**当前 0 WARN**。
+  不导出到 `rules.json`，否则会造出第二份定义；上游改行会直接 FAIL，不会静默放过。
+
+> **判据**：判定层/UI 层的差异清单已清零；剩余差异只有表现层像素排布、
+> 3D 维度产物（A* / 相机 / 碰撞 / LOD）与人物美术。详见
+> `PORT-DIFF-AUDIT.md` §J 与 `spec/parity-map.json#allowed_differences`。
+
+### 0.5 接手陷阱（2026-11-10 现役）
+
+**① 地图只有一个真源。** `cover / facility / points / pipes / rooms / walls` 必须原样来自
+`js/data/map.js`（经 `export-map.cjs`）。`tools/ship-layout-plan.json` 只能供 **decor（墙面美术）**，
+不许再供 cover —— 之前就是它让 3D 跑了一年 11-06 的旧布局。
+
+**② 上游是活动靶。** 同一天上游把掩体从 120 改到 124 又改到 123。**动数据前后都要**
+`baseline:check` 并与上游 diff；只在开头同步一次就会拿到过期数据。
+
+**③ `3d:port:check` 报「行段越界 / N 行未被认领」多半不是漏移植**
+——上游删/加了行，`port-manifest.json` 的 `X-BIND` / `V-MINIGAME` 末行要跟着改。
+判定方法：看「未被认领」是不是**从某个末行一直连续到文件尾**；是 → 改末行，不是 → 真漏了。
+
+**④ Godot 夹具的四个坑（会让自测"绿着说谎"）：**
+- `new_game` 会开 `MEET_PRE`；`_process` 里「会议开着就收掉小游戏卡片」——
+  `--mgtest / --devicetest / --taskflowtest / --mgshot` **必须先 `_finish_meeting(sim)`**，
+  否则卡片一开就被 cancel（历史症状：`MGTEST 0/10` 却 exit 0）。
+- `--walktest` 同理：会议期间 `ui_locked` 把速度钉成 0，测得 `distance=0.0`。
+- 真实鼠标/窗口类自测（`--uitest / --meetuitest / --mousetest / --knifetest / --specttest /
+  --e2e / --taskflowtest`）**不要加 `--headless`**，并统一 `--resolution 1280x720`；
+  无头下没有真实视口/鼠标相位。
+- `--settletest / --endshot / --minishot` 是结果页/小地图夹具；截图在本机
+  `preview/screenshots/`（已 gitignore），不要当交付物提交。
+
+**⑤ GDScript 类型推断的四个雷（都会让项目直接起不来 → 表现为"卡住"）：**
+- `var x := 动态调用()`（`sim.me()` / `sim.agent()` / `sim.rules.n()` 等）必须显式写类型；
+- `String(0)` **不存在**这个构造函数（只有 String/StringName/NodePath）；
+- `value as Dictionary` 在 value 是 `null` 时运行期报 `Invalid cast`，要置 `{}`；
+- 每夜复位的 `_breakerRollN` 存的是**夜号字符串**，置 `0` 会让 `String()` 炸。
+
+**⑥ 3D 的按键/鼠标口径（和 2.5D 不同，别再找 A/B）：**
+`WASD` 移动（**没有 Shift 冲刺**，用户 2026-11-10 明确不做）· `E` 交互（多项开轮盘，1-9 直选）·
+**鼠标左键出刀**（异形，每夜 1 把）· **鼠标右键开枪** · `P` 设置 ·
+**`Esc` 释放/收回鼠标**（切到截图工具/别的窗口会**自动释放**，点击游戏窗口收回）。
+`Input.mouse_mode` **只允许** `main._refresh_mouse_mode()` 写；别在子面板里无条件 `CAPTURED`
+（第 11 批现场 bug：Esc 释放被下一帧重新捕获）。
+
+**⑦ 会议面板 720p：** `meeting_skip` 必须在标题正下方（逃生阀），其余内容进
+`ScrollContainer`；投票列表单独滚动，弃权在列表末尾。改布局后先跑 `--uitest` / `--meetuitest`。
+
+**⑧ 投票事件：** 终票在 `_close_meeting()` 按 `meeting.seq` 写 `vote` 事件；
+`cast_vote()` 只写 `vote_change`，**不要恢复逐次 `vote`**（结算页矩阵会重复）。
+结算页「谁投了谁」按 seq 分组；会议内按 2.5D「过程不可见」只显示聚合。
+
+**⑨ 规则/对账：** `IDENTITY` 由 `export-rules.cjs` 从 `js/game.js` 导出；
+`check-parity.cjs#SOURCE_LITERALS` 的每一项都带 `js/game.js:行号` 并回读验证。
+上游改行导致 FAIL 时，**更新引用行号**，不要把 3D 数字改成新阈值。
+
+**⑩ `evalAlmost` 的 why 双职：** 3D 的 `why` 同时存时间线（`saw_agent`/`saw_body_moved`）
+与证据；这两类**不算证据种类**，别从 `eval_almost` 里删掉这段排除。
+`note_sight` / `note_testimony` 都是**一次事件一条 why**，别再写 `sus_add + _push_why` 双份。
+
+**⑪ 构陷是软证据：** `plan_alien_deception` / `plan_mate_bus` 的 `accuseWhy`
+**不标 solid、不写 lead**（2.5D 同口径）；只有 FIRST 先发制人和硬确证进 `ctx.lead`。
+
+**⑫ 读数边界：** `--aittest` 是 2 夜 AI 样本，只作记录；`reports/3d-sim1000.md` 是
+第七批之前代码的 1000 局读数，且早于第 13/16 批的判定层改动，**不能与当前代码对比**。
+按 `AGENTS.md` §五.7，验收读数不得作为「该不该改」的依据。
+
+### 0.6 排障索引（症状 → 先看哪）
+
+| 症状 | 先看 |
+|---|---|
+| 界面卡住 / 按钮点不到 | 面板是不是比视口高（`ScrollContainer`）；`_want_mouse_visible()` 是否覆盖该面板 |
+| 鼠标被框在游戏窗口 / 截图拖不出去 | `mouse_released`；`_refresh_mouse_mode()` 是唯一 CAPTURED 入口；失焦应自动释放 |
+| 异形打不到人 | 刀程 1.4m + 朝向；`_player_knife` 的三条 toast（没刀 / 够不到 / 人类没刀） |
+| 按 E 没反应 | `_collect_offers()` 为空会 toast；再看半径（设备 2.0 / 圆桌 2.3 / 管道冷却 20s） |
+| 会议里投票按钮灰 / 点不动 | `_refresh_meeting_ui` 的 `b.disabled`；讨论期也必须可点（2.5D 先投改票） |
+| 结算页没有投票矩阵 | 只有 `sim.over` 才显示；矩阵按 `meeting.seq` 分组，终票在 `_close_meeting` 落事件 |
+| 小地图全暗 / 不画 | `minimap.setup` 是否拿到 `map_data`；`sim.light_state` 与房间 `light`；`_room_lit` |
+| parity FAIL「源字面量引用失配」 | 上游改行；更新 `check-parity.cjs#SOURCE_LITERALS` 行号，不要改 3D 数值 |
+| 改完 AI 后 `--aittest` 读数变化 | 只作记录；不要拿它判断回归（见 §0.5⑫） |
+| 数据对不上 | 先跑 §0.1 的完整数据链，再 `npm run check` |
+| 小游戏不弹 | 该任务是不是 `qual/med/ammo`（这三项按裁定不弹）；是不是在会议里 |
+| 门禁红 | 分三类：契约 schema / 行段越界 / 真的漏移植（见 §0.5③） |
+
+### 0.7 验收读数（2026-11-10 实跑，供下次对比）
+
+```
+npm run check          6 通过 / 0 失败（assets/import/port/events/lines/parity）
+baseline:check         BASELINE OK 454 个文件 · 快照 2026-11-10
+3d:floor:check         FLOOR-SPEC OK（11 项）
+cover-height --check   61 项 · 需更新 0 · 低于 1.7m 0 件
+Godot 33 项自测        全部 exit 0 · 0 条 SCRIPT ERROR
+--meetuitest           23/0（会议模板/投票/改票/弃权/跳过/只读/新消息）
+--aiporttest           13/0（无全图锁敌 / humanT / 身份轴 / exposureAt / huntSpotFor）
+--mousetest            5/0（Esc 释放 / 点击收回 / 会议开关 / 失焦释放）
+--settletest           5/0（终票 seq / 投票矩阵 / 身份表 / 阵亡不泄露）
+--minimaptest          4/0（尺寸 / 灯态三态 / 任务点 / 地图数据）
+--socialtest           6/0（trust-grudge / patron / claimHist / evalAlmost / DESC）
+3d:parity:check        0 WARN（20 个源字面量带 js 行号回读校验）
+```
+
+> **平衡读数**：`reports/3d-sim1000.md` 是**第七批之前**代码的 1000 局读数，
+> 且早于第 13/16 批的判定层改动（目标评分 / evalAlmost / 情绪层），**不代表当前代码**。
+> `--aittest` 是 2 夜 AI 样本，只作记录，不作验收。按 `AGENTS.md` §五.7，
+> 验收层读数不得反过来当作"该不该改"的依据；需要新基线必须单独跑 `--sim1000`。
+>
+> **本次实跑汇总（2026-11-10）**：`npm run check` 6/0 · `baseline:check` 454 OK ·
+> `3d:floor:check` 11 项 OK · Godot 33 项自测全部 exit 0 / 0 条 `SCRIPT ERROR` ·
+> `3d:parity:check` 0 WARN。
+
+### 0.8 接手第一小时（当前版）
+
+```powershell
+# 0) 依赖（首次）
+cd "C:\Users\ASUS\Desktop\新返航录 3D 版"
+npm i                                  # 只装 playwright-core；node_modules 不入库
+
+# 1) 先确认只读基线没被手改；如果上游有新提交，再按 §0.1 同步数据链
+npm run baseline:check                 # 期望 BASELINE OK 454
+
+# 2) 数据链（只在同步上游 / 改 map.js 后跑；顺序不能反）
+npm run export:all
+node 3d/tools/build-map-v2.cjs
+npm run 3d:export:sim
+
+# 3) 工程门禁
+npm run check                          # 期望 6 通过 / 0 失败（parity 0 WARN）
+npm run 3d:floor:check                 # 期望 FLOOR-SPEC OK（11 项）
+node 3d/tools/sync-cover-height.cjs --check
+
+# 4) Godot 33 项自测（真实窗口；Godot 不在 PATH）
+$GODOT = 'E:\ai-tools\godot\Godot_v4.6-stable_win64_console.exe'
+$tests = @(
+  'navtest','simtest','meetingtest','speechtest','b4test','leadtest','b6test','aittest',
+  'bottest','tasktest','reachtest','floortest','powertest','audiotest','uitest',
+  'actiontest','interacttest','knifetest','specttest','mgtest','devicetest',
+  'taskflowtest','e2e','walktest','hometest','roletest','meetuitest','aiporttest',
+  'mousetest','settletest','minimaptest','socialtest','probetest'
+)
+foreach ($t in $tests) {
+  & $GODOT --path 3d/preview --resolution 1280x720 -- --$t
+  if ($LASTEXITCODE -ne 0) { Write-Host "FAIL $t"; break }
+}
+
+# 5) 三张实拍（可选，截图不入库）
+& $GODOT --path 3d/preview --resolution 1280x720 -- --meetshot
+& $GODOT --path 3d/preview --resolution 1280x720 -- --endshot
+& $GODOT --path 3d/preview --resolution 1280x720 -- --minishot
+& $GODOT --path 3d/preview --resolution 1280x720 -- --crewshot   # 人物 blockout 同框
+& $GODOT --path 3d/preview --resolution 1280x720 -- --doorshot    # 门扇关闭/全开对照
+```
+
+**代码阅读顺序（按依赖）**：
+1. `3d/preview/scripts/sim/sim_state.gd`：状态 / 会议 / 投票 / 电闸 / 拖尸 / 机器人；
+2. `sim/mind.gd`：认知、身份轴、`evalAlmost`、trust/grudge、口供史；
+3. `sim/ai_alien.gd` / `sim/ai_human.gd`：挑目标、暴露度、寻人、空闲游荡；
+4. `sim/speech.gd` + `sim/lines_data.gd`：发言排期、构陷、辩护、领袖、解析；
+5. `main.gd`：HUD / 会议 UI / 结算页 / 鼠标口径 / 自测夹具；
+6. `minimap.gd`：局内小地图；`ui_panels.gd`：设置 / 复盘；
+7. `3d/tools/export-*.cjs` + `check-*.cjs` + `3d/spec/`：数据链与对账。
+
+**接手第一件事不是写代码**：先跑上面 1–4，确认 6/0、454、33 项 exit 0、
+parity 0 WARN；任一项不对，先按 §0.6 排障，不要直接改判定。
 
 ---
 
@@ -13,9 +273,10 @@
 
 | 项 | 口径 |
 |---|---|
-| 主产品 | 2.5D《新返航录》，`main` 分支，`file://` 直接可开，`index.html` 是入口 |
-| 3D 产品 | **2.5D 的延伸**（Godot 4.6），副分支 `v1-preview`；**只有按键操作 / 维度 / 部分美术素材**可以不同，其余全部移植，见 `AGENTS.md` §一.11 与 ADR-0011 |
-| 本轮改动落在哪 | 工程化骨架与文档提交在 `main`（`3d/` 目录本来就在 main 上）；**正式建模工作必须切到 `v1-preview`** |
+| 主产品 | 2.5D《新返航录》，上游仓 `C:\Users\ASUS\Desktop\新返航录`，`main` 分支，`file://` 直接可开，`index.html` 是入口 |
+| 3D 产品 | **2.5D 的延伸**（Godot 4.6）；**只有按键操作 / 维度 / 部分美术素材**可以不同，其余全部移植，见 `AGENTS.md` §一.11 与 ADR-0011 |
+| 本仓分支 | **分离后的 3D 独立仓**，当前分支 `master`（不是上游的 `main` / `v1-preview`）。上游的「2.5D 推 main、3D 推副分支」规则在上游仓执行；本仓不得把 3D 客户端合回上游 `main` |
+| 仓库状态（2026-11-10） | 最后一次提交 `33cd6a4`（2026-11-09 清理 docs/SDXL 舱室图）；**第 1–16 批与现场修复共 77 个文件未提交**（`js/ assets/` 只读基线未动）。交接/发布前按 `AGENTS.md` §五.6 审阅并提交 |
 | 共享的东西 | 地图 / 规则 / 语料 / 空间 / 任务 / 机器人数值**全部**从 `js/` 导出（`3d/tools/export-*.cjs`），推理与发言按 `spec/parity-map.json` 逐函数对账 |
 | 不共享的东西 | 只有运行时宿主与呈现：DOM/Canvas vs Godot 场景、输入映射、渲染与 LOD —— 都属"维度"这一条允许差异 |
 
@@ -28,11 +289,13 @@
 门洞宽 1.8 格）。斜墙 20 段需要 miter 转角件。不允许把线段直接拉成面片糊过去。
 详见原仓 `docs/3D化审查_20261105.md`（本工程 `docs/` 已于 2026-11-09 清理）。
 
-**美术分工（2026-11-07 用户裁定更新）**：**SDXL 与千问均可用于 3D 美术素材生成**
-（解除 2026-11-06「一律 SDXL / 千问暂停」的限制；出图仍须本地生成）。
-`assets/minigame/panel-*.png` 与千问新出图（Qwen-Image 2.1，Research License 非商用）
+**美术分工（2026-11-09 用户裁定，覆盖 2026-11-07 的旧口径）**：
+**千问本地模型为唯一出图模型，SDXL 已退役**（2026-11-07 的「SDXL 与千问均可」已作废）。
+出图仍须**本地生成**、不调用线上生图；历史 SDXL 产物只作风格对照与回退兜底，不再新增。
+`assets/minigame/panel-*.png` 与千问新出图（Qwen-Image 2.1，Research License **非商用**）
 可用于本非商用项目的运行时（断口标注真源 `js/data/plates.js`，来源见
 `assets/minigame/CREDITS.md`）；若未来转商用需换图或另行授权。
+入口：`npm run 3d:refs:cabin` / `3d:refs:tasks`（**必须 pwsh 7**）。
 
 ---
 
@@ -270,7 +533,11 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
 
 ---
 
-## 9. 未做 / 待办（交接时请照这个清单往下走）
+## 9. 未做 / 待办（历史章节 · 2026-11-05）
+
+> ⚠ **历史清单，已被第 1–16 批逐条结清或取代；当前交接以 §0 为准。**
+> 其中「SDXL 出图」已于 2026-11-09 退役（改千问本地，见 `AGENTS.md` §一.6）；
+> 「781/0」「10 型小游戏」「27 设备」等读数均已过期。
 
 **本轮明确不做（用户裁定）**
 - 确信 `known` 松绑、通胀降判断、假设层 —— 都不做。
@@ -301,7 +568,10 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
 
 ---
 
-## 10. 交接检查清单（接手第一件事照跑）
+## 10. 交接检查清单（历史章节 · 2026-11-05）
+
+> ⚠ **历史清单；当前检查清单见 §0.8。** 下列 781/0、10 型小游戏、`plate:check` 等
+> 是分离前旧仓口径，不适用于本工程。
 
 ```bash
 cd "C:/Users/ASUS/Desktop/新返航录"

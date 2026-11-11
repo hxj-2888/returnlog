@@ -137,6 +137,7 @@ function buildRules() {
     SEEN_WORD: grabObject(texts.ai, 'SEEN_WORD', 'SKT2AI.SEEN_WORD'),
     EV_W: grabObject(texts.game, 'EV_W', 'game.js EV_W'),
     ID_EVIDENCE: grabObject(texts.game, 'ID_EVIDENCE', 'game.js ID_EVIDENCE'),
+    IDENTITY: grabObject(texts.game, 'IDENTITY', 'game.js IDENTITY'),
     MEET_SCHED_note: 'MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值',
   };
 

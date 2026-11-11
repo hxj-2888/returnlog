@@ -14,6 +14,8 @@ desktop.ini
 3d/preview/screenshots/
 3d/preview/scripts/_*.gd
 3d/preview/scripts/_*.gd.uid
+3d/tools/_*.cjs
+3d/tools/_*shots/
 
 # ---- Python / 工具临时产物 ----
 __pycache__/

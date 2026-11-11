@@ -164,6 +164,18 @@ func los(a: Vector2, b: Vector2) -> bool:
 	return true
 
 
+## 只算墙体，不算掩体（2.5D geo.js:155 losWalls）：
+## 保安机器人坐在安保位的家具里，用 los() 会被自己的机位挡住，
+## 于是「看得见才抓」永远不成立。
+func los_walls(a: Vector2, b: Vector2) -> bool:
+	for seg: Array in _walls:
+		var wa: Array = seg[0] as Array
+		var wb: Array = seg[1] as Array
+		if _seg_x(a, b, Vector2(float(wa[0]), float(wa[1])), Vector2(float(wb[0]), float(wb[1]))):
+			return false
+	return true
+
+
 func in_poly(p: Vector2, poly: Array) -> bool:
 	if poly.size() < 3:
 		return false

@@ -1,7 +1,7 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 放置（对应 2.5D 的 buildPlace）
-## 零件 → 形状相符的槽位；槽位永远多一个诱饵；放错整组重来。
+## 零件 → 形状相符的槽位；槽位永远多一个诱饵；放错只提示，已放的保留。
 
 const SHAPES := ["▲", "●", "■", "◆", "✦", "✚"]
 
@@ -13,10 +13,11 @@ var _placed := 0
 
 
 func build() -> void:
-	var n := tier_n(4, 5, 5)
-	_need = shuffled(SHAPES.slice(0, n))
+	var shapes: Array = cfg("shapes", SHAPES)
+	var n: int = maxi(2, mini(int(cfg("n", tier_n(4, 5, 5))), shapes.size() - 1))
+	_need = shuffled(shapes.slice(0, n))
 	var decoy := ""
-	for s in SHAPES:
+	for s in shapes:
 		if not _need.has(s):
 			decoy = s
 			break
@@ -77,8 +78,11 @@ func _on_slot(slot_btn: Button) -> void:
 	if slot_btn.disabled:
 		return
 	if String(slot_btn.get_meta("shape")) != String(_sel.get_meta("shape")):
-		_reset_all()
-		set_tip("形状不符 → 整组重来，每个零件只认一个槽", true)
+		# 2.5D 2026-11-09 取消「放错整组重来」：只清当前选中，已放的保留
+		# （js/t2/minigame.js:616-619 形状不符 → 取消选中 + 提示，不重置）。
+		_sel.add_theme_stylebox_override("normal", stylebox(COL_BTN, Color("#313B4B"), 8))
+		_sel = null
+		set_tip("形状不符 · 已放的保留，每个零件只认一个槽", true)
 		return
 	slot_btn.text = String(_sel.get_meta("shape"))
 	slot_btn.disabled = true
@@ -91,21 +95,6 @@ func _on_slot(slot_btn: Button) -> void:
 		"全部归位" if _placed == _need.size() else "已放置 %d / %d，继续" % [_placed, _need.size()])
 	if _placed == _need.size():
 		finish_ok()
-
-
-func _reset_all() -> void:
-	_placed = 0
-	_sel = null
-	for b in _slot_buttons:
-		b.text = ""
-		b.disabled = false
-		b.add_theme_stylebox_override("disabled", slot_style(false))
-		b.add_theme_stylebox_override("normal", slot_style(false))
-	for b in _tray_buttons:
-		b.disabled = false
-		b.add_theme_stylebox_override("normal", stylebox(COL_BTN, Color("#313B4B"), 8))
-		b.add_theme_stylebox_override("disabled", stylebox(COL_BTN, COL_LINE, 8))
-	set_progress(0, _need.size(), "整组复位：零件全部回到下方")
 
 
 func debug_solve() -> void:

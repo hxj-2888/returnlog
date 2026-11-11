@@ -1,7 +1,7 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 图标配对（对应 2.5D 的 buildMatch）
-## 翻两张，图标相同即配对；错 3 次整组重来。
+## 翻两张，图标相同即配对；配错只提示，不重置。
 
 const ICONS := ["◈", "◇", "▣", "▤", "◐", "◑"]
 
@@ -14,8 +14,9 @@ var _cards: Array = []
 
 
 func build() -> void:
-	_need = tier_n(4, 5, 5)
-	var pool: Array = ICONS.slice(0, _need)
+	var icons: Array = cfg("icons", ICONS)
+	_need = maxi(2, mini(int(cfg("n", tier_n(4, 5, 5))), icons.size()))
+	var pool: Array = icons.slice(0, _need)
 	var deck: Array = shuffled(pool + pool)
 
 	var wrap := center_box()
@@ -39,7 +40,7 @@ func build() -> void:
 		grid.add_child(c)
 		_cards.append(c)
 
-	set_progress(0, _need, "共 %d 对：翻两张，图案相同即配对（错 3 次整组重来）" % _need)
+	set_progress(0, _need, "共 %d 对：翻两张，图案相同即配对（配错不重置）" % _need)
 
 
 func _on_card(c: Button) -> void:
@@ -84,10 +85,9 @@ func _on_card(c: Button) -> void:
 			x.add_theme_stylebox_override("normal", stylebox(COL_WELL, Color("#313B4B"), 8))
 	_open.clear()
 	_lock = false
-	if _miss >= 3:
-		finish_fail("错配 3 次 → 整组重来")
-	else:
-		set_tip("配错了（%d / 3）—— 记一下位置重来" % _miss, true)
+	# 2.5D 2026-11-09 取消「错 3 次整组重来」：配错只提示，已配对的保留
+	# （js/t2/minigame.js:887-895 只 miss++ 与 tip，无 settle(false)）。
+	set_tip("配错了（第 %d 次）—— 已配对的保留，记一下位置再翻" % _miss, true)
 
 
 func debug_solve() -> void:

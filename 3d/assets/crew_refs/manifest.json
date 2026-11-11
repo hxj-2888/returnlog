@@ -1,0 +1,55 @@
+{
+  "model": "Qwen-Image 2.1 Turbo Q4_K_M GGUF + Qwen3-VL-8B UD-Q4_K_XL + qwen_image_2.1_vae_bf16",
+  "runner": "E:\\ai-tools\\sdcpp\\vulkan\\sd-cli.exe",
+  "script": "3d/tools/gen-art-refs.ps1",
+  "pwsh_only": "PowerShell 7 required (5.1 mis-decodes UTF-8 source as GBK)",
+  "license": "Qwen Research License (non-commercial). 2026-11-07 user ruling: allowed for this non-commercial project, including in-game use; commercial release requires SDXL / Qwen 1.0 or separate licensing (AGENTS.md red line 6).",
+  "truth_source": "rooms/theme.glow <- map.json (export-map.cjs from blender-ship.py ROOM_THEME); tasks kind/n/color/hint <- minigames.json (export-minigames.cjs from js/t2/minigame.js TASKS)",
+  "set": "crew",
+  "size": "768",
+  "seed_base": 20261106,
+  "steps": 8,
+  "cfg": 1.0,
+  "count": 3,
+  "items": [
+    {
+      "id": "crew_turnaround",
+      "name": "船员三视图",
+      "set": "crew",
+      "kind": "turnaround",
+      "accent": "#D9DEE6",
+      "size": "768",
+      "seed": 20261206,
+      "ok": true,
+      "sec": 98.0,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\crew-refs\\crew-turnaround_768.png",
+      "prompt": "adult spaceship crew member, slim athletic build, 1.75 m tall, short dark hair, no helmet, pale grey utility jumpsuit with coral-red chest harness, shoulder panels and knee pads, dark utility boots, small black backpack, matte fabric with clean seams, soft utilitarian sci-fi uniform, neutral friendly face, full body, character turnaround reference sheet, front view, three-quarter view and back view of the same character, standing neutral A-pose, orthographic full-body views, evenly spaced, plain light neutral grey background, front and back clearly readable, concept art for 3D low-poly modeling, matte flat lighting, no text"
+    },
+    {
+      "id": "crew_variants",
+      "name": "船员三种配色",
+      "set": "crew",
+      "kind": "variants",
+      "accent": "#B9C2CC",
+      "size": "768",
+      "seed": 20261207,
+      "ok": true,
+      "sec": 94.2,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\crew-refs\\crew-variants_768.png",
+      "prompt": "three spaceship crew members standing side by side, same slim 1.75 m body type and utility jumpsuit design, three colorways: pale grey with coral red, olive with amber, steel blue with teal, short hair, no helmets, no armor, full body neutral pose, plain light grey background, character lineup concept art for 3D low-poly modeling, evenly lit, no text"
+    },
+    {
+      "id": "crew_detail",
+      "name": "制服/装备细节",
+      "set": "crew",
+      "kind": "detail",
+      "accent": "#C96A5D",
+      "size": "768",
+      "seed": 20261208,
+      "ok": true,
+      "sec": 96.0,
+      "file": "E:\\ai-models\\qwen-image-2.1\\output\\crew-refs\\crew-detail_768.png",
+      "prompt": "character design detail sheet of the same sci-fi utility jumpsuit, chest harness, belt pouches, knee pads, dark boots, rolled sleeves, fabric seams, matte materials, pale grey with coral red accents, neutral grey background, three-quarter view, close-up, concept art for 3D modeling, no text"
+    }
+  ]
+}

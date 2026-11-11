@@ -1,26 +1,28 @@
 extends "res://scripts/minigame/mg_base.gd"
 
 ## 三点对准（对应 2.5D 的 buildAlign）
-## 把三个探针拖进虚线圆圈，三个都进才算过。
-
-const TOL := 0.026
+## 把探针拖进虚线圆圈；点数与容差读任务配置（n / tol）。
 
 var _targets: Array = []
 var _probes: Array = []
 var _drag := -1
+var _n := 3
+var _tol := 0.026
 
 
 func build() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(0, 300)
-	for i in 3:
+	_n = clampi(int(cfg("n", 3)), 1, 4)
+	_tol = float(cfg("tol", 0.026))
+	for i in _n:
 		_targets.append(Vector2(
 			_rng.randi_range(16, 78) / 100.0,
 			_rng.randi_range(14, 70) / 100.0))
 		_probes.append(Vector2(
 			(8 + i * 32) / 100.0,
 			(72 - i * 16) / 100.0))
-	set_progress(0, 3, "把三个金色探针拖进虚线圆圈，三个都进才算过")
+	set_progress(0, _n, "把 %d 个金色探针拖进虚线圆圈，全部进圈才算过" % _n)
 
 
 func _draw() -> void:
@@ -79,10 +81,10 @@ func _gui_input(event: InputEvent) -> void:
 func _check() -> void:
 	var got := 0
 	for i in _probes.size():
-		if (_probes[i] - _targets[i]).length() <= TOL:
+		if (_probes[i] - _targets[i]).length() <= _tol:
 			got += 1
-	set_progress(got, 3, "对准 %d / 3 —— 拖到虚线圆圈里" % got)
-	if got == 3:
+	set_progress(got, _probes.size(), "对准 %d / %d —— 拖到虚线圆圈里" % [got, _probes.size()])
+	if got == _probes.size():
 		finish_ok()
 
 
@@ -98,6 +100,6 @@ func _to_px(p: Vector2) -> Vector2:
 func debug_solve() -> void:
 	for i in _probes.size():
 		_probes[i] = _targets[i]
-	set_progress(3, 3, "三点评定通过")
+	set_progress(_probes.size(), _probes.size(), "%d 点评定通过" % _probes.size())
 	queue_redraw()
 	finish_ok()

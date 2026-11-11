@@ -1,5 +1,1070 @@
 # 3D 修改记录
 
+## 2026-11-11 · 第 19 批：千问参考图 → 参考建模 → idle/walk
+
+用户指令：先用本地生图模型生成示例图，再按示例图建模并加行走动作；当前人物是“漂移状态”。
+
+### 1. 本地千问参考图（3 张）
+
+- `3d/tools/gen-art-refs.ps1` 新增 `-Set crew`；本地 Qwen-Image 2.1 Turbo Q4_K_M
+  （sd-cli Vulkan，8 步，768²，约 95s/张），生成：
+  - `docs/qwen21/crew-refs/crew-turnaround_768.png`（正/侧/背三视图）
+  - `docs/qwen21/crew-refs/crew-variants_768.png`（浅灰/珊瑚红、橄榄/琥珀、钢蓝/青三配色）
+  - `docs/qwen21/crew-refs/crew-detail_768.png`（胸带 / 腰包 / 护膝 / 靴子细节）
+- 设计基准：项目自己的 `assets/scene/crew/crew-01.png`（浅灰/珊瑚红、短黑发、背包、无头盔）。
+  Qwen Research License（非商用），模型/seed/prompt 在同目录 `manifest.json`。
+
+### 2. 按图建模：`char_crew_lowpoly`
+
+- 新脚本 `3d/tools/build-crew-rigged.py`：1.75 m / **1812 tris** / 4 材质
+  （`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin`）/ **17 形变骨**。
+- 外观按参考图：浅灰勤务服、珊瑚红 H 型胸带 + 护膝 + 腿侧红条、黑靴、短黑发、
+  背包、腰包；无头盔。
+- 动作：`idle` + `walk`（24fps / 1 秒循环），NLA 导出；`knife` / `down` 仍待补。
+- `assets.manifest.json` 的 `char_crew_lowpoly` 从 todo 改为 wip；`ASSETS.md` 登记
+  1812 tris / GLB SHA `b73e56d08f110369`。
+
+### 3. 漂移修复
+
+- `crew_view.gd` 默认加载 `char_crew_lowpoly.glb`，逐实例 `AnimationPlayer`；
+  `moving=true` 切 `walk`、静止切 `idle`，只在状态切换时 play，避免每帧重置。
+- 移速 4.2 m/s；walk 动作 1 秒循环（步幅约 1.4m），播放 **2.9×**，让脚底速度跟身体一致。
+- 模型缺失 → `char_crew_blockout.glb` → billboard 逐级回退；`--crew-billboard` 强制旧贴图。
+- `--probetest` 新增断言：`CREW_ANIM_SWITCH walk=walk idle=idle`。
+
+### 4. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| `--crewshot` | `CREW_ANIM ... ["idle","walk"]` · `CREW_MODEL 1 mesh / 4 mats` · 输出 `screenshots/crew-lowpoly.png` |
+| `--probetest`（默认） | `CREW_VIEW models=14 billboards=0` · `CREW_ANIM_SWITCH walk=walk idle=idle` · **OK 0 项失败** |
+| `--probetest --crew-billboard` | `CREW_VIEW models=0 billboards=14` · **OK 0 项失败** |
+| `--powertest` | 门扇 `closed_gap=0.000 / open_gap=1.800`（第 18 批） |
+| `npm run 3d:assets` / `3d:import:check` | 0 错误 / 3 提醒；76 个 `.glb.import` 0 差异 |
+| `npm run check` | **6 通过 / 0 失败** |
+
+## 2026-11-11 · 第 18 批：人物 blockout 默认化 + 门扇闭合修正
+
+用户 2026-11-11 现场：人物「仍然是贴图」；门在无人时应完全关、有人通过时应完全开，
+不能像现在半开。裁定：人物先做 blockout 验证，首批目标 15 crew + 4 动作；鬼魂模式后置。
+
+### 1. 新资产 `char_crew_blockout`
+
+- Blender 5.2.2 脚本：`3d/tools/build-crew-blockout.py`；1.75 m / **864 tris** /
+  3 材质（`crew_suit` + `crew_gear` + `crew_skin`）/ 无骨骼 / 底面中心 / 无碰撞。
+- 源文件 `3d/assets/models/char_crew_blockout.blend`，导出
+  `3d/assets/export/char_crew_blockout.glb`；已登记 `assets.manifest.json`（wip）
+  与 `ASSETS.md`。
+- 体块不是最终角色：用于核对比例、剪影、舱室尺度；骨架/动画在确认后做。
+
+### 2. 接入：默认 3D 体块，`--crew-billboard` 回退
+
+- `crew_view.gd` 增加 blockout 模式：15 人按 `CREW_COLORS` 换制服色，模型缺失/实例化失败
+  逐人回退 billboard；`bodyGone` 隐藏、濒死/死亡放倒、DEV 下仍标阵营。
+- **默认已切到 3D 体块**（用户 2026-11-11 现场「仍然是贴图」）；`--crew-billboard`
+  保留旧 billboard 作为回退/对比，`--crew-model` 保留为兼容别名。
+- `--crewshot`：真实会议室同框摆 2.5D billboard / 3D blockout / 1.75 m 标尺，
+  输出 `preview/screenshots/crew-blockout.png`。同框发现旧 billboard 的可见高度约 1.5 m，
+  体块按 1.75 m 建；正式换模型时以 1.75 m 为准。
+
+### 3. 门扇闭合 / 触发口径修正（2.5D doorTick）
+
+- **根因**：3D 门扇基座在中心 ±half（0.9 m），每扇宽 0.9 m，关闭时两扇之间仍留
+  0.9 m 缝；碰撞盒也一样 —— 看起来永远半开，人还能从“关着”的门缝里挤过去。
+- **修法**：基座改 ±half/2，滑动量改 `half * open`；关闭时两扇在中线合拢，
+  完全打开时各滑出 half，正好让出整段 1.8 m 门洞。初始 `open` 由 1.0 改 0.0。
+- **触发**：照 2.5D `doorTick` 遍历**所有活人**（不只玩家）；会议 / 结算期间冻结。
+- 数值：`POWERTEST 门扇 closed_gap=0.000 closed_blocked=true open_gap=1.800 open_blocked=false`。
+
+### 4. 实跑读数（2026-11-11）
+
+| 项 | 结果 |
+|---|---|
+| `npm run 3d:assets` | 92 项 · 0 错误 / 3 提醒（仍是旧 3 个 wip 源文件） |
+| `npm run 3d:sync:models` / `3d:import:check` | 同步完成 · 75 个 .glb.import **0 差异** |
+| `--crewshot` | `CREWSHOT_PATH=.../screenshots/crew-blockout.png`；3 meshes，mats=crew_suit/crew_gear/crew_skin |
+| `--probetest`（默认 3D 体块） | `CREW_VIEW models=14 billboards=0` · **PROBETEST OK 0 项失败** |
+| `--probetest --crew-billboard` | `CREW_VIEW models=0 billboards=14` · **PROBETEST OK 0 项失败**（回退路径未被破坏） |
+| `--powertest` | 门扫描/放行原读数不变；新增门扇几何 `closed_gap=0.000 open_gap=1.800` 通过 |
+| `--aittest` / `--navtest` / `--arttest` | 原读数不变（AI / 网格 / 美术回归） |
+
+## 2026-11-10 · 第 17 批：异形 E 出刀 + DEV 移植 + 玩家探针
+
+用户现场：「我自己作为异形进去的时候，点 E 交互仍然无法将人击倒，我都不知道交互了个啥；
+3D 里没有把 2D 的 DEV 弄过来，DEV 很有必要」；并要求「你自己写玩家探针」。
+本批不采任何平衡读数，改动依据全部是 `js/game.js` 语义与真实输入链。
+
+### 1. E 现在能放倒人（输入映射差异，同一套结算）
+
+- `_collect_offers` 新增 `attack` 项：异形在刀程内、视线内有活人时，E 轮盘直接出现
+  「出刀 · 名字」；单项时 E 立即执行，多项时 `1-9` 选择。
+- E 的选人照 2.5D `stab()`（`js/game.js:8243-8248`）：**刀程内最近 + `losNow` 有视线**；
+  左键仍走准星，但 `_player_knife` 补了同源遮挡判定（3D 的 `sim.knife` 不自己查墙/掩体）。
+- 失败不再静默：人类按 E / 刀用尽 / 目标离开刀程 / 墙或掩体挡住 / 结算拒绝
+  各有 toast 与探针记录；「附近没有可交互的东西」只在真的什么都没有时说。
+
+### 2. DEV（F2）从 `excluded` 改为 `partial`
+
+- `sim.dev` + `sim.dev_log`（**不进 events**，不污染 2.5D 事件对账）。
+- 无敌语义照 2.5D：先扣刀/子弹再免伤（`:4230-4243`、`:8270-8282`）、死亡拦截（`:4287`）、
+  驱逐无效（`:7673-7679`）、保安看不见 DEV 玩家（`:4782`）；`knife / shoot / kill / die`
+  与 `_close_meeting` 共用同一组守卫。
+- UI：右侧可滚动卡片栏（名字 / 阵营 / 状态 / 舱室 / 弹包单 / 任务 / 刀），
+  crew 头顶在 DEV 下显示阵营，小地图在 DEV 下画其他席位（死者用尸体位），
+  尸体卡显示凶手，投票结果写「DEV 无敌：驱逐无效」。
+- 2.5D 的 `SKInvariants` 运行时断言层**未迁**（3D 无对应实现），已在 port-manifest 写明。
+
+### 3. 玩家探针（真实 InputEvent）
+
+- `--probetest` / `npm run 3d:probe`：真实按 E → 看候选与结果；真实左键；真实数字键选轮盘；
+  真实 F2 开 DEV，再验 AI 开枪 / 死亡 / 驱逐对玩家无效。禁止直接调 sim 冒充输入。
+- DEV 面板底部常驻「探针 · 最近 8 条」：按 E / 左键 / 右键 / 轮盘 / F2 都留痕，
+  解决「不知道交互了个啥」。
+- 探针必须真实窗口：headless 下 `Input.MOUSE_MODE_CAPTURED` 不成立，左键会被
+  「先夺回鼠标」分支吃掉（`--mousetest` / `--knifetest` 同一条限制）。
+
+### 4. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败**（`S-DEV` 现为 partial，源行覆盖不变） |
+| Godot 自测 | **33 项全部 exit 0 / 0 条 `SCRIPT ERROR`** |
+| `npm run 3d:probe` | `PROBE ① [attack]` · E 濒死=true 刀=0 · 左键濒死=true · 轮盘选 1 濒死=true · F2 dev=true 面板=true · DEV 挨枪/死亡/驱逐全无效 · **PROBETEST OK 0 项失败** |
+| `--knifetest` | `命中=true 剩余刀=0` |
+| `--mgtest` | `14/14 pass`（旧文档写 10 型，已更正） |
+| `--devicetest` | `open=true locked=true / closed=true unlocked=true`（旧的 open=false 坏账已清） |
+| 其余回归 | `SIMTEST 26/0`、`ACTION OK`、`UITEST 0 失败`、`E2E open=true`、`SETTLETEST 5/0`、`MEETUITEST 23/0` |
+
+## 2026-11-10 · 第 16 批：判定层完整性收尾（目标评分 / 证据 / 情绪 / 口供 / parity）
+
+用户指令「把剩下来的全部完成」。上游 `baseline:sync` 复核：454 文件相同、0 更新。
+本批把 `PORT-DIFF-AUDIT.md` §E/§G 里的判定层残项逐条结清。
+
+### 1. 目标评分完整同源（`js/game.js:3849-3896 / 3868-3888 / 7030-7113`）
+
+- 新增 `rules.json#constants.IDENTITY`（`export-rules.cjs` 从 `js/game.js` 抠，禁止手抄）：
+  `evidenceW / almostAlien / almostHuman / targetMulMin / targetMulMax / alienPow /
+  alienExplore / priorMin / priorMax`。
+- `mind.gd` 补：
+  - `identity_prior()`（15 席 / 4 异形公开配置 + mates/known 条件化 + 公开出局扣减）；
+  - `identity_axis()`（known/mates→0；almost.foe 含身份级证据→0.05；almost.friend→0.95；
+    其余 = prior + evidenceW×min(0.5, cred)；普通 sus 不进身份轴）；
+  - `hostile_prob()` / `target_dist_mul()`；
+  - `trait_b()` + `trait_c()`：公式按 `traits.js` 移植，数值读
+    `rules.json#tables.SKTrait.C[*].nums`（不另抄阈值）；
+  - `has_id_evidence()`（ID_EVIDENCE 白名单）。
+- `ai_alien` 评分改成 2.5D 原式：
+  `base = d + exposure×knifeWatcherPenalty(a) + (mateOnIt?8:0) + (busy?knifeBusyBonus:0)`；
+  `score = base×targetDistMul(hostileProb(a,v)) − HUMANISH.pull×humanT`。
+- 新增 `_exposure_at()`（`js/game.js:3156` exposureAt：witnessWeight + escapeCost +
+  做事的人不算目击者）与 `_hunt_spot()`（`js/game.js:3616` huntSpotFor：
+  最后目击点 → 本夜最常看见的舱 → 任务点最多的舱）。无目标时先试管道寻人，
+  没刀再随机游荡（有刀原地等，2.5D 同口径）。
+
+### 2. `evalAlmost` 全量（`js/t2/ai.js:364-436`）
+
+- foe：`sus≥foeSus` + **至少 1 条 real** + `counted≥foeKinds` + 至少 1 条新鲜；
+  `WEAK`（沉默/空口指控/领袖点名/不可能口供/快报案/错告）不算；
+  `heard_*` 最多补 `heardKinds` 个；`heard_vouch` 是正向，不进敌性证据。
+- friend：`cred≥friendCred` + `credWhy` 种类≥`friendKinds` + 新鲜，且不在 foe/known。
+- 统计 `almostCount / almostAlien / almostHuman / almostHeard / almostFriendCount`。
+- 3D 的 `why` 兼顾时间线与证据数组：`saw_agent / saw_body_moved` 继续排除。
+
+### 3. 情绪通道 `trust` / `grudge`（`js/game.js:1461-1476 / 7487-7499`）
+
+- `mind` 新增 `grudge_add / trust_add / is_patron / best_grudge`；系数
+  `grudgeGain / trustGain / voteGrudgePull` 读 `SKTrait.C` 的 nums。
+- 写入：AI 公开指控 → 目标记仇 0.40；AI 当众辩护 → 被保者记恩 0.45（不再用 warm 顶替）；
+  玩家指控 0.45 / 说“我投 X” 0.30 / 说“不是异形·别投·我保·他没错·不可能是他” 0.40。
+- 读取：`_ai_vote_target` 情绪先于从众（grudge≥0.6 时按 `voteGrudgePull/10` 砸票）；
+  `isPatron`（trust≥0.8）在 almost / 公开指认 / bestSus / 综合评分四处都不过票。
+
+### 4. 口供史 `claimHist` + 描述失真 `DESC`
+
+- `claimHist`：`record_claim` 每场记 `{night, room, roomId}`，只留最近 3 场、跨夜 carry；
+  `on_meeting_open` 对每位 AI 比较上一场口供，房间变了就让另一个 AI 说一句
+  `claim_recall`（`{r}`=本次、`{r2}`=上次）—— **只说不判，不产生任何 sus**。
+- `note_testimony`：DESC 失真原本已实现（房/动作/权重折扣），本批修两处：
+  - 听众的 `heard` 窗口改用 **DESC 后**的种类；
+  - 一次证言只写 **一条** `why`（原先 `sus_add` + `_push_why` 双写，且
+    `heard_testimony` 被 `evalAlmost` 当成实证种类）。
+
+### 5. 构陷 / 大义灭亲编排补齐（`js/game.js:5820-6112`）
+
+- `plan_alien_deception`：反咬时补“我没钻过管道/没出过刀…”的否认前缀；补靶子回应、
+  真目击者重申；补 `defended_suspect`（替已被确证者帮腔，人类听众反过来怀疑附议者）；
+  假口供 `accuseWhy` **不再标 solid**，也不再直接 `note_accuse`（2.5D 不进 ctx.lead）；
+  返回 `by/co` 供下一段去重。
+- `plan_mate_bus`：补 `used`（本场构陷的说谎者/附议者不再卖队友）、时间词、按
+  `bestKnownTarget(w)` 过滤听众；`accuseWhy` 去 `solid` 与 `note_accuse`（软构陷）。
+
+### 6. parity 对账收口
+
+- `check-parity.cjs` 新增 `SOURCE_LITERALS`：20 个 2.5D 源码字面量逐项带
+  `js/game.js:行号`，扫描时**回读该行验证数字存在**；上游改行会直接 FAIL，
+  不会把新阈值静默当成已核对。`3d:parity:check` 现在 **0 WARN**。
+- `PORT-DIFF-AUDIT.md` 新增 §J：`buildMeetCtx` 字段 → 3D 存储/消费方逐字段映射
+  （等价实现，不另造对象）。
+
+### 7. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败**（parity **0 WARN**） |
+| Godot 自测 | **32 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--socialtest`） |
+| `--socialtest`（新增） | **6/0**：grudge/trust/patron · grudge 砸票 · patron 不过票 · claimHist/claim_recall · evalAlmost（WEAK/foe/stale/heard/friend） · DESC+单写 |
+| `--aiporttest` | **13/0**（新增身份轴/距离乘子/暴露度/寻人点/特征系数） |
+| `--speechtest` / `--meetingtest` / `--aittest` | `11/0` · `ok=true` · `prog=23/45 knife=7 kill=7`（只作记录，不作验收） |
+| `baseline:check` | 454 文件 OK |
+
+> 按 `AGENTS.md` §五.7：没有采新的平衡读数，改动依据全部是 `js/` 行号与真人行为。
+
+## 2026-11-10 · 第 15 批：局内小地图（UI 收尾）
+
+用户指令「继续」。上游 `baseline:sync` 复核：454 文件内容相同、0 更新。
+真源：`js/game.js:10507-10632`（`drawMini`）。
+
+### 1. 小地图（`js/game.js:10507-10632`）
+
+- 新增 `scripts/minimap.gd`，贴 HUD 右上角（240 宽，`98×94` 等比）：
+  - 房间轮廓 + **短名**（2.5D `SHORT`：bridge→会议室 等）；亮/暗按
+    `lightState` 三态（0 常态 / 1 全亮 / 2 只会议室）与房间 `light` 字段。
+  - 走廊双描边（断电变灰）；每 10 格蓝图网格；标题「船体蓝图」+ `98 × 94`。
+  - 8 个管道口（紫色菱形）、电闸金色、补给/监控/机器人绿色（医疗/保安读运行时坐标）。
+  - **自己的剩余任务**：高难红 / 普通蓝 + 白环；其他任务点 0.22 透明暗点。
+  - 故障红脉冲、待领申请单圆桌金脉冲、玩家金色脉冲（旁观/死亡青色）。
+  - 图例：高难 2分 / 普通 1分 / 管道。
+- **不画其他活人/尸体**（2.5D 正常对局也不画，只有 DEV 才画 —— 防透视）；
+  不可点击、不受迷雾影响（2.5D 同口径）。
+- 房间名 / 供电读数挪到地图下方（右侧对齐），不再和小地图抢右上角。
+- 每 0.1 秒重绘（2.5D 每帧；小地图不需要 60fps）。
+
+### 2. HUD 补「报告余量 / 本夜夜会数」
+
+2.5D 规则「报告是稀缺资源，HUD 必须显示」：新增 `报告 N · 夜会 N/2`
+（个人 `reportLeft` + `night_meets` / `MEET.perNight`），不再只藏在交互里。
+
+### 3. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| Godot 自测 | **31 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--minimaptest`、`--minishot`） |
+| `--minimaptest`（新增） | **4/0**：尺寸+点击穿透 · 灯态三态 · 任务点与 `remaining_tasks` 同源 · 地图数据齐全 |
+| `--minishot`（新增） | 实拍 `preview/screenshots/minimap3.png` |
+| `--settletest` / `--mousetest` / `--meetuitest` / `--aiporttest` | `5/0` · `5/0` · `23/0` · `10/0` |
+| `baseline:check` | 454 文件 OK |
+
+> 按 `AGENTS.md` §五.7：没有采新的平衡读数。
+
+## 2026-11-10 · 第 14 批：结算页身份表 + 逐人投票矩阵（UI 收尾）
+
+用户指令「继续我们的同步项目」。上游 `baseline:sync` 复核：454 个文件内容相同、0 更新，
+本轮只做 3D 侧移植。真源：`js/game.js:4802-4838`（#e-ids / #e-votes）、
+`js/game.js:7669-7672`（closeVote 终票落事件）、`js/ui/templates.js:332-339`（#end 结构）。
+
+### 1. 终票按会议 `seq` 落账（`js/game.js:7669-7672`）
+
+- 新增 `sim.meet_seq`：每场会议 +1，`meeting.seq` 随会议对象走；每局 `new_game` 归零。
+- `_close_meeting()` 逐人写 `vote` 事件（带 `seq`）；`cast_vote()` **不再**逐次写 `vote`
+  （2.5D 只在关票时落终票），改票仍写 `vote_change`（带 `seq`）——`--b6test` 的改票断言保持。
+- 这样结算页可以按场次分组还原「谁投了谁」，且与 2.5D 的事件口径一致。
+
+### 2. 死亡地点 `downRoom` / `deathRoom`（`js/game.js:2153-2163` bodyInfo）
+
+- `knife` / `shoot` 倒地时记 `downRoom`；`die()` 把它落到 `deathRoom`（空则按尸体位置补）。
+- 结算身份表因此能显示「被出刀 · 中央会议室」，拖尸不会改死亡地点。
+
+### 3. 结算页（`js/ui/templates.js:332-339` + `js/game.js:4802-4838`）
+
+- 新增独立 `settle_panel`：标题 / 胜因 / 维修与夜数 + **本局身份** + **谁投了谁** +
+  固定按钮「再来一局 / 查看复盘」；表格区独立滚动，按钮始终第一屏可见。
+- 本局身份：15 席，阵营（异形红 / 人类蓝）、结局（存活 / 濒死存活 / 被驱逐 / 被出刀 /
+  被枪杀 / 天亮失血）、死亡地点、`刀在 N 号`。
+- 谁投了谁：按 `seq` 分组，逐场列出 `名字 → 目标` / `→ 弃权`；没有投票则显示
+  「本局没有进行到投票」。
+- **阵亡提示不泄露身份**：玩家死亡但局未结束时仍只显示原来的 `end_panel`（「你已阵亡」），
+  只有 `sim.over` 才显示结算页；重开 / 退出主页时两层都隐藏。
+- 实拍：`preview/screenshots/end-settle.png`（1280×720，15 行 + 矩阵 + 按钮全可见）。
+
+### 4. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| Godot 自测 | **30 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--settletest`、`--endshot`） |
+| `--settletest`（新增） | **5/0**：终票按 seq 落账 · 改票只记 vote_change · 矩阵含弃权 · 身份表 15 行含地点/刀在 · 阵亡态不泄露身份 |
+| `--endshot`（新增） | 结算页实拍（见上） |
+| `--uitest` / `--meetuitest` / `--mousetest` / `--aiporttest` | `OK` · `23/0` · `5/0` · `10/0` |
+| `--simtest` / `--b6test` / `--meetingtest` | `26/0` · `6/0` · `ok=true` |
+
+> 按 `AGENTS.md` §五.7：本批没有采新的平衡读数；门禁/自测只回答「有没有写坏」。
+
+## 2026-11-10 · 修复：鼠标被框在游戏窗口里（Esc 释放无效 / 截图工具拖不出去）
+
+**现场**：用户反馈「鼠标会被框在某个区域无法移动」「打开游戏截图时会被框在游戏栏」。
+
+### 根因
+
+- `player.gd` 在 Esc 时把 `Input.mouse_mode` 设成 `VISIBLE`，但 `main.gd` 的
+  `_refresh_mouse_mode()` **每帧**都会跑，没有任何面板时又设回 `CAPTURED` ——
+  Esc 的效果只维持一帧，玩家看到的就是「怎么都放不出去」。
+- 另有四处**无条件 CAPTURED** 会在关闭界面时把光标锁回去，即使玩家先按过 Esc：
+  `ui_panels.close_all()`、`_close_pipe_ui()`、小游戏 `_hide()`、会议关闭分支。
+- `MOUSE_MODE_CAPTURED` 会把光标裁在游戏窗口内，所以打开截图工具时拖不出选区。
+
+### 修法（鼠标口径统一由 `main.gd` 管理）
+
+- 新增 `mouse_released` 状态：Esc 切换、点击画面收回；`_refresh_mouse_mode()`
+  改为 `VISIBLE if (mouse_released or _want_mouse_visible()) else CAPTURED`。
+- **窗口失焦自动释放**（`NOTIFICATION_WM_WINDOW_FOCUS_OUT` / `NOTIFICATION_APPLICATION_FOCUS_OUT`）：
+  切到截图工具 / 别的窗口时光标立刻自由；点击游戏窗口再收回。
+- 结算 / 阵亡面板加入 `_want_mouse_visible()`（「查看复盘」按钮必须点得到）。
+- 删除 `player.gd` 的 Esc / 点击分支、`ui_panels.close_all()` / `_close_pipe_ui()` /
+  小游戏 `_hide()` / 会议关闭分支里的无条件 CAPTURED；小游戏的 `capture_on_close`
+  字段一并删除（没有人再读它）。
+- 新一局 `_on_start` 重置 `mouse_released=false`；HUD 提示改为「Esc 释放/收回鼠标」。
+
+### 实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `--mousetest`（新增，真实窗口） | **5/0**：自由游玩 CAPTURED · Esc 后 20 帧仍 VISIBLE · 点击收回 · 会议开关 · 释放状态不被会议吞掉 |
+| `--uitest` / `--meetuitest` / `--actiontest` / `--knifetest` | `OK` · `23/0` · `OK` · `OK` |
+| `--simtest` / `--aiporttest` | `26/0` · `10/0` |
+| `npm run check` | **6 通过 / 0 失败** |
+
+## 2026-11-10 · 第 13 批：异形挑目标回归真源 + 判定层残项（A 档）
+
+用户指令「继续」；本轮执行上一轮登记的 A 档。所有改动以 `js/` 行号论证，
+**未采新的平衡读数**（`AGENTS.md` §五.7）。
+
+### 1. 取消全图锁敌（`js/game.js:3849-3896`，2026-11-03 用户裁定）
+
+- 3D 原先遍历所有活人的**实时坐标**打分；现在只有三档：
+  ① 现在看得见 → 实时位置；② 看不见但本夜 `saw_agent` 记忆 ≤ `HUNT.memorySec`(25s)
+  → 用最后目击位置；③ 完全没印象 → **不进候选**（只能巡逻 / 钻管道 / 破坏）。
+- 同步补 2.5D 同块的四条：被拘留者不进候选、队友已在追的目标 +8 格当量
+  （`mateOnIt`）、`HUMANISH.pull` 拉近最多 6 格、被晾目标（`_avoid`）降为兜底。
+- 去掉 3D 自加的「目标承诺 −5 格折价」与 `_tgtI` 字段（2.5D 没有这个机制）。
+- 无目标 + 没刀 → 随机游荡（`js/game.js:4151-4155`）；有刀原地等下一拍（真源同）。
+
+### 2. `humanT` + `HUMANISH`（`js/game.js:1969-1977 / 2037-2045 / 3879-3888`）
+
+- 异形目击**合闸**：rad 6 + LOS + 非队友 → `humanT +0.28`（上限 1）；
+  跨夜 `keepEmo` ×0.8、<0.05 遗忘（`js/t2/ai.js:280`）。
+- 挑目标时 `−HUMANISH.pull × humanT`（最多拉近 6 格）；不写 `known` / `mates`。
+
+### 3. `saw_red` 5 秒节流（`js/game.js:1352-1360`）
+
+- 同一段红光（`redT` 1.5s）原先每 0.5s 写一条，1.5 秒写 **3 条** `saw_red`
+  （每条约 0.85 sus）；现在每 5 秒最多一条，红身窗口正常只写 1 条。
+- 同时修 `note_sight` 的**重复记账**：`sus_add` 与 `_push_why` 各写一条 `why`，
+  一次目击变两条；现在一次目击只写一条（`far` 标记保留）。
+- `eval_almost` 不再把时间线记录 `saw_agent` / `saw_body_moved` 当成证据种类
+  （2.5D 这两类只进 `mind.mem`、不进 `why`，否则「见过他」本身就算一条敌性证据）。
+
+### 4. `lastBody` / `saw_body_moved` / `near_body`（`js/game.js:2165-2190`）
+
+- 尸体观察改单槽 `{i, sig}`：alive/downed/伤口/移动/搜过/舱室 任一变化才重写。
+- 尸体被移动过 → 追加 `saw_body_moved`（`sequenceCue` 的弱线索原料）。
+- 同舱 8 秒内见过的人各记一笔 `near_body` 0.16（只说明"他在附近"，不能定罪）。
+- 新增 `bodyMoved` 字段：拖行 >1.2 格才置 true（`js/game.js:2438-2440`）。
+
+### 5. `aiIdleRoam` + `avoidSeen`（`js/game.js:2312-2363 / trackNight:1325-1340`）
+
+- 人类 AI 任务做完不再站桩：修故障 → 领申请单 → 危险时跟 cred/warm 最高的人
+  （`WARM.followChance` 0.45）→ 躲开最怀疑我的人（`audSusEstimate > 0.45`，
+  距离 8~12 格）→ 随机巡舱。
+- `_avoidHuman` 粘性（2.5D `startNight` 不清它）；被回避者 6 格内看见 →
+  `saw_avoid` 0.10，每夜一次，记在**观察者**身上。
+- 拨正 `audSusEstimate` 的方向：2.5D 是「他指认我 / 他看见我」，3D 原实现读成
+  「我指认他 / 我看见他」（该函数此前无调用方，接 idle roam 时才暴露）。
+
+### 6. 未同源（如实登记，不是立项）
+
+- 异形目标评分的剩余简化：trait 系数（`knifeWatcherPenalty` / `knifeBusyBonus`）、
+  `exposureAt` 全量、`hostileProb` / `targetDistMul` 身份轴、无目标时的
+  `huntSpotFor` 管道寻人。
+- `claimHist`（口供史，纯台词消费）、`trust` / `grudge` 两条情绪通道
+  （3D 用 `warm` 承接辩护；`grudge` 目前只衰减、不写入）。
+- 其余见 `PORT-DIFF-AUDIT.md` §C/§G。
+
+### 7. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| Godot 无头 + 真实窗口自测 | **28 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--aiporttest`） |
+| `--aiporttest`（新增） | **10/0**：看得见优先 · 无记忆不选 · 25s 记忆 · 过期跟丢 · humanT 拉近 · 合闸 +0.28/封顶 · `saw_red` 1/1/2 · `saw_avoid` 每夜一次 · idle roam+躲避 · humanT 跨夜 ×0.8 |
+| `--aittest` | `prog=17/45 tasks=14 qual=4 supply=1 knife=4 kill=3 sab=1 meet=7 eject=4`（只作记录，不作验收） |
+| `--simtest` / `--meetingtest` / `--speechtest` / `--b4test` / `--leadtest` / `--b6test` | `26/0` · `ok=true` · `11/0` · `8/0` · `5/0` · `6/0` |
+| `--uitest` / `--meetuitest` / `--actiontest` / `--knifetest` | `OK` · `23/0` · `OK` · `OK` |
+
+## 2026-11-10 · 第 12 批：会议 UI 功能同源（模板 / 席位号 / 弃权 / 先投改票 / 跳过投票 / 只读）
+
+用户指令：「2.5D 版本逐步移植到 3D 版本中来」；本轮按裁定只做**会议 UI 功能层**。
+逐条对照 `js/game.js` / `js/ui/templates.js` / `js/t2/decision.js`，不改任何判定数值。
+
+### 1. 投票区（2.5D renderVoteButtons，`js/game.js:7413-7447`）
+
+- **讨论期就能投、投票结束前都能改**：3D 原先 `b.disabled = phase != "vote" or voted`，
+  第 4 批已移植的 `sim.cast_vote`（支持 discuss + 改票）玩家根本点不到。
+  现在两期共用同一个投票区，`close_vote` 前不锁定。
+- 席位按钮带补零编号 `01–15`（`tagName`，`js/t2/decision.js:40-41`），排除自己与死者，
+  **濒死者仍可被投**（2.5D 只过滤 `!a.alive`；3D 原先把 downed 一起排除了）。
+- 末位「弃权」按钮写 `-1`；当前目标金框高亮；改票仍写 `vote_change` 事件。
+
+### 2. 跳过投票（`js/game.js:10898-10903`）
+
+- 新增 `sim.skip_vote()`：只结束剩余投票时间；**已经投给谁就保留那一票**，没投才记
+  `-1`；不修改任何 AI 票，也不是第二种票。
+- 仅投票期、仅可行动者（活着且未濒死、非旁观）可用。
+
+### 3. 会议信息三行（`js/ui/templates.js:315-319` / `js/game.js:6944-6949`）
+
+- 报告地点 / 发起报告 / 伤者（死者 / 濒死者）。
+- 案发地点按尸体 / 濒死者**清场前**的身体位置算（`open_meeting_kind` 新增 `room`/`in_corr`，
+  `js/game.js:6908-6911` 同口径），走廊与未知位置分开标。
+
+### 4. 8 个一键模板 + 对象 / 舱室下拉（`js/game.js:6812-6873 / 10878-10891`）
+
+- 怀疑 / 投他 / 作证 / 看见钻管道 / 看见红光 / 看见出刀 / 我在… / 不是我。
+- 句式逐条照抄 `meetTemplateText`；管道句只在该舱有管道口时附地点；
+  对象下拉默认「未选择」，空对象点「怀疑」只提示「先选对象」、不发言。
+- 「投他」只记公开意向（`meeting.player_intent`），**不替玩家落票**：
+  2.5D 里它对应 `ctx.playerVote`（`js/game.js:6566`），真正落票只有点席位一条路。
+  3D 原先在进投票期时自动 `cast_vote(player_intent)` —— 这是 2.5D 没有的机制，本批去掉。
+- 下拉数据源：对象 = 活着的其他席位；舱室 = map_v2 十舱 + 走廊，默认当前舱。
+
+### 5. 幽灵 / 旁观只读会议（`js/game.js:6933 / 6951-6961 / 7417-7419 / 7468-7469`）
+
+- 玩家死亡或旁观时**面板保留**（可读发言 / 标题 / 伤者 / 结果），输入、模板、投票区全部关闭；
+  旁观者可「跳过讨论（旁观）」，幽灵只能等计时器。
+- 3D 原先玩家一死就隐藏整个会议面板，把复盘信息也一起藏了。
+- 会议开场补一行系统提示（新增 `speech.sys_say`，2.5D `js/game.js:6971`）。
+
+### 6. 发言流「↓N 条新发言」（`js/game.js:4954-4974`）
+
+- 玩家滚上去读旧发言时**不强行跟底**，只累计「↓ N 条新发言」；点一下回到底部并清零，
+  手动滚回底部也清零。3D 原先 `scroll_following=true` 永远跟底。
+
+### 7. 结果页按「过程不可见」收敛（`js/game.js:7719-7736`）
+
+- 只公布**聚合票数 + 弃权数 + 门槛结论 + 身份**；逐人投票矩阵不再出现在会议里。
+- 登记：2.5D 的 `#e-votes` 逐人矩阵属**结算页**，3D 结算页尚未迁（见下「未同源」）。
+
+### 8. 未同源（如实登记，不是立项）
+
+- 结算页身份表 `#e-ids` 与逐人投票矩阵 `#e-votes`（会议里已按 2.5D 隐藏过程）。
+- 局内小地图（2.5D HUD 右上常驻船体蓝图）。
+- `humanT` + `HUMANISH`、`claimHist`、`seenT/lastBody/redSeen/avoidSeen` 等判定层残项（本批未动）。
+- 三栏像素布局保留为表现层差异（功能项已齐）。
+
+### 9. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| Godot 无头 + 真实窗口自测 | **27 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--meetuitest`） |
+| `--meetuitest`（新增） | **23/0**：模板 8 个 · 空对象拦截 · 投他只记意向 · 讨论期投票/改票/弃权 · 跳过投票 · 夜会信息行 · 幽灵/旁观只读 · 新消息提示 |
+| `--uitest` | 跳过按钮在屏内（rect `(460,170) 360×30`）· 点击推进 · 会后位移 3.20 |
+| `--speechtest` / `--meetingtest` / `--b4test` / `--leadtest` | `11/0` · `ok=true` · `8/0` · `5/0` |
+| `--navtest` / `--simtest` / `--b6test` / `--bottest` | `28/0` · `26/0` · `6/0` · `7/0` |
+| `--tasktest` / `--reachtest` / `--floortest` / `--mgtest` | `26/0` · `26/0` · `0 失败` · `14/14 + 26/26` |
+| 实拍 | `preview/screenshots/meet-discuss.png` / `meet-vote.png` / `meet-result.png` |
+
+> 按 `AGENTS.md` §五.7：本批**没有采新的平衡读数**，改动依据全部是 `js/` 行号与
+> 「真人会不会这样」，门禁/自测只回答「有没有写坏」。
+
+## 2026-11-10 · 第 11 批：同步最新 2.5D + 出手/交互/旁观者三处现场问题
+
+### 1. 基线重同步（上游又动了 14 个文件）
+
+`baseline:sync`：16 个文件更新，清单 454。语义变化只有三处：
+
+| 上游改动 | 3D 跟随 |
+|---|---|
+| `SKSanity.STAND`：`qual 3→0`、`ammo 7→5`、`med 5→3` | `space.json` / `sim.json` 自动重导；补给站桩改读新值 |
+| 领申请单改成 **`grantQual` 交互即领**（无站桩、无小游戏） | 新增 `_claim_qual_now()`：`stand.qual<=0` 直接结算；**AI 侧 `ai_human` 同步**（否则 `start_doing(dur=0)` 报错、AI 永远领不到单，`--aittest` 的 `qual` 直接掉到 0） |
+| 管道口换成写实精灵、`map.js` 掩体 124→123 | 重导 `map_v2.json`（123 件）；管道口是美术，3D 用 `prop_pipe_port.glb`，不动 |
+
+`port-manifest` 的 `X-BIND` 末行随 `js/game.js` 缩短（11873 → 11870）。
+
+### 2. 异形无法出手：机制没坏，是**没告诉玩家按哪个键**
+
+先把链路钉成可执行断言：新增 **`--knifetest`**（异形开局 → 目标放在正前方 1.0m →
+派发**真实左键** → 必须放倒 + 扣刀）。实测 `命中=true 剩余刀=0`，**判定链是通的**。
+
+真正的问题是可发现性：3D 的出刀是**鼠标左键**（2.5D 是 `A`，但 3D 的 `A` 是左平移，不能复用），
+而 HUD 只写了「WASD / E / 鼠标视角」，**压根没写攻击键**；刀用完时点击也毫无反馈。
+
+- HUD 提示改为：`WASD 移动 · E 交互 · 鼠标左键出刀 · 右键开枪 · 鼠标视角 · P 设置 · Esc 释放鼠标`
+- `_player_knife` 补「本夜的刀已用完（每夜 1 把，天亮补）」提示
+
+### 3. 移除 Shift 冲刺
+
+2.5D 只有 `MOVE_SPEED` 一档，没有玩家冲刺。删掉 `sprint_multiplier` 与 `KEY_SHIFT` 分支，
+HUD 同步去掉「Shift 加速」。
+
+### 4. 交互：按 E 没反应时给反馈 + 申请单交互即领
+
+- `_collect_offers()` 为空时按 E 原本**完全静默**，玩家会以为"交互坏了"
+  （2.5D 的用户裁定「点错要有反馈」同样适用于按键）。现在 toast：
+  「附近没有可交互的东西 —— 走近设备 / 尸体 / 电闸 / 圆桌再按 E」。
+- 圆桌领申请单：`stand.qual<=0` 时交互即领，不站桩（旧数据仍退回站桩）。
+
+### 5. 旁观者：向上飞可透视、向下穿被挡住
+
+用户口径：上层/下层只是"贴板"，作用是别让人掉进虚空；旁观者向上穿时要能看到完整剖面。
+
+- `map_builder` 把天花板整层（舱室顶面 / 走廊顶面 / 灯带）收进 `_ceil_nodes`，
+  新增 `set_ceiling_visible()`；
+- `main._update_spectator_view()`：旁观者飞到 `CEILING_Y(3.2)-0.15` 以上 → 整层隐藏，
+  回到舱内 → 恢复；非旁观者永远可见；
+- `player.gd` 旁观者高度夹取 `y ∈ [0.35, 60]` —— **不允许穿到地板以下**。
+
+实测截图（`--shot --above`）：俯视是一整张剖面，各舱按主题色分区。
+新增 **`--specttest`**：舱内保持 / 飞越隐藏 / 下穿夹取到 0.35，**3 项全过**。
+
+### 6. 明确不做（美术栏）
+
+角色目前是 billboard 贴图；改成实际建模属「部分美术素材」允许差异，**排在美术栏**，
+不在本批判定层。已登记 `parity-map.json#allowed_differences`。
+
+### 7. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| Godot 无头自测 | **26 项全部 exit 0 / 0 条 `SCRIPT ERROR`**（新增 `--knifetest`、`--specttest`） |
+| `--knifetest` | `异形=true 命中=true 剩余刀=0` |
+| `--specttest` | `舱内保持=true 飞越隐藏=true 下穿 y=-5 → 0.35` |
+| `--interacttest` | `领取 done=true qual_pending=0 qual=1`（交互即领） |
+| `--aittest` | `prog=32/45 tasks=23 qual=9 supply=7`（AI 恢复领单/补给） |
+| `--tasktest` / `--reachtest` / `--navtest` / `--simtest` / `--floortest` | 26/0 · 26/0 · 28/0 · 26/0 · 0 失败 |
+
+## 2026-11-10 · 修复：开局会议「跳过讨论」被挤出屏幕（玩家卡在界面里）
+
+**现场**：用户从桌面快捷方式启动后反馈「玩家仍然无法正常操作，以及跳不过界面」。
+
+### 原因一（本次改动引入的回归）
+
+第 4 批按真源把**投票区也显示在讨论期**（`js/game.js:7436` 允许讨论期先投）。
+但会议面板是一个**居中、不滚动**的 `VBoxContainer`：
+14 个席位按钮 ≈ 472px，加上标题/计时/发言流/输入框，「跳过讨论」被推到 **y≈850**，
+而视口只有 720 —— 按钮在屏幕外，玩家点不到、也走不了（会议期间移动是锁的）。
+实测自证：面板总高 ≈ 908px > 720px。
+
+- `meeting_list` 包进 **200px 高的 ScrollContainer**（内部滚动），面板高度回到 ~600px；
+- 整块内容再包一层 **ScrollContainer 兜底**，以后再长也够得着；
+- **「跳过讨论」提到标题正下方**（`box.move_child(..., 2)`），并重排成
+  标题 → 跳过 → 提示 → 发言流 → 输入 → 投票区 → 结果。跳过按钮是逃逸阀，
+  不能放在可能被挤出的位置，也不该要求玩家先想到滚动；
+- 新增 **`--uitest`**（真实窗口 + 真实鼠标事件）：
+  `跳过按钮 rect=[P:(360,74) S:(560,30)] 视口=(1280,720) 在屏内=true` →
+  真实点击后 `phase=""`（会议推进）→ `位移=3.20 ui_locked=false`。
+
+### 原因二（用户此前启动的是旧仓）
+
+桌面快捷方式原先指向 `新返航录\3d\preview`（分离前的 3D）。
+旧仓**没有** `_want_mouse_visible()` / `_refresh_mouse_mode()`（全场 0 处），
+只有 3 处零散的 `MOUSE_MODE_VISIBLE` —— 也就是分离后第 4 批修的那个 P0
+（会议/轮盘/小游戏打开时鼠标仍被捕获，按钮点不动）在旧仓里**根本没修**。
+快捷方式已在第 10 批改指向本工程；本次用**快捷方式里的绝对路径**复跑 `--uitest`，
+按钮在屏内、点击有效、会议后可走。
+
+### 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `--uitest`（新增，真实窗口 1280×720） | `OK 0 项失败`：按钮在屏内 · 点击推进会议 · 会议后位移 3.27 |
+| `--e2e`（真实窗口） | `open=true label=电路维修 kind=wire` → `closed=true unlocked=true` |
+| `--uitest`（快捷方式绝对路径） | 同上，`OK 0 项失败` |
+| 运行期脚本错误 | 0 条 `SCRIPT ERROR` |
+
+## 2026-11-10 · 第 9 批：差异登记 + 全量验收
+
+### 1. `allowed_differences` 逐条登记（4 → 7 条）
+
+新增三条「为什么 2.5D 不需要」，都是本批真正**只属于 3D** 的东西：
+尸体记忆的存储形态（`bodySeen` vs 2.5D 的 `mem` 时间线）、
+小游戏卡片开着的移动锁（2.5D 点击移动被遮罩天然挡住，3D 的 WASD 必须显式锁）、
+照明三态的场景落地（2.5D 用 canvas 遮罩，3D 要逐灯切 visible/emission/环境光）。
+
+### 2. `PORT-DIFF-AUDIT.md` §C 逐条结清
+
+7 条「未做」里 6 条标记为已落地并写明批号；只剩 `humanT`+`HUMANISH` 整套、
+`claimHist`、`seenT/lastBody/redSeen/avoidSeen`、`buildMeetCtx/remainMs`（等价实现，记录口径差）、
+parity 的 19 条非真源小数 WARN（已核对是真源字面量，不导出以免造第二份定义）。
+
+### 3. 又清掉两条既有坏账
+
+- `--taskflowtest`：与 `--mgtest` / `--devicetest` 同一个坑（会议开着就把卡片收掉），
+  旧夹具恒报 `open=false`。补 `_finish_meeting(sim)` 后
+  **`TASKFLOW ok=true open=true tIdx=0→1 prog=0→2 pts=2`**。
+- `--e2e`：加 `--quit-after` 后正常走完，**`E2E open=true label=电路维修 kind=wire`**。
+  （真源输入链：E → 小游戏 → 收起，不靠 `skip_discussion()` 作弊绕开局会议。）
+
+### 4. 全量验收（2026-11-10 实跑，Node + Godot 无头）
+
+| 门禁 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败**（assets / import / port / events / lines / parity） |
+| `npm run 3d:floor:check` | `FLOOR-SPEC OK（11 项）` |
+| `npm run baseline:check` | `BASELINE OK 452 个文件` |
+| `sync-cover-height --check` | `61 项 · 需更新 0 · 低于 1.7m 0 件 · 一致` |
+
+| Godot 自测 | 读数 |
+|---|---|
+| `--tasktest` | `点=26 失败=0` |
+| `--reachtest` | `点=26 走不到=0 缺设备=0` |
+| `--navtest` | `pass=28 fail=0 walkable=5936` |
+| `--simtest` | `pass=26 fail=0` |
+| `--floortest` | `舱=10 失败=0`（原 4） |
+| `--walktest` | `OK 1/1`（原恒 0.0） |
+| `--powertest` | 三态 10/10 · 拉闸 3/6/9/9s · 合闸 4.5s |
+| `--interacttest` / `--actiontest` | 全项 · `5/5 + 5/5` |
+| `--devicetest` | `open=true locked=true → closed=true unlocked=true` |
+| `--mgtest` | **`14/14` + `26/26` 标签**（原 `0/10`） |
+| `--bottest` | `pass=7 fail=0` |
+| `--b6test` | `pass=6 fail=0`（原 5/1） |
+| `--leadtest` | `pass=5 fail=0`（新增） |
+| `--meetingtest` | `ok=true ejected=1 buttons=14` |
+| `--speechtest` | `pass=11 fail=0 席位号=4/4` |
+| `--aittest` | `prog=23/45 meet=7 eject=5` |
+| `--arttest` / `--audiotest` / `--roletest` / `--hometest` / `--b4test` | 全通过 |
+| `--taskflowtest` | `ok=true`（原 `ok=false`） |
+| `--e2e` | `open=true kind=wire`（原有超时坏账） |
+| 运行期脚本错误 | 全部自测 **0 条** `SCRIPT ERROR` |
+
+> 平衡读数：**本批没有采新的 1000 局**（§五.7 验收层边界）。
+> `3d-sim1000.md` 仍是第七批之前代码的读数，不代表当前代码。
+
+## 2026-11-10 · 第 8 批：保安机器人判定回归（losWalls / 追捕超时 / 押送 / 目击）
+
+### 1. `losWalls`：保安不能用自己的机位挡住自己
+
+真源 `js/engine/geo.js:155` 有独立的 `losWalls`（**只算墙体**），注释写明原因：
+「保安机器人坐在安保位家具里，用 los() 会被自己的机位挡住」。
+3D 的 `on_crime` 一直用 `nav.los()`（含掩体），于是保安在自己岗位上几乎永远"看不见"。
+
+- `grid_nav.los_walls()` 新增；
+- `bots.on_crime` 与新的 `bots.would_see()` 都改用它。
+
+### 2. `would_see`：AI 出手前的预判
+
+真源 `secbotWouldSee`（`js/game.js:4540`）：死亡 / 额度用完 / 超 6m / 挡墙 / 超出 180° 扇形
+任一成立就看不见。3D 补同名能力，并在异形进入出刀距离前接上
+（`js/game.js:4146`：看见就 `_secAvoidT=2.5` 收手一拍）。
+
+### 3. 追捕状态机
+
+| 项 | 3D 旧行为 | 现在的行为（真源） |
+|---|---|---|
+| 追不上 | 7 秒后**照样转押送** | 7 秒 → 放弃，`catch_state` 清空（`:secCatch=null`） |
+| 贴到人 | 直接进 escort | 先 **press 0.9s**（压制） |
+| 押送 | 人瞬移到机器人旁边 | **1.2s 定点 lerp**：人在起点与拘留位之间按进度插值 |
+| 拘留证据 | 无 | 压制瞬间 10m / 到位 8m 内看得见的人记 `saw_detain`（同一夜同一人一次，**不写 known**） |
+
+`_witness_detain` 走 `mind.note_sight` → `saw_detain` 不在 `ID_EVIDENCE` 里，
+所以只加嫌疑、不确证 —— 被抓的可能是开枪的人类。
+
+### 4. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--bottest` | **`pass=7 fail=0`**（新增「追捕 7 秒贴不到 → 放弃」断言） |
+| `--b6test` / `--simtest` / `--leadtest` / `--speechtest` | `6/0` · `26/0` · `5/0` · `11/0` |
+| `--mgtest` / `--actiontest` / `--powertest` / `--aittest` | `14/14` · `5/5` · 全项 · 运行期 0 条 `SCRIPT ERROR` |
+
+## 2026-11-10 · 第 7 批：追猎距离 + 中文席位解析 + 时间词
+
+### 1. `chaseKnown / chaseSus`：枪程外主动贴上去
+
+真源 `js/game.js:3877`：异形挑到目标后，`d < shootR` 且看得见就开枪，
+否则 `d < chaseR` 就**走过去**再开。`chaseR = 有确证 ? SHOT.chaseKnown(14) : SHOT.chaseSus(10)`
+—— 射程是能力（与玩家同一个 `SHOT.range`），追不追是**意愿**。
+
+3D 原先只有「枪程内 + LOS → 按概率开枪」，枪程外就完全不追，等于异形比真源更懒。
+现补上 `real_d ∈ (shootR, chaseR)` → `sim.set_path` 贴上去，`_aiT` 节流 0.3s。
+
+### 2. 中文席位号（`CN_SEAT`）
+
+`lines.json#cn_seat` 一直有表（一→1 … 十→10），但 `parse_speech` **从没读过它**，
+只会匹配 `"%d号"`。照真源 `js/t2/decision.js:96-99` 补两条正则：
+- `(?:第\s*)?0?([1-9]|1[0-5])\s*(?:号|席)` —— 「7号」「07号」「第7席」「12号」；
+- `([一二三四五六七八九十]{1,3})\s*(?:号|席)` + `cn_seat` —— 「第七号」「十二席」。
+
+`--speechtest` 增 4 条断言（`7号 / 07号 / 第七号 / 第7席`），**4/4**。
+
+### 3. 时间词：白天会议必须说「昨晚」
+
+真源 `whenWord()` 无参、自己读 `G.meet.kind==='day'`（`js/t2/decision.js:52`）。
+3D 的 `when_word(day)` 三个调用点全写死 `false`，等于白天开会也在说「今晚」。
+新增 `speech._when_word()` 统一按当前会议类型取值。
+
+### 4. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--speechtest` | `pass=11 fail=0 … 席位号=4/4` |
+| `--simtest` / `--leadtest` / `--meetingtest` | `26/0` · `5/0` · `ok=true` |
+| `--aittest` / `--bottest` / `--b6test` | 运行期 0 条 `SCRIPT ERROR` |
+
+## 2026-11-10 · 第 6 批：照明三态 + 电闸证据链
+
+真源 `refreshLight`（`js/game.js:678-690`）是**三态**：
+`0` 常态（只亮 `light==='bright'` 的舱）· `1` 电路修好（全舱全亮）· `2` 拉闸（只剩会议室）。
+3D 只有一个 `power_on` 布尔，等于把「电路修好」这一态压没了。
+
+### 1. `sim.light_state`（0/1/2）
+
+- `toggle_power` 照 `pullBreaker`（`:712-713`）：断电后合闸 → `power_fixed ? 1 : 0`；
+  供电时拉闸 → `2`。`breaker_pulls` **只在真的拉黑那一次** +1。
+- `power_on` 降级成派生值（`light_state != 2`），门的扫描锁、走廊灯、监控中断仍读它。
+- `sight_range_at` 认 `light_state == 1` → 任何舱都算亮舱（原先只有静态 `light==='bright'`）。
+
+### 2. 站桩时长改读唯一入口
+
+新增 `sim.breaker_pull_time()`：断电 → `breaker_on_time()`（修好 3s / 否则 4.5s）；
+供电 → `min(9, 3 × 本夜第 n 次)`。`main._breaker_offer` 不再自己算、也不再维护一份
+`_breaker_pulls`（那份计数已经跟着「3D 没有夜循环」而不复位，是错的口径）。
+
+### 3. 电闸证据链
+
+`toggle_power` 补两段语义相反的广播（2.5D `noticeAction` + `credBroadcast`）：
+- **拉闸断电**：6m 内看得见的活人走 `mind.note_sight(..., "saw_breaker")`，
+  `ID_EVIDENCE` 含 `saw_breaker` → 写 `known`（身份级）；
+- **合闸复电**：`mind.cred_broadcast("breakerOn")`，只加正向信任，
+  **不给任何人洗清**（人类也会合闸）。
+
+### 4. 场景侧
+
+`map_builder.set_light_state(st)` 替代 `set_power(bool)`：舱灯按 `bright` 与状态逐舱判，
+走廊灯 `st != 2`，常亮材质 / 环境光 / 补光同口径。`set_power(bool)` 保留为薄包装。
+
+### 5. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--powertest` | `供电 10/10 · 断电 rooms_on=0 ambient=0.055 · 复电 rooms_on=8（常态只亮亮舱）· 三态全亮 10/10 · 拉闸 3/6/9/9s · 合闸 4.5s` |
+| `--simtest` / `--b6test` / `--leadtest` | `26/0` · `6/0` · `5/0` |
+| `--aittest` / `--meetingtest` / `--actiontest` / `--interacttest` | 运行期 0 条 `SCRIPT ERROR` |
+
+## 2026-11-10 · 第 5 批：逐人跨夜复位（startNight / mindReset）
+
+真源 `startNight` 每夜给**每个角色**清掉 60 余项「只属于这一夜」的状态
+（`js/game.js:7800-7827`），`mindReset` 再单独处理跨夜记忆（`js/t2/ai.js:199-296`）。
+3D 的 `_start_night` 原先只复位刀数与 `sabUsed`，其余全部跨夜残留 ——
+第二夜开场就带着「昨晚的藏尸冷却 / 躲人计时 / 假动作名额 / 尸体报告计划」。
+
+### 1. 新增 `sim._reset_agent_night(a)`
+
+清掉：移动与站桩（path/pathI/moving/doing/_doing/target/_item）、拘留、
+拖拽与红身与击杀加速与眩晕（drag/draggedBy/redT/rushT/stunT）、
+报告与搜尸（_reportT/_reportBody/_reportMemo/_alienReports）、
+藏尸（_hideCD/_hides/_dragTo）、破坏与管道（_botCD/_pipeCD/_pipePlan/_pipeSeeks）、
+伪装（_fakeCD/_fakeKind/_sabDone/_sabT/_sabNight）、
+狩猎（_killAt/_lightGo/_fleeT/_aiT/_rv/_lie/_retract/_busTarget/_stuckN/_lastSaw/
+_avoid_i/_avoid_t/_tgtI）、当众合闸掷骰（_breakerWant/_breakerRollN）、
+会议残留（accuse/accuseWhy/_abstain）；活人清 `reported`。
+
+两处类型坑（都实测报过错，已写进注释）：
+- `_breakerRollN` 存的是**夜号字符串**，置 0 会让 `String()` 构造失败，必须置 `""`；
+- `_pipePlan` 的消费者是 `as Dictionary`，置 null 会「Invalid cast」，必须置 `{}`。
+
+### 2. `mind.reset_night()` 补齐跨夜记忆口径
+
+- **susNight 不再清零**：只保留「还活着的那批嫌疑」的夜戳
+  （`keepSusNight`）。原先一律清空 → 第二天所有存量都被判成「本夜无新证据」，
+  每夜多挨一次 `staleMul ×0.55`，跨夜嫌疑衰减比真源陡得多。
+- **trust / grudge 按场 ×0.8 衰减**（`keepEmo`，低于 0.05 才忘）。
+  原先这两条永不衰减，「被谁咬过／被谁护过」会一路背到终局。
+- **ally 跨夜保留**、**credWhy 跟着 cred 裁条目**、**rev 每夜归零**、
+  **bodySeen（第 3 批新增的尸体记忆）按夜清空**。
+
+### 3. 仍未同源（如实登记，不含糊）
+
+真源 `mindReset` 里还有 `humanT`（异形眼里「这人像人类」）、`claimHist`（口供史）、
+`seenT` / `lastBody` / `redSeen` / `detainSeen` / `avoidSeen` ——
+3D **没有这些字段，也没有对应机制**，本批没有凭空造一份空壳状态来「对齐」。
+它们连同 `HUMANISH` 整套判定一起记进 `PORT-DIFF-AUDIT.md` §C，第 9 批统一登记。
+
+### 4. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--simtest` / `--meetingtest` / `--speechtest` | `26/0` · `ok=true` · `11/0` |
+| `--leadtest` / `--mgtest` / `--devicetest` / `--actiontest` | `5/0` · `14/14` · `closed=true` · `5/5` |
+| `--aittest` / `--b6test` | `prog=23/45 meet=7 eject=5` · `6/0` |
+| 运行期脚本错误 | 全部自测 **0 条** `SCRIPT ERROR`（修前 aittest 11 条 / b6test 1 条） |
+
+## 2026-11-10 · 第 4 批：讨论期先投 + 听完改票
+
+真源 2026-11-05 用户裁定：「**讨论阶段就可以投，投票结束前都可以改**」
+（`js/game.js:7436-7439`）。3D 原先只有「讨论结束 → 一次性算票」，
+既没有先投，也就没有「听完改票」这回事。
+
+### 1. 收票相位放开
+
+`cast_vote` 原来只认 `phase == "vote"`，现在 `discuss` 也收（`m.votes` 从会议开始就存在，
+只有 closeVote 才结算，早投不会提前锁定）。会议 UI 的投票区也从「只在 vote 相位显示」
+改成「讨论与投票都显示」。
+
+### 2. `voteLean` / `castEarlyVotes`（`js/game.js:7239 / 7253`）
+
+新增 `sim.vote_lean(a)`：确证 → s=3（why=known）、准-确证 → 2.5、假说竞争 → 弃权、
+最强嫌疑 → 1。会议打开时 `cast_early_votes()` 把 **s≥2** 的人的票直接压上，
+并写 `voteMeta = {v, s, why, chg, early, rev, t}`。
+真源里的 `a.suspect` 档在 3D 不存在（第七批已删该字段），所以这一档没有搬。
+
+### 3. `votePressure` / `bestVoteTarget` / `reconsiderVotes`（`7351 / 7367 / 7411`）
+
+有人被公开点名后，`speech._emit_raw` 调 `reconsider_votes(说话人)`：
+- 声势 = 本场针对该目标的公开指控 ×（我对指控者的 cred，下限 0.5），**封顶 0.30**；
+- 新目标要盖过原判断 **0.10** 才动，再按 `0.35 + 0.34×cred` 掷一次；
+- `why == known` 的人**不松绑**（确信不因声势改票）；
+- 真改票走 `cast_vote`，由它记带 `from` 的 `vote_change`。
+
+### 4. 早投票的保留闸（`js/game.js:7539-7542`）
+
+进投票相位重新算票时，`early == 1` 且 `mind.rev` 没变过的人**保留原票**
+（`earlyKept` 计数），不重新猜。
+
+### 5. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--leadtest` | `pass=5 fail=0`（原 3 项，新增「讨论期先投」「known 早投票不被改」） |
+| `--meetingtest` | `ok=true ejected=1 buttons=14` |
+| `--speechtest` | `pass=11 fail=0` |
+| `--simtest` / `--aittest` / `--b6test` / `--mgtest` | `26/0` · `27/45` · `6/0` · `14/14` |
+
+## 2026-11-10 · 第 3 批：会议带头追责 + 快报案怀疑
+
+### 1. `meeting.lead` 从来没有被写过
+
+`sim_state.gd` 结算时读 `meeting.get("lead", -1)`，但**全工程没有一处写入**，
+于是 `settle_accountability(top, votes, lead)` 永远拿到 -1、退回「第一个投票的人」，
+带节奏的人根本没被追责，被冤枉的是随便一个投了票的。
+
+照真源补三处：
+- `open_meeting_kind` 建表时 `meeting["lead"] = {}`（目标 → 第一个带节奏的席位）；
+- 新增 `sim.note_accuse(accuser, target)`：只记**第一个**，后来的不覆盖
+  （`js/game.js:5181/5252/5294/5321` 四处写入口径一致）；
+- 结算改读 `lead[被逐席位]`。
+
+喊话侧接上五个入口：先发制人（opening）、反咬、队友洗白（bus）、COFRAME 协同附议、
+以及通用确证指控。真源里「只有有依据的指控才算带节奏」，所以通用段按
+`cat ∈ {known_accuse_hard, almost, evidence, confront, known_echo}` 或
+`accuseWhy.solid` 判定，纯情绪指控不进 lead。
+
+顺带补 `accuseWhy.solid`：真源的假口供是**具体**伪证（saw_knife / saw_pipe），
+听众眼里算硬证词，所以 `liar / opening / bus` 三处置 `solid: true`
+（`js/game.js:5178/5248`）。这让 `pub_solid_accusers` 从恒空变成真的能用。
+
+### 2. `quick_report`：报案太快的人会被怀疑
+
+真源 `js/game.js:5030-5041`：夜会、死者刚倒下 ≤10 秒时，
+**先看见过这具尸体**的人类给报案人记 0.24 嫌疑（reason/kind 都是 `quick_report`）。
+
+3D 缺两样东西，一起补：
+- **「看见尸体」这条记忆本来不存在**。真源是 `observeBody` 往 `mind.mem` 写 `saw_body`；
+  3D 没有 mem 时间线，改为 `mind.note_body_seen()` 落一张 `bodySeen` 表
+  （按夜记「见过这具尸体没有」），不加嫌疑、不写 `known`。
+  写入点在 `ai_human` 的尸体扫描里（5.4m + `ai_can_see`）。
+- `_quick_report_sus()` 在夜会打开时按 `age = now − deathAt ≤ 10` 结算。
+
+### 3. 夹具：`--b6test` 的射击站位被新掩体挡住
+
+地图回归 `map.js`（124 件）后，旧硬编码站位 `(80,75)` 与保安机器人 `(86.6,69.4)`
+之间多了 `armory_workbench`（81.5,70.4 / 3.2×1.8），`hit_bot` 的 LOS 判定直接返回 false，
+`B6TEST 机器人 HP h1=false h2=false`。改为从 `map_v2.facility.secbot` 推出站位
+（正下方 4.6m），地图再换布局也不用改测试。
+
+### 4. 新增 `--leadtest`（3 项）
+
+① `lead` 只记第一个指控者；② 快报案（3 秒）给目击者写入 `quick_report`；
+③ 反例：慢报案（30 秒）不写。**3/0 通过**。
+
+### 5. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--leadtest` | `LEADTEST pass=3 fail=0`（新增） |
+| `--meetingtest` | `ok=true ejected=1 buttons=14 phase=vote` |
+| `--speechtest` | `pass=11 fail=0` |
+| `--aittest` | `prog=27/45 tasks=18 meet=5 eject=3` |
+| `--b6test` | `pass=6 fail=0`（原 `5/1`，机器人 HP 夹具修复） |
+| `--simtest` / `--actiontest` / `--mgtest` | `26/0` · `5/5 + 5/5` · `14/14 + 26/26` |
+
+## 2026-11-10 · 第 2 批：小游戏 14 型补齐 + 失败惩罚全部取消
+
+**触发**：同一批移植（用户 2026-11-10）。2.5D 在 2026-11-09 取消了全部小游戏失败惩罚，
+并把 14 型玩法写进 `js/t2/minigame.js`；3D 还停在 10 型 + 四型降级 + 整组重来。
+
+### 1. 失败惩罚：真源里 `settle(false` 已为 0 次
+
+| 文件 | 旧行为 | 现在的行为（照真源） | 真源 |
+|---|---|---|---|
+| `mg_match.gd` | 错配 3 次 → `finish_fail("整组重来")` | 只提示「已配对的保留」 | `js/t2/minigame.js:887-895` |
+| `mg_place.gd` | 形状不符 → `_reset_all()` 整组复位 | 只取消当前选中，已放的保留 | `:616-619` |
+| `mg_wire.gd` | 接错线 → `_reset_all()` 整组复位 | 只松开当前线头，已接的保留 | `:515-518` |
+| `mg_pour.gd` | 溢出 / 不足 → `finish_fail` | 把这一杯倒掉重注，任务不重置 | `:741-742` |
+| `mg_swap.gd` | 型号不对 → `finish_fail` | 旧芯已取出，另选同型号即可 | `:775` |
+| `mg_aim.gd` | 脱靶 → `_hits = 0` 清零 | 已中的保留，只提示 | `buildAim` 脱靶分支 |
+| `mg_lever.gd` | 松手 → 每秒回落 2.4 | 松手保持进度，可分多次按住 | `:665-667` |
+
+`mg_place.gd` / `mg_wire.gd` 里已无人调用的 `_reset_all()` 一并删除。
+
+### 2. 补齐 4 型玩法（10 → 14）
+
+新增 `mg_sequence.gd`（顺序记忆）/ `mg_sort.gd`（分拣）/ `mg_valve.gd`（阀门）/
+`mg_code.gd`（编号），规则逐条照 `js/t2/minigame.js:944-1095`；
+`minigame_layer.gd` 撤掉 `BASE_FALLBACK`（sequence→match / sort→place / valve→lever / code→sync），
+14 型与真源 `BUILD` 一一对应。未知 kind 现在只回落到 place 并 `push_warning`，不再静默换玩法。
+
+### 3. 任务专属配置接进玩法（此前 10 个 builder 全部丢弃）
+
+真源每个任务点都有自己的参数（`cfg('n')` / `shapes` / `icons` / `lo` / `hi` / `rate` /
+`hold` / `targets` / `init` / `tol` / `hits` / `speed` / `zone`），3D 却只按难度档取数 ——
+例如「氧气循环」真源是 58~72、「培养罐补液」是 44~56，3D 一律按默认 52~68。
+
+新增 `mg_base.cfg(key, fallback)` 读 `minigames.json#tasks[label]`，并接进
+`place / match / level / pour / align / aim / sync / lever / wire` 九个 builder。
+
+### 4. 两条夹具的静默失败（`--mgtest 0/10` 与 `--walktest 0.0m`）
+
+两个夹具都在 `new_game` 开的 MEET_PRE（开局讨论）里直接操作：
+
+- `_process` 里有一条「会议开着就把小游戏卡片收掉」（防两层 UI 叠），
+  于是 `--mgtest` 每张卡在下一帧就被 `cancel`，**恒报 0/10 却 exit 0**。
+- `player.ui_locked` 在会议期间为真，`--walktest` 按 W 恒测得 `distance=0.0`。
+
+修法一致：先 `_finish_meeting(sim)`（不靠 `skip_discussion()` 作弊绕过），再测量，
+并对结果双向断言、失败退出码 1。`--mgtest` 追加「26 个真实任务标签各按自己的 kind 打开」一段。
+
+### 5. 顺带修掉一个真实缺陷：解题时玩家能走
+
+`_tick_detained()` 每帧重算 `player.ui_locked`，但只算「拘留 / 濒死 / 会议 / 管道」，
+**没算小游戏卡片**。于是 `_open_device` 设的锁在下一帧就被写回 false，
+卡片挡着画面玩家仍能用 WASD 走开（2.5D 里 `#mg` 遮罩会把 attention 归零）。
+现把 `mg_layer.is_open()` 并入同一判据。
+
+### 6. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败** |
+| `--mgtest` | **`MGTEST_RESULT 14/14 pass` + `MGTEST_LABELS 26/26`**（原 `0/10 pass`） |
+| `--devicetest` | `DEVICE_COUNT 27 kinds=14` · `open=true locked=true` · `closed=true unlocked=true`（原 `open=false locked=true`） |
+| `--walktest` | `WALKTEST OK 1/1`（原恒 `distance=0.0`） |
+| `--actiontest` | `ACTION OK 鼠标相位 5/5 · 动作入口 5/5` |
+| `--tasktest` / `--simtest` / `--bottest` | `26/0` · `26/0` · `6/0` |
+| `--floortest` / `--powertest` / `--interacttest` | `0 失败` · 门/电闸全项 · 半径与轮盘全项 |
+
+## 2026-11-10 · 第 1 批：基线重同步 + 地图数据回归单一真源
+
+**触发**：用户 2026-11-10「检查三者关系，把 2.5D 里非美术、非按键操作的东西全部移植到 3D，
+严格按照红线里的指令遵循」。本批只做**数据单一真源**，不采平衡读数、不立项。
+
+### 1. 基线重同步（`npm run baseline:sync`）
+
+- 第一次：26 个文件更新，清单 452 个文件 / 2026-11-10。
+- 第二次：上游在我工作期间又改了 3 个文件（`js/data/map.js` 掩体 120 → **124**、
+  `tools/blender-ship.py`、`assets/scene/v4/base-lit.png`），重同步后 3 个文件更新、449 个跳过。
+  **上游是活动靶**：动数据前后都要 `baseline:check` + 与上游 diff，不能只对一次。
+
+### 2. 地图回归单一真源（用户裁定「掩体回归 map.js，墙面装饰保留」）
+
+| 文件 | 改动 | 真源 |
+|---|---|---|
+| `3d/tools/build-map-v2.cjs` | `cover` 从 `tools/ship-layout-plan.json` 改回**原样取 `map.json`**（⇒ `js/data/map.js`），删掉本脚本里的 `TIER_HEIGHT` / `SIGHT_MIN_H` / 高度表写出 | `js/data/map.js`（红线 §一.7「地图数据只放 map.js」） |
+| 同上 | `decor` 仍取 `plan.rooms[].walls`（40 件墙面美术），`layout_v2` 元数据写明两条来源 | 用户裁定：墙面装饰属允许的美术差异 |
+
+**为什么必须改**：`ship-layout-plan.json` 是方案层，上游 11-10 的五舱布局重构
+（127 → 124 件）没有同步到它，3D 一直在跑 11-06 的旧布局。这是**第二份地图真源**，
+与红线 §一.7 / §一.11 直接冲突；`PORT-DIFF-AUDIT.md` 之前没记这条。
+
+**高度表归属**：`build-map-v2.cjs` 曾写名义 1.70，会把 `sync-cover-height.cjs`
+从 GLB 实测出来的值覆盖掉。现已移除，高度只由 `measure-cover-refs.py → sync-cover-height.cjs`
+一条链产出。
+
+**核对（与同步后的只读基线逐值比，忽略美术变体字段 `theme/theme_id/v/tint_shift`）**：
+`cover 124/124`、`facility 6/6`、`points 26/26`、`pipes 8/8`、`rooms 10/10`、
+`corridors 11/11`、`walls 110/110` —— **7 个判定用键全部 0 差异**。
+未引入新 `cover.kind`（58 类全在 `cover_refs` 与 COVER_HEIGHT v2 段内），不需要重出 GLB。
+
+### 3. 清单与门禁的口径修正（不是放宽认领）
+
+- `port-manifest.json`：`X-BIND` 末行 11877 → 11873、`V-MINIGAME` 末行 1184 → 1169。
+  上游删代码后文件变短，行段越界被整体判废（表现是「119 / 1059 行未被认领」），
+  **认领语义没变，只改末值**，两处 `notes` 写明是行列漂移。
+- `D-MAP` 的 `target` 去掉 `layout-v2.json`：它由 `export-layout-v2.cjs` 从方案层另生成，
+  **Godot 运行时无人读**（只读 `map_v2.json`），留作方案层留档，不是 `map.js` 的移植目标。
+- `map_builder.gd` 两处过期注释（「方案层 127 件」「SDXL 材质本色」）改为当前事实。
+
+### 4. 地板口径：导出器把四个舱指到已删除的贴图
+
+`export-floor-spec.cjs` 的 `ROOMS` 表还写着 `floor-power.png` / `floor-engine.png` /
+`floor-hazard.png` / `warehouse-floor.png` —— 这四张 SDXL 图**已从磁盘删除**，
+`bake-qwen-room-skins.py` 2026-11-09 起 10 舱全覆盖。重跑导出会把 `floor_spec.json`
+指到不存在的文件。
+
+- 四舱改为 `qwen/<rid>/floor.png`（与磁盘、与 bake 脚本一致）。
+- 补 `qwen_rooms_override` 出处标记：bake 脚本会写这段、导出器原先不认，导致 `--check` 永远不一致。
+- `--check` 从**比字节**改为**比规范化后的值**：同一文件有两个写入方
+  （Node 出 LF + 末尾换行，Python 在 Windows 出 CRLF 且无末尾换行），按字节比会把纯换行差异报成真源漂移。
+- `map_builder.gd` 注释里的 SDXL 表述清理（红线 §一.6：SDXL 已退役）。
+
+### 5. 四条贴图没导入 → `--floortest` 的既有坏账清掉了
+
+`--floortest` 原报 `失败=4`（power / engine / armory / warehouse「场景里找不到贴图」），
+`AGENTS.md` §6.3 记为原仓同样失败的既有坏账。**根因不是判定**：四张 `qwen/<rid>/floor.png`
+在磁盘上，但没有 `.import` 边车，Godot 从未导入，`_material()` 退回纯色。
+
+- 跑 `GODOT --headless --path 3d/preview --editor --quit` 补齐导入（63 步）。
+- 跑 `patch-tex-vram.py`：29 个 `.import` 归一到 BPTC/BC7 + mipmap；再导入一次后
+  110 个 `.import` **已是最新**（幂等）。
+- 结果：`FLOORTEST 舱=10 地面网格=48 失败=0`。
+
+### 6. `--walktest` 是一条静默失败的验收
+
+旧夹具在 `new_game` 开的 MEET_PRE（开局讨论）里按 W：会议期间 `player.ui_locked`
+把 `velocity` 钉成 0，于是**恒打印 `distance=0.0` 且 exit 0**，`AGENTS.md` 却把它
+当成「4.2 m/s」的验收。改成先 `_finish_meeting(sim)`（与其他自测同一口径，不靠
+`skip_discussion()` 作弊绕过），再量真实按键位移，并对「有没有动」与「有没有超过真源移速」
+双向断言、失败退出码 1。
+
+> 顺带核实：`space.json` 的 `move.speed = 4.0` 与真源 `js/t2/space.js:106 MOVE_SPEED: 4.0` 一致；
+> `AGENTS.md` 里写的 4.2 / 2.7 是过期文案（`js/` 只读，未改）。
+
+### 7. 本批实跑读数（2026-11-10）
+
+| 项 | 结果 |
+|---|---|
+| `npm run check` | **6 通过 / 0 失败**（port:check 0 错误 1 警告：`cover_refs.json` 缺 schema_version，legacy） |
+| `npm run baseline:check` | `BASELINE OK 452 个文件 · 快照 2026-11-10` |
+| `npm run 3d:floor:check` | `FLOOR-SPEC OK（11 项）` |
+| `node 3d/tools/sync-cover-height.cjs --check` | `61 项 · 需更新 0 项 · 低于 1.7m 0 件 · 一致` |
+| `--tasktest` | `TASKTEST 点=26 失败=0 []` |
+| `--reachtest` | `REACHTEST 点=26 半径=2.0m 走不到=0 缺设备=0` |
+| `--navtest` | `NAVTEST pass=28 fail=0 walkable=5936 cells=164x157` |
+| `--simtest` | `SIMTEST pass=26 fail=0` |
+| `--floortest` | `舱=10 地面网格=48 失败=0 []`（原 失败=4） |
+| `--walktest` | `WALKTEST OK 1/1 · distance=4.00m/1.0s · ui_locked=false`（原恒 0.0） |
+| `--powertest` | 门 2.0s scan 放行 / 离开重锁 / 复电 10 舱 22 廊 / 合闸站桩 4.5s |
+| `--interacttest` | 半径 2.0/2.0/2.3、管道冷却 20、圆桌领申请单、轮盘 2/2 |
+| `--actiontest` | `ACTION OK 鼠标相位 5/5 · 2.5D 动作入口 5/5 齐备` |
+| `--mgtest` | **`MGTEST_RESULT 0/10 pass`**（既有坏账，第 2 批目标，未修） |
+
 ## 2026-11-09 · 清理：SDXL 舱室图与旧批次读数（不动执行层）
 
 **只做清理：不改任何判定、不采新读数、不动运行时贴图。**
