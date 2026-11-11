@@ -2123,40 +2123,99 @@ function section(t) { console.log('\n== ' + t); }
     const t = SKV3._t; t.newGame();
     const g = t.G();
     const target = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
-    const txt = {};
-    for (const k of ['accuse', 'vote', 'support', 'pipe', 'red', 'knife', 'where', 'deny'])
-      txt[k] = t.tplText(k, target.i, k === 'pipe' ? 'engine' : 'med');
-    const P = {};
-    for (const k in txt) P[k] = t.parseSpeech(txt[k]);
+    const kinds = t.tplKinds();
+    const dom = [...document.querySelectorAll('#m-tpl-btns button')]
+      .map(b => b.dataset.tpl);
+    const rooms = { pipe: 'engine', breaker: 'power' };
+    const txt = {}, P = {};
+    for (const k of kinds) {
+      txt[k] = t.tplText(k, (k === 'where' || k === 'deny') ? null : target.i,
+        rooms[k] || 'med', '');
+      P[k] = t.parseSpeech(txt[k]);
+    }
+    const noRoom = t.tplText('knife', target.i, '');
+    const noRoomP = t.parseSpeech(noRoom);
     const pipeBad = t.tplText('pipe', target.i, 'power');
     const pipeBadP = t.parseSpeech(pipeBad);
+    const recentWhere = t.parseSpeech(t.tplText('where', null, 'med', 'recent'));
+    const nightWhere = t.parseSpeech(t.tplText('where', null, 'med', 'night'));
+    const nightDeny = t.parseSpeech(t.tplText('deny', null, 'med', 'night'));
+    const whenSel = document.getElementById('m-tpl-when');
     const free = {
       neg: t.parseSpeech('北极不是异形'),
       seat: t.parseSpeech('我投3号'),
       claimRoom: t.parseSpeech('我看见北极在引擎室钻管道')
     };
-    return { target: target.i, txt, P, free, pipeBad, pipeBadP };
+    return { target: target.i, kinds, dom, txt, P, noRoom, noRoomP, pipeBad, pipeBadP,
+      recentWhere, nightWhere, nightDeny, free,
+      whenOptions: whenSel ? [...whenSel.options].map(o => o.value) : [] };
   });
+  ok(TPL.kinds.length === 11 && TPL.dom.length === 11 &&
+    new Set(TPL.dom).size === 11 && TPL.kinds.every(k => TPL.dom.includes(k)),
+    '模板清单与按钮一致：11 类（新增破坏设备 / 机器人停摆 / 拉闸）');
+  ok(TPL.whenOptions.join(',') === ',recent,night',
+    '模板栏有时段选择：不指定 / 刚才 / 整晚（' + TPL.whenOptions.join('|') + '）');
   ok(TPL.P.accuse.accuse === TPL.target && TPL.P.vote.vote === TPL.target,
     '模板「怀疑 / 投他」可被解析为对应玩家');
   ok(TPL.P.support.support === TPL.target, '模板「作证」可被解析为支持对象');
-  ok(TPL.P.pipe.claim && TPL.P.pipe.claim.kind === 'saw_pipe' &&
-    TPL.P.pipe.claim.target === TPL.target && TPL.P.pipe.claim.room === 'engine',
-    '模板「看见钻管道」生成可解析的直接证据，并带上真正有管道口的舱室');
+  const CLAIM_WANT = { pipe: 'saw_pipe', red: 'saw_red', knife: 'saw_knife',
+    sabotage: 'saw_sabotage', bot: 'saw_bot', breaker: 'saw_breaker' };
+  const claimBad = Object.keys(CLAIM_WANT).filter(k => {
+    const p = TPL.P[k], c = p.claim;
+    return !(c && c.kind === CLAIM_WANT[k] && c.target === TPL.target &&
+      c.room === ({ pipe: 'engine', breaker: 'power' }[k] || 'med'));
+  });
+  ok(claimBad.length === 0,
+    '六类直接证据模板全部被 parseSpeech 认成对应 claim' +
+    (claimBad.length ? '（失败：' + claimBad.join(',') + '）' : ''));
+  const leak = Object.keys(CLAIM_WANT).filter(k =>
+    TPL.P[k].where || TPL.P[k].accuse != null || TPL.P[k].vote != null ||
+    TPL.P[k].support != null);
+  ok(leak.length === 0,
+    '证据模板不产生额外槽位：不会被误当成自述位置 / 指控 / 投票 / 作证' +
+    (leak.length ? '（泄漏：' + leak.join(',') + '）' : ''));
+  ok(TPL.P.where.where === 'med' && TPL.P.deny.deny === true && TPL.P.deny.where === 'med',
+    '模板「我在… / 不是我」带上舱室，可被当作自述位置');
+  ok(TPL.noRoomP.claim && TPL.noRoomP.claim.kind === 'saw_knife' &&
+    TPL.noRoomP.claim.room == null && TPL.noRoom.indexOf('就在') < 0,
+    '证据模板不选舱室就不声称地点，不再自动塞进玩家当前舱室');
   ok(TPL.pipeBad.indexOf('配电室') < 0 && TPL.pipeBadP.claim &&
     TPL.pipeBadP.claim.kind === 'saw_pipe' && TPL.pipeBadP.claim.room == null,
     '没有管道口的舱室不会生成“在配电室钻管道”：模板自动省略地点');
-  ok(TPL.P.red.claim && TPL.P.red.claim.kind === 'saw_red' &&
-    TPL.P.knife.claim && TPL.P.knife.claim.kind === 'saw_knife',
-    '模板「看见红光 / 出刀」可被解析');
-  ok(TPL.P.where.where === 'med' && TPL.P.deny.deny === true && TPL.P.deny.where === 'med',
-    '模板「我在… / 不是我」带上舱室，可被当作自述位置');
+  ok(TPL.recentWhere.where === 'med' && TPL.recentWhere.when === 'recent' &&
+    TPL.nightWhere.where === 'med' && TPL.nightWhere.when === 'night' &&
+    TPL.nightDeny.deny === true && TPL.nightDeny.where === 'med' &&
+    TPL.nightDeny.when === 'night',
+    '时段模板被解析为 recent / night 口供窗口，而不是全部落回 45 秒默认窗');
   ok(TPL.free.neg.accuse == null && TPL.free.neg.support === 2,
     '否定词：北极不是异形 → 不指控，而是支持');
   ok(TPL.free.seat.vote === 2, '席位格式：3号 → 03 北极');
   ok(TPL.free.claimRoom.claim && TPL.free.claimRoom.claim.kind === 'saw_pipe' &&
     TPL.free.claimRoom.claim.room === 'engine' && TPL.free.claimRoom.where == null,
     '「我看见X在引擎室钻管道」：证据房间与玩家自述位置分开，不再误判玩家在引擎室');
+
+  /* 2026-11-11：空舱室点击证据模板必须真的不带地点。
+     旧写法在点击层把 roomSel.value 回落成玩家当前舱室，生成器再干净也会被注入。 */
+  await fresh(false);
+  const TPL_ROOM = await T(() => {
+    const t = SKV3._t; t.newGame();
+    const g = t.G(); g.paused = true; g.noReport = true;
+    const target = g.agents.find(a => !a.alien && a.i !== 0 && a.alive);
+    t.openMeeting('day');
+    document.getElementById('m-tpl-target').value = String(target.i);
+    document.getElementById('m-tpl-room').value = '';
+    document.querySelector('#m-tpl-btns button[data-tpl="knife"]').click();
+    const line = (t.meetLines() || []).slice(-1)[0];
+    const sl = t.parseSpeech(line ? line.text : '');
+    const claim = (t.meetCtx().playerClaims || [])[0] || null;
+    const roomNames = t.rooms().map(r => r.name);
+    const leaked = roomNames.find(n => line && line.text.indexOf(n) >= 0) || '';
+    t.startVote(); t.closeVote(); if (g.meet) t.finishMeeting();
+    return { text: line ? line.text : '', slots: sl, claim, leaked };
+  });
+  ok(TPL_ROOM.slots.claim && TPL_ROOM.slots.claim.kind === 'saw_knife' &&
+    TPL_ROOM.slots.claim.room == null && !TPL_ROOM.claim?.room && !TPL_ROOM.leaked,
+    '空舱室点「看见出刀」不会把任何舱室写进证词（' + TPL_ROOM.text + '）');
 
   await fresh(false);
   const TPL2 = await T(() => {
@@ -2185,7 +2244,7 @@ function section(t) { console.log('\n== ' + t); }
     return { visible, nBtn, claim, sus, known,
       text: line ? line.text : '', target: target.i, listener: listener.i };
   });
-  ok(TPL2.visible && TPL2.nBtn === 8, '人类会议显示模板栏与 8 个默认发言');
+  ok(TPL2.visible && TPL2.nBtn === 11, '人类会议显示模板栏与 11 个默认发言');
   ok(TPL2.claim && TPL2.claim.target === TPL2.target && TPL2.claim.kind === 'saw_pipe' &&
     /钻管道/.test(TPL2.text), '点击「看见钻管道」会以玩家身份发出并解析成直接证据');
   ok(TPL2.sus >= 0.2 && Object.keys(TPL2.known).length === 0,

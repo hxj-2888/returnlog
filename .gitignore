@@ -3,6 +3,12 @@ node_modules/
 tools/screenshots/
 *.log
 *.err
+# 一次性门禁 / 模拟 / 渲染日志（显式列出便于审计，上方 *.log 已兜底）
+tools/_gate-*.log
+tools/_mc-*.log
+tools/_hires-*.log
+tools/_sdxl-*.log
+tools/_qwen-rooms-*.log
 # 本轮调试截图 / 一次性诊断脚本（保留在磁盘上，不入库）
 tools/_shot*.png
 tools/_zoom*.png
@@ -54,8 +60,7 @@ tools/mc-results-E.json
 # 只排除敏感信息：.env（上）、android/release.keystore（上）、
 # android/assets/www/（APK 打包副本，上）等既有条目保持有效。
 # 入库前须复核：不写 API key / token / 口令 / 私钥 / 凭据明文。
-# Blender 自动备份（同目录 .blend1），不入库
-*.blend1
+# Blender 自动备份 .blend1 已在上方「依赖与工具产物」段声明，此处不重复
 
 # 2026-11-09 铁板掩体暂关前的实际素材备份（GLB/blend/检查板/截图/高度表，175.7 MB）
 # 只在本机留档，不入库；恢复口径见 3d/CHANGELOG.md 同日条目。
@@ -74,3 +79,7 @@ tools/_qwen_refs/
 tools/bench-*.json
 tools/style-align-report.json
 tools/tex-detail-fusion-report.json
+
+# ---- 2026-11-11 治理规范：L2 生成过程配图（新增不入库）----
+# 主仓历史已入库的 88 个 docs/qwen21/ 文件不受影响，待 §9 保留期评估；两仓口径见 docs/ASSET_GOVERNANCE.md §7-C
+docs/qwen21/
