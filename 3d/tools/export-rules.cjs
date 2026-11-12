@@ -109,7 +109,11 @@ function buildRules() {
   const AI = need(win.SKT2AI, 'SKT2AI');
   const D = need(win.SKT2Decision, 'SKT2Decision');
 
-  const modules = { SKSanity: S, SKTrait: T, SKT2AI: AI, SKT2Decision: D };
+  /* SKTeam：团队量化表（js/ai/traits.js:126）。alienPlan 的效用表要读
+     BREAKER_VALUE / SABOTAGE_VALUE / BOT_SEC_VALUE / BOT_MED_VALUE，
+     2026-11-12 之前漏导出，导致 3D 只能靠 if 顺序硬排。纯数值表，无函数。 */
+  const TM = need(win.SKTeam, 'SKTeam');
+  const modules = { SKSanity: S, SKTrait: T, SKT2AI: AI, SKT2Decision: D, SKTeam: TM };
   const tables = {};
   const functions = {};
   const fn_fingerprints = {};

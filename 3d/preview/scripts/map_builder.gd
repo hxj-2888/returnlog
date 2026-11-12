@@ -207,8 +207,12 @@ var _ambient_base := LIT_AMBIENT
 var _fill: DirectionalLight3D = null
 ## 天花板补光（朝上），照天花板背光面
 var _ceil_fill: DirectionalLight3D = null
-var _ceil_fill_base := 0.04
-var _fill_base := 0.06
+## 公开依据（2026-11-12，docs/ASSET_GOVERNANCE.md §14 登记表）：
+## Godot 官方 lights_and_shadows / standard_material_3d —— Emission 不照亮邻近物体，
+## 背光面必须靠真实光源或 GI；社区分层照明「基础层」需保证最低可见度。
+## 原值 0.04 / 0.06 与 _build_environment 注释声明的 0.16 不符，属参数漂移，本次归位。
+var _ceil_fill_base := 0.16
+var _fill_base := 0.10
 var power_on := true
 ## 天花板整层（舱室顶面 / 走廊顶面 / 灯带）：旁观者飞到天花板以上时整层隐藏，
 ## 从上面俯视就是一个完整剖面。2.5D 是 2D 俯视，不需要这套，属维度产物。
@@ -216,6 +220,7 @@ var _ceil_nodes: Array = []
 ## 2026-11-11 美术裁定：天花板采用工业材质。
 ## 顶板材质只建一份；梁/管线/线槽是 Blender 套件，缺失时只保留工业顶板。
 var _ceil_deck_mat: StandardMaterial3D = null
+var _ceil_room_mats: Dictionary = {}   # rid -> StandardMaterial3D 分舱千问顶板
 var _ceil_kit: Dictionary = {}
 
 
@@ -312,23 +317,27 @@ func _load_ceil_kit() -> void:
 			_ceil_kit[name] = load(path)
 
 
-## 工业顶板材质：冲压钢板 albedo + normal + rough，低强度自发光只为暗舱可读。
-func _ceiling_material() -> StandardMaterial3D:
-	if _ceil_deck_mat != null:
-		return _ceil_deck_mat
+## 工业顶板材质组装：冲压钢板 albedo + normal + rough，低强度自发光只为暗舱可读。
+## albedo_color：分舱千问图的亮度在派生脚本里已调到目标档（power/engine 为
+## 默认拉闸亮度），只乘近白曝光；共享 ceiling-deck 保留旧乘色（回退口径不变）。
+func _build_ceil_deck_mat(albedo_path: String, tint: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.76, 0.80, 0.86)
-	mat.metallic = 0.42
+	mat.albedo_color = tint
+	## 公开依据：Godot 官方 standard_material_3d —— Metallic 越高，漫射 / 环境光影响越小，
+	## 表面靠反射周围环境取亮；本项目 WorldEnvironment 是 BG_COLOR 纯色、无 sky / ReflectionProbe，
+	## 金属面没有可反射的环境，0.42 会把顶板压成死黑（2026-11-12 ceil-bridge 实测）。
+	## 项目 ART_DIRECTION §1.1 亦要求「金属度只给真正的金属件」：顶板是涂漆压型钢，
+	## 漆面属电介质，故降到 0.10；裸金属件（梁 / 管线）仍走各自 glb 材质，不受此改。
+	mat.metallic = 0.10
 	mat.roughness = 0.62
-	var albedo := "res://assets/textures/ceiling-deck.png"
-	if ResourceLoader.exists(albedo):
-		mat.albedo_texture = load(albedo)
-	var normal := "res://assets/textures/ceiling-deck-normal.png"
+	if ResourceLoader.exists(albedo_path):
+		mat.albedo_texture = load(albedo_path)
+	var normal := albedo_path.replace(".png", "-normal.png")
 	if ResourceLoader.exists(normal):
 		mat.normal_enabled = true
 		mat.normal_texture = load(normal)
 		mat.normal_scale = 0.6
-	var rough := "res://assets/textures/ceiling-deck-rough.png"
+	var rough := albedo_path.replace(".png", "-rough.png")
 	if ResourceLoader.exists(rough):
 		mat.roughness_texture = load(rough)
 		mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
@@ -338,8 +347,30 @@ func _ceiling_material() -> StandardMaterial3D:
 	mat.emission_energy_multiplier = 0.35
 	_register_emit(mat, 0.35)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	_ceil_deck_mat = mat
+	## 公开依据（社区已验证实践，见 docs/ASSET_GOVERNANCE.md §14 登记表）：
+	## 「For a plate seen from behind, set Cull Mode to Disabled」——
+	## _add_polygon_surface 只把法线设成 DOWN，三角形绕序仍是地板那套（从 +Y 看为正面），
+	## 仰视时顶板是背面，默认背面剔除会把整片剔掉，露出 BG_COLOR 的纯黑背景。
+	## 这就是贴图/补光/金属度都调过仍读不到纹理的根因；顶板是非交互薄面，双面渲染无副作用。
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mat
+
+
+## 顶板材质入口：rid 有分舱千问贴图（res://assets/textures/qwen/<rid>/ceiling.png）
+## 就用分舱图，缺图回退共享 ceiling-deck（行为等价保险）；走廊 rid 为空走共享。
+func _ceiling_material(rid: String = "") -> StandardMaterial3D:
+	if rid != "" and _ceil_room_mats.has(rid):
+		return _ceil_room_mats[rid]
+	if rid != "":
+		var path := "res://assets/textures/qwen/%s/ceiling.png" % rid
+		if ResourceLoader.exists(path):
+			var mat := _build_ceil_deck_mat(path, Color(0.94, 0.95, 0.97))
+			_ceil_room_mats[rid] = mat
+			return mat
+	if _ceil_deck_mat != null:
+		return _ceil_deck_mat
+	_ceil_deck_mat = _build_ceil_deck_mat("res://assets/textures/ceiling-deck.png", Color(0.76, 0.80, 0.86))
+	return _ceil_deck_mat
 
 
 func _place_kit(name: String, pos: Vector3, along_x: bool, len_scale: float) -> void:
@@ -424,7 +455,9 @@ func _build_rooms() -> void:
 		## 不用 triplanar —— triplanar 的 uv1_scale=0.35 会把贴图放到 2.9m 一循环，
 		## 加上朝下的法线选不到 Y 轴投影，结果就是一片纯色。改用平面 UV + 真实尺度。
 		## 2026-11-11：工业顶板（冲压钢板 + 法线/粗糙度），梁/管线/线槽在下面单独挂套件。
-		var ceil_mat := _ceiling_material()
+		## 2026-11-12：分舱千问顶板（用户裁定十舱各一张；power/engine 按默认拉闸
+		## 亮度调色，灯光口径不动），缺图回退共享 ceiling-deck。
+		var ceil_mat := _ceiling_material(rid)
 		_add_polygon_surface(poly, 0.02, Vector3.UP, floor_mat, repeat_m)
 		_add_polygon_surface(poly, CEILING_Y, Vector3.DOWN, ceil_mat, CEIL_TILE_M)
 		## 天花板灯带：2026-11-07。房间顶灯在 2.6m、天花板在 3.2m，
@@ -452,9 +485,12 @@ func _add_ceiling_strip(room: Dictionary) -> void:
 	mat.albedo_color = glow_col
 	mat.emission_enabled = true
 	mat.emission = glow_col
-	mat.emission_energy_multiplier = 1.6
+	## 公开依据：Godot 官方 standard_material_3d —— Emission 直接叠加到最终图像，
+	## 不受场景光照影响；取值过高在 Filmic 色调映射下会过曝成亮条，且不会照亮房间
+	## （照亮房间要靠真实光源或 GI，见 _build_environment 的 ceil_fill）。
+	mat.emission_energy_multiplier = 1.15
 	mat.roughness = 0.4
-	_register_emit(mat, 1.6)
+	_register_emit(mat, 1.15)
 	## 贴边收缩：把每条边的中点往房间中心收 0.45m，灯带就贴在墙顶接缝内侧
 	var c := Vector2.ZERO
 	for p: Array in poly:
@@ -977,22 +1013,27 @@ func _build_environment() -> void:
 	we.environment = env
 	add_child(we)
 
+	## 分层照明「基础层」：微弱冷色全局补光，避免暗舱出现绝对死角。
+	## 公开依据：Godot 官方 3D lights and shadows（环境光/方向光职责）+ 社区分层照明实践。
 	var fill := DirectionalLight3D.new()
 	fill.rotation_degrees = Vector3(-55.0, -35.0, 0.0)
-	fill.light_energy = 0.06
+	fill.light_energy = 0.10
 	fill.light_color = Color(0.55, 0.66, 0.85)
 	fill.shadow_enabled = false
 	add_child(fill)
 	_fill = fill
 	_fill_base = fill.light_energy
 
-	## 天花板补光：2026-11-07。
+	## 天花板补光：2026-11-07 建，2026-11-12 归位。
 	## 天花板在 3.2m、法线朝下，而所有灯都在 2.6m 以下 —— 天花板是**背光面**，
 	## 仰视时一片死黑，贴图细节全被压掉。加一盏朝上的弱平行光专门照它。
-	## 能量刻意压低（0.16）：这是补面光，不能把舱室照亮成白天。
+	## 公开依据：Godot 官方 standard_material_3d —— Emission 不包含环绕几何体的光，
+	## 因此灯带自发光再亮也照不到顶板；背光面必须由真实光源或 VoxelGI/SDFGI 提供照度。
+	## 原注释写「能量刻意压低（0.16）」但代码实为 0.04，本次按注释原意恢复到 0.16，
+	## 仍属补面光（不投影、远低于房间顶灯 2.4），不会把舱室照成白天。
 	var ceil_fill := DirectionalLight3D.new()
 	ceil_fill.rotation_degrees = Vector3(58.0, 20.0, 0.0)
-	ceil_fill.light_energy = 0.04
+	ceil_fill.light_energy = 0.16
 	ceil_fill.light_color = Color(0.62, 0.70, 0.82)
 	ceil_fill.shadow_enabled = false
 	add_child(ceil_fill)

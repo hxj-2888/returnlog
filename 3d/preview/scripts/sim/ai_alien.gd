@@ -85,6 +85,95 @@ func _exposure_at(a: Dictionary, at: Vector2, except_v: Dictionary) -> float:
 	return sim.mind.exposure(ws, sim.mind.escape_cost(_exit_dist(at)))
 
 
+## @src js/game.js:3244 audienceHotRooms(a)
+## 2.5D 读 `a.mind.mem` 的 `saw_agent` 同夜记录；3D 没有 mem 时间线，
+## 等价来源是 `a.why[]`（对某个人的证据数组，见 parity-map#allowed_differences 第 5 条）。
+## 返回 room → 次数，供演出点排序（常客舱室优先）。
+func audience_hot_rooms(a: Dictionary) -> Dictionary:
+	var hot: Dictionary = {}
+	var why: Dictionary = a.get("why", {}) as Dictionary
+	for tgt: int in why.keys():
+		for e: Variant in (why[tgt] as Array):
+			var rec := e as Dictionary
+			if String(rec.get("kind", "")) != "saw_agent":
+				continue
+			if int(rec.get("night", -1)) != int(sim.night):
+				continue
+			var rid := String(rec.get("room", ""))
+			if rid == "" or rid == "corridor" or rid == "unknown":
+				continue
+			hot[rid] = int(hot.get(rid, 0)) + 1
+	return hot
+
+
+## @src js/game.js:3189 alienAudienceInfo(a,rad)
+## 返回 {n, weight, idle, sus, inf}：权重 = 1 + audSus（他估对方怀疑 ≥ susMin）
+## + audInf（本局领袖 / 公开影响力 ≥ 0.34）。不读对方私有 mind（读心清零）。
+## 注意：判断的是「**他看得见我**」，不是「我看得见他」——用 ai_can_see(w, a.pos)。
+func audience_info(a: Dictionary, rad: float) -> Dictionary:
+	var D: Dictionary = sim.rules.t("DISGUISE")
+	var n := 0
+	var weight := 0.0
+	var idle := 0
+	var sus := 0
+	var inf := 0
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	for w: Dictionary in sim.agents:
+		if w == a or not bool(w.get("alive", false)) or bool(w.get("downed", false)) \
+				or bool(w.get("detained", false)):
+			continue
+		if sim.mind != null and sim.mind._is_mate(a, int(w.get("i", -1))):
+			continue
+		# 做小游戏 / 开遮罩的人看不见（2.5D attention != online）
+		if float(w.get("doing", 0.0)) > 0.0:
+			continue
+		var wp: Vector2 = w.get("pos", Vector2.ZERO)
+		if ap.distance_to(wp) >= rad or not sim.ai_can_see(w, ap):
+			continue
+		n += 1
+		idle += 1
+		var v := 1.0
+		if sim.mind != null and float(sim.mind.aud_sus_estimate(a, w).get("score", 0.0)) \
+				>= float(D.get("susMin", 0.25)):
+			v += float(D.get("audSus", 0.9))
+			sus += 1
+		if _is_leader(w) or (sim.mind != null and sim.mind.public_influence(w) >= 0.34):
+			v += float(D.get("audInf", 0.6))
+			inf += 1
+		weight += v
+	return {"n": n, "weight": weight, "idle": idle, "sus": sus, "inf": inf}
+
+
+## 2.5D `G.leader === w.i`（alienAudienceInfo 里的领袖加权）。
+func _is_leader(w: Dictionary) -> bool:
+	if sim.speech == null:
+		return false
+	return int(sim.speech.leader_i) == int(w.get("i", -1))
+
+
+## @src js/ai/sanity.js:490 LENS.lr(key)：human / max(floor, alien)；knownOnly → INF。
+## 只用于候选**排序**，不参与任何权重（用户裁定 order only, no w=f(lr)）。
+func _lens_lr(key: String) -> float:
+	var L: Dictionary = sim.rules.t("LENS")
+	var rows: Dictionary = L.get("rows", {}) as Dictionary
+	var r: Variant = rows.get(key)
+	if not (r is Dictionary):
+		return 1.0
+	var rd := r as Dictionary
+	if bool(rd.get("knownOnly", false)):
+		return INF
+	return float(rd.get("human", 1.0)) \
+		/ maxf(float(L.get("floor", 0.25)), float(rd.get("alien", 1.0)))
+
+
+## @src js/game.js:sabSpot(rid)：该舱室的任务设备点（3D points 里同 room 的第一项）。
+func sab_spot(rid: String) -> Vector2:
+	for p: Dictionary in sim.points:
+		if String(p.get("room", "")) == rid:
+			return Vector2(float(p.get("x", 0.0)), float(p.get("y", 0.0)))
+	return Vector2.ZERO
+
+
 ## 2.5D huntSpotFor（js/game.js:3616-3665）：无目标时去哪找人。
 ## ① 本夜最后一条 saw_agent 的位置；② 本夜见过最多的舱室；
 ## ③ 任务点最多且不是当前舱的舱室（确定性，便于门禁断言）。
@@ -251,6 +340,9 @@ func tick(dt: float) -> void:
 			a["_fakeCD"] = maxf(0.0, float(a.get("_fakeCD", 0.0)) - dt)
 		if float(a.get("_botCD", 0.0)) > 0.0:
 			a["_botCD"] = maxf(0.0, float(a.get("_botCD", 0.0)) - dt)
+		# @src js/game.js:4120 藏尸冷却：`a._hideCD` 逐帧减，冷却内不再找新尸体。
+		if float(a.get("_hideCD", 0.0)) > 0.0:
+			a["_hideCD"] = maxf(0.0, float(a.get("_hideCD", 0.0)) - dt)
 		var sab_night := int(a.get("_sabNight", -1))
 		if sab_night != int(sim.night):
 			a["_sabNight"] = int(sim.night)
@@ -268,6 +360,344 @@ func tick(dt: float) -> void:
 		if wait > 0.0:
 			continue
 		_decide(a)
+
+
+## @src js/game.js:3266 disguiseOptions(a,aud)
+## 一次返回全部候选，由 `_plan` 逐个算分取最优（不做 if 硬排）：
+##   ① realFix 真修故障（没刀、本夜没真修过、不是自己炸的）
+##   ② realRevive 真救非队友（有医疗包、本夜没真救过）
+##   ③ breakerOn 当众合闸（断电、闸在 spotR 内）
+##   ④ fake 假装修理（多人在场不演，要演就真修）
+##   ⑤ fakeTask 假装做任务（常客舱室 > 没人做过的点 > 距离）
+## 排序：常客舱室优先；打平按 LENS.lr 降序（只定顺序，不进权重）。
+func disguise_options(a: Dictionary, aud: Dictionary) -> Array:
+	var D: Dictionary = sim.rules.t("DISGUISE")
+	var CRED: Dictionary = sim.rules.t("CRED")
+	var gains: Dictionary = CRED.get("gains", {}) as Dictionary
+	var kind_map: Dictionary = CRED.get("kindMap", {}) as Dictionary
+	var base := float(gains.get("fakeWork", 0.10))
+	var hot: Dictionary = audience_hot_rooms(a)
+	var multi: bool = int(aud.get("n", 0)) >= int(D.get("multiAudience", 2))
+	var now := float(sim.elapsed)
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var i := int(a.get("i", -1))
+	var out: Array = []
+	var push := func(o: Dictionary) -> void:
+		var ck := String(kind_map.get(String(o.get("kind", "")), ""))
+		o["credKey"] = ck if ck != "" else null
+		o["valueMul"] = (float(gains.get(ck, 0.0)) / base) \
+			if ck != "" and float(gains.get(ck, 0.0)) > 0.0 else 1.0
+		o["hot"] = int(hot.get(String(o.get("room", "")), 0))
+		out.append(o)
+
+	# ① 真修故障
+	if int(a.get("knife", 0)) <= 0 and int(a.get("_realFixN", -1)) != int(sim.night):
+		for d: Dictionary in sim.dmg:
+			if int(d.get("by", -1)) == i:
+				continue
+			var dp := Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
+			if ap.distance_to(dp) >= float(D.get("fakeRepairR", 12.0)):
+				continue
+			var f: Vector2 = sim.nav.nearest_free(dp)
+			push.call({
+				"kind": "realFix", "x": f.x, "y": f.y,
+				"dur": float((sim.rules.t("STAND") as Dictionary).get("fix", 10.0)),
+				"pt": -1, "real": true, "key": "realfix:" + String(d.get("room", "")),
+				"dist": ap.distance_to(f), "room": String(d.get("room", "")), "fault": d,
+			})
+			break
+
+	# ② 真救非队友
+	if int(a.get("medkit", 0)) > 0 and int(a.get("_realReviveN", -1)) != int(sim.night):
+		var v: Dictionary = {}
+		var bd := 10.0
+		for w: Dictionary in sim.agents:
+			if w == a or not bool(w.get("alive", false)) or not bool(w.get("downed", false)):
+				continue
+			if sim.mind != null and sim.mind._is_mate(a, int(w.get("i", -1))):
+				continue
+			var wd: float = ap.distance_to(w.get("pos", Vector2.ZERO))
+			if wd < bd and sim.ai_can_see(a, w.get("pos", Vector2.ZERO)):
+				bd = wd
+				v = w
+		if not v.is_empty():
+			var vp: Vector2 = v.get("pos", Vector2.ZERO)
+			var f2: Vector2 = sim.nav.nearest_free(vp)
+			push.call({
+				"kind": "realRevive", "x": f2.x, "y": f2.y, "dur": 5.0,
+				"pt": -1, "real": true, "key": "revive:" + str(int(v.get("i", -1))),
+				"dist": ap.distance_to(f2), "room": sim.room_at(vp),
+				"subj": int(v.get("i", -1)),
+			})
+
+	# ③ 当众合闸
+	if int(sim.light_state) == 2:
+		var br: Vector2 = sim.breaker_pos()
+		if br != Vector2.ZERO:
+			var f3: Vector2 = sim.nav.nearest_free(br)
+			var dd3: float = ap.distance_to(f3)
+			if dd3 <= float(D.get("spotR", 11.0)):
+				push.call({
+					"kind": "breakerOn", "x": f3.x, "y": f3.y,
+					"dur": sim.breaker_on_time(), "pt": -1, "done": false,
+					"key": "breaker", "dist": dd3, "room": sim.room_at(br),
+				})
+
+	# ④ 假装修理（多人在场不演）
+	if not multi:
+		for d4: Dictionary in sim.dmg:
+			var dp4 := Vector2(float(d4.get("x", 0.0)), float(d4.get("y", 0.0)))
+			if ap.distance_to(dp4) >= float(D.get("fakeRepairR", 12.0)):
+				continue
+			var f4: Vector2 = sim.nav.nearest_free(dp4)
+			var dur4: Array = (D.get("dur", {}) as Dictionary).get("fake", [5, 4]) as Array
+			push.call({
+				"kind": "fake", "x": f4.x, "y": f4.y,
+				"dur": float(dur4[0]) + sim._rng.randf() * float(dur4[1]),
+				"pt": -1, "key": "fix:" + String(d4.get("room", "")), "done": false,
+				"dist": ap.distance_to(f4), "room": String(d4.get("room", "")),
+			})
+			break
+
+	# ⑤ 假装做任务（多人在场不演）
+	if not multi:
+		var spot_r := float(D.get("spotR", 11.0))
+		var done_w := float(D.get("doneWindow", 150.0))
+		var best_any: Dictionary = {}
+		var bd5 := spot_r
+		var fresh: Dictionary = {}
+		var frd := spot_r
+		var hot_fresh: Dictionary = {}
+		var hfd := spot_r
+		var pts: Array = sim.map.get("points", []) as Array
+		for pi in range(pts.size()):
+			var p: Dictionary = pts[pi]
+			var f5: Vector2 = sim.nav.nearest_free(
+				Vector2(float(p.get("x", 0.0)), float(p.get("y", 0.0))))
+			var dd5: float = ap.distance_to(f5)
+			if dd5 > spot_r:
+				continue
+			var done5 := false
+			if sim.point_done.has(pi):
+				done5 = (now - float(sim.point_done[pi])) < done_w
+			if not done5:
+				if fresh.is_empty() or dd5 < frd:
+					fresh = {"i": pi, "f": f5, "dd": dd5, "room": String(p.get("room", ""))}
+					frd = dd5
+				if int(hot.get(String(p.get("room", "")), 0)) > 0 \
+						and (hot_fresh.is_empty() or dd5 < hfd):
+					hot_fresh = {"i": pi, "f": f5, "dd": dd5,
+						"room": String(p.get("room", ""))}
+					hfd = dd5
+			if best_any.is_empty() or dd5 < bd5:
+				best_any = {"i": pi, "f": f5, "dd": dd5, "room": String(p.get("room", ""))}
+				bd5 = dd5
+		var pick5: Dictionary = best_any
+		if not hot_fresh.is_empty():
+			pick5 = hot_fresh
+		elif not fresh.is_empty():
+			pick5 = fresh
+		if not pick5.is_empty():
+			var dur5: Array = (D.get("dur", {}) as Dictionary).get("fakeTask", [4, 4]) as Array
+			var f6: Vector2 = pick5["f"]
+			push.call({
+				"kind": "fakeTask", "x": f6.x, "y": f6.y,
+				"dur": float(dur5[0]) + sim._rng.randf() * float(dur5[1]),
+				"pt": int(pick5["i"]), "key": "pt:" + str(int(pick5["i"])),
+				"done": not (hot_fresh.is_empty() and fresh.is_empty()),
+				"dist": float(pick5["dd"]), "room": String(pick5["room"]),
+			})
+
+	out.sort_custom(func(x: Dictionary, y: Dictionary) -> bool:
+		var hx := int(x.get("hot", 0))
+		var hy := int(y.get("hot", 0))
+		if hx != hy:
+			return hy < hx
+		var kx: Variant = x.get("credKey", null)
+		var ky: Variant = y.get("credKey", null)
+		return _lens_lr("" if kx == null else String(kx)) \
+			< _lens_lr("" if ky == null else String(ky)))
+	return out
+
+
+## @src js/game.js:3361 disguiseRiskParts(a,aud,spot)
+## 把"这一下会不会被识破 / 会不会真亏"翻译成 disguise_risk 的输入。
+func disguise_risk_parts(a: Dictionary, aud: Dictionary, spot: Dictionary) -> Dictionary:
+	var D: Dictionary = sim.rules.t("DISGUISE")
+	var now := float(sim.elapsed)
+	var rep := false
+	var lf: Variant = a.get("_lastFake", null)
+	if lf is Dictionary:
+		var lfd := lf as Dictionary
+		if String(lfd.get("key", "")) == String(spot.get("key", "")) \
+				and (now - float(lfd.get("t", 0.0))) < float(D.get("repeatWindow", 90.0)):
+			rep = true
+	return {
+		"redHot": float(a.get("redT", 0.0)) > 0.0,
+		"donePoint": bool(spot.get("done", false)),
+		"repeatSpot": rep,
+		"breakerLoss": String(spot.get("kind", "")) == "breakerOn",
+		"realCost": bool(spot.get("real", false)),
+		"idle": int(aud.get("idle", 0)),
+		"audience": int(aud.get("n", 0)),
+		"dark": sim.lit_zone_at(a.get("pos", Vector2.ZERO)) == "",
+	}
+
+
+## @src js/game.js:782 moveSpeed(a)：拖尸 → drag_speed；击杀加速 → speed*RUSH.mul；否则 speed。
+## 3D 之前没有这个函数，`_plan` 的 walk 估算需要它；数值全部来自 space.json / rules.json。
+func _move_speed(a: Dictionary) -> float:
+	if int(a.get("drag", -1)) >= 0:
+		return SpaceData.num(space, "move", "drag_speed")
+	if float(a.get("rushT", 0.0)) > 0.0:
+		return SpaceData.num(space, "move", "speed") \
+			* float((sim.rules.t("RUSH") as Dictionary).get("mul", 1.5))
+	return SpaceData.num(space, "move", "speed")
+
+
+## @src js/game.js:3382 alienPlan(a,td)
+## 2.5D 效用表**逐字移植**：拉闸 / 破坏 / 拆机器人 / 狩猎 / 伪装 同台比分取 max。
+## td = 到当前猎杀目标的距离（无目标传 1e9）。
+## 所有数值只从 rules.json（SKTeam / DISGUISE / CRED / RUSH）与 space.json 读，
+## 本函数不写第二份常量，也不加真源没有的门槛。
+func _plan(a: Dictionary, td: float) -> Dictionary:
+	# 合闸目标锁：`if(a._breakerGoal)` 未过期且不贴脸就沿用（真源 :3385-3391）
+	var bg: Variant = a.get("_breakerGoal", null)
+	if bg is Dictionary:
+		var bgd := bg as Dictionary
+		var close_kill := int(a.get("knife", 0)) > 0 and td < 5.0
+		if int(sim.light_state) == 2 and float(sim.elapsed) < float(bgd.get("until", 0.0)) \
+				and not close_kill:
+			return bgd
+		a["_breakerGoal"] = null
+
+	# `const left=Math.max(0.25,Math.min(1,(G.t||0)/NIGHT));`
+	var left := clampf(float(sim.t) / sim.night_len(), 0.25, 1.0)
+	var speed := maxf(1.0, _move_speed(a))
+	var walk := func(d: float) -> float: return d / speed
+	var team: Dictionary = sim.rules.module_table("SKTeam")
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+
+	# 拉闸：`BREAKER_VALUE*left - breakerOffTime()*1.5 - walk(dist)`
+	var sc_br := -1.0
+	var br_pos: Vector2 = sim.breaker_pos()
+	if br_pos != Vector2.ZERO and int(sim.light_state) != 2 \
+			and not bool(a.get("sabUsed", false)) \
+			and int(a.get("_breakerSkip", -1)) != int(sim.night):
+		sc_br = float(team["BREAKER_VALUE"]) * left \
+			- sim.breaker_pull_time() * 1.5 - walk.call(ap.distance_to(br_pos))
+
+	# 破坏：`SABOTAGE_VALUE*left - walk(dist) - 1`；配电室未断电再 -4
+	var sc_sb := -1.0
+	var sb_room := ""
+	if not bool(a.get("sabUsed", false)):
+		for r: Dictionary in (sim.map.get("rooms", []) as Array):
+			var rid := String(r.get("id", ""))
+			if rid == "bridge" or not sim.sab_room_ok(rid):
+				continue
+			if String(a.get("_sabSkipRoom", "")) == rid \
+					and float(sim.elapsed) < float(a.get("_sabSkipUntil", 0.0)):
+				continue
+			var sp: Vector2 = sab_spot(rid)
+			if sp == Vector2.ZERO:
+				continue
+			var s: float = float(team["SABOTAGE_VALUE"]) * left \
+				- walk.call(ap.distance_to(sp)) - 1.0
+			if rid == "power" and int(sim.light_state) != 2:
+				s -= 4.0
+			if s > sc_sb:
+				sc_sb = s
+				sb_room = rid
+
+	# 拆机器人：只能刀/枪 → 没刀不列（真源 :3415-3425）
+	var sc_bot := -1.0
+	var bot_kind := ""
+	if int(a.get("knife", 0)) > 0 and sim.bots != null:
+		if not sim.bots.is_dead("secbot"):
+			var sq: Vector2 = sim.bot_pos_of("secbot")
+			if sq != Vector2.ZERO and sim.secbot_raid_ok(a, sq):
+				var s2: float = float(team["BOT_SEC_VALUE"]) * left \
+					- walk.call(ap.distance_to(sq))
+				if s2 > sc_bot:
+					sc_bot = s2
+					bot_kind = "secbot"
+		if not sim.bots.is_dead("medbot"):
+			var mq: Vector2 = sim.bot_pos_of("medbot")
+			if mq != Vector2.ZERO:
+				var s3: float = float(team["BOT_MED_VALUE"]) * left \
+					- walk.call(ap.distance_to(mq))
+				if s3 > sc_bot:
+					sc_bot = s3
+					bot_kind = "medbot"
+
+	# 狩猎：`(a.knife>0&&knifeLockLeft()<=0) ? (td<knifeReach?12:(td<5?9:2)) : 0`
+	# KNIFE.lockAtStart=0（真源亦然），此处按公式保留该因子形状。
+	var chase := 0.0
+	if int(a.get("knife", 0)) > 0:
+		var reach: float = sim.mind.trait_c("knifeReach", a)
+		chase = 12.0 if td < reach else (9.0 if td < 5.0 else 2.0)
+
+	# 伪装：`DG.planValue*disguiseScore - walk(dist)`，门槛 `sc>=minScore && s>0`
+	var sc_dis := -1.0
+	var dis_plan: Dictionary = {}
+	var br_plan: Dictionary = {}
+	var DG: Dictionary = sim.rules.t("DISGUISE")
+	var kill_window := int(a.get("knife", 0)) > 0 and td < 5.0
+	if not kill_window and not bool(a.get("_noFake", false)) \
+			and float(a.get("_fakeCD", 0.0)) <= 0.0 \
+			and a.get("_supportGoal", null) == null and int(a.get("drag", -1)) < 0:
+		var aud: Dictionary = audience_info(a, float(DG.get("audienceR", 8.0)))
+		if int(aud.get("n", 0)) > 0:
+			for spot: Dictionary in disguise_options(a, aud):
+				var rk: float = sim.mind.disguise_risk(disguise_risk_parts(a, aud, spot))
+				var sc: float = sim.mind.disguise_score(int(aud.get("weight", 0.0)), rk,
+					float(spot.get("dur", 4.0)), float(spot.get("valueMul", 1.0)))
+				var s4: float = float(DG.get("planValue", 6.0)) * sc \
+					- walk.call(float(spot.get("dist", 0.0)))
+				# 小概率通道要能拿到"分数不够"的合闸候选：先存一份再走门槛
+				if String(spot.get("kind", "")) == "breakerOn" and br_plan.is_empty():
+					br_plan = spot.duplicate(true)
+					br_plan["id"] = "disguise"
+					br_plan["score"] = s4
+					br_plan["forced"] = true
+					br_plan["aud"] = int(aud.get("n", 0))
+					br_plan["audW"] = float(aud.get("weight", 0.0))
+					br_plan["risk"] = rk
+					br_plan["sc"] = sc
+				if sc < float(DG.get("minScore", 0.25)) or s4 <= 0.0:
+					continue
+				if s4 > sc_dis:
+					sc_dis = s4
+					dis_plan = spot.duplicate(true)
+					dis_plan["id"] = "disguise"
+					dis_plan["score"] = s4
+					dis_plan["aud"] = int(aud.get("n", 0))
+					dis_plan["audW"] = float(aud.get("weight", 0.0))
+					dis_plan["risk"] = rk
+					dis_plan["sc"] = sc
+
+	var best := maxf(maxf(sc_br, sc_sb), maxf(sc_bot, maxf(chase, sc_dis)))
+
+	# 当众合闸小概率通道（真源 :3429-3449）：每只异形每夜只掷一次
+	if not br_plan.is_empty() and int(a.get("_breakerRollN", -1)) != int(sim.night):
+		a["_breakerRollN"] = int(sim.night)
+		a["_breakerRoll"] = sim._rng.randf() < float(DG.get("breakerChance", 0.1))
+	if not br_plan.is_empty() and bool(a.get("_breakerRoll", false)) \
+			and not kill_window and best <= maxf(chase, 6.0):
+		a["_breakerRoll"] = false
+		br_plan["until"] = float(sim.elapsed) + 25.0
+		a["_breakerGoal"] = br_plan
+		return br_plan
+
+	if not dis_plan.is_empty() and best == sc_dis:
+		return dis_plan
+	if best <= chase:
+		return {"id": "chase", "room": "", "score": chase}
+	if best == sc_bot:
+		return {"id": "bot", "kind": bot_kind, "score": sc_bot}
+	if best == sc_br:
+		return {"id": "breaker", "room": "", "score": sc_br}
+	return {"id": "sabotage", "room": sb_room, "score": sc_sb}
 
 
 func _decide(a: Dictionary) -> void:
@@ -304,10 +734,7 @@ func _decide(a: Dictionary) -> void:
 				a["_aiT"] = 1.0
 				return
 
-	# 每夜最多一次破坏；冷却在 tick 里逐帧减，只有空闲时才真的去。
-	if not bool(a.get("_sabDone", false)) and float(a.get("_sabT", 999.0)) <= 0.0:
-		if sim._rng.randf() < 0.35 and _try_sabotage(a):
-			return
+	# 破坏已并入 `_plan` 效用表（2.5D alienPlan），不再在这里 if 硬排。
 
 	# 救队友（2.5D alienMateRevive，js/game.js:3590）：有医疗包且认得出队友时，
 	# 8 格内看得见的濒死队友 → 走过去站桩救（STAND.revive，结算走 _finish_doing revive 链）。
@@ -341,25 +768,16 @@ func _decide(a: Dictionary) -> void:
 			if ap0.distance_to(hpos) < 2.0:
 				a["drag"] = -1
 				a["_dragTo"] = ""
+				# @src js/game.js:4102 到达藏尸点：`a._hideCD=25; a._hides=(a._hides||0)+1`
+				a["_hideCD"] = 25.0
+				a["_hides"] = int(a.get("_hides", 0)) + 1
 				a["_aiT"] = 1.0
 				return
 			if sim.set_path(i, hpos):
 				return
 			a["drag"] = -1
 			a["_dragTo"] = ""
-	# ---- 伪装效用表（2.5D alienPlan disguise 分支简化忠实版）----
-	# 2.5D 原始门槛：刀用完了才轮到"演一下"（效用表原缝：knife<=0 + 有观众）。
-	# 冷却好了且 disguiseScore ≥ minScore → 本拍去演；否则继续狩猎。
-	if int(a.get("knife", 0)) <= 0 and float(a.get("_fakeCD", 0.0)) <= 0.0 \
-			and _try_disguise(a):
-		return
-	# 当众拉闸（每夜每异形一掷，DISGUISE.breakerChance 0.10）
-	if String(a.get("_breakerRollN", "")) != str(int(sim.night)):
-		a["_breakerRollN"] = str(int(sim.night))
-		a["_breakerWant"] = sim._rng.randf() < float(
-			(sim.cfg.get("rules", {}) as Dictionary).get("DISGUISE", {}).get("breakerChance", 0.1))
-	if bool(a.get("_breakerWant", false)) and _try_breaker_off(a):
-		return
+	# 伪装 / 当众拉闸已并入 `_plan` 效用表（2.5D alienPlan），不再在这里 if 硬排。
 
 	var best := -1
 	var bd := 1.0e9
@@ -470,6 +888,10 @@ func _decide(a: Dictionary) -> void:
 		return
 	a["target"] = best
 	var real_d: float = sim.distance_to(i, bpos)
+	# ---- 2.5D alienPlan 效用表接管（拉闸 / 破坏 / 拆机器人 / 伪装）----
+	# 同台比分取 max；chase 最高时 fallthrough 到下面的出刀段，不再用 if 顺序硬排。
+	if _exec_plan(a, _plan(a, real_d)):
+		return
 	# 2.5D aiAlien 的开枪分支（js/game.js:3877）：异形有子弹也会开枪 ——
 	# 远距离/没刀时优先用枪，而不是永远只贴脸出刀。
 	# 条件：有弹 + 不是队友 + (没进刀程 或 没刀) + 枪程内 + LOS + alienFireP 概率。
@@ -602,36 +1024,38 @@ func _decide(a: Dictionary) -> void:
 			# 早先为截图擅自加的长冷却已移除（它把异形削到 79/17.5 的主因之一）。
 			a["_aiT"] = 2.0
 		return
-	# 拆机器人（2.5D aiAlien:4048 的 bot 候选）：有刀才列入候选（机器人只能被刀/枪瘫痪）。
-	# 保安默认不碰，必须先过 secbotRaidOk（认出 2+ 名 8 格内队友 + 共同捕杀目标 + 0.45 掷骰）；
-	# 医疗无人机是高价值目标（它挡救援），照常列入。贴身 1.8 格用刀，否则走过去。
-	if int(a.get("knife", 0)) > 0 and float(a.get("_botCD", 0.0)) <= 0.0 and real_d > 5.0:
-		var bot_kind := ""
-		var bot_pos := Vector2.ZERO
-		var bot_bd := 8.0
-		if not sim.bots.is_dead("secbot"):
-			var sq: Vector2 = sim.bot_pos_of("secbot")
-			if sim.secbot_raid_ok(a, sq):
-				var sd := ap0.distance_to(sq)
-				if sd < bot_bd:
-					bot_bd = sd
-					bot_kind = "secbot"
-					bot_pos = sq
-		if not sim.bots.is_dead("medbot"):
-			var mq: Vector2 = sim.bot_pos_of("medbot")
-			var md := ap0.distance_to(mq)
-			if md < bot_bd:
-				bot_bd = md
-				bot_kind = "medbot"
-				bot_pos = mq
-		if bot_kind != "":
-			if bot_bd < 1.8:
-				if sim.knife_bot(bot_kind, i):
-					a["_botCD"] = 10.0
-					a["_aiT"] = 1.5
-					return
-			elif sim.set_path(i, bot_pos):
+	# ---- 顺手藏别人尸体（2.5D findHideBody + aiAlien:4120）----
+	# 触发条件照真源：没在拖 / 冷却好了 / 每夜 ≤2 次 / 25 秒内没有目击者 /
+	# 离当前猎杀目标足够远（真源 `td>(busy?12:6)`，3D 的 real_d 就是到目标的距离）。
+	# 这是本批补的缺口：3D 之前只在「自家出刀后」即时拖尸，从不处理别人留下的尸体。
+	if int(a.get("drag", -1)) < 0 and float(a.get("_hideCD", 0.0)) <= 0.0 \
+			and int(a.get("_hides", 0)) < 2 and real_d > 6.0 \
+			and not sim.recent_witness(a, 25.0):
+		var hbv: Dictionary = find_hide_body(a)
+		if not hbv.is_empty():
+			var hbp: Vector2 = hbv.get("bodyPos", Vector2.ZERO)
+			# 有人在看就不动手：藏尸本身不能制造目击者（真源 watchersAt 6.5，排除队友）。
+			var hseen := false
+			for w5: Dictionary in sim.watchers_at(a, hbp, 6.5):
+				if sim.mind != null and not sim.mind._is_mate(a, int(w5.get("i", -1))):
+					hseen = true
+					break
+			if hseen:
+				a["_hideCD"] = 7.0
 				return
+			var hdest := _hide_room(hbp)
+			if hdest != "":
+				if ap0.distance_to(hbp) < 2.0:
+					a["drag"] = int(hbv.get("i", -1))
+					hbv["draggedBy"] = i
+					a["_dragTo"] = hdest
+					sim._witness_action(a, "saw_drag", hbp)
+					return
+				if sim.set_path(i, hbp):
+					return
+
+	# 拆机器人已并入 `_plan` 效用表（2.5D alienPlan 的 bot 候选），不再在这里 if 硬排。
+
 	# 2.5D aiAlien:4095「管道是核心位移能力」：排在补给/伪装之后、没刀游荡之前 ——
 	# 目标 >15 格且管道能省 5 格以上就走管道，而不是永远贴地跑。
 	if real_d > 15.0 and _pipe_move(a, bpos, real_d, 0.1):
@@ -642,132 +1066,108 @@ func _decide(a: Dictionary) -> void:
 	a["_aiT"] = 1.0
 
 
-func _try_sabotage(a: Dictionary) -> bool:
+## 执行 2.5D alienPlan 返回的 plan。`chase` 返回 false（交给出刀段）。
+## 分数与门槛全在 `_plan`，这里只负责"走到点位 → 站桩/结算"，不重算、不加门槛。
+func _exec_plan(a: Dictionary, plan: Dictionary) -> bool:
+	var pid := String(plan.get("id", ""))
+	if pid == "" or pid == "chase":
+		return false
 	var i := int(a.get("i", -1))
-	var rooms: Array = []
-	for rid: String in sim.rooms_by_id.keys():
-		if rid == "bridge":
-			continue
-		var pts: Array = []
-		for pi in sim.points.size():
-			var p: Dictionary = sim.points[pi]
-			if String(p.get("room", "")) == rid:
-				pts.append(pi)
-		if pts.size() > 0:
-			rooms.append(rid)
-	if rooms.is_empty():
-		return false
-	var rid := String(rooms[sim._rng.randi_range(0, rooms.size() - 1)])
-	var pi := -1
-	for k in sim.points.size():
-		var p: Dictionary = sim.points[k]
-		if String(p.get("room", "")) == rid:
-			pi = k
-			break
-	if pi < 0:
-		return false
-	var p2: Dictionary = sim.points[pi]
-	var target := Vector2(float(p2.get("x", 0)), float(p2.get("y", 0)))
-	if sim.distance_to(i, target) <= SpaceData.num(space, "reach", "fix"):
-		sim.start_doing(i, "sabotage", 2.0, -1, rid)
-		a["_sabDone"] = true
-		return true
-	if sim.set_path(i, target):
-		return true
-	return false
-
-## 伪装演出（2.5D alienPlan disguise 分支 / alienSupport 的同源简化）：
-## 观众 ≥1 且 disguiseScore ≥ minScore → 选一种演出站桩。
-## 演出不吃真实效果，只通过 credBroadcast 按「真假同价」记账。
-func _try_disguise(a: Dictionary) -> bool:
-	if sim == null or sim.mind == null:
-		return false
-	var D: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("DISGUISE", {}) as Dictionary
-	var aud_r := float(D.get("audienceR", 8.0))
 	var ap: Vector2 = a.get("pos", Vector2.ZERO)
-	var audience := 0
-	for w: Dictionary in sim.agents:
-		if w == a or bool(w.get("alien", false)):
-			continue
-		if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
-			continue
-		if float(w.get("doing", 0.0)) > 0.0:
-			continue
-		if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(ap) <= aud_r:
-			audience += 1
-	if audience <= 0:
-		return false
-	# 风险：观众 ≥3 加 manyEyes；暗处减分（dark）——其余项走缺省 0
-	var risk_in := {"audience": float(audience),
-		"dark": not sim.power_on}
-	var risk: float = sim.mind.disguise_risk(risk_in)
-	var score: float = sim.mind.disguise_score(mini(audience,
-		int(D.get("maxAudience", 4.0))), risk, float(D.get("dur", {}).get("fakeTask", [4, 4])[0]))
-	if score < float(D.get("minScore", 0.25)):
-		return false
-	var i := int(a.get("i", -1))
-	# 演哪种：附近 12 格有故障就假装修理（fakeRepair），否则假做任务（fakeTask）
-	var dur := 4.0
-	var fkind := "fakeWork"
-	if not sim.dmg.is_empty():
-		var d0: Dictionary = sim.dmg[0]
-		var dp := Vector2(float(d0.get("x", 0.0)), float(d0.get("y", 0.0)))
-		if ap.distance_to(dp) <= float(D.get("fakeRepairR", 12.0)):
-			dur = 5.0 + sim._rng.randf() * 4.0
-			fkind = "fakeRepair"
-			sim.start_doing(i, "fake", dur, -1, String(d0.get("room", "")))
-			a["_fakeKind"] = "fakeRepair"
-			a["_fakeCD"] = float(D.get("cooldown", 18.0))
-			sim._stat("fakeRepairs", 1)
+	var tp := Vector2(float(plan.get("x", 0.0)), float(plan.get("y", 0.0)))
+
+	if pid == "breaker":
+		var br: Vector2 = sim.breaker_pos()
+		if br == Vector2.ZERO:
+			return false
+		if ap.distance_to(br) < SpaceData.num(space, "reach", "breaker"):
+			sim.start_doing(i, "breaker", sim.breaker_pull_time())
 			return true
-	# 假做任务：贴着某个任务点才演（2.5D fakeTask 4~8 秒站桩），否则不演
-	var rem: Array = sim.remaining_tasks(i)
-	for pi: int in rem:
-		var pt: Dictionary = sim.point(int(pi))
-		var tp := Vector2(float(pt.get("x", 0.0)), float(pt.get("y", 0.0)))
-		if ap.distance_to(tp) <= 2.0:
-			sim.start_doing(i, "fake", 4.0 + sim._rng.randf() * 4.0, -1, "")
-			a["_fakeKind"] = "fakeWork"
-			a["_fakeCD"] = float(D.get("cooldown", 18.0))
-			sim._stat("fakeTasks", 1)
+		return sim.set_path(i, br)
+
+	if pid == "sabotage":
+		var room := String(plan.get("room", ""))
+		var sp: Vector2 = sab_spot(room)
+		if room == "" or sp == Vector2.ZERO:
+			return false
+		if ap.distance_to(sp) < SpaceData.num(space, "reach", "sabotage"):
+			return sim.sabotage_room(room, i)
+		return sim.set_path(i, sp)
+
+	if pid == "bot":
+		var kind := String(plan.get("kind", ""))
+		if kind == "" or sim.bots == null:
+			return false
+		var bp: Vector2 = sim.bot_pos_of(kind)
+		if bp == Vector2.ZERO:
+			return false
+		if ap.distance_to(bp) < 1.8:
+			if sim.knife_bot(kind, i):
+				a["_botCD"] = 10.0
+				a["_aiT"] = 1.5
+				return true
+			return false
+		return sim.set_path(i, bp)
+
+	# disguise：plan 自带 kind / x / y / dur / pt
+	if ap.distance_to(tp) >= 2.0:
+		return sim.set_path(i, tp)
+	var DG: Dictionary = sim.rules.t("DISGUISE")
+	match String(plan.get("kind", "")):
+		"realFix":
+			var fd: Variant = plan.get("fault", null)
+			var froom := ""
+			if fd is Dictionary:
+				froom = String((fd as Dictionary).get("room", ""))
+			sim.start_doing(i, "fix", float(plan.get("dur", 10.0)), -1, froom)
+			a["_realFixN"] = int(sim.night)
+			return true
+		"realRevive":
+			sim.start_doing(i, "revive", float(plan.get("dur", 5.0)))
+			a["_realReviveN"] = int(sim.night)
+			return true
+		"breakerOn":
+			sim.start_doing(i, "breaker", float(plan.get("dur", 3.0)))
+			return true
+		"fake":
+			sim.start_doing(i, "fake", float(plan.get("dur", 5.0)), -1,
+				String(plan.get("room", "")))
+			a["_fakeCD"] = float(DG.get("cooldown", 18.0))
+			a["_lastFake"] = {"key": String(plan.get("key", "")), "t": float(sim.elapsed)}
+			return true
+		"fakeTask":
+			sim.start_doing(i, "fake", float(plan.get("dur", 4.0)), int(plan.get("pt", -1)))
+			a["_fakeCD"] = float(DG.get("cooldown", 18.0))
+			a["_lastFake"] = {"key": String(plan.get("key", "")), "t": float(sim.elapsed)}
 			return true
 	return false
 
 
-## 当众拉闸（2.5D alienPlan breakerOff 分支 / DISGUISE.breakerChance 0.10 掷骰）：
-## 断电、闸在附近、没观众才动手 —— 拉闸是战略动作，不是随便拉。
-func _try_breaker_off(a: Dictionary) -> bool:
-	if sim == null or sim.power_on == false:
-		return false
-	var i := int(a.get("i", -1))
-	var bp: Vector2 = sim.breaker_pos()
+func find_hide_body(a: Dictionary) -> Dictionary:
+	var best: Dictionary = {}
+	var bd := 3.2
 	var ap: Vector2 = a.get("pos", Vector2.ZERO)
-	if ap.distance_to(bp) > 12.0:
-		return false
-	# 理智线（BREAKER.witnessCap 1 / minConceal 0.45 / crowd 10-3）
-	var B: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("BREAKER", {}) as Dictionary
-	var witnesses := 0
-	for w: Dictionary in sim.agents:
-		if w == a or bool(w.get("alien", false)) or not bool(w.get("alive", false)) \
-				or bool(w.get("downed", false)):
+	for v: Dictionary in sim.agents:
+		if v == a:
 			continue
-		if (w.get("pos", Vector2.ZERO) as Vector2).distance_to(bp) <= 7.0 \
-				and sim.ai_can_see(w, bp):
-			witnesses += 1
-	if witnesses >= int(B.get("witnessCap", 1)):
-		return false
-	# 每夜一次掷骰（DISGUISE.breakerChance 0.10）
-	if sim._rng.randf() > float((sim.cfg.get("rules", {}) as Dictionary).get("DISGUISE", {}).get("breakerChance", 0.1)):
-		return false
-	if ap.distance_to(bp) <= SpaceData.num(space, "reach", "breaker"):
-		sim.toggle_power(i)
-		sim._witness_action(a, "saw_breaker", bp)
-		a["_aiT"] = 2.0
-		return true
-	return sim.set_path(i, bp)
+		var bp: Vector2 = v.get("bodyPos", Vector2.ZERO)
+		if bp == Vector2.ZERO:
+			continue
+		# 2.5D `v.draggedBy!=null`；3D 空值是 -1（含历史 null），与 can_act 同口径。
+		var dv: Variant = v.get("draggedBy", -1)
+		if dv != null and int(dv) >= 0:
+			continue
+		# @src js/game.js:3114 `if(aiWantsLoot(a,v))continue;`
+		# 尸体上还有自己缺的物资：先搜尸再藏，别把子弹/医疗包一起埋了。
+		if sim.ai_wants_loot(a, v):
+			continue
+		var d: float = ap.distance_to(bp)
+		if d < bd and sim.ai_can_see(a, bp):
+			bd = d
+			best = v
+	return best
 
-## 藏尸目的地：2.5D hideRoomFor 的评分近似 —— 离活人越远越好，拖尸距离过远要扣分，
-## med/bridge 排除（2.5D 也不往医疗间/会议室藏）。
+
 func _hide_room(from_pos: Vector2 = Vector2.ZERO) -> String:
 	var humans: Array = []
 	for h: Dictionary in sim.agents:

@@ -190,9 +190,9 @@
     },
     {
       "src": "js/game.js:alibiLine",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_ai_line",
+      "status": "adapter",
+      "note": "js/game.js:5638 的自述：3D 走 selfcite 语料池，ctx 由 _ctx_for 提供 {r: 所在舱, k: 当前任务}，内容等价；未组合 stem_room+task_clause+mate_clause 的多句结构，也没有指控尾句。"
     },
     {
       "src": "js/game.js:alibiOf",
@@ -202,7 +202,7 @@
     },
     {
       "src": "js/game.js:alienAudienceInfo",
-      "target": "sim/ai_alien.gd:_try_disguise",
+      "target": "sim/ai_alien.gd:audience_info",
       "status": "adapter",
       "note": "js/game.js:3218：观众数/权重/热度统计；3D _try_disguise 内联同口径（audienceR 内非队友、doing>0 排除）"
     },
@@ -234,7 +234,7 @@
       "src": "js/game.js:alienPlan",
       "target": "sim/ai_alien.gd:_decide",
       "status": "adapter",
-      "note": "js/game.js:3382：效用表主结构（补给/伪装/拉闸/机器人/管道/狩猎）在 3D _decide 同序同门槛；细分打分（walk 估距、BOT_SEC_VALUE 权重）未逐项迁 —— 记入差距表"
+      "note": "js/game.js:3382 逐字移植到 sim/ai_alien.gd:_plan()：left=G.t/NIGHT、walk=dist/moveSpeed(a)、SKTeam/DISGUISE/CRED/RUSH 全读 rules.json（SKTeam 由本批补导出，53 表）；拉闸/破坏/拆机器人/狩猎/伪装同台比分取 max，含配电室 -4、下手 -1、合闸小概率通道 best<=max(chase,6)。_decide 已删除四段 if 入口，由 _exec_plan 执行。--aittest 3 夜：sab 1→5、prog 27→12（效用表生效）。"
     },
     {
       "src": "js/game.js:alienReportWorth",
@@ -268,9 +268,9 @@
     },
     {
       "src": "js/game.js:audienceHotRooms",
-      "target": "sim/ai_alien.gd:_try_disguise",
+      "target": "sim/ai_alien.gd:audience_hot_rooms",
       "status": "adapter",
-      "note": "js/game.js:3244：按 mem 热度选演出舱室；3D 简化为\"就地演出\"（贴任务点/贴故障），热度未迁 —— 记入差距表"
+      "note": "js/game.js:3244 逐行移植到 sim/ai_alien.gd:audience_hot_rooms()：2.5D 读 mind.mem 的 saw_agent 同夜记录，3D 无 mem，等价来源是 a.why[]（adapter 拆分点，见 parity-map#allowed_differences 第 5 条）。"
     },
     {
       "src": "js/game.js:beep",
@@ -382,9 +382,9 @@
     },
     {
       "src": "js/game.js:buildMeetCtx",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:on_meeting_open",
+      "status": "adapter",
+      "note": "js/game.js:5020 的会议上下文在 3D 拆成三块：_victim_info()（受害者视图）、_opening_broadcast()（报案播报）、on_meeting_open()（排期与各编排）；testimony 队列等价物是 _emit 内的 mind.note_testimony（见 deliverTestimony）。--meetopentest ②③ 覆盖玩家报案与无死亡两档。"
     },
     {
       "src": "js/game.js:buildSeatNames",
@@ -498,7 +498,7 @@
       "src": "js/game.js:collectInteractions",
       "target": "main.gd:_collect_offers",
       "status": "adapter",
-      "note": "js/game.js:8072：交互项收集（任务/电闸/圆桌/补给/管道/监控/搜尸/救人）；3D _collect_offers 同链，键位拆分 E/F/R/G/Q/V/B/C"
+      "note": "js/game.js:8072：交互项收集（任务/电闸/圆桌/补给/管道/监控/搜尸/救人）；3D _collect_offers 同链，键位拆分 E/F/R/G/Q/V/B/C；2026-11-12 修任务过滤：正常玩法只对最近且属于自己的剩余任务出 offer（2.5D nearPoint+mine）；_sim_gate=false 仅测试模式全开"
     },
     {
       "src": "js/game.js:counterfactualReach",
@@ -539,14 +539,14 @@
     {
       "src": "js/game.js:damageBot",
       "target": "sim/sim_state.gd:knife_bot",
-      "status": "adapter",
-      "note": "3D 拆 knife_bot（刀）/ hit_bot（枪）；缺 secbot 面向袭击者"
+      "status": "ported",
+      "note": "刀/枪两条都补齐：袭击者 alive/downed/detained 守卫、刀击写 redT=RED_BODY.dur、保安存活时 face_point(袭击者)（影响下一次 would_see 的 180° 扇形）、HP/刀数/停摆/on_crime 全接。--knifebottest 先跑 6 条拒绝守卫再验命中副作用。"
     },
     {
       "src": "js/game.js:damageRoom",
       "target": "sim/sim_state.gd:sabotage_room",
       "status": "ported",
-      "note": "异形幽灵破坏分支未接"
+      "note": "幽灵破坏分支在 _ghost_tick：异形幽灵全局一次（alienGhostSabUsed）、故障/警报/声音照常、不写目击证据，与真源 damageRoom(a,rid,null,true) 一致；玩家幽灵不能破坏，与 2.5D 相同（只有 AI 走 aiGhost）。"
     },
     {
       "src": "js/game.js:dawn",
@@ -580,9 +580,9 @@
     },
     {
       "src": "js/game.js:deliverTestimony",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_emit",
+      "status": "adapter",
+      "note": "js/game.js:7356 的「话真的说出口才生效」：3D 在 _emit 尾部调 mind.note_testimony（speech.gd:1176），与 say() 同一时机；差异是 3D 不留 ctx.testimony 队列。"
     },
     {
       "src": "js/game.js:descDistort",
@@ -598,9 +598,9 @@
     },
     {
       "src": "js/game.js:disguiseOptions",
-      "target": "sim/ai_alien.gd:_try_disguise",
+      "target": "sim/ai_alien.gd:disguise_options",
       "status": "adapter",
-      "note": "js/game.js:3266：3D 覆盖 fakeRepair/fakeTask 两类（disguiseScore≥minScore 门槛同源）；其余演出种类（东张西望等）未迁 —— 记入差距表"
+      "note": "js/game.js:3266 逐行移植到 sim/ai_alien.gd:disguise_options()：5 种候选（realFix/realRevive/breakerOn/fake/fakeTask）全部返回，常客舱室优先 + LENS.lr 降序排序；由 _plan 统一算分，不在候选内部做 if 硬排。"
     },
     {
       "src": "js/game.js:disguiseRiskParts",
@@ -628,9 +628,9 @@
     },
     {
       "src": "js/game.js:doorBlockedSegment",
-      "target": "",
-      "status": "pending",
-      "note": "⚠ 真缺口：3D nav.los 不含门，关闭的门不挡视线/枪线；需把门开合状态注入 sim 后统一 los"
+      "target": "sim/sim_state.gd:door_blocked_segment",
+      "status": "ported",
+      "note": "门挡移动与视线已双接：door_blocked_segment 用于寻路/穿门（sim_state.gd:631/639、main.gd:3005），los_now 逐门判 open>pass 挡视线（含枪线/AI 视野/听觉置信）。旧 note 的「3D nav.los 不含门」是失实记录，已更正并在 --knifebottest/--simtest 回归。"
     },
     {
       "src": "js/game.js:doorTick",
@@ -808,9 +808,9 @@
     },
     {
       "src": "js/game.js:envNotice",
-      "target": "",
-      "status": "not-applicable",
-      "note": "js/game.js:1848：env_* 环境记录写入 a.mem；3D 无 mem 时间线，等价信息由事件流（sabotage/door 日志）+ 维修 offers 呈现；记入 docs/agent/PARITY_DECISIONS.md 结构差异"
+      "target": "sim/sim_state.gd:env_notice",
+      "status": "adapter",
+      "note": "js/game.js:1848 + js/t2/ai.js:325-338 evPush 内联：3D 无 a.mind 对象，等价容器为 agent.ev_mem（MEM_MAX=64）；ev 字段 kind/x/y/room/conf/src/t/night/id 与真源一致，alert += conf*0.35、noise={x,y,t,kind} 副作用照搬。全船广播无距离/注意力过滤。三个调用点已接线：damageRoom→fault(0.55)、sabotageBot→robot(0.5)、pullBreaker→lights(0.85/0.45)。行为夹具 --parityfixture ③ 比对 12 合格/3 过滤、conf、alert +0.1925、noise。"
     },
     {
       "src": "js/game.js:evClause",
@@ -864,7 +864,7 @@
       "src": "js/game.js:findHideBody",
       "target": "sim/ai_alien.gd:_decide",
       "status": "adapter",
-      "note": "js/game.js:3108：3D 只在自家出刀后即时拖尸（_decide drag 分支 + _hide_room 评分）；「顺手藏别人尸体」分支未覆盖 —— 记入 docs/agent/PARITY_DECISIONS.md 差距表，不得当作已对齐"
+      "note": "js/game.js:3108 逐行移植到 find_hide_body()：3.2 格内 / aiCanSee / draggedBy 空值 -1 / aiWantsLoot 跳过。并在 _decide 补齐「顺手藏别人尸体」分支：!drag && _hideCD<=0 && _hides<2 && !recentWitness(25) && real_d>6；watchersAt 6.5 排除队友为空才动手；到达后 _hides+1、_hideCD=25（@src js/game.js:4102/4120）。--aittest 3 夜自跑无崩（tasks=19 kill=7 sab=1 meet=6）。"
     },
     {
       "src": "js/game.js:finishDoing",
@@ -1372,9 +1372,9 @@
     },
     {
       "src": "js/game.js:openingLine",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:_opening_line",
+      "status": "ported",
+      "note": "js/game.js:5625 逐行移植：open_body_dead / open_body_alive / open_nobody / open_nobody_night 四池 + moved/searched 后缀；victimInfo 由 _victim_info() 按 bodyPos/deathRoom 现算。--meetopentest ① 断言报案句真的进发言流且带死者名。"
     },
     {
       "src": "js/game.js:patFor",
@@ -1534,9 +1534,9 @@
     },
     {
       "src": "js/game.js:recordFrame",
-      "target": "",
-      "status": "not-applicable",
-      "note": "js/game.js:1410：2.5D 复盘帧采样（0.5s 全员坐标快照）；3D 复盘页用 events 流，帧快照未迁"
+      "target": "sim/sim_state.gd:record_frame",
+      "status": "ported",
+      "note": "js/game.js:1410 逐行移植：{pt,n,p}、0.5s 节流（FRAME_DT=0.5）、FRAME_CAP=12000、死者 bodyGone/票决/bodyPos 过滤、flags 位 1/2/4/8。G.playT 由 elapsed 承担（tick 在会议期间提前 return，与真源「会议不增长」一致）；drag 空值 -1 与 can_act 同口径。行为夹具 --parityfixture ② 比对帧键/15 人/4 元/flags。"
     },
     {
       "src": "js/game.js:refreshLight",
@@ -1606,9 +1606,9 @@
     },
     {
       "src": "js/game.js:replayData",
-      "target": "",
-      "status": "not-applicable",
-      "note": "js/game.js:1426：回放导出结构；3D 复盘由 events/结算页承担（P2 差距表）"
+      "target": "sim/sim_state.gd:replay_data",
+      "status": "ported",
+      "note": "js/game.js:1426 逐行移植 8 字段包（v/game/savedAt/map/result/roster/events/frames）。game 取 version.json#base.version（对应真源 SKConfig.version=返航录V3.7）、winPts 取 sim.json#win.pts=45，均不写死；events/frames 深拷贝。行为夹具 --parityfixture ① 比对字段集合与顺序/map/result/roster 键。"
     },
     {
       "src": "js/game.js:reportAlibiSpot",
@@ -1684,9 +1684,9 @@
     },
     {
       "src": "js/game.js:runInvariants",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/sim_state.gd:run_invariants",
+      "status": "ported",
+      "note": "js/game.js:556 逐行移植：sim/invariants.gd#check（A1-A23 / G1-G4 / D1-D6 / M1-M6 / W1-W2，共 44 条断言），sim.run_invariants 记录 inv_checks/inv_fails/inv_last_tag；SIM_RUN 等价物 sim.sim_run 在 --sim1000 里置真，与真源 `if(SIM_RUN)return null` 同频。--invtest：开局 280 项 0 失败、三夜自跑 0 失败，并用刀数越界（A11）/单向拖拽（D2）两个破坏态做反向对照，证明检查器非恒真。A24/G5/M7/D7 因 3D 无对应结构（me 席位不固定 / 无 lit 表 / tally 为局部量 / 无全局 drag）不适用，已在文件头逐条写明。"
     },
     {
       "src": "js/game.js:sabRoomOk",
@@ -1702,9 +1702,9 @@
     },
     {
       "src": "js/game.js:sabTick",
-      "target": "",
-      "status": "not-applicable",
-      "note": "2.5D 站桩破坏；3D 交互即结算 + 30 秒倒扣在 _tick_dmg"
+      "target": "sim/sim_state.gd:sab_tick",
+      "status": "adapter",
+      "note": "js/game.js:1297 逐行移植到 sab_tick()：6 条复合守卫、sabRoomOk 清目标、同房间或 <SAB_RANGE 命中；SAB_RANGE 读 space.json#reach.sabotage 不写死。输入层适配（§2 允许）：2.5D pickSabRoom→sabTick 两阶段，3D player_sabotage 保留交互即结算，未抵达时记 sab_target 交逐帧引爆；sabUsed 仍由 sabotage_room 在真正下手时写（js/game.js:1154）。行为夹具 --parityfixture ④ 比对 dmg 0→1 / sabUsed / 目标清空。"
     },
     {
       "src": "js/game.js:sabotage",
@@ -1841,8 +1841,8 @@
     {
       "src": "js/game.js:stab",
       "target": "main.gd:_player_knife",
-      "status": "adapter",
-      "note": "输入层：2.5D 的 bot 目标分支尚未接"
+      "status": "ported",
+      "note": "2.5D stab():8300 的「人+机器人同一次最近挑选」：_nearest_knife_any() 按真源顺序扫人再扫机器人（bd 递减，平手人优先），命中机器人走 can_act(knife_bot)+knife_bot；E 轮盘同源列出机器人目标。--knifebottest 断言刀程内能选中 secbot。"
     },
     {
       "src": "js/game.js:start",
@@ -1852,9 +1852,9 @@
     },
     {
       "src": "js/game.js:startChatter",
-      "target": "",
-      "status": "pending",
-      "note": ""
+      "target": "sim/speech.gd:on_meeting_open",
+      "status": "adapter",
+      "note": "js/game.js:5077 的发言排期：3D 在 on_meeting_open 里按 talkScore 排序 + _ai_line/_emit 逐句产出，顺序与真源一致（开场播报 → 先发制人 → 构陷/反咬 → 人类辩护 → 附议 → leader 指令）。"
     },
     {
       "src": "js/game.js:startClaim",
@@ -2321,10 +2321,11 @@
     "extras": 0,
     "hardcoded": 0
   },
+  "budget_note": "2026-11-12 排除项审计：sabTick/recordFrame/replayData/envNotice 从 not-applicable 纠正为 pending（机制缺口），budget 0→4；同日按 PORTING_PROTOCOL §3 逐函数移植完成，并由 2.5D SKV3._t 导出 --parityfixture 行为夹具回放通过，budget 4→0。 2026-11-12 第三批：runInvariants / openingLine / buildMeetCtx / startChatter / deliverTestimony / alibiLine / doorBlockedSegment / damageRoom / damageBot / stab 十条按代码实况登记（其中 doorBlockedSegment 原 ⚠ 注记为失实，已更正）。",
   "extras_allow": {
     "sim/sim_state.gd:revive": "2.5D 没有独立 revive()：医疗包分支在 finishDoing、无人机在 medbotTick；3D 收口成 revive()",
     "sim/sim_state.gd:player_sabotage": "2.5D sabotage() 的玩家动作段；3D 拆成输入包装 _on_sabotage + 动作 player_sabotage",
-  "sim/sim_state.gd:kill": "门禁/批量模拟的死亡快捷入口，已改为委托 die()，不是第二条死亡规则",
-  "sim/sim_state.gd:can_act": "2.5D 的动作判定散在 attack()/stab()/toggleDrag()/startDrag()/sabotage()/openPipePick()/collectInteractions() 内部，没有同名函数；3D 收口为只读判定（只返回 ok/reason，不写状态、不新增规则），@src 见函数注释。玩家与 AI 共用"
-}
+    "sim/sim_state.gd:kill": "门禁/批量模拟的死亡快捷入口，已改为委托 die()，不是第二条死亡规则",
+    "sim/sim_state.gd:can_act": "2.5D 的动作判定散在 attack()/stab()/toggleDrag()/startDrag()/sabotage()/openPipePick()/collectInteractions() 内部，没有同名函数；3D 收口为只读判定（只返回 ok/reason，不写状态、不新增规则），@src 见函数注释。玩家与 AI 共用"
+  }
 }

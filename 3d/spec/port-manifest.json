@@ -336,10 +336,10 @@
         "3d/preview/scripts/main.gd#_run_probetest",
         "3d/preview/scripts/sim/sim_state.gd#dev"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [],
       "gate": "npm run 3d:probe（--probetest：真实 E / 左键 / 轮盘 / F2）",
-      "notes": "2026-11-10 用户裁定：DEV 是必要开发者选项，撤销原 excluded。已迁 F2 开关、全知卡片栏、无敌（刀/枪/死亡/驱逐/保安抓捕）与玩家探针；2.5D 的运行时 SKInvariants 断言层未迁（3D 无对应实现），门禁仍用 --simtest / --devicetest。"
+      "notes": "2026-11-10 用户裁定：DEV 是必要开发者选项，撤销原 excluded。已迁 F2 开关、全知卡片栏、无敌（刀/枪/死亡/驱逐/保安抓捕）与玩家探针；2.5D 的运行时 SKInvariants 断言层未迁（3D 无对应实现），门禁仍用 --simtest / --devicetest。 2026-11-12：运行时 SKInvariants 断言层已迁（sim/invariants.gd，44 条断言 + --invtest 正反双向对照）。"
     },
     {
       "id": "E-POWER",
@@ -503,7 +503,7 @@
         "E-GEO"
       ],
       "gate": "--speechtest 证词改 sus / --b6test / --aittest 投票走认知分 / --aiporttest 13/0 / --socialtest 6/0",
-      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。2026-11-09 第七批核实：parity-map 为 38 synced / 0 pending，envEstimate(env_estimate) 与时间线拆谎(check_alibi) 均已接入。2026-11-10 第 13 批：humanT+seenBy 读写、audSusEstimate 方向拨正、saw_red 5s 节流、avoidSeen/lastBody/saw_body_moved/near_body 已接。第 16 批：claimHist/claim_recall、trust/grudge/patron、evalAlmost 全量（WEAK/heardKinds/real/fresh/friend）、DESC 单写已接；mind.mem 时间线由 why/bodySeen 等价存储（PORT-DIFF-AUDIT §J）。"
+      "notes": "按 SKT2AI 补齐假说层 / 公开热度 / 目标选择 / evalAlmost；known 只来自亲眼确证、why 为目标→证据数组。2026-11-09 第七批核实：parity-map 为 38 synced / 0 pending，envEstimate(env_estimate) 与时间线拆谎(check_alibi) 均已接入。2026-11-10 第 13 批：humanT+seenBy 读写、audSusEstimate 方向拨正、saw_red 5s 节流、avoidSeen/lastBody/saw_body_moved/near_body 已接。第 16 批：claimHist/claim_recall、trust/grudge/patron、evalAlmost 全量（WEAK/heardKinds/real/fresh/friend）、DESC 单写已接；mind.mem 时间线由 why/bodySeen 等价存储（PORTING_PROTOCOL.md 附录 C）。"
     },
     {
       "id": "S-LOOP",
@@ -554,7 +554,7 @@
         "S-BODY"
       ],
       "gate": "--aittest 任务 23 / 申请单 11 / 补给 10 / --aiporttest 13/0 / --socialtest 6/0",
-      "notes": "选任务→A*→站桩→完成→领申请单→换补给→修故障→报告尸体→持枪反制。2026-11-10 第 13 批：任务做完接 aiIdleRoam（修故障/领单/危险时按 cred-warm 跟随/躲避 hater/随机巡舱），_avoidHuman 粘性，saw_avoid 由 track_pass 记账。第 16 批：trust/grudge 情绪通道与 patron 投票过滤已接。仍缺：幽灵做任务/修故障、完整计划层。"
+      "notes": "选任务→A*→站桩→完成→领申请单→换补给→修故障→报告尸体→持枪反制。2026-11-10 第 13 批：任务做完接 aiIdleRoam（修故障/领单/危险时按 cred-warm 跟随/躲避 hater/随机巡舱），_avoidHuman 粘性，saw_avoid 由 track_pass 记账。第 16 批：trust/grudge 情绪通道与 patron 投票过滤已接。仍缺：幽灵做任务/修故障、完整计划层。 2026-11-12：抢修补 FIX_CREW_CAP=3 与 _fixGo 锁定（不再全员扑 dmg[0]）；任务到达判据 2.8 格。--dragtest ⑥ / --aittest 读数 prog 10→26。"
     },
     {
       "id": "A-SOCIAL",
@@ -574,13 +574,13 @@
         "3d/preview/scripts/sim/mind.gd#note_sight",
         "3d/preview/scripts/sim/sim_state.gd#release_drag"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "A-COGNITION",
         "S-COMBAT"
       ],
       "gate": "--b6test 藏尸 / --aittest 暴露度收敛",
-      "notes": "藏尸/目击/暴露度(目击→exposure→异形收手)/跨夜衰减已接；构陷编排(planAlienDeception/planMateBus)、伪装审计完整版仍待接。"
+      "notes": "藏尸/目击/暴露度(目击→exposure→异形收手)/跨夜衰减已接；构陷编排(planAlienDeception/planMateBus)、伪装审计完整版仍待接。 2026-11-12：构陷编排 plan_alien_deception / plan_mate_bus 已在 speech.gd；伪装审计 disguise_risk_parts + mind.disguise_risk 随 alienPlan 效用表接入。"
     },
     {
       "id": "A-ALIEN",
@@ -629,13 +629,13 @@
         "3d/preview/scripts/sim/sim_state.gd#shoot",
         "3d/preview/scripts/main.gd#_handle_attack"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-STATE",
         "A-COGNITION"
       ],
       "gate": "--b4test 开枪断言 · --aittest knife/kill 事件",
-      "notes": "出刀/开枪/濒死/死亡/救起已接；玩家左键出刀、右键开枪；枪声证人收窄到 7 格 + LOS。RUSH 逃逸(_kill_rush_start)、击杀加速(rushT)、红身(redT)、异形开枪(alienFireP) 均已接入——旧 note 说「未接」失实。2026-11-09 第七批：人类 AI 开枪决策 _shoot_target 此前为死代码，现已在 ai_human._decide 接通射程内开枪；仍未接 2.5D 的 chaseKnown/chaseSus 追猎分支。每夜刀额度已恢复。"
+      "notes": "出刀/开枪/濒死/死亡/救起已接；玩家左键出刀、右键开枪；枪声证人收窄到 7 格 + LOS。RUSH 逃逸(_kill_rush_start)、击杀加速(rushT)、红身(redT)、异形开枪(alienFireP) 均已接入——旧 note 说「未接」失实。2026-11-09 第七批：人类 AI 开枪决策 _shoot_target 此前为死代码，现已在 ai_human._decide 接通射程内开枪；仍未接 2.5D 的 chaseKnown/chaseSus 追猎分支。每夜刀额度已恢复。 2026-11-12：补 damageBot 红身（redT=RED_BODY.dur）、袭击者状态守卫与保安转向；玩家刀击可命中机器人（stab 的 bot 分支）。--knifebottest 覆盖。"
     },
     {
       "id": "S-BOTS",
@@ -656,14 +656,14 @@
         "3d/preview/data/space.json#bot",
         "3d/preview/scripts/scene_extras.gd#bot_nodes"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-STATE",
         "E-GEO",
         "S-COMBAT"
       ],
       "gate": "--bottest 6/0 + --b6test 机器人 HP",
-      "notes": "巡逻/抓捕/拘留/救人 + HP(保安2/医疗1)与打机器人反制。机器人 HP 从 js/t2/space.js#botHp 口径。"
+      "notes": "巡逻/抓捕/拘留/救人 + HP(保安2/医疗1)与打机器人反制。机器人 HP 从 js/t2/space.js#botHp 口径。 2026-11-12：补 face_point（被刀/枪打中转向袭击者，影响 would_see 的 180° 扇形）；巡逻/抓捕/拘留守卫/救人链未改。"
     },
     {
       "id": "S-WIN",
@@ -709,13 +709,13 @@
       "target": [
         "3d/preview/scripts/sim/sim_state.gd#open_meeting"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-COMBAT",
         "S-BODY"
       ],
       "gate": "--meetingtest ok=true",
-      "notes": "报告尸体→开会已接；报告额度/播报文案未接。"
+      "notes": "报告尸体→开会已接；报告额度/播报文案未接。 2026-11-12：报告额度链（reportLeft 初始化/递减/守卫）已在 sim；开场播报（AI 报案句 / 玩家报案系统播报 / 无死亡播报）本批接入 speech._opening_broadcast，--meetopentest 覆盖三档。"
     },
     {
       "id": "S-SPEECH",
@@ -736,14 +736,14 @@
         "3d/preview/scripts/sim/lines_data.gd",
         "3d/preview/scripts/main.gd#_meeting_feed_text"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-MEET",
         "D-LINES",
         "A-COGNITION"
       ],
       "gate": "--speechtest 17/0（讨论 17 条台词 / 玩家解析 saw_knife / 证词改 sus / 投票意向 / 模板 11/11）",
-      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；系数读 rules.json#dispatch。2026-11-09 第七批核实：构陷编排 plan_alien_deception(speech.gd:106)、plan_mate_bus(:321)、领袖指令 schedule_leader_orders(:394)、COFRAME 协同诬陷(:191)、MISLEAD.bus(:318) 均已接入，旧 note 的「未接」失实；CN_SEAT / 补零席位号 / whenWord 同批补齐。2026-11-11 第 21 批：player_say 回应池按 2.5D playerTalk 分支重排（证据被指者 player_claim_deny 的 {k}=动作、作证不写成证词、否认用 press_deny、普通指控不再附送 empty_accuse 证词），删除 3D 自造的否认降可信度；--speechtest 模板 11/11。仍缺：讨论期陆续投 + 跟票 + rev 驱动的完整改票时序（在 S-DECISION 条目登记）。"
+      "notes": "六类说服策略 + hot/cold + 组合槽 + 整局降权 + 同场去重 + talkScore 排期 + 玩家自由发言 + AI 质疑/附议全接通；系数读 rules.json#dispatch。2026-11-09 第七批核实：构陷编排 plan_alien_deception(speech.gd:106)、plan_mate_bus(:321)、领袖指令 schedule_leader_orders(:394)、COFRAME 协同诬陷(:191)、MISLEAD.bus(:318) 均已接入，旧 note 的「未接」失实；CN_SEAT / 补零席位号 / whenWord 同批补齐。2026-11-11 第 21 批：player_say 回应池按 2.5D playerTalk 分支重排（证据被指者 player_claim_deny 的 {k}=动作、作证不写成证词、否认用 press_deny、普通指控不再附送 empty_accuse 证词），删除 3D 自造的否认降可信度；--speechtest 模板 11/11。仍缺：讨论期陆续投 + 跟票 + rev 驱动的完整改票时序（在 S-DECISION 条目登记）。 2026-11-12：开场台词改走语料池（open_* / alien_open_accuse / alien_open_echo），删除调用处硬编码句；附议者按 FIRST.maxAccusers-1 + extraWgt 衰减接入。"
     },
     {
       "id": "S-DECISION",
@@ -784,14 +784,14 @@
         "3d/preview/scripts/main.gd#_build_meeting_ui",
         "3d/preview/scripts/main.gd#_meeting_result_text"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [
         "S-REPORT",
         "A-COGNITION",
         "S-DECISION"
       ],
       "gate": "--meetingtest ok=true / --speechtest 11/0 / --meetuitest 23/0 / --meetshot 三张实拍",
-      "notes": "discuss(发言流+11模板+对象/舱室/时段下拉+玩家输入框) → vote → result(聚合票数+弃权+门槛+身份，逐人矩阵在结算页 S-WIN，第 14 批已迁)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮；讨论期先投/改票、跳过投票、幽灵/旁观只读均在。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。2026-11-10 第 12 批：会议 UI 功能层逐条对齐 js/game.js:6812-6873/7413-7447/10878-10903，--meetuitest 23/0。2026-11-11 第 21 批：模板扩到六类直接证据 + 时段，空舱室不再注入当前房间；--speechtest 模板 11/11。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。"
+      "notes": "discuss(发言流+11模板+对象/舱室/时段下拉+玩家输入框) → vote → result(聚合票数+弃权+门槛+身份，逐人矩阵在结算页 S-WIN，第 14 批已迁)；驱逐照搬 2.5D 唯一最高票 + VOTE.need/lateNeed 门槛，报告额度 MEET.reportsPerAgent=2，票权分两轮；讨论期先投/改票、跳过投票、幽灵/旁观只读均在。2026-11-09 第七批核实：pre/day/night 三类(_after_meeting)、紧急按钮(open_meeting_kind)、MEET.reveal 结果公布(sim_state.gd:1263/1626) 均已接入，旧 note 的「白天/开局会议与紧急按钮未迁」失实。2026-11-10 第 12 批：会议 UI 功能层逐条对齐 js/game.js:6812-6873/7413-7447/10878-10903，--meetuitest 23/0。2026-11-11 第 21 批：模板扩到六类直接证据 + 时段，空舱室不再注入当前房间；--speechtest 模板 11/11。仍缺：buildMeetCtx 完整上下文对象、remainMs 夜剩余时间（3D 用夜钟暂停等价）。 2026-11-12：会议开场补齐报案播报与开场定调/附议；discuss→vote→result 链未改。"
     },
     {
       "id": "S-NIGHT",
@@ -863,7 +863,7 @@
         "S-STATE"
       ],
       "gate": "--b4test 搜尸 / --b6test 拖尸藏尸",
-      "notes": "尸体/报告/搜尸取物资/拖尸跟随(降速)/医疗间救起/非公共舱藏尸/收尸全部接通。"
+      "notes": "尸体/报告/搜尸取物资/拖尸跟随(降速)/医疗间救起/非公共舱藏尸/收尸全部接通。 2026-11-12 现场：拖行改为 syncDragOf 语义（身后 0.62 格 / 活体写 pos / 会议与死亡强制松手 / 拖离医疗间目击 saw_drag_away），视图按 bodyPos 落点。--dragtest 覆盖。"
     },
     {
       "id": "X-AUDIO",
@@ -884,10 +884,10 @@
         "3d/preview/assets/audio/",
         "3d/preview/scripts/ui_panels.gd"
       ],
-      "status": "partial",
+      "status": "ported",
       "depends_on": [],
       "gate": "--shot 无脚本错误 / --b6test",
-      "notes": "20 条 .ogg 从 2.5D audio/ 复制；事件流驱动播放 + 0.12s 同音效去重 + 音量走设置面板。BGM(m4a) Godot 不支持，未接；无 3D 空间衰减。"
+      "notes": "20 条 .ogg 从 2.5D audio/ 复制；事件流驱动播放 + 0.12s 同音效去重 + 音量走设置面板。BGM(m4a) Godot 不支持，未接；无 3D 空间衰减。 2026-11-12：BGM 已由 ffmpeg 转 ogg（assets/audio/music-bgm.ogg，audio.gd 读 .import 的 loop）——旧 note「Godot 不支持 m4a 未接」失实；无 3D 空间衰减属表现层差异。"
     },
     {
       "id": "V-RENDER",
@@ -971,7 +971,7 @@
           "file": "js/game.js",
           "lines": [
             11755,
-            11917
+            11946
           ]
         }
       ],
@@ -981,7 +981,7 @@
       "status": "excluded",
       "depends_on": [],
       "gate": "不迁；window.SKV3._t 只属于 2.5D 门禁",
-      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。2026-11-10 baseline:sync 后文件由 11877 行缩到 11873 行，行段末值随之更正（只改末值，认领语义不变）。2026-11-11 第 21 批再同步后 11917 行（tplKinds 新增 1 个查询），行段末值同步。"
+      "notes": "3D 用 --simtest / --taskflowtest 替代。2026-11-09 上游在 js/game.js 末尾新增 111 行 _t 调试查询接口（talkNOf / sequenceCueOf / statementRelationOf / vouches / disguiseOrder / ghostCap / medbotStun / stunOf / sightCfg / terminator），一并认领。2026-11-10 baseline:sync 后文件由 11877 行缩到 11873 行，行段末值随之更正（只改末值，认领语义不变）。2026-11-11 第 21 批再同步后 11917 行（tplKinds 新增 1 个查询），行段末值同步。2026-11-12 上游 SND 表接线 click（+5 行），baseline:sync 后 11922 行，行段末值同步。2026-11-12 同日上游再落 NO_MG_ACT（小游戏遮罩排除表），文件末行 11924，行段末值再同步（只改末值，认领语义不变）。2026-11-12 地道口暖黄呼吸灯（drawPipes，+22 行），文件末行 11946，行段末值再同步（只改末值）。"
     },
     {
       "id": "X-ENTRY",

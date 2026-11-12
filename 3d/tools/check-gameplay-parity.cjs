@@ -29,8 +29,8 @@ const SRC = path.resolve(
   argValue('--src') || path.join(ROOT, '..', '新返航录')
 );
 const SPEC = path.join(ROOT, '3d', 'spec', 'gameplay-parity.json');
-const OUT_MD = path.join(ROOT, 'docs', 'agent', 'PARITY_REPORT.md');
-const OUT_CSV = path.join(ROOT, 'docs', 'agent', 'parity-report.csv');
+const OUT_MD = path.join(ROOT, '3d', 'reports', 'parity-report.md');
+const OUT_CSV = path.join(ROOT, '3d', 'reports', 'parity-report.csv');
 const STRICT = args.includes('--strict');
 const INIT = args.includes('--init');
 const UPDATE_BUDGET = args.includes('--update-baseline');

@@ -8,7 +8,7 @@ extends RefCounted
 ##
 ## 与 2.5D 的边界：这里实现的是"六类说服策略 + 去重 + 可信度 + 注意力窗口"的完整链路，
 ## 但没有逐条复刻 2.5D 的构陷编排（planAlienDeception / planMateBus）与领袖型玩家剧本
-## ——那两块依赖完整的 mind 假设层，见 MIGRATION.md 的 S 轨剩余项。
+## ——那两块依赖完整的 mind 假设层，见 `PORTING_PROTOCOL.md` §3.1 与 `HANDOFF.md` §0.4。
 
 const SPEAK_CATS := ["identity", "accuse", "defend", "evidence", "ask", "call"]
 
@@ -664,6 +664,103 @@ func push_endorse(kind: String) -> void:
 			return
 
 
+## 2.5D causeName（js/game.js:389）：死因 → 播报用语。
+func _cause_name(c: String) -> String:
+	match c:
+		"knife": return "刀伤"
+		"shot": return "枪伤"
+		"bled": return "失血过多"
+		"vote": return "被驱逐出舱"
+	return "未知"
+
+
+## 2.5D bodyWound（js/game.js:2091）：尸体/伤员的伤情描述。
+## 3D 没有 woundCause 字段（濒死原因没落库），所以活着的濒死者统一走「重伤」档；
+## 这一档在真源里本来就存在，不是自造文案。
+func _wound_text(b: Dictionary) -> String:
+	if b.is_empty():
+		return "未知"
+	if bool(b.get("alive", false)) and bool(b.get("downed", false)):
+		return "重伤 · 仍在渗血"
+	if not bool(b.get("alive", false)):
+		return _cause_name(String(b.get("deathCause", "")))
+	return "无伤"
+
+
+## 2.5D victimInfo（js/game.js:5000）：报案播报与开场台词共用的受害者视图。
+func _victim_info(victim_i: int) -> Dictionary:
+	if victim_i < 0 or victim_i >= sim.agents.size():
+		return {}
+	var v: Dictionary = sim.agent(victim_i)
+	if v.is_empty():
+		return {}
+	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+	var rid := String(v.get("deathRoom", ""))
+	if rid == "":
+		rid = sim.room_at(bp)
+	return {"i": victim_i, "name": String(v.get("name", "")),
+		"room": sim.room_name(rid), "dead": not bool(v.get("alive", false)),
+		"cause": _wound_text(v).replace(" · 仍在渗血", ""),
+		"moved": bool(v.get("bodyMoved", false)),
+		"searched": bool(v.get("searched", false))}
+
+
+## 2.5D openingLine（js/game.js:5625）：报案句 / 无死亡句走语料池，
+## 末尾按尸体状态补「尸体被移动过」「我已经检查过伤口」。
+func _opening_line(speaker_i: int, vi: Dictionary, kind: String) -> String:
+	var a: Dictionary = sim.agent(speaker_i)
+	if a.is_empty():
+		return ""
+	var cat := "open_body_dead" if bool(vi.get("dead", false)) else "open_body_alive"
+	if vi.is_empty():
+		cat = "open_nobody" if kind == "day" else "open_nobody_night"
+	var tpl := _pick(cat, speaker_i)
+	if tpl == "":
+		return ""
+	line_used[tpl] = int(line_used.get(tpl, 0)) + 1
+	var mine: Dictionary = (meet_used.get(speaker_i, {}) as Dictionary).duplicate()
+	mine[tpl] = true
+	meet_used[speaker_i] = mine
+	var ctx := {"r": String(vi.get("room", "")), "t": String(vi.get("name", "")),
+		"k": String(vi.get("cause", "")), "when": lines.when_word(kind == "day")}
+	var out: String = lines.fill(tpl, a, ctx, sim._rng)
+	if not vi.is_empty():
+		if bool(vi.get("moved", false)):
+			out += " 尸体被移动过。"
+		if bool(vi.get("searched", false)):
+			out += " 我已经检查过伤口。"
+	return out
+
+
+## 2.5D openMeeting:6205-6260 的开场段（此前 3D 整段缺失，只有一句标题）：
+##   · 报案人是 AI → 由他说 openingLine；
+##   · 报案人是玩家本人 → 系统播报事实（不替玩家编台词）；
+##   · 没尸体 → 系统播报「天亮了 / 有人按了会议铃」。
+func _opening_broadcast(reporter_i: int, victim_i: int, kind: String) -> void:
+	var vi := _victim_info(victim_i)
+	var has_rep: bool = reporter_i >= 0 and reporter_i < int(sim.agents.size())
+	var rep: Dictionary = sim.agent(reporter_i) if has_rep else {}
+	var rep_ok: bool = has_rep and bool(rep.get("alive", false)) \
+		and not bool(rep.get("downed", false))
+	if rep_ok and reporter_i != int(sim.me_idx):
+		var line: String = _opening_line(reporter_i, vi, kind)
+		if line != "":
+			_emit(reporter_i, "open", {}, -1, "open", line)
+		return
+	if vi.is_empty():
+		if kind == "day":
+			sys_say("系统", "天亮了，全员回中央会议室集合。")
+		else:
+			sys_say("系统", "没有尸体，但有人按下了会议铃。")
+		return
+	var who: String = "在" + String(vi.get("room", "")) + "发现" + String(vi.get("name", ""))
+	if reporter_i == int(sim.me_idx) and not bool(sim.spectator):
+		who = String(rep.get("name", "我")) + " " + who
+	var tail := "，人已经没了。" if bool(vi.get("dead", false)) \
+		else "，还有呼吸——先救人，但动手的人就在我们中间。"
+	sys_say("系统", who + "，" + String(vi.get("cause", "")) + tail)
+
+
 ## 先发制人（2.5D FIRST，2026-11-08 用户裁定）：
 ## 「异形会率先进行指控……甚至有可能是第一句话说出来的」。
 ## 每场会议 FIRST.chance(0.45) 概率由一只异形**抢在人类之前定调**；
@@ -698,9 +795,12 @@ func plan_first_accusation(kind: String) -> void:
 	var tgt_a: Dictionary = sim.agent(tgt)
 	var tname := String(tgt_a.get("name", "他"))
 	var kd := "saw_red" if sim._rng.randf() < 0.7 else "saw_pipe"
-	var room: String = sim.room_at(tgt_a.get("pos", Vector2.ZERO))
-	var act := "身上带着刚出刀的红光" if kd == "saw_red" else "钻进了管道"
-	_emit_raw(liar_i, "我先说一句：我看见%s%s。" % [tname, act])
+	# 2.5D planFirstAccuse:7217-7219：说「出刀冒红光 / 钻管道」，舱室用**靶子的公开自述舱室**；
+	# 台词走语料池 alien_open_accuse（此前 3D 把这句硬写死在调用处）。
+	var kd_room := _claimed_room(tgt_a)
+	var ctx_o := {"r": sim.room_name(kd_room), "t": tname,
+		"when": lines.when_word(false)}
+	_emit(liar_i, "alien_open_accuse", ctx_o, tgt, "opening")
 	liar["accuse"] = tgt
 	liar["accuseWhy"] = {"kind": kd, "reason": "opening", "fake": true, "opening": true,
 		"solid": true}
@@ -709,14 +809,55 @@ func plan_first_accusation(kind: String) -> void:
 	# 听众（无确证者）+FIRST.wgt 传闻嫌疑
 	for l: Dictionary in sim.agents:
 		var li := int(l.get("i", -1))
-		if li == liar_i or li == tgt or not bool(l.get("alive", false)) \
-				or bool(l.get("downed", false)):
+		if li == liar_i or li == tgt or bool(l.get("alien", false)) \
+				or not bool(l.get("alive", false)) or bool(l.get("downed", false)):
 			continue
 		if not (l.get("known", {}) as Dictionary).is_empty():
 			continue
 		mind.sus_add(l, tgt, sim.rules.n("FIRST", "wgt", 0.22), "heard_frame",
 			{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": liar_i,
 			"opening": 1})
+
+	# 2.5D planFirstAccuse:7220-7227 + buildMeetCtx:5266-5273：附议者。
+	# 最多 FIRST.maxAccusers-1 个（优先已认出的队友），共享同一靶子、票型统一；
+	# 听众嫌疑按 extraWgt × extraWgtDecay^(k-1) 递减（COFRAME 的声势口径）。
+	var others: Array = []
+	for a2: Dictionary in sim.agents:
+		if int(a2.get("i", -1)) == liar_i:
+			continue
+		if not bool(a2.get("alien", false)):
+			continue
+		if not bool(a2.get("alive", false)) or bool(a2.get("downed", false)):
+			continue
+		others.append(a2)
+	others.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
+		return _is_mate(liar, int(p.get("i", -1))) \
+			and not _is_mate(liar, int(q.get("i", -1))))
+	var max_allies := maxi(0, int(sim.rules.n("FIRST", "maxAccusers", 3)) - 1)
+	var k := 0
+	for x: Dictionary in others:
+		if k >= max_allies:
+			break
+		k += 1
+		var xi := int(x.get("i", -1))
+		var ctx_e := {"r": sim.room_name(kd_room), "t": tname,
+			"when": lines.when_word(false)}
+		_emit(xi, "alien_open_echo", ctx_e, -1, "open_echo")
+		x["accuse"] = tgt
+		x["accuseWhy"] = {"kind": kd, "reason": "协同附议", "fake": true, "opening": true}
+		sim.note_accuse(xi, tgt)
+		var ew: float = sim.rules.n("FIRST", "extraWgt", 0.14) \
+			* pow(sim.rules.n("FIRST", "extraWgtDecay", 0.72), float(k - 1))
+		for l2: Dictionary in sim.agents:
+			var li2 := int(l2.get("i", -1))
+			if li2 == xi or li2 == tgt or bool(l2.get("alien", false)):
+				continue
+			if not bool(l2.get("alive", false)) or bool(l2.get("downed", false)):
+				continue
+			if not (l2.get("known", {}) as Dictionary).is_empty():
+				continue
+			mind.sus_add(l2, tgt, ew, "heard_frame",
+				{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": xi, "co": k})
 
 
 ## 2.5D alibiOf 的 roomId 口径：异形本夜作案 → 用编造的房间；否则用真实所在。
@@ -863,6 +1004,9 @@ func on_meeting_open(reporter_i: int, victim_i: int, kind: String = "night") -> 
 						_emit_raw(other, lines.fill(tpl, sim.agent(other), ctx2, sim._rng))
 					sim._stat("claimRecall", 1)
 		sim.mind.record_claim(ca, rid)
+	# 2.5D openMeeting:6205-6260：开场播报先于一切编排
+	# （报案人第一句 / 玩家报案的系统播报 / 无死亡播报）。
+	_opening_broadcast(reporter_i, victim_i, kind)
 	# 2.5D startChatter 的先后顺序（js/game.js:5077 → 5098+）：**先**先发制人定调，
 	# **再**算构陷/反咬 —— 构陷会跳过已 opening 的异形，两者因此天然互斥（不会一句话两张票）。
 	if kind != "pre":
@@ -1011,7 +1155,7 @@ func _emit(speaker_i: int, cat: String, ctx: Dictionary, target_i: int,
 		"target": target_i, "kind": kind}
 	feed.append(entry)
 	# 注意：data 里绝不能再放 "kind" —— 2.5D logEvent 的 data.kind 会覆盖事件信封，
-	# 这条坑在 MIGRATION.md §8.1 记过一次。业务种类改叫 ev。
+	# 历史坑：业务种类改叫 ev，别再混用。
 	sim._log("chat", {"actor": speaker_i, "text": raw, "cat": cat,
 		"target": target_i, "ev": kind})
 	# 公开点名之后，听众可能改票（2.5D reconsiderVotes，js/game.js:7345）。

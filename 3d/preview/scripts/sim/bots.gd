@@ -143,6 +143,16 @@ func on_crime(actor_i: int, at: Vector2) -> bool:
 
 ## 保安能不能看见某点（2.5D secbotWouldSee 同源）：6m + 180° 前方 + 只看墙。
 ## AI 出手前用它预判，和真正抓人共用同一判据，避免"AI 以为安全、结果被抓"。
+## 2.5D damageBot（js/game.js:8407）：保安被刀/枪打中时立刻转向袭击者
+## （`G.bots.secbot.ang=Math.atan2(attacker.y-p.y,attacker.x-p.x)`）。
+## 这直接改变下一次 would_see 的 180° 扇形，是玩法机制，不是表现。
+func face_point(at: Vector2) -> void:
+	if is_dead("secbot"):
+		return
+	if sec_pos.distance_to(at) > 0.001:
+		sec_ang = (at - sec_pos).angle()
+
+
 func would_see(at: Vector2) -> bool:
 	if is_dead("secbot") or sec_uses >= SEC_USES_MAX:
 		return false

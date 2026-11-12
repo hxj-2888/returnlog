@@ -25,7 +25,17 @@ const LinesDataScript := preload("res://scripts/sim/lines_data.gd")
 const RulesDataScript := preload("res://scripts/sim/rules_data.gd")
 const MindScript := preload("res://scripts/sim/mind.gd")
 const SpeechScript := preload("res://scripts/sim/speech.gd")
+const InvariantsScript := preload("res://scripts/sim/invariants.gd")
 const SpaceData := preload("res://scripts/space_data.gd")
+
+## 复盘 / 证据采样常量，逐字来自真源（@src js/game.js:1400）：
+##   const EV_CAP=8000, FRAME_CAP=12000, FRAME_DT=0.5;
+## @src js/t2/ai.js:192  const MEM_MAX = 64;  （evPush 的记忆窗口上限）
+## 这些不是 3D 自造阈值，是 2.5D 原文常量；保留同名以便逐函数对账。
+const EV_CAP := 8000
+const FRAME_CAP := 12000
+const FRAME_DT := 0.5
+const MEM_MAX := 64
 
 var cfg: Dictionary = {}
 var map: Dictionary = {}
@@ -68,8 +78,18 @@ var over_win := false
 var over_why := ""
 var power_fixed := false
 var events: Array = []
+## @src js/game.js:287  events:[],frames:[],playT:0,_frameAcc:0
+## G.playT 在 3D 由 elapsed 承担（tick 在会议期间提前 return，与 2.5D「会议不增长」一致）。
+var frames: Array = []
+var _frame_acc: float = 0.0
+## @src js/game.js:276  dmg:[],sabPick:null,sabTarget:null,...,evSeq:0
+var sab_target: Dictionary = {}
+var ev_seq: int = 0
 ## 批量模拟遥测（2.5D G.simStats 等价物）：只计数不判定。
 var stats: Dictionary = {}
+## 2.5D SIM_RUN（js/game.js:557）：批量模拟模式。该模式下不跑不变量断言
+## （1000 局 × 每帧断言没有意义，2.5D 也是 `if(SIM_RUN)return null`）。
+var sim_run := false
 ## 红身/seenBy 追踪的节流计时
 var _track_t: float = 0.0
 var point_done: Dictionary = {}
@@ -87,6 +107,11 @@ var night_meets := 0
 var ai_enabled := true
 
 var seed_used := 0
+## 2.5D G.inv（js/game.js:556-583）：不变量断言的最近一次结果。
+## 只读诊断，不参与任何判定；--invtest 与 _t.inv 等价入口读这三个字段。
+var inv_checks := 0
+var inv_fails: Array = []
+var inv_last_tag := ""
 var _rng := RandomNumberGenerator.new()
 
 
@@ -156,6 +181,10 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	over_why = ""
 	power_fixed = false
 	events = []
+	frames = []
+	_frame_acc = 0.0
+	sab_target = {}
+	ev_seq = 0
 	point_done = {}
 	agents = []
 	dmg = []
@@ -296,6 +325,8 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	bots.setup(self, space)
 	_build_doors()
 	_log("game_start", {"night": 1, "seed": p_seed, "me": me_idx})
+	# @src js/game.js:294 newGame：logEvent('game_start') 之后立即采首帧。
+	record_frame()
 	# 2.5D：开局公开讨论（pre 会议，不投票），讨论完直接进第 1 夜。
 	open_meeting_kind(MEET_PRE, -1, -1)
 	check_win()
@@ -493,6 +524,11 @@ func exchange_supply(item: String, agent_i: int = -1) -> bool:
 func tick(dt: float) -> void:
 	if over or dt <= 0.0:
 		return
+	# 2.5D update:2259：拖拽同步**独立于 AI tick** —— 会议开始 / 拖拽者濒死或死亡
+	# 必须当帧强制松手，不能等会议结束才结算（否则玩家会拖着一具尸体进会场）。
+	for a: Dictionary in agents:
+		if int(a.get("drag", -1)) >= 0:
+			sync_drag_of(a)
 	if not meeting.is_empty():
 		_tick_meeting(dt)
 		# 2.5D doorTick 的守卫是 `if(!G||!G.doors||G.meet||G.over)return`：
@@ -511,6 +547,14 @@ func tick(dt: float) -> void:
 	if bots != null:
 		bots.tick(dt)
 	_tick_dmg(dt)
+	# @src js/game.js:2218-2225 update：playT/_frameAcc 累加 → 0.5s 采帧 → sabTick 逐帧轮询。
+	# 两者都排在 dmgTick 之后，与 2.5D 主循环顺序一致；会议期间本函数提前 return，
+	# 因此 elapsed / 帧采样 / 目标引爆都和 2.5D 一样在会议期间冻结。
+	_frame_acc += dt
+	if _frame_acc >= FRAME_DT:
+		_frame_acc = 0.0
+		record_frame()
+	sab_tick()
 	# 红身 / seenBy 追踪：0.5 秒一次（2.5D trackNight 的节流版）
 	_track_t += dt
 	if _track_t >= 0.5:
@@ -569,9 +613,6 @@ func tick_agents(dt: float) -> void:
 				_finish_doing(a)
 			continue
 		if int(a.get("drag", -1)) >= 0:
-			var body: Dictionary = agent(int(a.get("drag", -1)))
-			if not body.is_empty():
-				body["bodyPos"] = a.get("pos", Vector2.ZERO)
 			# 2.5D dragTick：拖尸每 1.6 秒 aiHear('drag',a,8,{actor}) —— 拖行是藏不住的
 			a["_dragAiT"] = float(a.get("_dragAiT", 0.0)) + dt
 			if float(a.get("_dragAiT", 0.0)) >= 1.6:
@@ -814,6 +855,10 @@ func _reset_agent_night(a: Dictionary) -> void:
 	a["_hideCD"] = 0.0
 	a["_hides"] = 0
 	a["_dragTo"] = ""
+	# 拖行副作用（2.5D：_credMed 每夜一次；_dragAway/_dragMedD0 每次起拖重置）
+	a["_credMed"] = false
+	a["_dragAway"] = false
+	a["_dragMedD0"] = 0.0
 	a["_botCD"] = 0.0
 	a["_pipeCD"] = 0.0
 	a["_pipePlan"] = {}
@@ -1401,15 +1446,33 @@ func player_revive(body_i: int) -> bool:
 	return true
 
 
+## @src js/game.js:1131 pickSabRoom（选目标）+ :1297 sabTick（抵达自动引爆）
+## 3D 输入层适配（PORTING_PROTOCOL §2 允许「输入映射」差异）：
+##   2.5D 是「轮盘选舱 → 走进去自动下手」两阶段；3D 是「靠近设备的交互项」单阶段。
+##   这里保留 3D 的交互手感，但把两阶段语义接回来：已在目标房间 / 交互半径内 → 立即结算；
+##   否则记下 sab_target，交给逐帧 sab_tick() 在抵达时引爆。
+## 守卫与门槛照真源，不新增距离、次数、冷却或阵营过滤；sabUsed 仍由 sabotage_room
+## 在真正下手那一刻写（@src js/game.js:1154 damageRoom `if(!designMode)a.sabUsed=true`）。
 func player_sabotage(room_id: String) -> bool:
 	var me := agent(me_idx)
 	if me.is_empty() or not bool(me.get("alive", false)) or not bool(me.get("alien", false)):
 		return false
 	if bool(me.get("sabUsed", false)):
 		return false
-	if not sabotage_room(room_id, me_idx):
+	if not sab_room_ok(room_id):
 		return false
-	me["sabUsed"] = true
+	var px := 0.0
+	var py := 0.0
+	for p: Dictionary in points:
+		if String(p.get("room", "")) == room_id:
+			px = float(p.get("x", 0.0))
+			py = float(p.get("y", 0.0))
+			break
+	var pos: Vector2 = me.get("pos", Vector2.ZERO) as Vector2
+	var reach := SpaceData.num(space, "reach", "sabotage")
+	if room_at(pos) == room_id or pos.distance_to(Vector2(px, py)) < reach:
+		return sabotage_room(room_id, me_idx)
+	sab_target = {"room": room_id, "x": px, "y": py}
 	return true
 
 
@@ -1439,6 +1502,9 @@ func sabotage_room(room_id: String, by: int, ghost: bool = false) -> bool:
 	# 幽灵不可被活人看见 → 不写目击证据（故障/警报/声音/统计照常）
 	if not ghost and not sab_by.is_empty():
 		_witness_action(sab_by, "saw_sabotage", Vector2(px, py))
+	# @src js/game.js:1164 damageRoom：`envNotice('fault',sp.x,sp.y,0.55)`
+	# 破坏 = 免费全船警铃；幽灵破坏同样广播（真源不按 ghost 过滤）。
+	env_notice("fault", Vector2(px, py), 0.55)
 	return true
 
 
@@ -2194,6 +2260,8 @@ func dawn() -> void:
 			die(a)
 	# 天亮：没修完的故障随夜结束一起消失，不扣分。
 	dmg = []
+	# @src js/game.js:4509 dawn：`G.sabTarget=null` —— 未引爆的目标随夜结束作废。
+	sab_target = {}
 	# 白天会议要回会议室：全员刷新到中央会议室，打断此前的一切任务流程。
 	var bridge: Dictionary = rooms_by_id.get("bridge", {}) as Dictionary
 	if not bridge.is_empty():
@@ -2782,6 +2850,24 @@ func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 			if not los_now(ap.x, ap.y, vp.x, vp.y):
 				return _act_no("no_los")
 			return _act_ok(vi)
+		"knife_bot":
+			# 2.5D stab():8300 的机器人分支：人/机器人同一次「最近目标」挑选，
+			# 命中后交 knifeBot():8356 结算。守卫逐条照搬 knifeBot + damageBot。
+			if not bool(a.get("alien", false)):
+				return _act_no("not_alien")
+			if int(a.get("knife", 0)) < 1:
+				return _act_no("no_knife")
+			var bk := String(ctx.get("bot", ""))
+			if bk != "secbot" and bk != "medbot":
+				return _act_no("no_target")
+			if bots == null or bots.is_dead(bk):
+				return _act_no("target_down")
+			var bp: Vector2 = bots.pos_of(bk)
+			if ap.distance_to(bp) >= 1.8:
+				return _act_no("out_of_reach")
+			if not los_now(ap.x, ap.y, bp.x, bp.y):
+				return _act_no("no_los")
+			return _act_ok(-1, "knife_bot:" + bk)
 		"shoot":
 			# 2.5D fireShot():8307 无阵营门槛、无 alien 门槛，只判子弹/目标/射程/视线。
 			if int(a.get("bullet", 0)) <= 0:
@@ -2814,7 +2900,14 @@ func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 					continue
 				if bool(x.get("bodyGone", false)) or bool(x.get("bodyReported", false)):
 					continue
-				if x.get("draggedBy", null) != null:
+				## 2.5D 真源 js/game.js:217 / :2487 —— draggedBy 的空值只有 null。
+				## 3D 移植时自造了 -1 作空值（本文件 :805 跨夜、:1082 死亡、:2210），
+				## 而 start_drag():2903 已兼容两种空值；旧写法 != null 会把 -1
+				## 误判成「已被别人拖」→ 跳过全部候选 → no_body → 恒入口 G 键静默失效。
+				## 夹具 --abilitytest 曾把 draggedBy 设为 null，故自测全绿、实机拖不了。
+				## 按真源统一：null 与 -1 都表示「无人拖」，与 start_drag 口径一致。
+				var dragged_by: Variant = x.get("draggedBy", null)
+				if dragged_by != null and int(dragged_by) >= 0:
 					continue
 				var bp: Vector2 = x.get("pos", Vector2.ZERO) if downed \
 					else x.get("bodyPos", Vector2.ZERO)
@@ -2919,7 +3012,67 @@ func start_drag(agent_i: int, body_i: int) -> bool:
 	b["_dragFrom"] = b.get("bodyPos", b.get("pos", Vector2.ZERO))
 	a["path"] = PackedVector2Array()
 	_log("drag_start", {"actor": agent_i, "victim": body_i, "downed": bool(b.get("downed", false))})
+	# 每次起拖重置拖行副作用的"本次"标记（2.5D：_dragAway 每拖一次只报一次）
+	a["_dragAway"] = false
+	a["_dragMedD0"] = 0.0
 	return true
+
+
+## 2.5D syncDragOf（js/game.js:2425）：拖行不是「把尸体瞬移到脚下」，而是
+## **拉到身后 0.62 格**；活着的伤员写 pos（他自己也要跟着走），尸体写 bodyPos。
+## 拖拽者死亡 / 濒死 / 被拘、会议开始、对局结束 → 立刻强制松手（真源同一处）。
+func sync_drag_of(a: Dictionary) -> void:
+	var di := int(a.get("drag", -1))
+	if di < 0:
+		return
+	var v := agent(di)
+	if v.is_empty() or not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+			or bool(a.get("detained", false)) or not meeting.is_empty() or over:
+		release_drag(int(a.get("i", -1)))
+		return
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+	var d := ap.distance_to(bp)
+	var want := 0.62
+	if d > want:
+		var tgt := ap + (bp - ap) / d * want
+		if nav != null:
+			tgt = nav.nearest_free(tgt)
+		if bool(v.get("alive", false)):
+			v["pos"] = tgt
+			v["bodyPos"] = tgt
+		else:
+			v["bodyPos"] = tgt
+		if not bool(v.get("bodyMoved", false)):
+			var origin: Variant = v.get("_dragFrom", null)
+			if origin != null and tgt.distance_to(origin as Vector2) > 1.2:
+				v["bodyMoved"] = true
+	# 2.5D：把**还活着的伤员**拖进医疗间是明确的好事（和拖尸体去藏尸相反），同一夜只记一次。
+	if bool(v.get("alive", false)) and not bool(a.get("_credMed", false)) \
+			and room_at(ap) == "med":
+		a["_credMed"] = true
+		if mind != null and speech_enabled:
+			mind.cred_broadcast(int(a.get("i", -1)), "dragToMed", ap)
+	# 2.5D：尸体被拖离医疗间 2.2 格以上 → 附近活人目击一次「反常拖尸」（只加嫌疑）。
+	if not bool(v.get("alive", false)) and not bool(a.get("_dragAway", false)):
+		var med_c := room_center("med")
+		if med_c != Vector2.ZERO:
+			var dm := ap.distance_to(med_c)
+			var d0 := float(a.get("_dragMedD0", 0.0))
+			if d0 <= 0.0:
+				a["_dragMedD0"] = dm
+			elif dm > d0 + 2.2:
+				a["_dragAway"] = true
+				_drag_away_notice(a, v)
+
+
+## 2.5D dragAwayNotice（js/game.js:3088）：写一条 drag_away 事件，并给 6 格内
+## 注意力在线、看得见的活人各记一条 saw_drag_away（EV_W 0.45，只进嫌疑不写确证）。
+func _drag_away_notice(a: Dictionary, v: Dictionary) -> void:
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	_log("drag_away", {"actor": int(a.get("i", -1)), "victim": int(v.get("i", -1)),
+		"room": room_at(ap)})
+	_witness_action(a, "saw_drag_away", ap)
 
 
 func release_drag(agent_i: int) -> bool:
@@ -2960,6 +3113,10 @@ func hit_bot(shooter_i: int, kind: String) -> bool:
 	var a := agent(shooter_i)
 	if a.is_empty() or int(a.get("bullet", 0)) <= 0:
 		return false
+	# 2.5D damageBot():8390：开枪者同样要过活体/未倒地/未拘留守卫（fireShotBot 只在入口判子弹）。
+	if over or not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+			or bool(a.get("detained", false)):
+		return false
 	if not bot_hp.has(kind) or int(bot_hp.get(kind, 0)) <= 0:
 		return false
 	var fac := {}
@@ -2978,6 +3135,9 @@ func hit_bot(shooter_i: int, kind: String) -> bool:
 	a["bullet"] = int(a.get("bullet", 0)) - 1
 	bot_hp[kind] = int(bot_hp.get(kind, 0)) - 1
 	_log("bot_hit", {"actor": shooter_i, "bot": kind, "hp": int(bot_hp.get(kind, 0))})
+	# 2.5D damageBot():8407：保安被枪打中同样转向袭击者（`cause==='shot'` 也走这段）。
+	if bots != null:
+		bots.face_point(ap)
 	if int(bot_hp.get(kind, 0)) <= 0:
 		if bots != null:
 			bots.kill(kind)
@@ -3003,6 +3163,10 @@ func toggle_power(by: int) -> bool:
 	var br := breaker_pos()
 	# 2.5D pullBreaker：aiHear('power',br,30,{actor}) —— 电闸的嗡鸣声传得很远
 	hear("power", br, 30.0, {"actor": by})
+	# @src js/game.js:734 pullBreaker：
+	#   `envNotice('lights',br.x,br.y,G.lightState===2?0.85:0.45)`
+	# 拉黑 0.85 / 合闸 0.45；light_state 已在上面更新，与真源同一时点。
+	env_notice("lights", br, 0.85 if light_state == 2 else 0.45)
 	# 证据链两种语义相反（2.5D noticeAction + credBroadcast）：
 	#   拉闸断电 = 身份级，目击者写 known；合闸复电 = 正向信任，只给 cred，不洗清任何人。
 	if mind != null and br != Vector2.ZERO:
@@ -3084,21 +3248,35 @@ func knife_bot(kind: String, by: int) -> bool:
 	var a := agent(by)
 	if a.is_empty() or bots == null:
 		return false
-	if int(a.get("knife", 0)) <= 0 or bots.is_dead(kind):
+	# 2.5D damageBot():8390 的袭击者状态守卫 —— 死/濒死/被拘留的人打不动机器人。
+	if over or not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+			or bool(a.get("detained", false)):
+		return false
+	if kind != "secbot" and kind != "medbot":
+		return false
+	if int(a.get("knife", 0)) < 1 or bots.is_dead(kind):
 		return false
 	if not bot_hp.has(kind) or int(bot_hp.get(kind, 0)) <= 0:
 		return false
-	if distance_to(by, bot_pos_of(kind)) > 2.0:
+	var bp: Vector2 = bot_pos_of(kind)
+	# 2.5D knifeBot():8356：机器人贴身判据是 1.8 格（不是人的 reach.knife 1.35）。
+	if distance_to(by, bp) >= 1.8:
+		return false
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	if not los_now(ap.x, ap.y, bp.x, bp.y):
 		return false
 	a["knife"] = int(a.get("knife", 0)) - 1
 	bot_hp[kind] = int(bot_hp.get(kind, 0)) - 1
+	# 2.5D damageBot():8401：出刀打机器人也留下「刀者红身」，和打人一刀表现/判定对齐。
+	a["redT"] = float((cfg.get("rules", {}) as Dictionary).get("RED_BODY", {}).get("dur", 1.5))
 	_log("bot_hit", {"actor": by, "bot": kind, "hp": int(bot_hp.get(kind, 0))})
-	_witness_action(a, "saw_bot", bot_pos_of(kind))
+	_witness_action(a, "saw_bot", bp)
+	# 2.5D damageBot():8407：保安存活时转向袭击者 —— 直接改变下一次 would_see 的 180° 扇形。
+	bots.face_point(ap)
 	if int(bot_hp.get(kind, 0)) <= 0:
 		bots.kill(kind)
 		_log("bot_down", {"actor": by, "bot": kind})
-	if bots != null:
-		bots.on_crime(by, a.get("pos", Vector2.ZERO))
+	bots.on_crime(by, ap)
 	return true
 
 
@@ -3128,6 +3306,8 @@ func sabotage_bot(kind: String, by: int) -> bool:
 	_witness_action(a, "saw_bot", bp)
 	# 2.5D sabPick 结算：aiHear('robot_down',me,18,{actor})
 	hear("robot_down", bp, 18.0, {"actor": by})
+	# @src js/game.js:8221 sabotageBot：`envNotice('robot',tp.x,tp.y,0.5)`
+	env_notice("robot", bp, 0.5)
 	bots.on_crime(by, a.get("pos", Vector2.ZERO))
 	return true
 
@@ -3161,6 +3341,174 @@ func _end(win: bool, why: String) -> void:
 	over_why = why
 	_log("game_end", {"win": win, "why": why, "prog": prog, "night": night})
 
+## ---- 四个非排除项机制（2026-11-12 逐函数移植，@src 见各函数头） ----
+## 这四个在 audit:parity 里是唯一的 pending：既无同名 GDScript 实现，
+## 函数体又不含 DOM/Canvas 标记，因此不能降级为 not-applicable。
+## 3D 侧容器与 2.5D 不同构（mind.mem → agent.ev_mem、G.* → sim 字段），
+## 故按 PORTING_PROTOCOL §3 登记为 adapter；判定、守卫、顺序逐条照真源。
+
+
+## @src js/game.js:1848 envNotice(kind,x,y,conf)
+## @src js/t2/ai.js:325-338 evPush（内联：3D 无 a.mind 对象，等价容器是 a.ev_mem）
+## 原文守卫：`if(!G||G.over)return;` / `if(!a.alive||a.downed||a.detained)continue;`
+## 注意：全船广播、无距离衰减、无注意力过滤 —— 不许加 3D 自造的筛子。
+func env_notice(kind: String, at: Vector2, conf: float = 0.5) -> void:
+	if over:
+		return
+	var ev_kind := "env_" + kind
+	for a: Dictionary in agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
+				or bool(a.get("detained", false)):
+			continue
+		ev_seq += 1
+		var ev := {
+			"kind": ev_kind, "x": at.x, "y": at.y, "room": room_at(at),
+			"conf": conf, "src": "env", "t": snappedf(elapsed, 0.01),
+			"night": night, "id": ev_seq,
+		}
+		if not a.has("ev_mem"):
+			a["ev_mem"] = []
+		var mem: Array = a["ev_mem"] as Array
+		mem.append(ev)
+		if mem.size() > MEM_MAX:
+			mem.pop_front()
+		# @src js/t2/ai.js:333-337：conf>0.25 且三类环境事件 → 提警觉 + 记噪声。
+		# 3D 的 alert 已被 AI 判定消费（sim_state.gd 夜间警觉），noise 与 hear() 同结构。
+		if conf > 0.25 and (ev_kind == "env_lights" or ev_kind == "env_fault" \
+				or ev_kind == "env_robot"):
+			a["alert"] = minf(1.0, float(a.get("alert", 0.0)) + conf * 0.35)
+			# @src js/t2/ai.js:336  `a.mind.noise={x,y,t,kind}` —— 只这 4 个字段。
+			a["noise"] = {"x": at.x, "y": at.y,
+				"t": snappedf(elapsed, 0.01), "kind": ev_kind}
+
+
+## @src js/game.js:1410 recordFrame()
+## 原文守卫：`if(!G||G.simMode||G.over)return;`
+## 死者过滤：`if(a.bodyGone||a.deathCause==='vote'||a.bodyX==null)continue;`
+## 3D 的 bodyX/bodyY 合为 Vector2 bodyPos；drag 空值是 -1（含历史 null），
+## 与 can_act / start_drag 同口径，不复用 `!= null` 那个已经修过的坑。
+func record_frame() -> void:
+	if over:
+		return
+	var p: Array = []
+	for a: Dictionary in agents:
+		var px := 0.0
+		var py := 0.0
+		if not bool(a.get("alive", false)):
+			if bool(a.get("bodyGone", false)) \
+					or String(a.get("deathCause", "")) == "vote" \
+					or not a.has("bodyPos"):
+				continue
+			var bp: Vector2 = a.get("bodyPos", Vector2.ZERO) as Vector2
+			px = bp.x
+			py = bp.y
+		else:
+			var pos: Vector2 = a.get("pos", Vector2.ZERO) as Vector2
+			px = pos.x
+			py = pos.y
+		var f := 0
+		if bool(a.get("alive", false)):
+			f |= 1
+		if bool(a.get("downed", false)):
+			f |= 2
+		if bool(a.get("detained", false)):
+			f |= 4
+		var dv: Variant = a.get("drag", -1)
+		if dv != null and int(dv) >= 0:
+			f |= 8
+		p.append([int(a.get("i", -1)), snappedf(px, 0.1), snappedf(py, 0.1), f])
+	# @src js/game.js:1423 `if(arr.length<FRAME_CAP)arr.push({pt,n,p})`
+	if frames.size() < FRAME_CAP:
+		frames.append({"pt": snappedf(elapsed, 0.1), "n": night, "p": p})
+
+
+## @src js/game.js:1426 replayData()
+## 纯构造、无守卫、只读；8 个字段逐字对齐（v/game/savedAt/map/result/roster/events/frames）。
+## game 取 version.json#base.version（2.5D SKConfig.version 的同一份语义），
+## winPts 取 sim.json#win.pts（2.5D SKSanity.WIN.pts=45），均不写死。
+## 2.5D runInvariants(tag)（js/game.js:556）：跑一遍 SKInvariants 并记录最近结果。
+## 2.5D 只在 `_t.inv('api')` 里按需调用（不在 update 循环里），3D 保持同频：
+## 由 --invtest / 调试入口显式调用，零帧开销。返回 {checks, fails}。
+func run_invariants(tag: String) -> Dictionary:
+	# 2.5D runInvariants 第一行：`if(SIM_RUN)return null;` —— 批量模拟不跑断言。
+	if sim_run:
+		return {}
+	var r: Dictionary = InvariantsScript.check(self)
+	inv_checks = int(r.get("checks", 0))
+	inv_fails = r.get("fails", [])
+	inv_last_tag = tag
+	return r
+
+
+func replay_data() -> Dictionary:
+	var roster: Array = []
+	for a: Dictionary in agents:
+		var dc: Variant = null
+		var dr: Variant = null
+		if String(a.get("deathCause", "")) != "":
+			dc = String(a.get("deathCause", ""))
+		if String(a.get("deathRoom", "")) != "":
+			dr = String(a.get("deathRoom", ""))
+		roster.append({
+			"i": int(a.get("i", -1)), "name": String(a.get("name", "")),
+			"alien": bool(a.get("alien", false)), "alive": bool(a.get("alive", false)),
+			"deathCause": dc, "deathRoom": dr,
+		})
+	var game_ver := "返航录V3"
+	var ver_v: Variant = _read_json("res://data/version.json")
+	if ver_v is Dictionary:
+		var base_v: Dictionary = (ver_v as Dictionary).get("base", {}) as Dictionary
+		if not base_v.is_empty():
+			game_ver = String(base_v.get("version", "返航录V3"))
+	var bounds: Dictionary = map.get("bounds", {}) as Dictionary
+	var win: Dictionary = cfg.get("win", {}) as Dictionary
+	return {
+		"v": 1,
+		"game": game_ver,
+		"savedAt": Time.get_datetime_string_from_system(true, false),
+		"map": {
+			"w": float(bounds.get("w", 0)), "h": float(bounds.get("h", 0)),
+			"rooms": (map.get("rooms", []) as Array).size(),
+			"pipes": (map.get("pipes", []) as Array).size(),
+		},
+		"result": {
+			"win": over_win, "why": over_why, "prog": prog,
+			"winPts": int(win.get("pts", 0)), "nights": night,
+		},
+		"roster": roster,
+		"events": events.duplicate(true),
+		"frames": frames.duplicate(true),
+	}
+
+
+## @src js/game.js:1297 sabTick()
+## 原文守卫逐条照搬：t<=0 / 非异形且非 designMode / 死 / 濒死 / 拘留 / 本夜已用。
+## 命中条件：`roomIdAt(me.x,me.y)===t.room || hypot(me-t)<SAB_RANGE`；
+## SAB_RANGE 读 space.json#reach.sabotage（真源 SKSanity.REACH.sabotage=1.7），不写死。
+func sab_tick() -> void:
+	var me := agent(me_idx)
+	if me.is_empty():
+		return
+	if t <= 0.0 or (not bool(me.get("alien", false)) and not dev) \
+			or not bool(me.get("alive", false)) or bool(me.get("downed", false)) \
+			or bool(me.get("detained", false)) \
+			or (bool(me.get("sabUsed", false)) and not dev):
+		return
+	if sab_target.is_empty():
+		return
+	var rid := String(sab_target.get("room", ""))
+	# @src js/game.js:1302 `if(!sabRoomOk(t.room)){G.sabTarget=null;return;}`
+	if not sab_room_ok(rid):
+		sab_target = {}
+		return
+	var pos: Vector2 = me.get("pos", Vector2.ZERO) as Vector2
+	var tp := Vector2(float(sab_target.get("x", 0.0)), float(sab_target.get("y", 0.0)))
+	var reach := SpaceData.num(space, "reach", "sabotage")
+	if room_at(pos) == rid or pos.distance_to(tp) < reach:
+		if sabotage_room(rid, me_idx):
+			sab_target = {}
+
+
 ## 事件流：只追加，不参与判定。信封与 2.5D logEvent 完全对齐：
 ##   {kind, night, pt(已过秒), t(本夜剩余秒), actor, victim, room, x, y} + 业务字段。
 ## 注意 2.5D 的 Object.assign 顺序：data 可以覆盖信封字段（meeting 事件就被 data.kind
@@ -3190,7 +3538,10 @@ func _log(kind: String, data: Dictionary) -> void:
 	}
 	for k: String in data.keys():
 		e[k] = data[k]
-	events.append(e)
+	# @src js/game.js:1407 logEvent：`if(arr.length<EV_CAP)arr.push(e)`。
+	# 3D 之前无上限，长局事件流会与 2.5D 对账漂移。
+	if events.size() < EV_CAP:
+		events.append(e)
 
 
 func _shuffle(arr: Array) -> void:

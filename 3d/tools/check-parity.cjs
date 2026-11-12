@@ -105,18 +105,21 @@ collect(saved.dispatch);
    每项都带 js 源文件:行号，扫描时**回读该行验证数字确实存在**；上游改行后这里会直接 FAIL，
    不会静默地把一个新阈值当成“已核对”。新增 3D 数字必须先在 js/ 找到出处再登记。 */
 const SOURCE_LITERALS = {
-  0.01: ['js/game.js', 7135],   // identityAxis 下界
-  0.99: ['js/game.js', 7135],   // identityAxis 上界
-  1.10: ['js/game.js', 1684],   // 传闻抖动上限
-  0.94: ['js/game.js', 1684],   // 传闻抖动基线
-  0.24: ['js/game.js', 5968],   // contradiction_lie 权重
-  0.26: ['js/game.js', 5977],   // heard_frame 权重
-  5.4: ['js/game.js', 2559],    // 尸体发现半径
-  5.8: ['js/game.js', 2535],    // 远程拉铃半径
+  0.01: ['js/game.js', 7136],   // identityAxis 下界
+  0.99: ['js/game.js', 7136],   // identityAxis 上界
+  1.10: ['js/game.js', 1685],   // 传闻抖动上限
+  0.94: ['js/game.js', 1685],   // 传闻抖动基线
+  0.24: ['js/game.js', 5969],   // contradiction_lie 权重
+  0.26: ['js/game.js', 5978],   // heard_frame 权重
+  5.4: ['js/game.js', 2560],    // 尸体发现半径
+  5.8: ['js/game.js', 2536],    // 远程拉铃半径
   1.8: ['js/game.js', 996],     // 医疗无人机/拾取近身半径
-  7.5: ['js/game.js', 2830],    // 人类 AI 找濒死者（有医疗包）
-  8.5: ['js/game.js', 2880],    // 人类 AI 找濒死者（拖去医疗间）
-  1.9: ['js/game.js', 2882],    // 拖尸/施救近身判定
+  7.5: ['js/game.js', 2831],    // 人类 AI 找濒死者（有医疗包）
+  8.5: ['js/game.js', 2881],    // 人类 AI 找濒死者（拖去医疗间）
+  1.9: ['js/game.js', 2883],    // 拖尸/施救近身判定
+  2.8: ['js/game.js', 3017],    // AI 开始做任务的到达判据（aiHuman）
+  3.2: ['js/game.js', 3110],    // findHideBody 藏尸搜索半径
+  6.5: ['js/game.js', 4121],    // 藏尸前"有人在看"的观众半径
 };
 
 const suspicious = [];

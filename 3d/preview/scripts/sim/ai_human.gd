@@ -319,15 +319,50 @@ func _decide(a: Dictionary) -> void:
 			else:
 				a["_lightGo"] = false
 
-	# 3) 有故障先修：30 秒窗口，修不掉全船 -5 分。
+	# 3) 故障抢修（2.5D aiHuman:2911-2934）：**不是全员扑同一个点**。
+	# 每人只在「已在修 / 正在赶」人数 < SKTeam.FIX_CREW_CAP 的故障里挑**最近**的一个，
+	# 并锁定 _fixGo 直到它被修好；锁定后不被任务点打断（避免来回踱步）。
+	# 3D 旧实现是 `dmg[0]` 一条写死、没有上限 —— 11 个人类 AI 会全部涌向同一处，
+	# 而破坏点本身就落在一个任务点坐标上，玩家看到的就是「一堆人挤在一个任务点」。
 	if sim.dmg.size() > 0:
-		var d: Dictionary = sim.dmg[0]
-		var dp := Vector2(float(d.get("x", 0.0)), float(d.get("y", 0.0)))
-		if sim.distance_to(i, dp) <= SpaceData.num(space, "reach", "fix"):
-			sim.start_doing(i, "fix", SpaceData.num(space, "stand", "fix"), -1, String(d.get("room", "")))
-		elif not sim.set_path(i, dp):
-			_stuck(a)
-		return
+		var fix_go: Dictionary = a.get("_fixGo", {}) as Dictionary
+		if not fix_go.is_empty() and sim.dmg.find(fix_go) < 0:
+			a["_fixGo"] = {}
+			fix_go = {}
+		if fix_go.is_empty():
+			var cap := int(sim.rules.module_table("SKTeam").get("FIX_CREW_CAP", 3))
+			var best_fix: Dictionary = {}
+			var best_fd := INF
+			for d: Dictionary in sim.dmg:
+				var crew := 0
+				for x: Dictionary in sim.agents:
+					if x == a:
+						continue
+					var fixing := String(x.get("_doing", "")) == "fix" \
+						and String(x.get("_item", "")) == String(d.get("room", ""))
+					var heading: bool = x.get("_fixGo", null) == d
+					if fixing or heading:
+						crew += 1
+				if crew >= cap:
+					continue
+				var dd := ap.distance_to(Vector2(float(d.get("x", 0.0)),
+					float(d.get("y", 0.0))))
+				if dd < best_fd:
+					best_fd = dd
+					best_fix = d
+			if not best_fix.is_empty():
+				a["_fixGo"] = best_fix
+				a["path"] = PackedVector2Array()
+				fix_go = best_fix
+		if not fix_go.is_empty():
+			var dp := Vector2(float(fix_go.get("x", 0.0)), float(fix_go.get("y", 0.0)))
+			# 2.5D 到达判据 1.5 格（不是任务点的 2.8，也不是 reach.fix）
+			if ap.distance_to(dp) < 1.5:
+				sim.start_doing(i, "fix", SpaceData.num(space, "stand", "fix"), -1,
+					String(fix_go.get("room", "")))
+			elif not sim.set_path(i, dp):
+				_stuck(a)
+			return
 
 	# 4) 做任务：按 tIdx 顺序取下一个剩余任务。
 	var rem: Array = sim.remaining_tasks(i)
@@ -376,7 +411,9 @@ func _decide(a: Dictionary) -> void:
 	var pi := int(rem[0])
 	var p: Dictionary = sim.point(pi)
 	var target := Vector2(float(p.get("x", 0.0)), float(p.get("y", 0.0)))
-	if sim.distance_to(i, target) <= SpaceData.num(space, "reach", "fix"):
+	# @src js/game.js:3027 `Math.hypot(p.x-a.x,p.y-a.y)<2.8` —— 任务开始站桩的到达判据是 2.8，
+	# 不是 reach.fix(2.0)。旧值让 AI 必须挤到同一个贴身点才开始做，视觉上更像「一堆人叠在一起」。
+	if sim.distance_to(i, target) < 2.8:
 		sim.start_doing(i, "task", float(p.get("dur", 0.0)), pi)
 	elif not sim.set_path(i, target):
 		_stuck(a)

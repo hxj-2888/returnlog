@@ -5,7 +5,7 @@
 > 只剩 `ai_social.gd`（构陷编排 / 完整假设层）仍是计划文件。
 > 开始页在 `scripts/home_view.gd` + `home_ship_map.gd`（属 view 层，不在 sim/）。
 > 目的：让下一批知道“新代码放哪、叫什么、依赖谁”，避免所有逻辑又堆回 `main.gd`。
-> 边界与批次见 `../../MIGRATION.md`；系统清单见 `../../spec/port-manifest.json`。
+> 边界见 `AGENTS.md` §一.11 / `PORTING_PROTOCOL.md`，逐批记录见 `CHANGELOG-2026-11.md`；系统清单见 `../../spec/port-manifest.json`。
 
 ## 硬规则
 
@@ -81,7 +81,7 @@ sim.events   # 只追加；不要回写
 knife_try / knife_ok`。**改判定会挪动随机流，20~50 局只用于定位方向，
 正式基线只认同一份代码跑满 200/1000 局的报告。**
 
-2026-11-08 平衡对齐的细节与 9 处真源漂移见 `3d/MIGRATION.md` §9。
+2026-11-08 平衡对齐的 9 处真源漂移见 `CHANGELOG-2026-11.md` 对应批次；现行读数只认最新批次。
 
 
 ## 同源读取（2026-11-08）

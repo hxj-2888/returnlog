@@ -310,5 +310,11 @@ func _pos3(a: Dictionary) -> Vector3:
 
 
 func _pos3_floor(a: Dictionary) -> Vector3:
+	# 2.5D bodyPos()：死者用**尸体坐标**（bodyX/bodyY），活人/濒死者用本人坐标。
+	# 3D 之前一律读 pos —— 拖尸时 sim 只写 bodyPos，模型却钉在死亡位置，
+	# 玩家看到的就是「按住拖了、尸体一动不动」（2026-11-12 现场）。
+	var alive := bool(a.get("alive", true))
 	var p: Vector2 = a.get("pos", Vector2.ZERO)
+	if not alive:
+		p = a.get("bodyPos", p)
 	return Vector3(p.x, 0.0, p.y)

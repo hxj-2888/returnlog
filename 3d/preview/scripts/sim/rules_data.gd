@@ -39,6 +39,13 @@ func t(sec: String) -> Dictionary:
 	return sk.get(sec, {}) as Dictionary
 
 
+## 顶层模块表（`rules.json#tables.SKTeam` 等）。
+## `t()` 只覆盖 SKSanity 子表；SKTeam 是独立模块（js/ai/traits.js:126），
+## alienPlan 效用表要读它的 BREAKER_VALUE / SABOTAGE_VALUE / BOT_*_VALUE。
+func module_table(mod: String) -> Dictionary:
+	return (data.get("tables", {}) as Dictionary).get(mod, {}) as Dictionary
+
+
 func v(sec: String, key: String, fallback: Variant = 0.0) -> Variant:
 	var tbl := t(sec)
 	if tbl.has(key):
