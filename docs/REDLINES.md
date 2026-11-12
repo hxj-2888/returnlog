@@ -50,7 +50,7 @@
     - 找不到但**确实需要** → 先判断它是不是真·维度产物（A* 网格、第一人称相机、碰撞、LOD 等）；
       是 → 写进 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
       不是 → **先改 2.5D 真源**，再导出/移植，不许只加在 3D。
-    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/MIGRATION.md` §10。
+    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/PORTING_PROTOCOL.md` §6。
 12. **素材优先取自公开网络与开源社区，不自己单独造。**（2026-11-09 用户裁定，四项目统一）
     任何美术 / 音频 / 模型素材，先检索公开素材站与开源社区（Kenney / OpenGameArt / Poly Haven /
     itch.io 免费包 / 公开 wiki 与 ArtStation 参照等），许可合适的直接用；没有合适的才本地生成，
@@ -61,7 +61,7 @@
     - `main` 只承载 **2.5D 主线**（`js/`、`index.html`、2.5D 底图/美术管线、共享数据与文档），
       是 Pages 部署与对外发布的目标分支。
     - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
-      （当前 `v1-preview`），**不得混入 main**。
+      （2.5D 仓当前 `3d`；独立仓 `returnlog-3d` 的 `master` 为其镜像），**不得混入 main**。
     - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
       随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
     - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
@@ -76,6 +76,6 @@
       （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
       不得另立第二份定义。**多父允许、多份定义禁止。**
     - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
-    - 3D 子项目工程不占根层号（边界见 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
+    - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。

@@ -23,8 +23,8 @@
 
 > **2026-11-11 用户裁定**：行为逻辑与 UI 也应纳入自动移植目标。本节“不能直接复用”指的是
 > 不能把 DOM/Canvas/HTML 原地翻译成 GDScript；目标形态是上游 **DOM-free core + UI spec +
-> 生成器**，而不是继续手写第二套。当前分层与 POC 见 `MIGRATION.md` §10.7、
-> `3d/reports/portability-audit.md`、`3d/reports/parse-speech-poc.md`。
+> 生成器**，而不是继续手写第二套。当前分层与 POC 结论见 `CHANGELOG-2026-11.md` 第 22/23 批；
+> 报告已清理（2026-11-12），需要时跑 `npm run 3d:audit:port` / `npm run 3d:poc:speech` 重新生成。
 
 ### 可以直接复用
 
@@ -126,7 +126,7 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
   规范见 `AGENTS.md` §五.8。
 - **视觉批量**：`--mgshot all`、`--devshot 0,4,7,8,13,26`，出图在 `preview/screenshots/`。
 - 将来加 **golden screenshot**：固定机位、固定曝光、固定 seed，像素差异超过阈值就失败。
-- 所有决策写 `3d/DECISIONS.md`；所有可见变更写 `3d/CHANGELOG.md`。
+- 所有决策写 `3d/DECISIONS.md`；所有可见变更写当月台账（入口 `3d/CHANGELOG.md` 索引）。
 - 每次数据导出记录 `map.json` 的源文件哈希；每次下载模型记录仓库、文件、SHA256。
 
 ## 8. 已知风险
@@ -141,3 +141,27 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
    先把数据契约和事件 schema 定死，再写 sim。
 5. **8GB 显存**：Qwen-Image 20B 量化版能下，但不等于能当日常贴图工具；
    先用小分辨率/少步数测速，再决定是否进入资产管线。
+
+## 附录：工程目录职责
+
+> 2026-11-12 分类收缩：原 `docs/agent/directory-roles.md` 并入本附录。
+
+| 路径 | 角色 | 可否修改 |
+|---|---|---|
+| `3d/preview/` | **唯一运行时**：Godot 4.6 工程（`project.godot` / `scenes/` / `scripts/` / `data/` / `assets/`） | 可改（走 HANDOFF §0.10） |
+| `3d/tools/` | 数据导出、资产同步、契约校验（Node / Python / PowerShell，不参与运行时） | 可改（走流程） |
+| `3d/spec/` | 契约唯一口径：`parity-map.json` / `port-manifest.json` / `assets.manifest.json` / schema / `conventions.md` | 可改（走流程） |
+| `3d/assets/` | 仓库级资产库（模型 / 贴图 / 渲染 / 参照） | 可改，须登记 `3d/ASSETS.md` 与 CREDITS |
+| `3d/*.md`、`3d/docs/`、`3d/version.json` | 3D 核心文档 / 专题归档（art · audit）/ 版本真源 | 可改（走流程） |
+| `js/` | **2.5D 只读基线**：规则 / 数值 / 语料 / AI / 地图的唯一真源镜像，供导出与对账 | **禁止修改** |
+| `assets/`、`audio/`、`index.html` | 2.5D 只读基线素材与资料（含署名）；`index.html` 只是 `port-manifest` 的 `X-ENTRY` 对账对象 | **禁止修改** |
+| `docs/` | 2026-11-09 起移出只读基线；只留治理镜像与 `qwen21/` 出图留档，不参与 `baseline:check` | 可改 |
+| `tools/` | 2.5D 只读基线工具片段 + 本工程 `sync-baseline.cjs` / `check-all.cjs` | 除这两个新脚本外**禁止修改** |
+| `package.json` | 本工程脚本清单；`version` / `gameVersion` 是**上游基线标识**，不是 3D 版本 | 可改 scripts；版本字段只由 `baseline:sync` 更新 |
+| `BASELINE.sha256.json` | 只读基线哈希清单，由 `sync-baseline.cjs` 生成 | 只由脚本生成 |
+| `AGENTS.md`、`README.md`、`BASELINE.md`、`CHANGELOG.md` | 工程契约 / 说明 / 基线说明 / 工程级变更 | 按流程追加 |
+| `.gitignore` / `.gitattributes` / `.editorconfig` / `LICENSE` | 工程化配置 | 按流程 |
+
+> **为什么根目录仍有 `js/` / `assets/` / `tools/`？** 原 3D 工具链、spec 清单、GDScript 注释与全部历史文档
+> 都以「仓库根 → `3d/`」两级结构写死路径。保留 `3d/` 这一层，等于让全部导出器、校验器、移植清单、
+> 历史文档原样可用，不必改几百处路径，也不破坏历史记录的可追溯性。

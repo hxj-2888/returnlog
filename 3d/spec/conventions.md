@@ -79,7 +79,7 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
   规则与音频基线，只允许按键操作、维度、部分美术三类差异。
 - 墙在 3D 里**必须是实体几何**（有厚度、有高度、有门洞），不允许用 2.5D 的零厚度线段糊过去。
 - 本地生成统一走**千问**（SDXL 已退役）；千问参考图可进入 3D **设计参考**流程
-  （`docs/qwen21/crew-refs/`、`3d/assets/crew_refs/`），但运行时只加载导出的 GLB/贴图，
+  （素材层 `returnlog_assets/unreferenced/qwen21/3d/crew-refs/`、`3d/assets/crew_refs/`），但运行时只加载导出的 GLB/贴图，
   不直接读参考图；模型/seed/prompt/许可必须登记 `ASSETS.md` / `CREDITS.md`。
 
 
@@ -101,7 +101,7 @@ blender -b -P 3d/tools/blender-export.py -- --manifest 3d/spec/assets.manifest.j
   **禁止手改**，也不得被 `main.tscn` / 运行时脚本引用。
 - `3d/spec/ui/*.spec.json` 是 UI 信息结构 / 状态 / 事件契约；`3d:ui:check` 同时校验
   2.5D DOM 与 3D Control。POC 生成的 Godot 面板只用于验证 spec 可渲染，不替换运行时。
-- POC 的边界必须在报告里写清：`3d/reports/portability-audit.md` / `parse-speech-poc.md`。
+- POC 的边界必须在报告里写清（`3d/reports/`，生成物不入库）。
   当前生成器只自动生成词表/正则，控制流是固定模板；这不是通用 JS→GDScript 转译器。
 - 真正的行为自动移植需要先在上游拆出 DOM-free core，再做 IR 驱动 codegen；UI 需要共享
   UI spec 与两个 renderer，不能把 HTML/CSS 直接翻译成 `.tscn`。

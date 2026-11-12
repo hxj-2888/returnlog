@@ -57,6 +57,12 @@
 
 ## 3. 开工前按顺序读这 6 份
 
+> **第 0 步（2026-11-12 用户裁定，强制）**：先按 `3D/docs/ASSET_GOVERNANCE.md` §14
+> 检索并登记 ≥2 个公开来源（官方文档 / 开源实现 / 公开素材站），填完公开来源登记表才进入下面 6 份。
+> 未登记不得建模、不得调灯光 / 曝光参数、不得改分辨率或渲染缩放、不得提交。
+> **公开素材文件的直接使用须用户逐项批准；方法论与技术指导可直接吸收**（2026-11-12 用户裁定）。
+> 用户原话：「必须先从公开素材那边找方法，而不是自己独自造轮子」。
+
 1. `3D/AGENTS.md` §一 红线、§二 硬约束（含第 7 条「规则同源」）
 2. **`3D/3d/ART_DIRECTION.md` 四条美术裁定的唯一真源**（门 / 天花板 / 保安机器人 / 人物）
 3. `3D/docs/ASSET_GOVERNANCE.md` §11A 美术资产生产工作流
@@ -214,7 +220,7 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 |---|---|---|
 | 门板 | `2.5D/assets/scene/v4/tex/door-panel.png`（1536²） | 2.5D `drawDoors()` 在 `js/game.js:9393` 直接采样这张图；3D 门必须能看出同一块门板的分缝、螺栓、磨损 |
 | 舱壁 | `2.5D/assets/scene/v4/tex/wall-panel.png`（1536²） | 舱壁基色/分缝 |
-| 每舱墙/地板 | `2.5D/docs/qwen21/room-skins/<room>-wall_768.png`、`<room>-floor_768.png`（10 舱） | 逐舱材质差异 |
+| 每舱墙/地板 | 素材层 `returnlog_assets/unreferenced/qwen21/2.5d/room-skins/<room>-wall_768.png`、`<room>-floor_768.png`（10 舱） | 逐舱材质差异 |
 | 保安机器人 | `2.5D/assets/scene/v4/facility/secbot.png`（512² RGBA）+ `2.5D/tools/gen-facility-sprites.py:50` | **双足造型真源**；`drawRobotBody()` 的矢量圆头版只是冷启动兜底，不要照它建 |
 | 全船底图 | `2.5D/assets/scene/v4/base-lit.png`、`hull-deck.png` | 舱室布局与配色总览 |
 | 房间主题 | `3D/3d/preview/data/map_v2.json` → `rooms[].theme {wall, top, glow, gs, mark}` | 天花板/墙面色带的参数真源 |

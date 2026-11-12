@@ -39,13 +39,13 @@
 
 **人物模型（2026-11-11）**：
 
-- `char_crew_lowpoly`：按 `docs/qwen21/crew-refs/crew-turnaround_768.png` 建模的
+- `char_crew_lowpoly`：按素材层 `returnlog_assets/unreferenced/qwen21/3d/crew-refs/crew-turnaround_768.png` 建模的
   1.766 m / 8,544 tris / 6 材质（`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin` /
   `crew_face` / `crew_hair`）/ 17 形变骨 / **idle + walk + knife + down** 已导出；
   脚本 `3d/tools/build-crew-rigged-v2.py`。正常对局默认使用它；`--crew-billboard` 回退旧 billboard。
 - `char_crew_blockout`：864 tris / 3 材质 / 无骨骼的体块验证件，保留作 fallback 与对比；
   脚本 `3d/tools/build-crew-blockout.py`。
-- 参考图：`docs/qwen21/crew-refs/`（完整 768²，本地 3 张）+ `3d/assets/crew_refs/`
+- 参考图：素材层 `returnlog_assets/unreferenced/qwen21/3d/crew-refs/`（完整 768²，本地 3 张）+ `3d/assets/crew_refs/`
   （640px 预览 + `manifest.json`，随仓入库）；Qwen-Image 2.1 本地生成，
   Research License 非商用，模型/seed/prompt 见 manifest；三视图、三配色、制服细节各 1 张。
 - 动画：`walk` 为 24fps / 1 秒循环；Godot 侧按移速 4.2 m/s 播 2.9 倍速，避免脚底滑动。
@@ -156,7 +156,7 @@ sdcpp Vulkan 的 fp16 / q8 / q4 权重分配均 OOM。最终走 **CPU + q2_K** �
 | 参数 | 768×768 · Turbo 8 步 · CFG 1.0 · euler · seed 基 20261106 逐张 +1 |
 | 许可 | **Qwen Research License（非商用）**。2026-11-07 用户裁定可进本非商用项目运行时；若未来发行/商用须换 SDXL / Qwen 1.0 或另行授权（AGENTS.md §一-6） |
 | 产物 | `E:\ai-models\qwen-image-2.1\output\cabin-refs\`（10 张）、`...\task-refs\`（26 张） |
-| 留档 | `docs/qwen21/cabin-refs/`、`docs/qwen21/task-refs/`，各带 `manifest.json`（模型/seed/prompt/许可/耗时） |
+| 留档 | 素材层 `returnlog_assets/unreferenced/qwen21/3d/cabin-refs/`、`task-refs/`，各带 `manifest.json`（模型/seed/prompt/许可/耗时） |
 
 - **10 间舱室表面材质参考**：房间名 / 明暗 / accent 全部运行时读 `map.json`
   （`rooms[].light` 与 `rooms[].theme.glow`，后者由 `export-map.cjs` 从
@@ -179,7 +179,7 @@ sdcpp Vulkan 的 fp16 / q8 / q4 权重分配均 OOM。最终走 **CPU + q2_K** �
 
 ## SDXL 墙饰样张（2026-11-06 19:07 实测）
 
-按 `3d/WORKFLOW_SDXL_BLENDER.md` 用本机 GPU diffusers 出了 2 张样张，其余 38 张待批量。
+SDXL 工作流已于 2026-11-12 退役并清理；本机 GPU diffusers 样张仅作历史对照。
 真源是 `tools/ship-layout-plan.json` 的 `rooms[].walls[]`（每间独立 prompt / seed / 目录）。
 
 | 资产 | 舱室 / seed | 原图 SHA256 | 成品 SHA256 |
@@ -604,7 +604,7 @@ albedo / normal / roughness、emissive 细节、几何倒角与分件。
 
 ## 2026-11-11 · 美术方向四件套（门 / 保安机器人 / 工业天花板）
 
-> 裁定与规格真源：`3d/ART_DIRECTION.md`（2026-11-11 用户拍板）。
+> 裁定与规格真源：`3d/docs/art/ART_DIRECTION.md`（2026-11-11 用户拍板）。
 > 三件 P0 全部走 **千问本地出材质 → Blender 建模/导出 glb**；门板直接采样 2.5D
 > `assets/scene/v4/tex/door-panel.png`，不重新生成。SDXL 未使用。
 
@@ -699,7 +699,7 @@ perspective, tileable, high detail`。negative 同 `gen-qwen-materials.ps1`。
 - `godot --headless --path 3d/preview --import`：新 glb/贴图的 `.import` 已生成；
   normal 贴图 `.import` 已设 `compress/normal_map=1`（仅本轮新资产）。
 - `scene_extras.gd` / `map_builder.gd` / `secbot_view.gd` 均通过 Godot `--check-only`。
-- `npm run baseline:check`：**BASELINE OK 443 个文件**（2.5D 只读基线未动）。
+- `npm run baseline:check`：`BASELINE OK`（文件数见本次输出；2.5D 只读基线未动）。
 - **全项目编译**：`--crewshot` / `--doorshot` 已实际跑通，人物与门的新 glb 在真实
   `map_v2.json` 场景中加载；编译期剩余的类型推断问题已在 `main.gd` 同批修正。
 - **分辨率统一**：本轮所有运行时贴图（人物 / 门 / 门板 / 保安机器人 / 天花板）统一 **768×768**；

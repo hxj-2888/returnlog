@@ -1,12 +1,12 @@
 {
-	"covers": 127,
-	"draw_calls": 1236.0,
-	"fps_avg": 37.5,
-	"hidden_cover_nodes": 78,
-	"mode": "cull",
+	"covers": 123,
+	"draw_calls": 3457.0,
+	"fps_avg": 38.9222222222222,
+	"hidden_cover_nodes": 0,
+	"mode": "all",
 	"note": "GPU monitor（draw call / 帧内对象 / 纹理显存）需非 headless 运行，headless 下为 0；FPS 受窗口启动与采样时长影响，仅作参考，优化结论以 draw call / 帧内对象 / 静默节点数为准。",
-	"objects_in_frame": 1388.0,
+	"objects_in_frame": 4132.0,
 	"shared_cover_mats": 8,
-	"texture_mem_bytes": 509825203.0,
-	"visible_cover_nodes": 49
+	"texture_mem_bytes": 659122229.0,
+	"visible_cover_nodes": 123
 }

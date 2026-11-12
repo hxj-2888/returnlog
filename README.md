@@ -49,34 +49,29 @@ npm run export:all
 | `js/`、`assets/`、`audio/`、`tools/`、`index.html` | **2.5D 只读基线**（见 `BASELINE.md`），供 `3d/tools/export-*.cjs` 与 `check-*.cjs` 使用；`index.html` 只是移植清单登记的对账对象，不是 3D 入口 |
 | `docs/` | 2026-11-09 起移出基线：仅留 `qwen21/` 千问出图留档；2.5D 时代文档已清理（原仓保留） |
 | `package.json` | 本工程脚本清单；`version` / `gameVersion` 是上游基线标识，不是 3D 版本 |
-| `AGENTS.md` | 工程契约：**§一 逐字沿用原仓 12 条红线**，§三 是本工程的适用性映射 |
-| `SPLIT.md` / `BASELINE.md` / `CHANGELOG.md` | 分离记录 / 基线说明 / 工程级变更 |
+| `AGENTS.md` | 工程契约：**§一 14 条红线逐字沿用原仓**；分册索引与改动检查清单见 §三 / §四 |
+| `BASELINE.md` / `CHANGELOG.md` | 基线说明 / 工程级变更 |
 
-> 为什么根目录还留着 `js/` 和 `3d/` 两层？见 `SPLIT.md` §2 —— 这是为了让原工具链与
-> spec 清单里写死的「仓库根 → `3d/`」路径**原样可用**，不改几百处路径、不破坏历史记录。
+> 为什么根目录还留着 `js/` 和 `3d/` 两层？为了让原工具链与 spec 清单写死的
+> 「仓库根 → `3d/`」路径原样可用；目录职责见 `3d/ARCHITECTURE.md` 附录。
 
-## 4. 当前已知问题（2026-11-09 现场事实）
+## 4. 当前状态
 
-| 级别 | 问题 | 状态 |
-|---|---|---|
-| **P0** | 进入舱段后 WASD / 鼠标视角有效，**E 交互、左键出刀、右键开枪、搜尸、管道、会议等全部无响应** | 未修。排查入口见 `AGENTS.md` §6.1 与 `SPLIT.md` §5 |
-| P1 | `npm run 3d:port:check`：**1 错误** —— `js/game.js` 111 行未被认领（首行 11767） | 上游遗留，未修 |
-| P1 | `npm run 3d:parity:check`：**FAIL** —— `rules.json` 的 `sources` SHA 与 2.5D 真源不一致（改了 `js/` 未重导） | 上游遗留，未修 |
-
-分离前后的门禁读数逐项一致，**分离没有引入新回归**。按 `AGENTS.md` §一.4，
-在这两项转绿之前，任何报告都必须如实写出实跑的失败数，不得沿用旧读数或伪装完成。
+门禁与已知缺口只认 `3d/CHANGELOG-2026-11.md` 最新批次与
+`3d/spec/gameplay-parity.json#budget`，本文件不复制读数。
+分离时刻的两项失败（行段未认领 / `rules.json` 源哈希漂移）已在后续批次转绿，明细见 CHANGELOG。
 
 ## 5. 文档索引
 
 | 想找什么 | 看哪里 |
 |---|---|
 | 红线、命令、改动流程、门禁读数 | `AGENTS.md` |
-| 为什么这样拆、随迁 / 未随迁清单、后续待办 | `SPLIT.md` |
+| 现行交接、已知缺口、接手陷阱 | `3d/HANDOFF.md` |
 | 只读基线怎么刷新、怎么校验没被改 | `BASELINE.md` |
 | 3D 预演做了什么、怎么跑各档自测 | `3d/README.md` |
 | 引擎选型、分层硬规则、坐标尺度 | `3d/ARCHITECTURE.md` |
 | 接手顺序、历次交接结论 | `3d/HANDOFF.md` |
-| 2.5D → 3D 移植批次与 §10 同源口径 | `3d/MIGRATION.md` |
+| 2.5D → 3D 逐函数移植规程与同源口径 | `3d/PORTING_PROTOCOL.md`；逐批记录见 `3d/CHANGELOG-2026-11.md` |
 | ADR 决策台账 | `3d/DECISIONS.md` |
 | 素材来源 / 许可 / SHA256 | `3d/ASSETS.md`、`assets/CREDITS.md`、`audio/CREDITS.md` |
 | 3D 侧可见变更 | `3d/CHANGELOG.md`；工程级变更 | 根 `CHANGELOG.md` |
@@ -84,8 +79,7 @@ npm run export:all
 ## 6. 与原仓的关系
 
 - 原仓 `C:\Users\ASUS\Desktop\新返航录\` **保持原样**：本工程是**复制分离**，不是剪切；
-  分离时原仓有 55 项未提交 / 未跟踪改动，已一并带入新工程（见 `SPLIT.md` §4）。
+  分离时的未提交改动一并带入，并已由后续基线同步覆盖。
 - 3D 不再从原仓读取任何文件；`npm run baseline:sync` 是**唯一**的上游刷新入口。
 - 2.5D 继续在原仓独立演进；本工程只在需要时刷新基线并重跑导出 / 对账。
-- 原仓的 `3d/` 目录暂留作对照与回退兜底，**是否移除由用户裁定**（`SPLIT.md` §5），
-  本轮未删除任何原仓文件。
+- 原仓的 `3d/` 目录暂留作对照与回退兜底，**是否移除由用户裁定**，本轮未删除任何原仓文件。

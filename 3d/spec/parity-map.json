@@ -10,7 +10,8 @@
   "【2.5D 不需要】小游戏卡片打开时锁移动（ui_locked 把 mg.is_open() 并入判据）：2.5D 是点击地面移动，遮罩一盖就没有落点；3D 是 WASD 持续输入，必须显式锁，否则卡片挡着画面还能走。",
   "【2.5D 不需要】照明三态的场景落地：2.5D 用 canvas 遮罩 + CSS 表达，3D 要把 light_state(0/1/2) 落到每盏 OmniLight3D 的 visible、常亮材质 emission、环境光与 DirectionalLight 补光；状态机本身与真源 refreshLight 同源。",
   "【2.5D 不需要】旁观者俯视剖面：飞到天花板以上时整层天花板（含灯带）隐藏，从上面看是完整舱室剖面；2.5D 本来就是俯视 2D，没有\"穿层\"问题。下层只做贴板，旁观者下穿被夹在 y≥0.35，不掉进虚空。",
-  "【美术，待做】角色目前是 billboard 贴图（与 2.5D 立绘同源）。改为实际建模属\"部分美术素材\"允许差异，排在美术栏，不在判定层。"
+  "【美术，待做】角色目前是 billboard 贴图（与 2.5D 立绘同源）。改为实际建模属\"部分美术素材\"允许差异，排在美术栏，不在判定层。",
+  "【美术】地图 decor：2.5D 的 20 件是地面喷涂 / 摄像头 / 全息屏等场景涂装；3D 的 40 件是墙面美术图版（`map_v2.decor`）。decor 不参与碰撞、LOS、交互与寻路，纯表现层；运行时的 `cover / points / facility / rooms / walls / pipes` 必须与 `js/data/map.js` 逐值一致。`layout-v2.json` 只是方案层美术留档，Godot 运行时不读取。"
  ],
  "truth_sources": [
   "3d/preview/data/rules.json（推理/发言规则 + 函数指纹）",

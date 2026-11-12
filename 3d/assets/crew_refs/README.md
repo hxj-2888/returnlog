@@ -1,6 +1,6 @@
 # 船员参考图（千问本地生成）
 
-完整 768² 原图在 `docs/qwen21/crew-refs/`（按 .gitignore 的大体积可再生物策略不入库）；
+完整 768² 原图在素材层 `returnlog_assets/unreferenced/qwen21/3d/crew-refs/`（不入库）；
 本目录是 640px 预览 + 生成清单，供仓库内追溯与评审。
 
 生成：

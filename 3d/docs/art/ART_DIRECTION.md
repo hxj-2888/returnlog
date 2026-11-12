@@ -366,7 +366,7 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 - `npm run 3d:assets`：**0 错误 / 3 提醒**（提醒是既有的 3 个 ship 占位源）。
 - `npm run 3d:import:check`：**0 差异**。
-- `npm run baseline:check`：**BASELINE OK 443 个文件**。
+- `npm run baseline:check`：`BASELINE OK`（文件数见本次输出）。
 - `scene_extras.gd` / `map_builder.gd` / `secbot_view.gd`：Godot `--check-only` 通过。
 - 截图：`artcheck-door.png`、`artcheck-secbot.png`、`artcheck-ceiling.png`；真实 bridge/armory：
   `artcheck-room-door.png`、`artcheck-room-ceiling.png`、`artcheck-room-secbot.png`。
