@@ -42,8 +42,12 @@ jobs:
       - name: Shared docs sync check
         run: npm run docs:check
 
-      - name: Baseline
-        run: npm run baseline:check
+      # 本机用 `npm run baseline:check`（含 _raw 素材 + CRLF 口径）；
+      # CI 是 Linux 仓库检出，缺 55 个被 gitignore 的 _raw 素材、LICENSE 也是 LF，
+      # 直接跑会 58 项假红。这里用只读适配层：跳过 git 忽略项、文本接受 CRLF/LF，
+      # 已入库基线被手改仍然失败。判定真源仍是主仓 tools/sync-baseline.cjs。
+      - name: Baseline (CI checkout mode)
+        run: node 3d/tools/check-baseline-ci.cjs
 
       - name: Redline contract
         run: npm run agent:contract
