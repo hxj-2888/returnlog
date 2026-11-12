@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-11",
+  "generated": "2026-11-12",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
     "version": "3.7.0",
     "gameVersion": "返航录V3.7"
   },
-  "file_count": 443,
+  "file_count": 407,
   "files": {
     "assets/MANIFEST.json": {
-      "sha256": "ea12399462641aa75216ce10e93259410596de1ba50f39114025e9d627e90438",
-      "size": 12966
+      "sha256": "ba759adcbadc439858cf046c489c0d463e32ef3d562a776a3d61244155563c63",
+      "size": 373
     },
     "assets/minigame/CREDITS.md": {
-      "sha256": "4f2f64a80bc3a36e275097928286c7f447d8831ba0ad6c43055ea8e049546b65",
-      "size": 2209
+      "sha256": "50530c9e2edbf70c4bea9472dc2f3b3a939aaeaf818a3c9d05363ae335c5406e",
+      "size": 2216
     },
     "assets/minigame/panel-breaker.png": {
       "sha256": "3cb64bc7f23ac4c27d106bc0a8ef7a778023ef35225db7f21f15fe8edb18a227",
@@ -51,170 +51,6 @@
     "assets/qwen-lib/README.md": {
       "sha256": "06fb11110bd30c13aa68d8a0a29c97034b676773e608f217ea8dac45af81af2d",
       "size": 1494
-    },
-    "assets/qwen-lib/armory-floor_768.png": {
-      "sha256": "27e443bac69097a8ada44dfaa72d9cd3215f1208988ca2449c4f168ccc95e7f9",
-      "size": 1701378
-    },
-    "assets/qwen-lib/armory-wall_768.png": {
-      "sha256": "1310533afa4d50f529c6049dd890bedb4c4911b9d56ce3ad84b4bb9202f0ea48",
-      "size": 1282927
-    },
-    "assets/qwen-lib/bridge-floor_768.png": {
-      "sha256": "b7af3e2832a913a3ca2c11356e59c6430a70d3f18dae521eeabcdcb49971a269",
-      "size": 1712508
-    },
-    "assets/qwen-lib/bridge-wall_768.png": {
-      "sha256": "3fe4b2e296051e203d1f0225f903f72500dd50f20222fc44553cab2db6bd1060",
-      "size": 1224749
-    },
-    "assets/qwen-lib/cafeteria-top.png": {
-      "sha256": "3a6f2f8fe5d84355bb345be81c6c61512af5e994ee7335f39787b393aa68d4db",
-      "size": 4073153
-    },
-    "assets/qwen-lib/cam-floor_768.png": {
-      "sha256": "50faf14bf25e93a0932bb83cb5ee215a56527c90c98d726b506117bf9a0a1272",
-      "size": 1235600
-    },
-    "assets/qwen-lib/cam-wall_768.png": {
-      "sha256": "95480b37c7e555543a491a8b09fb2a85995a37f7e96eea79cc3eee6e7fe0b07e",
-      "size": 1604911
-    },
-    "assets/qwen-lib/crate-steel.png": {
-      "sha256": "6ad6c8053c1d551e6f440c265ff4c48c650dfb1851ccfe54e0ac3624107c14a5",
-      "size": 4107247
-    },
-    "assets/qwen-lib/ecosys-floor_768.png": {
-      "sha256": "1ce7b4a72cbcb4037ddab87d1dd306dbf2a923b017cdf70f76fd03b331021f7a",
-      "size": 1327182
-    },
-    "assets/qwen-lib/ecosys-wall_768.png": {
-      "sha256": "19e4fceb12778a2fb85d8420fd6a46410b2fbcfcd74f7770b1da11c536a63388",
-      "size": 1390803
-    },
-    "assets/qwen-lib/engine-floor_768.png": {
-      "sha256": "1eab1d38f1bec02460c2e97db5dde155688aceae174259a24c716b84efc72db0",
-      "size": 1501344
-    },
-    "assets/qwen-lib/engine-wall_768.png": {
-      "sha256": "5654ce2bb75ca05fc2ccf856178818fc520b70558d9db9406fb0010cb0403612",
-      "size": 1331806
-    },
-    "assets/qwen-lib/fabric-weave.png": {
-      "sha256": "e45d82d834a855e0e62d6258529c475998af6cccce09f7c862bf69d3329f0598",
-      "size": 4584325
-    },
-    "assets/qwen-lib/facility-panel.png": {
-      "sha256": "1bf70e2a57b55a43ea3fc5d9c10a8b1a4d2fee92f8a568586cee1935b1a3e4e0",
-      "size": 4066721
-    },
-    "assets/qwen-lib/facility-screen.png": {
-      "sha256": "d90266b60cf92e29f068f7794bd116e8887ae7b5f2579dfd8e47ecf8dda3c3b8",
-      "size": 3891287
-    },
-    "assets/qwen-lib/fun-floor_768.png": {
-      "sha256": "7d7d6a9004e86afba756d4af39ebbbb4ac3bf7f00fcb13dddf7891453f75f452",
-      "size": 1587336
-    },
-    "assets/qwen-lib/fun-wall_768.png": {
-      "sha256": "83c08028059c81b0489a5ad867cda79b9876bc53bd2aa8809010556072d75b8d",
-      "size": 1240859
-    },
-    "assets/qwen-lib/hazard-stripe.png": {
-      "sha256": "6be835b5b9e1af745529a56a73a4cf1fff1f33e0df6e8c54e931e734866a1e74",
-      "size": 3784161
-    },
-    "assets/qwen-lib/med-floor_768.png": {
-      "sha256": "d242ce4f8b5abdf31bf848916326aacb6843022f460506d4987af9925ca485ec",
-      "size": 1006184
-    },
-    "assets/qwen-lib/med-wall_768.png": {
-      "sha256": "4d1ea9b5f71eaff986e95c4266aba31ee0dbcc72f0d297dae632d5a274b392e2",
-      "size": 756478
-    },
-    "assets/qwen-lib/panel-metal.png": {
-      "sha256": "364829b7f527a166d5c7ceb1098348030e4ea204602d66cfe1ad1bc50e331891",
-      "size": 4153526
-    },
-    "assets/qwen-lib/panel-white.png": {
-      "sha256": "b284985d19e6dd8edae2d2bed55c45df4eebd1b548f0e05ebc395e1389bb63c8",
-      "size": 3988673
-    },
-    "assets/qwen-lib/power-floor_768.png": {
-      "sha256": "04e901b828e92a15e40e9edb09bbf3a670e3b44a76264b53757185383c1fff21",
-      "size": 1371810
-    },
-    "assets/qwen-lib/power-wall_768.png": {
-      "sha256": "807697a1636e279b23c951ac81a067dc5bd71411808ddae6edf16600fb2954c3",
-      "size": 1013184
-    },
-    "assets/qwen-lib/surf-cafeteria-top_768.png": {
-      "sha256": "1569acdf5c7a57a80eb0755f6b01ea1df5ed42db71dfbc47231f6f29bf1e19fc",
-      "size": 1326690
-    },
-    "assets/qwen-lib/surf-crate-steel_768.png": {
-      "sha256": "f9fb72728c6ae122fb9d7134ddee633b234c6b70a4bc8e15ae76349a0bf3abe1",
-      "size": 1399439
-    },
-    "assets/qwen-lib/surf-fabric-weave_768.png": {
-      "sha256": "537d3f49248c2aa530b3981c3d9abe3f0c64811f37c5276aad31dc0dab4674c6",
-      "size": 1746436
-    },
-    "assets/qwen-lib/surf-facility-panel_768.png": {
-      "sha256": "2ac600baa50763efeb838e03c780ca0ec9f2b4b070bb1566fe5af869d7aadebb",
-      "size": 1084554
-    },
-    "assets/qwen-lib/surf-facility-screen_768.png": {
-      "sha256": "248a29c5d253b07a29579280bd9a802bc31ef372ce07e3da7fc48500a48c6b08",
-      "size": 887177
-    },
-    "assets/qwen-lib/surf-hazard-stripe_768.png": {
-      "sha256": "ec7d41b6dfcd9aeab61cd3499eef8526c6bad47404f7217b64a2d770af0454da",
-      "size": 1463745
-    },
-    "assets/qwen-lib/surf-panel-metal_768.png": {
-      "sha256": "81c6e159871a1b6b1e7c1a094fb3b024fd75f32e9d1fe493e253437df0be9fba",
-      "size": 1484258
-    },
-    "assets/qwen-lib/surf-panel-white_768.png": {
-      "sha256": "f263188ab7db68a42f5d5db228350c189d54ddadbaa8666fda779fd77f776aa2",
-      "size": 867787
-    },
-    "assets/qwen-lib/surf-table-composite_768.png": {
-      "sha256": "1d90272358e6f62e3a2a379b62252d3db05ac0e26887b15c7e2cc7e0a2ca3ce1",
-      "size": 1179684
-    },
-    "assets/qwen-lib/surf-warehouse-rack_768.png": {
-      "sha256": "3115de05515795f0c083018ef61a5d417b4d33392889bf0945d5d41782724cbe",
-      "size": 1343826
-    },
-    "assets/qwen-lib/table-composite.png": {
-      "sha256": "3e4d2c4eae1e3df0f596d020fe93428be180e4c468753d23e8acffe559ccf8b2",
-      "size": 4028259
-    },
-    "assets/qwen-lib/transit-floor_768.png": {
-      "sha256": "2c26d605f9a0347d93e7475097269473acb17d4e455ab3139f62775de1b9c8b9",
-      "size": 1760066
-    },
-    "assets/qwen-lib/transit-wall_768.png": {
-      "sha256": "250637d5a4107a237829d7a821010a0e944ecda3a805fbb8dd03caaab5071a5e",
-      "size": 1073219
-    },
-    "assets/qwen-lib/vent-grille_768.png": {
-      "sha256": "6ba71a6f2fd59560b9dd1f356df44aee611f98124ccea844ba2af2a98752351a",
-      "size": 1123320
-    },
-    "assets/qwen-lib/warehouse-floor_768.png": {
-      "sha256": "10e7545f534541837c50f2e2f457874f35c7875065152c071dc5c1610d66ece7",
-      "size": 1737845
-    },
-    "assets/qwen-lib/warehouse-rack.png": {
-      "sha256": "b0d8cbd646105380604a0e48587ff98536c48733e3bcd36a4eb1ed14aae036fe",
-      "size": 4101443
-    },
-    "assets/qwen-lib/warehouse-wall_768.png": {
-      "sha256": "15792260d592851f5a6686956bd8170c3013dae14cb9ad072bb0c3eb003d1c07",
-      "size": 1279720
     },
     "assets/qwen-lib/素材库清单.json": {
       "sha256": "51640fb5cdd35f0b8515422236de05d148d628d544310fa19f88a9abc3de2667",
@@ -985,8 +821,8 @@
       "size": 714819
     },
     "assets/scene/v4/base-lit.png": {
-      "sha256": "7e73c60c4829c3295a203d915f1c1497909dd1f0ef5e2deb868f48a1bb185a42",
-      "size": 14194673
+      "sha256": "65f72e3a2091f3c22b734dee0898995e79079e08e44b751f3d70cccf3ca85905",
+      "size": 14400482
     },
     "assets/scene/v4/facility/_raw/breaker-c0.png": {
       "sha256": "ae8b6f8f6493b1736496b0a4b801477e1e8bd820d5b3c1b0735b763abe5d85c7",
@@ -1385,8 +1221,8 @@
       "size": 91040
     },
     "js/data/map.js": {
-      "sha256": "ff0755cdd53a61296cb7a4603d6a675490d99b347521e79e203e0a0d37ea0937",
-      "size": 26062
+      "sha256": "3d25d88547b73614d5a31fd57e99b9fa29d0250222949a4e48f8527ab94342ca",
+      "size": 26089
     },
     "js/data/names.js": {
       "sha256": "e23159df4d8a7b7c1b1ce502e8a148cf55243ccdf680d8c528a7406777db3fdd",
@@ -1409,8 +1245,8 @@
       "size": 9025
     },
     "js/game.js": {
-      "sha256": "d76172873eff6e4278857ced000184eafd278d16851cb8bc41ab8884b4fcf720",
-      "size": 653784
+      "sha256": "534b0b861f3fef26f357d72d2e7f1d8daad43010cf919026bba45cde3a41565a",
+      "size": 655450
     },
     "js/main.js": {
       "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",
@@ -1441,8 +1277,8 @@
       "size": 58205
     },
     "js/t2/space.js": {
-      "sha256": "855f757e148282b5c0e904217367a16cb641539f533e6cd3cfe7b9a994a79d1e",
-      "size": 5842
+      "sha256": "83c51cd057049d5dcbe2c8c1b26710cc2a01e6a52e29820994aeb97fd2205325",
+      "size": 6987
     },
     "js/ui/home.js": {
       "sha256": "d49036953cdb985abbc7a60254120a1f6d64e8d1ae78fbd9fd617e73a2dd9052",
@@ -1541,12 +1377,12 @@
       "size": 7729
     },
     "tools/asset-guard.cjs": {
-      "sha256": "f5eefcde6d04ffb5a3309bd276e435624937d5d30dde0bb19846d07c837de6c4",
-      "size": 4911
+      "sha256": "2c90d797e2de4fa51a00d2463aaafa75009f90003fefc5c2a5fd5363d20b3b36",
+      "size": 4918
     },
     "tools/assets-check.cjs": {
-      "sha256": "c7bb45bbea75d125b09b3ececb0a9fcc3b922215bcc5d4ee54ba23078c17b90a",
-      "size": 5068
+      "sha256": "56959d7fa8772a433261b437715432da24c0a18b2999c6486177a9c390facbdf",
+      "size": 5302
     },
     "tools/bench-bench-all.json": {
       "sha256": "99ef659b209fdf27ca91c65f1f9516d78d1b8aa39506c0e61c22156dc8406d7c",
@@ -1573,28 +1409,36 @@
       "size": 29893
     },
     "tools/blender-fx.py": {
-      "sha256": "6e7d424c583aa4e92583101b7842890001700efa0eb0df5b9de8d2b30985116b",
-      "size": 18520
+      "sha256": "907d57030b7cd4f1337fcacab30a60761abfac4c03209d95d546185960030134",
+      "size": 18746
     },
     "tools/blender-ship.py": {
-      "sha256": "311f8a2efba319c1917be7d6de74ff2905ab7fdb3fe11abe75a898c0a9c9005b",
-      "size": 94482
+      "sha256": "53e2d2b581246190c6375b61a59b0c3c2b6530a3a8f010f5f919f2aff83e65c1",
+      "size": 95347
     },
     "tools/build-apk-assets.cjs": {
       "sha256": "d1e84dac37d526954e92c78e2fa670075eea2cce261c260be51089ceff5df55c",
       "size": 2432
     },
     "tools/check-agent-contract.cjs": {
-      "sha256": "3a8ff7fc44861c30a310e79662c292e0924fa5e77bf81445862d9e05afa784f3",
-      "size": 2887
+      "sha256": "3a845707fecbfe4dee6f1943dc8b86f64d4b73622aaf279fb17e50a8e2bf44bd",
+      "size": 3164
     },
     "tools/check-blender.ps1": {
       "sha256": "27b8c189c4755dade0d5fd3a375973b475e8f8f6a2474452456a05ec27da7c28",
       "size": 3369
     },
+    "tools/check-t3.cjs": {
+      "sha256": "e38bda2cd7928eae912c387f0680110f70fe28e1d86c3b40fdda8047dc9d395e",
+      "size": 13677
+    },
     "tools/check-tex-style.py": {
       "sha256": "b157dd36b7d9b536160973f3f6f5c2f7e81103e530b0b4eb64d63f01aacb10e5",
       "size": 4570
+    },
+    "tools/ci-gate.cjs": {
+      "sha256": "1e0141dd57f9c4ec3efdbc4322b12def07f7be83982ac3a0bdea9325f8f1678b",
+      "size": 2598
     },
     "tools/crew-sheets.py": {
       "sha256": "c703b141c72c1014c158954f0f26313ab8d5a772b798cd65df959965b71fa4bc",
@@ -1605,12 +1449,16 @@
       "size": 5586
     },
     "tools/deploy-config.cjs": {
-      "sha256": "c97fc23c245d0bf0dd570cf4a24acef85fc3a3c66a12c3f2baf9df2177f968dd",
-      "size": 1361
+      "sha256": "2ae5681d97b00b863c89db7864742f6682b9d206beed0ae584b386e86ba4b59d",
+      "size": 1374
     },
     "tools/deploy-pages.cjs": {
-      "sha256": "2e0895acdbc63d10b227fa950e51bfd863ca94185cc743b2283f1d313117e4c5",
-      "size": 3595
+      "sha256": "4638930589adb4cdc496ff47d3224d6bbe68f52d72aa7bc1ac3abd7ada2841f1",
+      "size": 3641
+    },
+    "tools/flaky-assertions.txt": {
+      "sha256": "0e6fa9c6d74dee663409d69b863e4a2181b6d95a6072d0c317416d77b771b87c",
+      "size": 640
     },
     "tools/fuse-tex-detail.py": {
       "sha256": "08c1d46a8e369c339318ec0861b6668b6a0a054593768f20456ebeda0de139e6",
@@ -1625,8 +1473,8 @@
       "size": 3491
     },
     "tools/gen-armory-deck.py": {
-      "sha256": "61409ae7edceabeabeca32a622ba72f22bd6c025ded3bbbe421598dc9f323303",
-      "size": 3722
+      "sha256": "206d424d3f2483e3f0fd31f6a3750bf2b95997b89a798f8a142ea9e8e75ff0a0",
+      "size": 3957
     },
     "tools/gen-facility-sprites.py": {
       "sha256": "7b4c867e96bc33fd5f85b81127e59749d192310189cf2fdcc1003d7309066db0",
@@ -1637,8 +1485,8 @@
       "size": 5189
     },
     "tools/gen-materials.py": {
-      "sha256": "9925ce0341fabd7fe00717e14f69723d1c76e647aefc87cb9791b5ce69c5f6e1",
-      "size": 26457
+      "sha256": "b9642e0ba7faff9a217e37af922b03bd6d856ca1bb1468eb68ebc1675a858d17",
+      "size": 26595
     },
     "tools/gen-qr.py": {
       "sha256": "1f3a69f71fbeb7d1ffb4ca5001896af412b4163b71ca17ca64d6ace09dab93aa",
@@ -1724,6 +1572,14 @@
       "sha256": "63d0d9f69c01a07a45057663a947c7bb1a0eadb160b4d3a71b138658ae2555cd",
       "size": 1413
     },
+    "tools/publish-assets.cjs": {
+      "sha256": "57e6a11d32debced909a2ba6ba8762a8633e36c06d2a98ce9afb146e977746a5",
+      "size": 10329
+    },
+    "tools/publish-assets.json": {
+      "sha256": "5704e9eea0bce4ad96a9132087687e12081d307fb11e7f5848a095df93f21fda",
+      "size": 40364
+    },
     "tools/serve.cjs": {
       "sha256": "de5635c9deb50cbed9a316ea19af32819632765f4e6d70d689ed0a444dd6a687",
       "size": 2096
@@ -1753,8 +1609,8 @@
       "size": 109215
     },
     "tools/ship-layout-plan.md": {
-      "sha256": "93c813cb807725365623ad206acd27c9094dd46297463474950b244b9fe78582",
-      "size": 12016
+      "sha256": "b3dfe52f402780c452acd6f3bb756133d04fbc2269685ccb46d1a5e43f506d18",
+      "size": 12023
     },
     "tools/ship-layout-spec.cjs": {
       "sha256": "5e9f86943c7727d8292a1b6e21791206fbc110044d6a4666a502ad4d9bb60331",
@@ -1773,8 +1629,8 @@
       "size": 5518
     },
     "tools/test-v3.cjs": {
-      "sha256": "d82d059ebdd30d87d214650a88ebd6f867d810d12e1f88fec1a5f1a3e57eeab2",
-      "size": 468677
+      "sha256": "46c1a86cd30f4bc0d5d7d9f8c9416a66353b6f544ab4fb18d551bed8fbf69d69",
+      "size": 479052
     },
     "tools/ux-audit.cjs": {
       "sha256": "f7e6f8b97482e4c4bacb5d9ebb0ac94383dfb6f2943f3ce3a56911d0dabc416a",

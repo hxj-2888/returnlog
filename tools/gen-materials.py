@@ -33,7 +33,9 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEX = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+TEX = os.path.join(ASSET_LAYER, 'referenced', 'scene-v4-tex')
 MODEL = os.environ.get('SDXL_MODEL', r'D:\ai-models\sdxl-base')
 VAE = os.environ.get('SDXL_VAE', r'D:\ai-models\vae-fp16-fix')
 SIZE = 1024

@@ -35,9 +35,9 @@ if (si >= 0 && !argv[si + 1]) {
 }
 const SOURCE = path.resolve(si >= 0 ? argv[si + 1] : (process.env.RETURNLOG_25D_ROOT || DEFAULT_SOURCE));
 
-/* 基线目录：与 SPLIT.md §3 一致。
+/* 基线目录：与 BASELINE.md 一致。
  * 2026-11-09 用户裁定：`docs/` 移出基线。2.5D 时代的调研 / 交接 / 审查文档已清理，
- * 只保留 `docs/qwen21/` 千问出图留档（gen-art-refs.ps1 的留档目标），
+ * `docs/qwen21/` 已于 2026-11-12 移入素材层 returnlog_assets/unreferenced/qwen21/3d/；
  * 那是本工程的资料而不是可对账基线，不再参与哈希校验。 */
 const DIRS = ['js', 'assets', 'audio', 'tools'];
 /* 根级对账文件：3d/spec/port-manifest.json 把 index.html 登记为 source（X-ENTRY），

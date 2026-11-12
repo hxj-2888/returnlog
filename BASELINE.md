@@ -2,7 +2,7 @@
 
 > 首次建立：2026-11-09 · 来源：`C:\Users\ASUS\Desktop\新返航录\`
 > 本文件说明**为什么一个 3D 独立工程里会有 2.5D 的 `js/`**，以及怎么安全地刷新它。
-> 与 `AGENTS.md` §二 / §三.11 / §五.2、`SPLIT.md` §2 / §4 配套阅读。
+> 与 `AGENTS.md` §二、`3d/ARCHITECTURE.md` 附录（目录职责）配套阅读。
 
 ## 1. 定义
 
@@ -65,16 +65,15 @@ node tools/sync-baseline.cjs --rebuild                  # 只按当前磁盘重�
 **绝对不要**为了"让门禁变绿"直接改本工程的 `js/` 或手改 `3d/preview/data/rules.json` ——
 前者制造第二套真源，后者让 `sources` 哈希继续漂移，都是红线级回退项。
 
-## 5. 分离时刻的已知漂移
+## 5. 分离时刻的漂移（历史）
 
-分离当天上游有 55 项未提交 / 未跟踪改动，快照是从**磁盘现状**复制的（不是 git HEAD），
-因此本工程基线里也带着这些改动。由此产生两项既有门禁失败：
+分离当天上游有 55 项未提交 / 未跟踪改动，快照从**磁盘现状**复制（不是 git HEAD），
+因此基线里也带着这些改动。由此产生的两项门禁失败已转绿：
 
-- `3d:parity:check`：`rules.json` 的 `sources` SHA 与 `js/` 真源不一致（改了 `js/` 未重导）；
-- `3d:port:check`：`js/game.js` 111 行未被 `3d/spec/port-manifest.json` 认领。
+- `3d:parity:check` 的 `rules.json` 源哈希漂移 → 已重导；
+- `3d:port:check` 的 `js/game.js` 行段未认领 → 已更新 `port-manifest` 末行。
 
-它们是**上游遗留**，不是基线复制错误。修复顺序见 `SPLIT.md` §5.2；
-在转绿前，任何门禁报告都必须如实写出这 2 项失败（`AGENTS.md` §一.4）。
+处理明细见 `3d/CHANGELOG-2026-11.md` 对应批次；现行读数只认最新批次。
 
 ## 6. 变更记录
 
@@ -83,7 +82,8 @@ node tools/sync-baseline.cjs --rebuild                  # 只按当前磁盘重�
 - **裁定**：用户「本次同步先到此为止，把过期文档和 SDXL 舱室图清掉」。
 - **删除**：`docs/` 下 25 个 2.5D 时代文档（调研 / 交接 / 审查 / 审计 / 施工单，323 KB）；
   原仓 `C:\Users\ASUS\Desktop\新返航录\docs\` 完整保留，需要时从原仓取。
-- **保留**：`docs/qwen21/` 79 个千问出图留档（101 MB），仍由 `gen-art-refs.ps1` 写入；
+- **已出仓**：`docs/qwen21/` 千问出图留档已于 2026-11-12 移入素材层
+  `returnlog_assets/unreferenced/qwen21/3d/`，`gen-art-refs.ps1` 改为写入该目录；
   它是本工程资料，不是可对账基线，因此不再纳入哈希清单。
 - **方式**：`node tools/sync-baseline.cjs --rebuild`。保留的 451 个文件哈希与旧清单逐一比对一致，
   未复制任何上游文件（当时上游已有 21 项内容漂移 + 3 项新增，按用户「同步先到此为止」不予拉取）。

@@ -31,7 +31,11 @@ from mathutils import Vector
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'assets', 'scene', 'v4', 'facility')
-TEX = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+TEX = os.path.join(ASSET_LAYER, 'referenced', 'scene-v4-tex')
+if not os.path.isdir(TEX):
+    TEX = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 TEST = '--test' in ARGS
 

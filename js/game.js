@@ -1241,11 +1241,12 @@
     function miniGameOn(){
       return !!(global.SKMiniGame&&!G.simMode&&!SIM_RUN&&!TEST_RUN&&!G.spectMode);
     }
+    const NO_MG_ACT={sab:1,qual:1,med:1,ammo:1,search:1};
     function playerMiniGame(a){
       if(a!==G.me||G.spectMode||G.simMode||SIM_RUN||TEST_RUN)return false;
-      if(!global.SKMiniGame||!STAND_ACT[a._doing]||a._doing==='sab')return false;
-      /* 领单交互即领、补给纯站桩读秒：这三项不弹小游戏遮罩（2026-11-10 用户裁定）。 */
-      if(a._doing==='qual'||a._doing==='med'||a._doing==='ammo')return false;
+      if(!global.SKMiniGame||!STAND_ACT[a._doing]||NO_MG_ACT[a._doing])return false;
+      /* 领单交互即领、补给纯站桩读秒、搜尸/查看伤情只读秒：
+         这几项不弹小游戏遮罩（2026-11-10 / 2026-11-12 用户裁定）。 */
       /* 收尾阈值：onDone 把 doing 置成 0.001 交给下一帧 finishDoing，
          这里必须放行，否则会被当成"新任务"立刻重开一局遮罩。 */
       if(a.doing<=0.05)return false;
@@ -8589,6 +8590,7 @@
         metal:['audio/sfx-metal.ogg'],
         door:['audio/sfx-door.ogg'],
         ui:['audio/sfx-ui.ogg'],
+        click:['audio/sfx-click.ogg'],
         work:['audio/sfx-work.ogg'],
         flesh:['audio/sfx-flesh.ogg'],
         win:['audio/sfx-win.ogg'],
@@ -8625,6 +8627,7 @@
         work:{max:0.38,rate:[0.92,1.04]},
         metal:{max:0.50,rate:[0.70,0.90]},
         ui:{max:0.62,rate:[1,1]},
+        click:{max:0.40,rate:[1,1]},
         report:{max:0.55,rate:[1,1]},
       };
       /* 播放日志：Playwright 用它验证「一次出刀只响一次」 */
@@ -8752,6 +8755,9 @@
         },
         ui:function(){ if(!play('ui',0.85,1)) beep(520,700,0.07,'triangle',0.12); },
         interact:function(){ if(!play('ui',0.85,1)) beep(520,700,0.07,'triangle',0.12); },
+        /* 2026-11-12 接线：main.js 设置滑条走 SKV3.playSfx('click')，此前表里没有 click 条目，
+           调用一直静默 no-op（音效文件 sfx-click.ogg 也在仓里躺着没被引用）。 */
+        click:function(){ if(!play('click',0.5,1)) beep(760,620,0.05,'square',0.08); },
         doorAuto:function(vol){
           /* 自动门不写播放日志，避免干扰「一次出刀只响一次」的断言 */
           if(!play('door',(vol==null?0.4:vol)*0.65,0.92)) beep(240,180,0.09,'square',0.035);
@@ -9353,6 +9359,28 @@
           ctx.strokeStyle=tint.a('.85');ctx.lineWidth=1.4;
           ctx.beginPath();ctx.roundRect(x-0.75*s,y-0.55*s,1.5*s,1.1*s,0.12*s);ctx.fill();ctx.stroke();
         }
+        /* 地道口指示灯：灯座 + 热芯 + 暖黄光晕，慢呼吸闪烁；不用大色框。 */
+        const lx=x+0.62*s, ly=y-0.46*s;
+        const pulse=Math.pow(0.5+0.5*Math.sin(T*3.6+(q.x+q.y)*0.17),2.2);
+        const glowA=0.22+0.78*pulse;
+        ctx.save();
+        ctx.globalCompositeOperation='lighter';
+        const glow=ctx.createRadialGradient(lx,ly,0,lx,ly,0.62*s);
+        glow.addColorStop(0,'rgba(255,242,196,'+(0.82*glowA).toFixed(3)+')');
+        glow.addColorStop(0.28,'rgba(255,190,96,'+(0.38*glowA).toFixed(3)+')');
+        glow.addColorStop(1,'rgba(255,146,40,0)');
+        ctx.fillStyle=glow;
+        ctx.beginPath();ctx.arc(lx,ly,0.62*s,0,7);ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle='rgba(12,12,10,.92)';
+        ctx.beginPath();ctx.arc(lx,ly,0.14*s,0,7);ctx.fill();
+        ctx.strokeStyle='rgba(255,198,108,'+(0.55+0.35*pulse).toFixed(3)+')';
+        ctx.lineWidth=Math.max(1,0.016*s);
+        ctx.stroke();
+        ctx.fillStyle='rgba(255,246,214,'+(0.55+0.45*pulse).toFixed(3)+')';
+        ctx.beginPath();ctx.arc(lx-0.015*s,ly-0.015*s,0.055*s,0,7);ctx.fill();
+        ctx.restore();
         /* 2026-11-10：不再画彩色脉冲外框（用户否决"突兀色框"）；精灵已按舱室地板色调分级。 */
       }
     }
@@ -11576,6 +11604,7 @@
       },
       wheel:()=>G.wheel?{n:G.wheel.items.length,items:G.wheel.items.map(it=>({id:it.id,label:it.short,pill:it.pill}))}:null,
       openWheel:()=>openWheel(collectInteractions(G.me)),
+      mgAllowed:action=>!!(global.SKMiniGame&&STAND_ACT[action]&&!NO_MG_ACT[action]),
       pickWheel:i=>{const ok=pickWheel(i);return {ok,doing:G.me.doing,do:G.me._doing,wheel:!!G.wheel};},
       closeWheel:()=>{closeWheel(true);return !G.wheel;},
       supplies:()=>supplyPoints().map(q=>({kind:q.kind,item:q.item,x:q.x,y:q.y,label:q.label})),

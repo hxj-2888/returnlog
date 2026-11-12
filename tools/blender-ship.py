@@ -169,7 +169,12 @@ else:
 _IMGS = {}
 
 
-_PREVIEW_TEX = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures')
+_ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+_ASSET_LIB = os.path.join(_ASSET_LAYER, 'referenced')
+_PREVIEW_TEX = os.path.join(_ASSET_LIB, '2.5d-preview-textures')
+if not os.path.isdir(_PREVIEW_TEX):
+    _PREVIEW_TEX = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures')
 
 
 def tex_path(tex):
@@ -181,9 +186,15 @@ def tex_path(tex):
     否则会静默退回纯色（6 舱地板全丢）。
     SDXL 退役后同名表面贴图（panel-metal 等）放在素材库，mat_family 无需改调用即自动命中。
     """
+    lib = os.path.join(_ASSET_LIB, 'qwen-lib', tex)
+    if os.path.exists(lib):
+        return lib
     lib = os.path.join(ROOT, 'assets', 'qwen-lib', tex)
     if os.path.exists(lib):
         return lib
+    p = os.path.join(_ASSET_LIB, 'scene-v4-tex', tex)
+    if os.path.exists(p):
+        return p
     p = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex', tex)
     if os.path.exists(p):
         return p
@@ -683,11 +694,17 @@ for c in M['corridors']:
         # 去掉门连接处溢出到房间里的铁格栅。
         box('corr_%s_%d' % (c['id'], i), mx, my,
             L, CW, -0.02, 0.0, FLOOR_MATS['corridor'], rot=rot)
-        # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源。
-        # 2026-11-10：改为"连续偏移折线 + 拐角 miter"，两侧全覆盖、拐角收束，
-        # 不再每段缩 0.4 导致交叉飞出 / 缺边（生态舱-医疗舱拐角曾飞线、下段缺线）。
         ux, uy = dx / L, dy / L
         seg_norm.append((-uy, ux))
+    # 折点补角：每段走廊矩形只在端点 butt 相接，折点左右两个外角各漏一块，
+    # 运行时被迷雾压成黑角。用一块 2CW×2CW 的同材质地面把整个折点铺平。
+    for i in range(1, len(pts) - 1):
+        px, py = pts[i]
+        box('corr_corner_%s_%d' % (c['id'], i), px, py,
+            CW * 2, CW * 2, -0.02, 0.0, FLOOR_MATS['corridor'])
+    # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源。
+    # 2026-11-10：改为"连续偏移折线 + 拐角 miter"，两侧全覆盖、拐角收束，
+    # 不再每段缩 0.4 导致交叉飞出 / 缺边（生态舱-医疗舱拐角曾飞线、下段缺线）。
     off = CW / 2 - 0.45
     for side in (-1, 1):
         norms = seg_norm

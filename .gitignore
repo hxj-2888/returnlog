@@ -15,6 +15,8 @@ tools/_qwen-rooms-*.log
 .DS_Store
 Thumbs.db
 desktop.ini
+# 演示视频等大体积媒体：只在本地留档，不入库、不上传远端（2026-11-12 用户裁定）
+*.mp4
 
 # ---- Godot 本机缓存与截图（可再生成，随盘保留、不入库）----
 3d/preview/.godot/
@@ -64,3 +66,9 @@ docs/qwen21/
 # 蒙特卡洛原始局（基线工具产物）
 tools/mc-results.json
 tools/mc-results-E.json
+
+# 生成报告：本机可重跑，不入库（数据夹具 js-simdump 除外）
+3d/reports/*.md
+3d/reports/*.csv
+3d/reports/*.json
+!3d/reports/js-simdump-20261108.json
