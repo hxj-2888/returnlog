@@ -1,0 +1,37 @@
+name: check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Read-only gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read-only gates
+        run: npm run check
+
+      - name: Shared docs sync check
+        run: npm run docs:check
+
+      - name: Baseline
+        run: npm run baseline:check
+
+      - name: Redline contract
+        run: npm run agent:contract
+
+      - name: Publish guard
+        run: npm run guard

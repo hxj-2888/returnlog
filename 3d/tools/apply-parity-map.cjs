@@ -89,7 +89,7 @@ const MAP = {
   'js/game.js:dropStaleFix': ['not-applicable', '',
     'js/game.js:2740：防"维修目标被移除后悬空引用"；3D 的 dmg 只在 fix_damage/dawn 移除，且 _finish_doing("fix") 对不存在房间静默返回 —— 悬空场景不出现，等价守卫已在结算点'],
   'js/game.js:findHideBody': ['adapter', 'sim/ai_alien.gd:_decide',
-    'js/game.js:3108：3D 只在自家出刀后即时拖尸（_decide drag 分支 + _hide_room 评分）；「顺手藏别人尸体」分支未覆盖 —— 记入 docs/agent/PARITY_DECISIONS.md 差距表，不得当作已对齐'],
+    'js/game.js:3108：3D 只在自家出刀后即时拖尸（_decide drag 分支 + _hide_room 评分）；「顺手藏别人尸体」分支未覆盖 —— 记入 PORTING_PROTOCOL.md 附录 B 差距表，不得当作已对齐'],
   'js/game.js:exitDistAt': ['adapter', 'sim/ai_alien.gd:_exit_dist',
     'js/game.js:3147：出口集合=房间门（2.5D 还有管道口），3D _doors 预计算房间门表；escape_cost 同源'],
   'js/game.js:crowdAt': ['adapter', 'sim/ai_alien.gd:_decide',
@@ -278,7 +278,7 @@ const MAP = {
   'js/game.js:causeName': ['adapter', 'main.gd:_settle_ids_text',
     'js/game.js:389：死因中文名；3D 结算身份表 _settle_ids_text 的 deathCause match 承担（knife/shot/bled/vote）'],
   'js/game.js:envNotice': ['not-applicable', '',
-    'js/game.js:1848：env_* 环境记录写入 a.mem；3D 无 mem 时间线，等价信息由事件流（sabotage/door 日志）+ 维修 offers 呈现；记入 docs/agent/PARITY_DECISIONS.md 结构差异'],
+    'js/game.js:1848：env_* 环境记录写入 a.mem；3D 无 mem 时间线，等价信息由事件流（sabotage/door 日志）+ 维修 offers 呈现；记入 PORTING_PROTOCOL.md 附录 B 结构差异'],
   'js/game.js:lootText': ['adapter', 'main.gd:_on_search_done',
     'js/game.js:2134：搜尸结果文案；3D _on_search_done 的 toast（弹/包/单 + 已搜过拒绝）同语义'],
 

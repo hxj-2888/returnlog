@@ -122,7 +122,8 @@ if ($Only -ne "") {
 
 $setName = if ($SurfacesOnly) { "surfaces" } else { "room-skins" }
 $outDir  = Join-Path $ROOT "output\$setName"
-$archDir = Join-Path $REPO "docs\qwen21\$setName"
+$assetArchive = Join-Path $env:USERPROFILE "Documents\returnlog_assets\unreferenced\qwen21\3d"
+$archDir = Join-Path $assetArchive $setName
 New-Item -ItemType Directory -Force -Path $outDir  | Out-Null
 New-Item -ItemType Directory -Force -Path $archDir | Out-Null
 

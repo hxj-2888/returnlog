@@ -1,7 +1,7 @@
 /* 2.5D → 3D 映射建议器（找"这条规则在 3D 里已经活在哪"）
  * ---------------------------------------------------------------------------
  * 用法：node 3d/tools/suggest-parity-map.cjs [--limit N] [--fn 名称]
- * 输出：docs/agent/PARITY_SUGGEST.md
+ * 输出：3d/reports/parity-suggest.md
  *
  * 判据只有一条：标识符重合度（2.5D 函数体里出现的变量/字段/被调函数，
  * 有多少出现在 3D 函数体里）。这**不是**判定，只是给人工核对排序，
@@ -14,7 +14,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SRC = path.resolve(ROOT, '..', '新返航录');
 const SCRIPTS = path.join(ROOT, '3d', 'preview', 'scripts');
 const SPEC = path.join(ROOT, '3d', 'spec', 'gameplay-parity.json');
-const OUT = path.join(ROOT, 'docs', 'agent', 'PARITY_SUGGEST.md');
+const OUT = path.join(ROOT, '3d', 'reports', 'parity-suggest.md');
 
 const args = process.argv.slice(2);
 const LIMIT = Number(argValue('--limit') || 3);

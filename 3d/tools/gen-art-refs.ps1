@@ -6,7 +6,7 @@
 #   -Set tasks  26 个任务小游戏的控制面板参考        -> output\task-refs\
 #   -Set crew   船员三视图 / 三配色 / 制服细节（2026-11-11） -> output\crew-refs\
 #   -Set all    三套都跑（默认）
-# 仓库留档：docs\qwen21\cabin-refs\、task-refs\ 与 crew-refs\
+# 素材层留档：%USERPROFILE%\Documents\returnlog_assets\unreferenced\qwen21\3d\（2026-11-12 出仓）
 #
 # 真源纪律：房间名 / 明暗 / 主题色 / 任务的玩法 kind / 元素数 n / 配色，
 #   全部运行时读 3d\preview\data\map.json 与 minigames.json，不在脚本里硬编码。
@@ -55,6 +55,7 @@ $VAE  = "$ROOT\vae\qwen_image_2.1_vae_bf16.safetensors"
 $REPO  = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $MAPJS = Join-Path $REPO "3d\preview\data\map.json"
 $MGJS  = Join-Path $REPO "3d\preview\data\minigames.json"
+$ASSET_LAYER = Join-Path $env:USERPROFILE "Documents\returnlog_assets\unreferenced\qwen21\3d"
 
 foreach ($f in @($SD, $DIFF, $LLM, $VAE, $MAPJS, $MGJS)) {
     if (-not (Test-Path $f)) { Write-Output "FATAL missing: $f"; exit 1 }
@@ -185,7 +186,7 @@ if ($pickCabin) {
         }
         $n++
     }
-    $allResults += Render-Set "cabin" $cabinItems (Join-Path $ROOT "output\cabin-refs") (Join-Path $REPO "docs\qwen21\cabin-refs")
+    $allResults += Render-Set "cabin" $cabinItems (Join-Path $ROOT "output\cabin-refs") (Join-Path $ASSET_LAYER "cabin-refs")
 }
 
 # ---------------- 组 tasks 清单 ----------------
@@ -218,7 +219,7 @@ if ($pickTasks) {
         }
         $n++
     }
-    $allResults += Render-Set "tasks" $taskItems (Join-Path $ROOT "output\task-refs") (Join-Path $REPO "docs\qwen21\task-refs")
+    $allResults += Render-Set "tasks" $taskItems (Join-Path $ROOT "output\task-refs") (Join-Path $ASSET_LAYER "task-refs")
 }
 
 # ---------------- 组 crew 清单（2026-11-11）----------------
@@ -246,7 +247,7 @@ if ($pickCrew) {
         }
     )
     if ($Only -ne "") { $crewItems = @($crewItems | Where-Object { $Only.Split(",") -contains $_.slug }) }
-    $allResults += Render-Set "crew" $crewItems (Join-Path $ROOT "output\crew-refs") (Join-Path $REPO "docs\qwen21\crew-refs")
+    $allResults += Render-Set "crew" $crewItems (Join-Path $ROOT "output\crew-refs") (Join-Path $ASSET_LAYER "crew-refs")
 }
 
 # ---------------- 清单 ----------------
@@ -270,7 +271,7 @@ foreach ($d in @("cabin-refs", "task-refs", "crew-refs")) {
     $dir = Join-Path $ROOT "output\$d"
     if (Test-Path $dir) {
         [System.IO.File]::WriteAllText((Join-Path $dir "manifest.json"), $manifest, $utf8)
-        $arch = Join-Path $REPO "docs\qwen21\$d"
+        $arch = Join-Path $ASSET_LAYER $d
         New-Item -ItemType Directory -Force -Path $arch | Out-Null
         Copy-Item (Join-Path $dir "manifest.json") (Join-Path $arch "manifest.json") -Force
     }

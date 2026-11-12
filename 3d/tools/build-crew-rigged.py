@@ -1,7 +1,7 @@
 # =============================================================
 # build-crew-rigged.py · 参考图 → 带骨架 / 行走动作的船员 low-poly
 # -------------------------------------------------------------
-# 设计依据：docs/qwen21/crew-refs/crew-turnaround_768.png 与 crew-detail_768.png
+# 设计依据：returnlog_assets/unreferenced/qwen21/3d/crew-refs/crew-turnaround_768.png 与 crew-detail_768.png
 #   （浅灰勤务服、珊瑚红胸带/护膝、黑靴、短黑发、背包、无头盔）。
 # 产物：3d/assets/models/char_crew_lowpoly.blend
 #       3d/assets/export/char_crew_lowpoly.glb（idle / walk 两个动作）

@@ -97,8 +97,14 @@ def main():
     pipe = emit_albedo_normal_rough('ceiling-pipe', 'ceiling-pipe', sat=0.50,
                                     mul=(0.90, 0.93, 0.98), dim=0.60, nstr=1.3)
 
-    # 门框：用梁的钢纹压成深枪灰喷粉金属；0.30 太黑，3D 止口/螺栓会糊进墙里
-    frame = np.clip(beam * np.array([0.46, 0.48, 0.52], np.float32), 0, 1)
+    # 门框：用梁的钢纹压成深枪灰喷粉金属；0.30 太黑，3D 止口/螺栓会糊进墙里。
+    # 公开方法论（PBR 通道实践，依据见 docs/ASSET_GOVERNANCE.md §14 登记表）：
+    # 线性乘暗色会把明度方差一起压掉 —— 旧写法 beam * 0.46~0.52 让成品
+    # stddev 只剩约 1/255，门框在画面里读作一块纯色板。
+    # 改为「只降均值、保留偏离」：按目标均值平移 + 轻色调，钢纹方差原样保留。
+    bl = lum(beam)
+    frame = np.clip(beam + (0.16 - float(bl.mean())), 0, 1)
+    frame = np.clip(frame * np.array([0.94, 0.97, 1.02], np.float32), 0, 1)
     save_rgb(os.path.join(OUT, 'door_frame_albedo.jpg'), frame, quality=90)
     save_rgb(os.path.join(OUT, 'door_frame_normal.jpg'),
              normal_from_height(lum(frame), 1.4), quality=92)

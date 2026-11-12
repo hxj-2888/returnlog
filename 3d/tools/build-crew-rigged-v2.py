@@ -1,7 +1,7 @@
 # =============================================================
 # build-crew-rigged-v2.py · 船员 3D 低模（2026-11-11 重做版）
 # -------------------------------------------------------------
-# 依据：docs/qwen21/crew-refs/crew-turnaround_768.png / crew-detail_768.png
+# 依据：returnlog_assets/unreferenced/qwen21/3d/crew-refs/crew-turnaround_768.png / crew-detail_768.png
 # 重做原因：旧版躯干/四肢是方块拼贴、头是 12×8 球体贴照片脸，近看“伪人”。
 # 本版：
 #   · 躯干/四肢改为截面放样，肩/肘/膝用球体过渡，服饰细节进 768² UV 图集；
