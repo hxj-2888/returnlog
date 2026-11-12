@@ -1,0 +1,126 @@
+# ===== GitHub Actions — 3D 版独立部署（returnlog-3d.pages.dev）=====
+#
+# 与 2.5D 的 deploy.yml 完全平等、互不干涉：
+#   · 触发分支不同：本文件只认 3d，deploy.yml 只认 main；
+#   · 部署目标不同：本文件 → Cloudflare Pages 项目 returnlog-3d，
+#     deploy.yml → returnlog（2.5D 静态页）；
+#   · 产物不同：本文件先把 Godot 工程导出成 Web（HTML5/WASM），再部署 build/web；
+#     deploy.yml 部署的是 index.html/js/audio/assets 白名单。
+#
+# 前置：仓库 Secrets 已有 CF_API_TOKEN / CF_ACCOUNT_ID（deploy.yml 在用）。
+# 首次运行会自动创建 Pages 项目 returnlog-3d，默认域名 https://returnlog-3d.pages.dev
+#
+# 体积守卫：Cloudflare Pages 单文件上限 25 MiB。Godot 工程资源约 396 MB，
+# 首次导出大概率超限；超限时本工作流会失败并打印大文件清单（不部署坏版本），
+# 需要先做贴图/模型压缩再上线。
+
+name: deploy-3d
+
+on:
+  push:
+    branches: [3d]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-3d-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Godot Web export
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot binary + Web templates
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-4.6-web-${{ runner.os }}
+
+      - name: Install Godot 4.6 + Web export templates
+        run: |
+          set -e
+          mkdir -p ~/godot ~/.local/share/godot/export_templates/4.6.stable
+          if [ ! -x ~/godot/godot ]; then
+            wget -q https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+            unzip -q Godot_v4.6-stable_linux.x86_64.zip -d ~/godot
+            mv ~/godot/Godot_v4.6-stable_linux.x86_64 ~/godot/godot
+            chmod +x ~/godot/godot
+          fi
+          if [ ! -f ~/.local/share/godot/export_templates/4.6.stable/web_release.zip ]; then
+            wget -q https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_export_templates.tpz
+            mkdir -p /tmp/tpl
+            unzip -q Godot_v4.6-stable_export_templates.tpz -d /tmp/tpl
+            cp /tmp/tpl/templates/web_*.zip ~/.local/share/godot/export_templates/4.6.stable/
+            cp /tmp/tpl/templates/version.txt ~/.local/share/godot/export_templates/4.6.stable/ || true
+          fi
+          ~/godot/godot --version
+
+      - name: Import project resources
+        run: ~/godot/godot --headless --path 3d/preview --import
+
+      - name: Export Web build
+        run: |
+          mkdir -p build/web
+          ~/godot/godot --headless --path 3d/preview \
+            --export-release "Web" "$GITHUB_WORKSPACE/build/web/index.html"
+
+      - name: Size report
+        run: |
+          echo "== build/web 总体积 =="
+          du -sh build/web
+          echo "== 最大的 15 个文件 =="
+          find build/web -type f -printf '%10s  %p\n' | sort -rn | head -15
+
+      - name: 25MiB single-file guard
+        run: |
+          n=$(find build/web -type f -size +25M | wc -l)
+          if [ "$n" -gt 0 ]; then
+            echo "::error::$n 个文件超过 Cloudflare Pages 25MiB 单文件上限，先压缩资源再上线"
+            find build/web -type f -size +25M -printf '%10s  %p\n'
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-build
+          path: build/web
+          if-no-files-found: warn
+
+  deploy:
+    name: Cloudflare Pages · returnlog-3d
+    needs: export
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Ensure Pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages project create returnlog-3d --production-branch=3d || true
+
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages deploy build/web --project-name returnlog-3d --commit-dirty=true
+
+      - name: Smoke test
+        run: curl -fsSL -o /dev/null --max-time 30 https://returnlog-3d.pages.dev/
