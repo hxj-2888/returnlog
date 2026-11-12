@@ -2732,6 +2732,156 @@ func _close_meeting() -> void:
 		meeting = {}
 
 
+## ---- 玩家能力判定单一真源（2026-11-11 机制对齐）----
+## 2.5D 没有 canAct 这个名字：它的动作键（W/A/S/D/F/R/B/H/V）**无条件直达**
+## attack()/toggleDrag()/sabotage()/tryReport()，前置判定写在动作函数内部。
+## 3D 之前把这些动作做成「靠近才生成的交互项」，offers 为空时按键被静默吞掉 ——
+## 用户现场即「按键全合法，能力一点都没有，拖拽完全拖不了」。
+## 这里把散在 UI 层的前置条件收回 sim：只判定、不写状态，返回精确 reason；
+## 执行仍走原有单一入口（knife / shoot / start_drag / player_sabotage / ...），
+## 玩家与 AI 共用同一份口径，不新增规则、不新增数值。
+## @src: js/game.js:8266 attack / 8280 stab / 8552 toggleDrag / 2458 startDrag
+##       / 8228 sabotage / 894 openPipePick / 8072 collectInteractions / 7961 keydown
+func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
+	var ai := int(ctx.get("actor", me_idx))
+	var a: Dictionary = agent(ai)
+	if a.is_empty():
+		return _act_no("no_actor")
+	# 2.5D 全局守卫：会议中 / 对局结束 / 死亡 / 濒死 / 被押送都不能动作
+	# （js/game.js:8009 `if(G.meet||G.over)return`、:8266 attack、:8552 toggleDrag）
+	if bool(over) or not meeting.is_empty():
+		return _act_no("meeting")
+	if not bool(a.get("alive", false)) and not bool(a.get("ghost", false)):
+		return _act_no("dead")
+	if bool(a.get("downed", false)):
+		return _act_no("downed")
+	if bool(a.get("detained", false)):
+		return _act_no("detained")
+	# 2.5D 幽灵口径（js/game.js:8077）：幽灵只能做自己的剩余任务。
+	var ghost := bool(a.get("ghost", false))
+	var pos: Vector2 = ctx.get("pos", a.get("pos", Vector2.ZERO))
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	match kind:
+		"knife":
+			# 2.5D attack():8271 只有异形能出刀；knife():4226 只判刀数与目标存活/未倒地，
+			# **不判目标阵营**（3D 移植时凭空加的 `or v.alien` 已删）。
+			if not bool(a.get("alien", false)):
+				return _act_no("not_alien")
+			if int(a.get("knife", 0)) < 1:
+				return _act_no("no_knife")
+			var vi := int(ctx.get("victim", -1))
+			var v: Dictionary = agent(vi)
+			if v.is_empty():
+				return _act_no("no_target")
+			if not bool(v.get("alive", false)) or bool(v.get("downed", false)) \
+					or bool(v.get("detained", false)):
+				return _act_no("target_down")
+			var vp: Vector2 = v.get("pos", Vector2.ZERO)
+			if ap.distance_to(vp) > SpaceData.num(space, "reach", "knife"):
+				return _act_no("out_of_reach")
+			if not los_now(ap.x, ap.y, vp.x, vp.y):
+				return _act_no("no_los")
+			return _act_ok(vi)
+		"shoot":
+			# 2.5D fireShot():8307 无阵营门槛、无 alien 门槛，只判子弹/目标/射程/视线。
+			if int(a.get("bullet", 0)) <= 0:
+				return _act_no("no_bullet")
+			var si := int(ctx.get("victim", -1))
+			var s: Dictionary = agent(si)
+			if s.is_empty() or not bool(s.get("alive", false)) or bool(s.get("downed", false)):
+				return _act_no("no_target")
+			var sp: Vector2 = s.get("pos", Vector2.ZERO)
+			if ap.distance_to(sp) > SpaceData.num(space, "shoot", "range"):
+				return _act_no("out_of_reach")
+			if not los_now(ap.x, ap.y, sp.x, sp.y):
+				return _act_no("no_los")
+			return _act_ok(si)
+		"drag":
+			# 2.5D startDrag():2458 / toggleDrag():8552：拖尸**不限阵营**，
+			# 濒死者（还活着）与尸体都能拖；只排除已搜完/已被拖/已报告/已藏。
+			if ghost:
+				return _act_no("ghost")
+			if int(a.get("drag", -1)) >= 0:
+				return _act_ok(int(a.get("drag", -1)), "drop")
+			var radius := SpaceData.num(space, "reach", "body")
+			var best := -1
+			var best_d := radius
+			for x: Dictionary in agents:
+				if int(x.get("i", -1)) == ai:
+					continue
+				var downed := bool(x.get("alive", false)) and bool(x.get("downed", false))
+				if bool(x.get("alive", false)) and not downed:
+					continue
+				if bool(x.get("bodyGone", false)) or bool(x.get("bodyReported", false)):
+					continue
+				if x.get("draggedBy", null) != null:
+					continue
+				var bp: Vector2 = x.get("pos", Vector2.ZERO) if downed \
+					else x.get("bodyPos", Vector2.ZERO)
+				var d := bp.distance_to(pos)
+				if d < best_d:
+					best_d = d
+					best = int(x.get("i", -1))
+			if best < 0:
+				return _act_no("no_body")
+			return _act_ok(best)
+		"drop":
+			if int(a.get("drag", -1)) < 0:
+				return _act_no("not_dragging")
+			return _act_ok(int(a.get("drag", -1)))
+		"report":
+			# 2.5D collectInteractions():8133 `!bodyReported(nb)` → tryReport。
+			if ghost:
+				return _act_no("ghost")
+			var body: Dictionary = body_near(pos, SpaceData.num(space, "reach", "body"))
+			if body.is_empty():
+				return _act_no("no_body")
+			if not can_report_body(a, body):
+				return _act_no("no_report_quota")
+			return _act_ok(int(body.get("i", -1)))
+		"sabotage":
+			# 2.5D sabotage():8228-8229 异形专用、每夜一次、bridge 不可破坏。
+			if not bool(a.get("alien", false)):
+				return _act_no("not_alien")
+			if ghost:
+				return _act_no("ghost")
+			if bool(a.get("sabUsed", false)):
+				return _act_no("sab_used")
+			var rid: String = String(ctx.get("room", room_at(pos)))
+			if rid == "" or rid == "bridge":
+				return _act_no("sab_room")
+			for d: Dictionary in dmg:
+				if String(d.get("room", "")) == rid:
+					return _act_no("sab_room")
+			return _act_ok(-1, rid)
+		"pipe":
+			# 2.5D openPipePick():898 / pickPipe():932 `!me.alien&&!designMode` 拒绝；
+			# 判定真源是 me().alien，**不是开始页的 role 字符串**。
+			if not bool(a.get("alien", false)):
+				return _act_no("not_alien")
+			if ghost:
+				return _act_no("ghost")
+			if int(a.get("drag", -1)) >= 0:
+				return _act_ok(-1, "release_drag")
+			return _act_ok(-1, "open")
+		"task", "fix", "breaker", "cams", "search", "revive", "supply", "claim", "bot", "inspect":
+			# 2.5D collectInteractions():8077-8143：幽灵只允许自己的任务。
+			if ghost and kind != "task":
+				return _act_no("ghost")
+			return _act_ok()
+		_:
+			return _act_no("unknown_action")
+	return _act_ok()
+
+
+func _act_no(reason: String) -> Dictionary:
+	return {"ok": false, "reason": reason, "target": -1, "action": ""}
+
+
+func _act_ok(target: int = -1, action: String = "") -> Dictionary:
+	return {"ok": true, "reason": "", "target": target, "action": action}
+
+
 ## ---- B6′：拖尸 / 藏尸 / 收尸 ----
 ## 对应 2.5D `js/game.js` 2421 / 2445 / 3044 的 drag_start / drag_end / drag_away。
 ## 拖动期间速度降到 move.drag_speed，尸体位置跟着人走；放下时按落点结算。

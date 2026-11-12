@@ -40,3 +40,20 @@
 - `hear` 与事件流分离：2.5D doorAutoSound 不写事件流，3D 同样只进 hear 不进 _log。
 - `_cast_ai_votes` 受 `ai_enabled` 门禁（3D 自测开关；2.5D 无此开关，语义=AI 全关时投票也关）。
 - `medbotTick` 的救起写 `searched=false/stunT/draggedBy=null` 复用 `sim.revive`（单入口，与 2.5D revive 同链）。
+
+## 5. 2026-11-11 玩家能力链路批次（用户现场「按键合法但能力没有」）
+
+| 裁决 | 依据 / 落点 |
+|---|---|
+| 新增 `sim.can_act(kind, ctx)` 只读判定 | 2.5D 无同名函数：动作键 W/A/S/D/F/R/B/H/V 无条件直达 `attack()/toggleDrag()/sabotage()/tryReport()`，判定散在函数内部。3D 收口为**只判定不写状态**的单一真源，逐个照抄 2.5D 守卫（@src 见 `sim_state.gd` 函数注释），玩家与 AI 共用；执行仍走原有单一入口。已在 `spec/gameplay-parity.json#extras_allow` 登记。 |
+| 删掉 `role` 双源 | 管道 / 刀 viewmodel / 出刀门槛原用开始页字符串 `role`，真源应是 `sim.me().alien`（2.5D `openPipePick():898` / `attack():8271`）。旧 `--b4test` / `--interacttest` 夹具恰恰只改 `role` 就能"解锁"管道，掩盖了这个洞；两处夹具已改为按真源设置。 |
+| 不新增 `friendly_fire` 配置 | PLAN §4.3 建议把 `friendly_fire_knife/gun` 写进 `space.json`；但 2.5D `knife():4226` / `fireShot():8307` **都不查目标阵营**，`space.json` 是 2.5D 导出物。按红线 11/14 只能删 3D 自造限制（旧版 `sim.knife` 的 `if v.alien` 已于前批删除），不能往 3D 加真源没有的新状态/阈值。裁决：**保持与 2.5D 一致，不新增配置**。 |
+| 交互键位 | 键位表本身是红线 11 明确允许的「玩家输入映射」差异；本轮把 8 个键收敛进 `project.godot` 的 InputMap，代码只读 action，不再散落 KEY_* 字面量。 |
+| 卡墙兜底 | 玩家物理与 AI 网格不同源属维度产物，按交接 P0 根因 2 用 `nav.nearest_free` / `nav.is_free` 投影收口；未新增计时器阈值之外的新规则（0.3s/0.05 是接交文档给出的 2.5D `nearestFree` 兜底口径）。 |
+
+### 仍欠（不在本批，逐条登记，勿当缺口"补造"）
+
+- `findHideBody` (3108) 顺手藏别人尸体、`disguiseOptions` (3266) 演出种类、`audienceHotRooms` (3244) 热度选舱、`alienPlan` (3382) 细分打分：都依赖 2.5D `SKSanity.DISGUISE/CRED` 与 `a.mind.mem` 时间线；3D 的 `rules.json` 未导出这些表，按红线 11 不得在 GDScript 里写死第二份常量。**需上游导出后再逐行移植**。
+- `recordFrame/replayData` (1410/1426)：`FRAME_CAP=12000 / FRAME_DT=0.5` 是 2.5D 硬编码常量，同样未导出；P2 待上游补导出。
+- 人类持枪 viewmodel（PLAN §七）、人物材质三平面投影（§八-B）：表现层，需美术资产验收，未做。
+- 千局基线重跑、美术批提交、隔离区资产清理：分别受小时级算力、实机美术验收、用户逐项确认约束，未做（见 `3d/HANDOFF_2026-11-11.md` §2）。

@@ -32,6 +32,18 @@ var ghost := false
 ## 濒死：不能移动（可以被别人拖走），但仍然能看、能听。
 var downed := false
 
+## ---- 卡墙兜底（交接 P0「根因 2：物理与网格两套世界」）----
+## 玩家走 CharacterBody3D 物理，AI 走 grid_nav 网格；掩体/门柱碰撞体按美术
+## 尺寸摆，和网格可行走面不同源，贴角时 0.35 半径胶囊会被卡住。
+## 修法全部取自交接文档、对应 2.5D 的 nearestFree 兜底：
+##   ① 想走却 0.3s 位移 <0.05 → 投影回 nav.nearest_free；
+##   ② safe_margin 留余量，让 move_and_slide 贴墙时滑得动；
+##   ④ 物理把人推进网格不可走区时，钳回上一帧的可走投影（最后一道保险）。
+var nav = null
+var _stuck_t := 0.0
+var stuck_rescues := 0
+var _stuck_mark := Vector3.ZERO
+
 ## ---- 第一人称出刀视图（2026-11-11 用户反馈「出刀时自己视角没有动作」）----
 ## 只用两个盒子（刀身 / 刀柄）挂在相机下，不引入外部模型；
 ## 挥刀动作是程序化的，不占资产、不影响发布包体积。
@@ -74,6 +86,8 @@ func _build_collision() -> void:
 	collision.shape = capsule
 	collision.position.y = 0.85
 	add_child(collision)
+	# 贴墙滑移：默认 0.001 的余量太紧，门柱/家具角会把胶囊「咬住」。
+	safe_margin = 0.04
 
 
 func _build_camera() -> void:
@@ -341,7 +355,43 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 	else:
 		velocity.y = -0.1
+	var before := global_position
 	move_and_slide()
+	_clamp_to_nav(before, direction, delta)
 
 	if global_position.y < -8.0:
 		global_position = spawn_point
+
+
+## 物理与网格对齐：只在「这一步从可走区走进不可走区」或「想走却卡住」时介入，
+## 正常贴墙滑移不干预，避免每帧把玩家往回拽造成抖动。
+func _clamp_to_nav(before: Vector3, wants: Vector3, delta: float) -> void:
+	if nav == null:
+		return
+	var bp := Vector2(before.x, before.z)
+	var ap := Vector2(global_position.x, global_position.z)
+	# ④ 最后一道保险：物理把人推进了网格不可走区，钳回上一帧的可走投影。
+	if nav.is_free(bp) and not nav.is_free(ap):
+		var safe: Vector2 = nav.nearest_free(bp)
+		global_position.x = safe.x
+		global_position.z = safe.y
+		velocity = Vector3.ZERO
+		return
+	# ① 想走却 0.3s 几乎没动：2.5D nearestFree 兜底。
+	var moved := Vector2(global_position.x - before.x,
+		global_position.z - before.z).length()
+	if wants.length_squared() < 0.0001 or moved > 0.005:
+		_stuck_t = 0.0
+		return
+	if _stuck_t <= 0.0:
+		_stuck_mark = global_position
+	_stuck_t += delta
+	if _stuck_t < 0.3:
+		return
+	if _stuck_mark.distance_to(global_position) < 0.05:
+		var free_p: Vector2 = nav.nearest_free(ap)
+		global_position.x = free_p.x
+		global_position.z = free_p.y
+		velocity = Vector3.ZERO
+		stuck_rescues += 1
+	_stuck_t = 0.0

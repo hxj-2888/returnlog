@@ -576,7 +576,10 @@ func _decide(a: Dictionary) -> void:
 			a["_aiT"] = 2.0
 			return
 		_bump("knife_try")
-		if sim.knife(i, best):
+		# 机制对齐（PLAN §4.2）：能否出刀只有 sim.can_act("knife") 一处硬规则判定，
+		# 玩家与 AI 同源；AI 决策层的目击 / 隐蔽 / 性格 / 队友过滤仍在这之前。
+		var knife_ok: Dictionary = sim.can_act("knife", {"actor": i, "victim": best})
+		if bool(knife_ok.get("ok", false)) and sim.knife(i, best):
 			_bump("knife_ok")
 			# 藏尸（2.5D dragAway）：现场没目击者时把尸体拖向远离医疗间的房间。
 			# 拖行降速暴露位置（drag_speed），目击者记 saw_drag（0.22，不加 known）。

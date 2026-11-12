@@ -264,12 +264,11 @@ func _process(delta: float) -> void:
 	_progress.value = clampf(_elapsed / _limit * 100.0, 0.0, 100.0)
 
 
+## ESC 不再由这里抢：main.gd 的 _close_topmost() 是全局唯一出口，
+## 会按「最上层 UI」顺序调用本层的 cancel()。各面板各自吞 ESC 会让
+## 同一帧里「打开 UI 的键顺手把它关掉」，也是 E ≠ ESC 的旧病根之一。
 func _input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		get_viewport().set_input_as_handled()
-		cancel()
+	pass
 
 
 func _on_builder_progress(done: int, total: int, msg: String) -> void:

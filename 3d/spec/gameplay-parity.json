@@ -2324,6 +2324,7 @@
   "extras_allow": {
     "sim/sim_state.gd:revive": "2.5D 没有独立 revive()：医疗包分支在 finishDoing、无人机在 medbotTick；3D 收口成 revive()",
     "sim/sim_state.gd:player_sabotage": "2.5D sabotage() 的玩家动作段；3D 拆成输入包装 _on_sabotage + 动作 player_sabotage",
-    "sim/sim_state.gd:kill": "门禁/批量模拟的死亡快捷入口，已改为委托 die()，不是第二条死亡规则"
-  }
+  "sim/sim_state.gd:kill": "门禁/批量模拟的死亡快捷入口，已改为委托 die()，不是第二条死亡规则",
+  "sim/sim_state.gd:can_act": "2.5D 的动作判定散在 attack()/stab()/toggleDrag()/startDrag()/sabotage()/openPipePick()/collectInteractions() 内部，没有同名函数；3D 收口为只读判定（只返回 ok/reason，不写状态、不新增规则），@src 见函数注释。玩家与 AI 共用"
+}
 }

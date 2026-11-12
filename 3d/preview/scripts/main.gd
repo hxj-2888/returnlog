@@ -40,6 +40,77 @@ class HitMark extends Control:
 			draw_line(ctr + d * (r * 0.45), ctr + d * r, col, 2.5, true)
 
 
+## F2 的 FPS 式 DEV 透视（PLAN §五）：屏幕空间方框 + 名牌，穿墙可见，>25m 不画。
+## 只读 sim 与相机，不参与任何判定；F3 仍保留旧的文字总览。
+class EspCanvas extends Control:
+	var host: Node
+	var f: SystemFont
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		f = SystemFont.new()
+		f.font_names = PackedStringArray(["Microsoft YaHei", "Noto Sans CJK SC", "SimHei"])
+
+	func _draw() -> void:
+		if host == null:
+			return
+		var s = host.get("sim")
+		var pl = host.get("player")
+		if s == null or pl == null:
+			return
+		var cam := pl.get("camera") as Camera3D
+		if cam == null:
+			return
+		var eye := cam.global_position
+		var vp: Vector2 = get_viewport().get_visible_rect().size
+		for a: Dictionary in s.agents:
+			var alive := bool(a.get("alive", false))
+			if not alive and bool(a.get("bodyGone", false)):
+				continue
+			var p2: Vector2 = a.get("bodyPos", Vector2.ZERO) if not alive \
+				else a.get("pos", Vector2.ZERO)
+			var foot := Vector3(p2.x, 0.05, p2.y)
+			var head := Vector3(p2.x, 1.75, p2.y)
+			var dist := eye.distance_to(foot)
+			if dist > 25.0 or cam.is_position_behind(head):
+				continue
+			var sh := cam.unproject_position(head)
+			var sf := cam.unproject_position(foot)
+			if sh.x < -100.0 or sh.x > vp.x + 100.0 or sh.y < -100.0 or sh.y > vp.y + 100.0:
+				continue
+			var top := minf(sh.y, sf.y)
+			var bot := maxf(sh.y, sf.y)
+			var h := maxf(bot - top, 20.0)
+			var w := clampf(h * 0.44, 16.0, 76.0)
+			var cx := (sh.x + sf.x) * 0.5
+			var col := Color(0.42, 0.88, 0.95)
+			if not alive:
+				col = Color(0.60, 0.62, 0.68)
+			elif bool(a.get("alien", false)):
+				col = Color(1.0, 0.42, 0.42)
+			if alive and bool(a.get("downed", false)):
+				col = Color(1.0, 0.66, 0.28)
+			var box := Rect2(cx - w * 0.5, top, w, h)
+			draw_rect(box, Color(col.r, col.g, col.b, 0.12), true)
+			draw_rect(box, col, false, 2.0)
+			var faction := "异形" if bool(a.get("alien", false)) else "人类"
+			var act := "待机"
+			if not alive:
+				act = "尸体"
+			elif bool(a.get("downed", false)):
+				act = "濒死"
+			elif bool(a.get("detained", false)):
+				act = "被擒"
+			elif int(a.get("drag", -1)) >= 0:
+				act = "拖尸"
+			elif float(a.get("doing", 0.0)) > 0.0:
+				act = String(a.get("_doing", "做事"))
+			var line := "%s · %s · %.1fm · %s" % [
+				String(a.get("name", "?")), faction, dist, act]
+			draw_string(f, Vector2(cx - w * 0.5, top - 6.0), line,
+				HORIZONTAL_ALIGNMENT_LEFT, -1, 12, col)
+
+
 var builder
 var player: CharacterBody3D
 var map_data: Dictionary = {}
@@ -137,6 +208,10 @@ var _pipe_open := false
 var _ghost_toast := false
 ## 交互键位拆分的按键边沿状态（F/R/G/Q/V/B/C + 1-9 直选）
 var _keys_down: Dictionary = {}
+## --inputlog：打印每一次按键落到哪个分支 / 被谁挡住（PLAN §六 的埋点）。
+var input_log := false
+## 能力兜底调用计数（--abilitytest 断言「按键确实进了能力入口」，不是被静默吞掉）。
+var _fallback_count := 0
 
 var power_on := true
 
@@ -198,6 +273,9 @@ var dev_sub: Label
 var dev_rows: VBoxContainer
 var dev_stats: Label
 var dev_probe: Label
+## F2 透视覆盖层 / F3 文字总览开关（PLAN §五：dev_panel 默认隐藏，不再占右下角）。
+var esp_canvas: EspCanvas
+var text_dev_open := false
 var _dev_row_labels: Array = []
 var _dev_timer := 0.0
 var _dev_log_n := 0
@@ -259,6 +337,7 @@ func _ready() -> void:
 
 	var args := OS.get_cmdline_user_args()
 	_screenshot_mode = _has_screenshot_arg(args)
+	input_log = args.has("--inputlog")
 	# 2026-11-11 用户裁定：人物默认走 3D 体块；--crew-billboard 只作回退/对比。
 	var crew_model_mode := not args.has("--crew-billboard")
 	## 先建模拟核心，再把玩家放进它的席位。地图直接注入 builder 已读的那份，
@@ -453,6 +532,12 @@ func _ready() -> void:
 	if args.has("--actiontest"):
 		var act_ok := _run_actiontest()
 		get_tree().quit(0 if act_ok else 1)
+		return
+
+	## 玩家能力端到端自测：真实按键 → sim 状态真的写回（2026-11-11 用户现场）。
+	if args.has("--abilitytest"):
+		var ability_ok := await _run_abilitytest()
+		get_tree().quit(0 if ability_ok else 1)
 		return
 
 	## 2026-11-07：逐个任务点验证「设备存在 / 不悬高 / 站位能收到交互项」。
@@ -1457,7 +1542,7 @@ func _run_probetest() -> void:
 				if wheel.is_open():
 					fails.append("轮盘选 1 后没有关闭")
 
-	# ⑤ F2 DEV：面板 / 无敌
+	# ⑤ F2 DEV 透视 / F3 文字总览 / 无敌（2026-11-11 PLAN §五）
 	# 先保证玩家活着、回到会议室开阔处（设备旁边可能有掩体挡枪线）
 	player.global_position = Vector3(31.0, 0.05, 33.5)
 	player.rotation.y = 0.0
@@ -1467,14 +1552,20 @@ func _run_probetest() -> void:
 	await get_tree().process_frame
 	await _tap_key(KEY_F2)
 	await get_tree().process_frame
+	await _tap_key(KEY_F3)
+	await get_tree().process_frame
 	var dev_on := bool(sim.dev)
+	var esp_on: bool = esp_canvas != null and esp_canvas.visible
 	var panel_on: bool = dev_panel != null and dev_panel.visible
 	var row0 := String((_dev_row_labels[0] as Label).text) if not _dev_row_labels.is_empty() else ""
-	print("PROBE ⑤ F2 → dev=%s 面板=%s 首行=%s" % [str(dev_on), str(panel_on), row0])
+	print("PROBE ⑤ F2/F3 → dev=%s 透视=%s 文字总览=%s 首行=%s" % [
+		str(dev_on), str(esp_on), str(panel_on), row0])
 	if not dev_on:
 		fails.append("F2 没有打开 DEV")
+	if not esp_on:
+		fails.append("F2 没有打开透视 ESP")
 	if not panel_on:
-		fails.append("DEV 面板没有显示")
+		fails.append("F3 没有打开 DEV 文字总览")
 	if not row0.contains("异形") or not row0.contains("（你）"):
 		fails.append("DEV 首行没有显示玩家身份（%s）" % row0)
 	# 真实窗口下留一张 DEV 实拍，方便人工核对排版（headless 没有渲染目标）。
@@ -1514,8 +1605,10 @@ func _run_probetest() -> void:
 	await get_tree().process_frame
 	if bool(sim.dev):
 		fails.append("F2 第二次没有关闭 DEV")
+	if esp_canvas != null and esp_canvas.visible:
+		fails.append("F2 关闭后透视 ESP 还在")
 	if dev_panel != null and dev_panel.visible:
-		fails.append("DEV 关闭后面板还在")
+		fails.append("DEV 关闭后文字总览还在")
 
 	# ⑥ knife / down 动作：AI 出刀 → actor 播 knife；受害者倒地 → 播 down。
 	var actor_i := -1
@@ -3258,6 +3351,219 @@ func _run_actiontest() -> bool:
 	return false
 
 
+## ---- 玩家能力端到端自测（--abilitytest，2026-11-11 用户现场）----
+## 旧自测（--actiontest / --interacttest）只断言「_collect_offers 里有这个 id」，
+## 也就是「按键 / 轮盘按钮合法」，从不验证真实按键按下去 sim 状态有没有写回。
+## 用户现场正是「按键全合法，能力一点都没有，拖拽完全拖不了」。
+## 本测试逐键注入真实 InputEvent，断言模拟层的能力状态确实变化。
+func _ability_reset() -> int:
+	sim.meeting = {}
+	if wheel != null and wheel.is_open():
+		wheel.close()
+	_close_info()
+	if mg_layer != null and mg_layer.is_open():
+		mg_layer.cancel()
+	if _pipe_open:
+		_close_pipe_ui()
+	station = {}
+	_keys_down.clear()
+	_e_down = false
+	_knife_cd = 0.0
+	_shot_cd = 0.0
+	_pipe_cd = 0.0
+	player.ui_locked = false
+	mouse_released = false
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	var me0: Dictionary = sim.me()
+	me0["alive"] = true
+	me0["downed"] = false
+	me0["detained"] = false
+	me0["drag"] = -1
+	me0["knife"] = 1
+	me0["bullet"] = 2
+	me0["medkit"] = 1
+	me0["sabUsed"] = false
+	me0["ghost"] = false
+	player.global_position = Vector3(31.0, 0.05, 33.5)
+	player.rotation.y = 0.0
+	var body_i := -1
+	for a: Dictionary in sim.agents:
+		if int(a.get("i", -1)) == int(sim.me_idx):
+			continue
+		a["pos"] = Vector2(6.0, 6.0)
+		a["path"] = PackedVector2Array()
+		a["moving"] = false
+		a["doing"] = 0.0
+		a["alive"] = true
+		a["downed"] = false
+		a["detained"] = false
+		a["drag"] = -1
+		a["draggedBy"] = null
+		a["bodyGone"] = false
+		a["bodyReported"] = false
+		a["searched"] = false
+		a["bodyPos"] = Vector2(6.0, 6.0)
+		if body_i < 0 and not bool(a.get("alien", false)):
+			body_i = int(a.get("i", -1))
+	if body_i < 0:
+		return -1
+	var body: Dictionary = sim.agent(body_i)
+	var bp := Vector2(31.0, 34.0)
+	body["alive"] = false
+	body["downed"] = false
+	body["pos"] = bp
+	body["bodyPos"] = bp
+	return body_i
+
+
+func _run_abilitytest() -> bool:
+	var fails: Array = []
+	# ⓪ InputMap：键位声明必须在 project.godot 生效，改键不用改代码。
+	var map_n := 0
+	for ak: String in ACTION_BINDINGS.keys():
+		if InputMap.has_action(String(ACTION_BINDINGS[ak])):
+			map_n += 1
+		else:
+			fails.append("InputMap 缺 action：" + String(ACTION_BINDINGS[ak]))
+	print("ABILITY ⓪ InputMap %d/%d action 生效" % [map_n, ACTION_BINDINGS.size()])
+	role = "alien"
+	if not sim.new_game(_cur_seed, 0, map_data, space, true):
+		print("ABILITY FAIL new_game")
+		return false
+	sim.ai_enabled = false
+	sim.spectator = false
+	_finish_meeting(sim)
+	var body_i := _ability_reset()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var offers := _collect_offers()
+	var ids: Array = []
+	for o: Dictionary in offers:
+		ids.append("%s[%s]" % [String(o.get("id", "")),
+			_offer_key(String(o.get("id", "")))])
+	print("ABILITY 夹具 offers=%d %s" % [offers.size(), ", ".join(PackedStringArray(ids))])
+
+	# ① G 拖尸：真实按键 → sim.me().drag 必须写成尸体编号
+	await _tap_key(KEY_G)
+	await get_tree().process_frame
+	var drag1 := int(sim.me().get("drag", -1))
+	print("ABILITY ① G 拖尸 → drag=%d（期望 %d）" % [drag1, body_i])
+	if drag1 != body_i:
+		fails.append("G 拖尸无效（drag=%d）" % drag1)
+
+	# ② G 放下：再按一次必须真的松手
+	await _tap_key(KEY_G)
+	await get_tree().process_frame
+	var drag2 := int(sim.me().get("drag", -1))
+	print("ABILITY ② G 放下 → drag=%d" % drag2)
+	if drag2 >= 0:
+		fails.append("G 放下无效")
+
+	# ③ 左键出刀：刀程内活人必须被放倒
+	body_i = _ability_reset()
+	var knife_i := -1
+	for a2: Dictionary in sim.agents:
+		var ai2 := int(a2.get("i", -1))
+		if ai2 != int(sim.me_idx) and ai2 != body_i:
+			knife_i = ai2
+			break
+	var tgt: Dictionary = sim.agent(knife_i)
+	tgt["pos"] = Vector2(31.0, 32.5)
+	tgt["alive"] = true
+	tgt["downed"] = false
+	tgt["detained"] = false
+	await get_tree().process_frame
+	await _tap_mouse(MOUSE_BUTTON_LEFT)
+	await get_tree().process_frame
+	var downed := bool(tgt.get("downed", false))
+	print("ABILITY ③ 左键出刀 → 濒死=%s 剩余刀=%d" % [str(downed),
+		int(sim.me().get("knife", -1))])
+	if not downed:
+		fails.append("左键出刀无效")
+
+	# ④ Q 钻管道：站在管道口必须弹出出口列表
+	_ability_reset()
+	if extras != null and not extras.pipe_ports.is_empty():
+		var pp: Dictionary = extras.pipe_ports[0]
+		player.global_position = (pp["pos"] as Vector3) + Vector3(0.4, 0.05, 0.4)
+		await get_tree().process_frame
+		await _tap_key(KEY_Q)
+		await get_tree().process_frame
+		print("ABILITY ④ Q 管道 → 出口面板=%s" % str(_pipe_open))
+		if not _pipe_open:
+			fails.append("Q 钻管道无效")
+		_close_pipe_ui()
+
+	# ⑤ B 破坏舱室：站在非 bridge 舱必须真的产生故障
+	_ability_reset()
+	for r: Dictionary in map_data.get("rooms", []):
+		if String(r.get("id", "")) == "bridge":
+			continue
+		var rect: Array = r.get("rect", []) as Array
+		var lab: Array = r.get("label", []) as Array
+		if rect.size() < 4 or lab.size() < 2:
+			continue
+		var cp := Vector2(float(lab[0]), float(lab[1]))
+		if String(sim.room_at(cp)) != String(r.get("id", "")):
+			continue
+		player.global_position = Vector3(cp.x, 0.05, cp.y)
+		break
+	await get_tree().process_frame
+	await _tap_key(KEY_B)
+	await get_tree().process_frame
+	var dmg_n := (sim.dmg as Array).size()
+	print("ABILITY ⑤ B 破坏 → 故障数=%d sabUsed=%s" % [dmg_n,
+		str(bool(sim.me().get("sabUsed", false)))])
+	if dmg_n <= 0 and not bool(sim.me().get("sabUsed", false)):
+		fails.append("B 破坏舱室无效")
+
+	# ⑥ 用户现场回归：附近一个交互项都没有时按 G，旧版会**静默吞掉**按键
+	# （玩家体感「按键解锁了但能力一点都没有」）。现在必须进入能力入口并给反馈。
+	body_i = _ability_reset()
+	var far: Dictionary = sim.agent(body_i)
+	far["bodyPos"] = Vector2(6.0, 6.0)
+	far["pos"] = Vector2(6.0, 6.0)
+	await get_tree().process_frame
+	var empty_offers := _collect_offers()
+	var fb_before := _fallback_count
+	await _tap_key(KEY_G)
+	await get_tree().process_frame
+	var hint := String(toast_label.text) if toast_label != null else ""
+	print("ABILITY ⑥ 空场景 offers=%d 兜底调用=%d 反馈=%s" % [
+		empty_offers.size(), _fallback_count - fb_before, hint])
+	if _fallback_count <= fb_before:
+		fails.append("无交互项时按 G 被静默吞掉（能力入口没接上）")
+	if hint.is_empty():
+		fails.append("能力失败没有给出原因提示")
+
+	# ⑦ 卡墙兜底（交接 P0 根因 2）：玩家必须拿到同一份 nav；
+	# 物理把人推进网格不可走区时钳回，想走却卡住 0.3s 时走 nearest_free。
+	_ability_reset()
+	await get_tree().process_frame
+	if player.nav == null:
+		fails.append("玩家没有拿到 nav（卡墙兜底不会生效）")
+	else:
+		var good := player.global_position
+		player.global_position = Vector3(0.0, 0.05, 0.0)
+		player._clamp_to_nav(good, Vector3.ZERO, 0.016)
+		var back := player.global_position
+		var clamped := Vector2(back.x, back.z).distance_to(Vector2(good.x, good.z)) < 1.0
+		player.global_position = good
+		var before_rescue := int(player.stuck_rescues)
+		for si in 8:
+			player._clamp_to_nav(good, Vector3(1.0, 0.0, 0.0), 0.05)
+		print("ABILITY ⑦ 卡墙兜底 nav=有 钳回=%s 卡住救援=%d→%d" % [
+			str(clamped), before_rescue, int(player.stuck_rescues)])
+		if not clamped:
+			fails.append("物理位移没有钳回网格可走区")
+		if int(player.stuck_rescues) <= before_rescue:
+			fails.append("卡住 0.3s 没有触发 nearest_free 兜底")
+
+	print("ABILITY %s %d 项失败 %s" % ["OK" if fails.is_empty() else "FAIL",
+		fails.size(), str(fails)])
+	return fails.is_empty()
+
+
 func _run_interacttest() -> void:
 	if space.is_empty():
 		print("INTERACT FAIL space.json 缺失")
@@ -3319,20 +3625,27 @@ func _run_interacttest() -> void:
 				for i in int(ceil(dur / 0.1)) + 2:
 					_tick_station(0.1)
 			print("INTERACT 领取 done=%s qual_pending=%d qual=%d" % [str(done.v), qual_pending, qual])
-	# 管道（2.5D 口径：人类管道禁用）
+	# 管道（2.5D 口径：人类管道禁用）。
+	# 2026-11-11 机制对齐：判定真源是 sim.me().alien，旧夹具只改开始页的
+	# role 字符串就能「解锁」管道，恰好掩盖了「按键合法但能力没有」这个真 bug。
 	if extras.pipe_ports.size() > 0:
 		player.global_position = (extras.pipe_ports[0]["pos"] as Vector3) + Vector3(0.5, 0.05, 0.5)
+		var me_pipe: Dictionary = sim.me()
+		var was_alien := bool(me_pipe.get("alien", false))
+		me_pipe["alien"] = true
 		var pipe_n := 0
 		for o in _collect_offers():
 			if String(o["id"]).begins_with("pipe"):
 				pipe_n += 1
-		role = "human"
+		me_pipe["alien"] = false
 		var pipe_human := 0
 		for o in _collect_offers():
 			if String(o["id"]).begins_with("pipe"):
 				pipe_human += 1
-		role = "alien"
-		print("INTERACT 管道 异形=%d 人类=%d（期望人类 0）" % [pipe_n, pipe_human])
+		me_pipe["alien"] = was_alien
+		print("INTERACT 管道 异形=%d 人类=%d（期望异形>0 / 人类 0）" % [pipe_n, pipe_human])
+		if pipe_n <= 0 or pipe_human != 0:
+			push_warning("INTERACT 管道门禁断言失败")
 	# 轮盘：多项时列出、按序号选中并触发
 	for dev in extras.devices:
 		if not is_instance_valid(dev):
@@ -3749,7 +4062,7 @@ func _tick_knife_view() -> void:
 	var show := false
 	if not me.is_empty() and bool(me.get("alive", true)) \
 			and not bool(me.get("downed", false)) and not bool(me.get("detained", false)) \
-			and (role == "alien" or bool(me.get("alien", false))) \
+			and bool(me.get("alien", false)) \
 			and int(me.get("knife", 0)) > 0 and sim.meeting.is_empty():
 		show = true
 	player.set_knife_visible(show)
@@ -3769,7 +4082,7 @@ func _build_hud() -> void:
 
 	## 操作提示必须把**攻击键**写出来：3D 用鼠标左右键出刀/开枪，
 	## 不写的话从 2.5D 过来的玩家（按 A/B）会以为「异形不能出手」。
-	var help := _label("WASD 移动 · E 交互 · F 任务/设施 · R 报告 · G 拖拽 · Q 管道 · V 电闸 · B 破坏 · C 监控 · 左键出刀 · 右键开枪 · F2 DEV · P 设置",
+	var help := _label("WASD 移动 · E 交互 · F 任务/设施 · R 报告 · G 拖拽 · Q 管道 · V 电闸 · B 破坏 · C 监控 · 左键出刀 · 右键开枪 · F2 透视 · F3 文字总览 · Esc 关面板 · P 设置",
 		Vector2(22, 50), 15, font)
 	help.add_theme_color_override("font_color", Color(0.78, 0.84, 0.92))
 	layer.add_child(help)
@@ -4056,6 +4369,17 @@ func _build_dev_panel() -> void:
 	dev_probe.custom_minimum_size = Vector2(0, 96)
 	dev_probe.text = "探针 · 最近 8 条\n（按 E / 左键 / 右键 / F2 会记在这里）"
 	col.add_child(dev_probe)
+	_build_esp()
+
+
+## F2 透视层：全屏覆盖、不吃鼠标事件，默认隐藏；F3 才显示右侧文字总览。
+func _build_esp() -> void:
+	esp_canvas = EspCanvas.new()
+	esp_canvas.host = self
+	esp_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	esp_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	esp_canvas.visible = false
+	dev_layer.add_child(esp_canvas)
 
 
 ## 状态文案与资源行照 2.5D renderDevPanel（js/game.js:601-620）。
@@ -4064,9 +4388,14 @@ func _refresh_dev_panel() -> void:
 		return
 	var on: bool = sim != null and not sim.agents.is_empty() \
 		and (bool(sim.dev) or bool(sim.spectator))
-	dev_panel.visible = on
+	# F2 只开透视；右侧文字总览要按 F3 才出现（不再常驻占屏幕右侧 1/3）。
+	dev_panel.visible = on and text_dev_open
+	if esp_canvas != null:
+		esp_canvas.visible = on
 	if not on:
 		return
+	if esp_canvas != null:
+		esp_canvas.queue_redraw()
 	dev_title.text = "DEV · 全知总览" if bool(sim.dev) else "旁观者 · 全知总览"
 	dev_sub.text = ("F2 关闭 · 攻击与驱逐对你无效 · 尸体卡显示凶手" if bool(sim.dev)
 		else "旁观者不参与对局 · 名字与阵营全知")
@@ -4790,7 +5119,11 @@ func _run_b4test() -> bool:
 		fail_n += 1
 		print("B4TEST FAIL 玩家位置没同步 pos=%s" % str(pp))
 	# ② 管道出口选择 + 真传送
+	# 2026-11-11 机制对齐：管道门禁真源是 sim.me().alien，旧夹具只改 role，
+	# 正好掩盖了「开始页解锁、模拟层没能力」的双源漏洞。
+	var was_alien_b4 := bool(sim.me().get("alien", false))
 	role = "alien"
+	sim.me()["alien"] = true
 	_pipe_cd = 0.0
 	var from_port: Dictionary = extras.pipe_ports[0]
 	var to_port: Dictionary = extras.pipe_ports[1]
@@ -4822,6 +5155,7 @@ func _run_b4test() -> bool:
 		fail_n += 1
 		print("B4TEST FAIL 冷却没挡住第二次钻管道")
 	role = "human"
+	sim.me()["alien"] = false
 	_pipe_cd = 0.0
 	_use_pipe(from_port)
 	if not _pipe_open:
@@ -4830,6 +5164,7 @@ func _run_b4test() -> bool:
 		fail_n += 1
 		print("B4TEST FAIL 人类居然能钻管道")
 	role = "alien"
+	sim.me()["alien"] = was_alien_b4
 	# ④ 开枪：给一发子弹，把目标放到近处，走真源射程 / LOS
 	var shooter: Dictionary = sim.me()
 	var target: Dictionary = {}
@@ -5714,6 +6049,12 @@ func _refresh_meeting_ui() -> void:
 	var cur := int(votes.get(sim.me_idx, -2))
 	for k: int in meeting_buttons.keys():
 		var b: Button = meeting_buttons[k]
+		# DEV / 旁观时每行显示真实身份（F2 透视的会议侧配套，PLAN §五-2）。
+		var ma: Dictionary = sim.agent(k)
+		var tag := ""
+		if bool(sim.dev) or bool(sim.spectator):
+			tag = "[异形] " if bool(ma.get("alien", false)) else "[人类] "
+		b.text = "%02d %s%s" % [k + 1, tag, String(ma.get("name", "?"))]
 		var sb := b.get_theme_stylebox("normal") as StyleBoxFlat
 		if sb != null:
 			sb.border_color = Color(0.94, 0.78, 0.45) if k == cur else Color(0.20, 0.26, 0.34)
@@ -5913,6 +6254,11 @@ func _process(delta: float) -> void:
 			_refresh_sim_hud()
 	_update_interaction(delta)
 	_poll_dev_log()
+	# F2 透视每帧重画（相机在动）；F3 文字总览仍按 0.5s 刷新。
+	if esp_canvas != null:
+		esp_canvas.visible = sim != null and (bool(sim.dev) or bool(sim.spectator))
+		if esp_canvas.visible:
+			esp_canvas.queue_redraw()
 	if sim != null and (bool(sim.dev) or bool(sim.spectator)):
 		_dev_timer -= delta
 		if _dev_timer <= 0.0:
@@ -6014,19 +6360,39 @@ func _refresh_mouse_mode() -> void:
 
 
 func _update_interaction(_delta: float) -> void:
-	if sim != null and not sim.meeting.is_empty():
-		prompt_label.text = ""
-		_e_down = Input.is_physical_key_pressed(KEY_E)
-		_keys_down.clear()
-		return
-	if _pipe_open or (mg_layer != null and mg_layer.is_open()) or (wheel != null and wheel.is_open()):
-		prompt_label.text = ""
-		_e_down = Input.is_physical_key_pressed(KEY_E)
-		_keys_down.clear()
-		return
-	var e_now := Input.is_physical_key_pressed(KEY_E)
+	# 专用键的边沿**每帧都要更新**（不能只在 offers 非空时才算）：
+	# 旧版在「附近没有交互项」时直接 return，按键被静默吞掉 ——
+	# 用户现场「按键全合法、能力一点都没有、拖拽完全拖不了」正是这一条。
+	# 2.5D 的动作键（W/A/S/D/F/R/B/H/V）是无条件入口，判定写在动作函数内，
+	# 3D 把它们做成「靠近才出现的交互项」是移植时走偏，这里收回。
+	var edges: Dictionary = {}
+	for kk: String in _OFFER_KEY_KEYS:
+		edges[kk] = _key_edge(kk)
+	var digits: Array = []
+	for ni in 9:
+		digits.append(_num_edge(ni))
+	var e_now := Input.is_physical_key_pressed(_action_keycode("E"))
 	var pressed := e_now and not _e_down
 	_e_down = e_now
+
+	# 模态相位：按键不落到对局，但必须给一次明确反馈（旧版静默吞键）。
+	# 这里不清 _keys_down：边沿状态仍要连续，否则会议结束后会假触发一次。
+	var blocked := ""
+	if sim != null and not sim.meeting.is_empty():
+		blocked = "会议进行中 · 操作暂不可用"
+	elif _pipe_open or (mg_layer != null and mg_layer.is_open()) \
+			or (wheel != null and wheel.is_open()):
+		blocked = "先关闭当前面板（Esc）"
+	if not blocked.is_empty():
+		prompt_label.text = ""
+		for kk3: String in _OFFER_KEY_KEYS:
+			if bool(edges[kk3]):
+				_probe_input(kk3, blocked)
+				_toast(blocked)
+		if pressed:
+			_probe_input("E", blocked)
+		return
+
 	var offers := _collect_offers()
 	if offers.is_empty():
 		prompt_label.text = "" if station.is_empty() else "站桩中 · %s（移动即中断）" % String(station.get("label", ""))
@@ -6035,36 +6401,34 @@ func _update_interaction(_delta: float) -> void:
 		if pressed and station.is_empty():
 			_probe("E · 交互项 0")
 			_toast(_no_offer_hint())
-		_keys_down.clear()
-		return
-	_near = offers[0].get("dev", null)
-	if station.is_empty():
-		# 键位拆分后的提示：每项前面写它自己的键，E 只做兜底 / 轮盘。
-		var parts: Array = []
-		var shown := mini(offers.size(), 4)
-		for i in shown:
-			parts.append("[%s] %s" % [_offer_key(String(offers[i].get("id", ""))),
-				String(offers[i].get("label", ""))])
-		var line := " · ".join(PackedStringArray(parts))
-		if offers.size() > shown:
-			line += " · 共 %d 项（E 展开）" % offers.size()
-		prompt_label.text = line
-	# 每帧都把全部拆分键的边沿更新一遍，避免"只读了命中的那个键"导致下一帧假触发。
-	var edges: Dictionary = {}
-	for kk: String in _OFFER_KEY_KEYS:
-		edges[kk] = _key_edge(kk)
-	var digits: Array = []
-	for ni in 9:
-		digits.append(_num_edge(ni))
+	else:
+		_near = offers[0].get("dev", null)
+		if station.is_empty():
+			# 键位拆分后的提示：每项前面写它自己的键，E 只做兜底 / 轮盘。
+			var parts: Array = []
+			var shown := mini(offers.size(), 4)
+			for i in shown:
+				parts.append("[%s] %s" % [_offer_key(String(offers[i].get("id", ""))),
+					String(offers[i].get("label", ""))])
+			var line := " · ".join(PackedStringArray(parts))
+			if offers.size() > shown:
+				line += " · 共 %d 项（E 展开）" % offers.size()
+			prompt_label.text = line
+
 	var picked: Dictionary = {}
-	# 1) 专用键：F 设施/任务、R 报告、G 拖拽、Q 管道、V 电闸、B 破坏、C 监控
+	# 1) 专用键：**恒入口**。有对应 offer 就执行它，没有就走 sim 能力兜底。
+	var used_key := ""
 	for kk2: String in _OFFER_KEY_KEYS:
 		if not bool(edges[kk2]):
 			continue
+		used_key = kk2
 		picked = _offer_by_key(offers, kk2)
-		if picked.is_empty():
-			_toast("附近没有 [%s] 对应的操作" % kk2)
 		break
+	if used_key != "":
+		_probe_input(used_key, "交互项 %d · 命中=%s" % [offers.size(), str(not picked.is_empty())])
+		if picked.is_empty():
+			_fallback_action(used_key, offers)
+			return
 	# 2) 数字 1-9 直选（与轮盘里的编号一致）
 	if picked.is_empty():
 		for ni2 in 9:
@@ -6091,6 +6455,197 @@ func _update_interaction(_delta: float) -> void:
 		_probe("交互 → [%s] %s" % [_offer_key(String(picked.get("id", ""))),
 			String(picked.get("label", ""))])
 		(picked["act"] as Callable).call()
+
+
+## 专用键的能力兜底（2.5D 动作键口径）：附近没有对应交互项时，
+## 能力依然直达模拟层，由 sim.can_act 给出精确失败原因；执行仍复用原有单一入口。
+func _fallback_action(k: String, offers: Array) -> void:
+	if sim == null or sim.agents.is_empty() or player == null:
+		return
+	_fallback_count += 1
+	_probe_input(k, "能力兜底入口")
+	var p := player.global_position
+	var pos := Vector2(p.x, p.z)
+	var ctx := {"actor": int(sim.me_idx), "pos": pos}
+	var dev_r := SpaceData.num(space, "reach", "fix")
+	match k:
+		"G":
+			# 2.5D toggleDrag（D 键，js/game.js:8552）无条件直达，拖尸不限阵营。
+			var d: Dictionary = sim.can_act("drag", ctx)
+			if not bool(d.get("ok", false)):
+				_toast(_act_reason(String(d.get("reason", ""))))
+				return
+			if String(d.get("action", "")) == "drop":
+				_on_drag_drop()
+			else:
+				_on_drag_start(int(d.get("target", -1)))
+		"R":
+			var r: Dictionary = sim.can_act("report", ctx)
+			if not bool(r.get("ok", false)):
+				_toast(_act_reason(String(r.get("reason", ""))))
+				return
+			sim.open_meeting(int(sim.me_idx), int(r.get("target", -1)))
+		"Q":
+			var q: Dictionary = sim.can_act("pipe", ctx)
+			if not bool(q.get("ok", false)):
+				_toast(_act_reason(String(q.get("reason", ""))))
+				return
+			# 2.5D pickPipe():933 钻管道强制先放下手里的尸体。
+			if String(q.get("action", "")) == "release_drag":
+				sim.release_drag(int(sim.me_idx))
+			var port := _nearest_pipe_port(pos)
+			if port.is_empty():
+				_toast("附近没有管道口")
+				return
+			var pp: Vector3 = port["pos"] as Vector3
+			var pd := Vector2(pp.x - pos.x, pp.z - pos.y).length()
+			if pd > dev_r:
+				_toast("离管道口还有 %.1f m（交互半径 %.1f m）" % [pd, dev_r])
+				return
+			_use_pipe(port)
+		"B":
+			var b: Dictionary = sim.can_act("sabotage", ctx)
+			if not bool(b.get("ok", false)):
+				_toast(_act_reason(String(b.get("reason", ""))))
+				return
+			_on_sabotage(String(b.get("action", "")))
+		"F":
+			var dev = _nearest_device(pos)
+			if dev == null:
+				_toast("附近没有设备 / 故障点（走近再按 F）")
+				return
+			var dd := float(dev.reach_dist(p))
+			if dd > dev_r:
+				_toast("离设备还有 %.1f m（交互半径 %.1f m）" % [dd, dev_r])
+				return
+			_open_device(dev)
+		"V":
+			var brk = _nearest_breaker(pos)
+			if brk == null:
+				_toast("附近没有电闸（去配电室）")
+				return
+			var bd = brk.distance_to(p)
+			if bd > SpaceData.num(space, "reach", "breaker"):
+				_toast("离电闸还有 %.1f m" % bd)
+				return
+			(_breaker_offer(brk)["act"] as Callable).call()
+		"C":
+			var mon := _nearest_facility(pos, "monitor")
+			if mon.is_empty():
+				_toast("附近没有监控台")
+				return
+			var mp := Vector2(float(mon.get("x", 0)), float(mon.get("y", 0)))
+			if mp.distance_to(pos) > dev_r:
+				_toast("离监控台还有 %.1f m" % mp.distance_to(pos))
+				return
+			_open_cams()
+		_:
+			_toast("附近没有 [%s] 对应的操作" % k)
+
+
+## sim.can_act 的失败原因 → 玩家可读文案（口径照 2.5D 的 toast，不新增规则）。
+func _act_reason(reason: String) -> String:
+	match reason:
+		"meeting": return "会议进行中 · 操作暂不可用"
+		"dead": return "你已经出局 · 幽灵只能做自己的剩余任务"
+		"downed": return "你正濒死，无法操作（等人救 / 等天亮）"
+		"detained": return "你正被保安押送拘留，无法操作"
+		"ghost": return "幽灵状态只能做自己的剩余任务"
+		"not_alien": return "这是异形专属能力（人类没有刀 / 不能钻管道 / 不能破坏）"
+		"no_knife": return "本夜的刀已用完（每夜 1 把，天亮补）"
+		"no_bullet": return "没有子弹 —— 圆桌领申请单，再去军械库换"
+		"no_target": return "附近没有可作用的目标"
+		"target_down": return "目标已经倒下 / 出局"
+		"out_of_reach": return "距离太远，再靠近一点"
+		"no_los": return "中间有墙 / 掩体挡着"
+		"no_body": return "附近没有可拖 / 可报告的尸体或伤员（走近一点）"
+		"not_dragging": return "你手上没有拖着尸体"
+		"no_report_quota": return "报告次数已用完 / 本夜夜会已达上限"
+		"sab_used": return "本夜已经破坏过一次了"
+		"sab_room": return "这里不能破坏（中央会议室 / 已有故障）"
+		"unknown_action": return "这个操作当前不可用"
+		_: return "操作没有生效（%s）" % reason
+	return "操作没有生效"
+
+
+func _nearest_pipe_port(pos: Vector2) -> Dictionary:
+	if extras == null:
+		return {}
+	var best: Dictionary = {}
+	var best_d := INF
+	for pp in extras.pipe_ports:
+		var v: Vector3 = pp["pos"] as Vector3
+		var d := Vector2(v.x - pos.x, v.z - pos.y).length()
+		if d < best_d:
+			best_d = d
+			best = pp
+	return best
+
+
+func _nearest_device(pos: Vector2):
+	if extras == null:
+		return null
+	var best = null
+	var best_d := INF
+	for dev in extras.devices:
+		if not is_instance_valid(dev):
+			continue
+		var d := float(dev.reach_dist(Vector3(pos.x, 0.05, pos.y)))
+		if d < best_d:
+			best_d = d
+			best = dev
+	return best
+
+
+func _nearest_breaker(pos: Vector2):
+	if extras == null:
+		return null
+	var best = null
+	var best_d := INF
+	for dev in extras.devices:
+		if not is_instance_valid(dev) or dev.point_index >= 0:
+			continue
+		var d := float(dev.distance_to(Vector3(pos.x, 0.05, pos.y)))
+		if d < best_d:
+			best_d = d
+			best = dev
+	return best
+
+
+func _nearest_facility(pos: Vector2, kind: String) -> Dictionary:
+	var best: Dictionary = {}
+	var best_d := INF
+	for f: Dictionary in map_data.get("facility", []):
+		if String(f.get("kind", "")) != kind:
+			continue
+		var fp := Vector2(float(f.get("x", 0)), float(f.get("y", 0)))
+		var d := fp.distance_to(pos)
+		if d < best_d:
+			best_d = d
+			best = f
+	return best
+
+
+## --inputlog：每次按键打印「落在哪个分支 / 被谁挡住」，用于定位 E ≠ ESC 一类问题。
+func _probe_input(k: String, note: String) -> void:
+	if not input_log:
+		return
+	var st := "PLAY"
+	if sim != null and not sim.meeting.is_empty():
+		st = "MEETING"
+	elif wheel != null and wheel.is_open():
+		st = "WHEEL"
+	elif _pipe_open:
+		st = "PIPE"
+	elif mg_layer != null and mg_layer.is_open():
+		st = "MINIGAME"
+	elif _info_open:
+		st = "INFO"
+	elif ui_panels != null and ui_panels.any_open():
+		st = "PANEL"
+	print("INPUTLOG key=%s state=%s mouse=%d ui_locked=%s note=%s" % [
+		k, st, int(Input.mouse_mode),
+		str(bool(player.ui_locked) if player != null else false), note])
 
 
 ## 键位拆分真源：一个交互项只认一个专用键，E 只兜底。
@@ -6125,18 +6680,32 @@ func _offer_by_key(offers: Array, key: String) -> Dictionary:
 	return {}
 
 
+## 键位 → InputMap action（project.godot 是唯一真源）。改键只改 project.godot，
+## 代码不再散落 KEY_F / KEY_G 字样；ACTION_FALLBACK 仅在工程未声明时兜底。
+const ACTION_BINDINGS := {
+	"E": "interact", "F": "facility", "R": "report", "G": "drag",
+	"Q": "pipe", "V": "power", "B": "sabotage", "C": "cams",
+}
+const ACTION_FALLBACK := {
+	"E": 69, "F": 70, "R": 82, "G": 71, "Q": 81, "V": 86, "B": 66, "C": 67,
+}
+
+
+func _action_keycode(k: String) -> int:
+	var act := String(ACTION_BINDINGS.get(k, ""))
+	if act != "" and InputMap.has_action(act):
+		for ev in InputMap.action_get_events(act):
+			if ev is InputEventKey:
+				var pk := int((ev as InputEventKey).physical_keycode)
+				if pk != 0:
+					return pk
+	return int(ACTION_FALLBACK.get(k, 0))
+
+
 func _key_edge(k: String) -> bool:
-	var code := 0
-	match k:
-		"F": code = KEY_F
-		"R": code = KEY_R
-		"G": code = KEY_G
-		"Q": code = KEY_Q
-		"V": code = KEY_V
-		"B": code = KEY_B
-		"C": code = KEY_C
-		_:
-			return false
+	var code := _action_keycode(k)
+	if code == 0:
+		return false
 	var now := Input.is_physical_key_pressed(code)
 	var was := bool(_keys_down.get(k, false))
 	_keys_down[k] = now
@@ -6419,8 +6988,9 @@ func _collect_offers() -> Array:
 					SpaceData.num(space, "stand", "search"),
 					func() -> void: _on_search_done(body_i)),
 			})
-	# 管道：2.5D 是异形专用（人类管道禁用），这里按 role 复现同一条判定
-	if role == "alien":
+	# 管道：2.5D 是异形专用（人类管道禁用）。判定真源是 sim.me().alien，
+	# 不是开始页的 role 字符串 —— 双源会让「按键合法但能力没有」（PLAN §三）。
+	if sim != null and not sim.agents.is_empty() and bool(sim.me().get("alien", false)):
 		for pp in extras.pipe_ports:
 			var d := Vector2((pp["pos"] as Vector3).x - pos.x, (pp["pos"] as Vector3).z - pos.z).length()
 			if d > dev_r:
@@ -6605,7 +7175,8 @@ func _open_body_card(body_i: int) -> void:
 		bp = b.get("pos", Vector2.ZERO)
 	var kb := int(b.get("killedBy", -1))
 	var killer_text := "无法判断"
-	if bool(sim.dev) and kb >= 0 and kb != int(b.get("i", -1)):
+	if (bool(sim.dev) or bool(sim.spectator)) and kb >= 0 \
+			and kb != int(b.get("i", -1)):
 		killer_text = _tag_name(kb) + "（DEV 全知）"
 	var lines: Array = [
 		"状态：" + ("濒死 · 还有呼吸，拖进医疗间可由机器人救活" if alive else "已死亡"),
@@ -6778,7 +7349,8 @@ func _on_supply_done(item: String = "ammo") -> void:
 ## 2.5D 口径：异形专用、人类禁用、PIPE.cooldown 全局冷却（AI 与玩家共用）。
 ## 出口选择做成一张点名单：8 个管道口除当前所在口之外都可去。
 func _use_pipe(port: Dictionary) -> void:
-	if role != "alien":
+	# 2.5D openPipePick():898 `!me.alien&&!designMode` 拒绝；判定真源是 sim.me().alien。
+	if sim == null or not bool(sim.me().get("alien", false)):
 		_toast("人类不能钻管道（2.5D 门禁口径）")
 		return
 	if _pipe_cd > 0.0:
@@ -7027,7 +7599,9 @@ func _handle_attack(btn: int) -> void:
 
 
 func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
-	if role != "alien" and not bool(me.get("alien", false)):
+	# 2.5D attack():8271 的门槛是 me.alien；旧版 `role != "alien" and not me.alien`
+	# 让「开始页选异形但 sim 里不是异形」也能出刀，是双源漏洞。
+	if not bool(me.get("alien", false)):
 		_probe("出刀 × 人类没有刀")
 		_toast("人类没有刀 —— 右键开枪，子弹在军械库换")
 		return
@@ -7035,44 +7609,24 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 		_probe("出刀 × 冷却 %.1fs" % _knife_cd)
 		_toast("出刀冷却中（%.1fs）" % _knife_cd)
 		return
-	# 没刀了要明说：2.5D 是每夜 1 把（点击没反应最容易被当成「不能出手」）
-	if int(me.get("knife", 0)) < 1:
-		_probe("出刀 × 本夜刀已用完")
-		_toast("本夜的刀已用完（每夜 1 把，天亮补）")
-		return
 	# 刀数校验通过就先把手上动作播出去：挥空也要有动作，
 	# 否则玩家从自己视角看就是「按了左键什么也没发生」（2026-11-11 反馈）。
 	if player != null:
 		player.play_knife_swing()
 	# E 轮盘带的是「2.5D stab() 的最近目标」；左键没带目标才走准星。
-	# 2.5D stab()：射程内取**最近**且 losNow 的活人，没有任何准星锥。
-	# 3D 之前用相机点积 0.55 当额外门槛，贴脸（<0.4m）时垂直分量把点积压下去，
-	# 就是「明明在脸上却刀不到」的根因 —— 这条限制是 3D 自加的，删掉。
+	# 目标选择属输入映射差异（3D 第一人称），规则判定一律交给 sim.can_act。
 	var tgt: Dictionary = forced
 	if tgt.is_empty():
 		tgt = _nearest_knife_target()
-	if tgt.is_empty():
-		_probe("出刀 × 刀程内没有目标")
-		_toast("刀锋够不到 —— 再靠近、把人对准屏幕中央")
-		_knife_hit_fx(false)
-		return
-	# 轮盘可能停留了几秒：目标已经倒下/出局就不要再补刀（2.5D stab 也排除 downed）。
-	if not bool(tgt.get("alive", false)) or bool(tgt.get("downed", false)) \
-			or bool(tgt.get("detained", false)):
-		_probe("出刀 × 目标已倒下/出局")
-		_toast("目标已经不在了")
-		return
-	# 2.5D stab() 的 losNow 同源：墙/掩体挡着就不出刀（3D sim.knife 不自己查）。
-	var me_pos: Vector2 = me.get("pos", Vector2.ZERO)
-	var tgt_pos: Vector2 = tgt.get("pos", Vector2.ZERO)
-	if me_pos.distance_to(tgt_pos) > SpaceData.num(space, "reach", "knife"):
-		_probe("出刀 × 目标已离开刀程")
-		_toast("目标离开了刀程 —— 再靠近")
-		_knife_hit_fx(false)
-		return
-	if not sim.los_now(me_pos.x, me_pos.y, tgt_pos.x, tgt_pos.y):
-		_probe("出刀 × 中间有墙/掩体")
-		_toast("中间有墙 / 掩体挡着，刀够不到")
+	# 机制对齐（PLAN §4.2）：能否出刀只有 sim.can_act("knife") 一处判定，
+	# 玩家与 AI 同源；旧版在 main.gd 又抄了一遍刀数/存活/距离/LOS，容易漂移。
+	var chk: Dictionary = sim.can_act("knife", {"actor": int(sim.me_idx),
+		"victim": int(tgt.get("i", -1))})
+	var reason := String(chk.get("reason", ""))
+	if not bool(chk.get("ok", false)):
+		_probe("出刀 × can_act 拒绝 " + reason)
+		_toast("刀锋够不到 —— 再靠近" if reason == "no_target" \
+			else _act_reason(reason))
 		_knife_hit_fx(false)
 		return
 	if not sim.knife(int(sim.me_idx), int(tgt.get("i", -1))):
@@ -7089,20 +7643,20 @@ func _player_knife(me: Dictionary, forced: Dictionary = {}) -> void:
 
 
 func _player_fire(me: Dictionary) -> void:
-	if int(me.get("bullet", 0)) <= 0:
-		_probe("开枪 × 没有子弹")
-		_toast("没有子弹 —— 去军械库领（圆桌领申请单 → 军械补给点）")
-		return
 	if _shot_cd > 0.0:
 		_probe("开枪 × 冷却 %.1fs" % _shot_cd)
 		_toast("开枪冷却中（%.1fs）" % _shot_cd)
 		return
 	# 2.5D shoot()：射程内取最近、losNow、且 visibleAt 的目标 —— 同样是「最近」，
-	# 不是准星锥。3D 之前的 dot>0.90 让贴脸目标（垂直分量）打不中。
+	# 不是准星锥。目标选择属输入映射差异，规则判定交给 sim.can_act("shoot")。
 	var tgt := _nearest_shot_target(SpaceData.num(space, "shoot", "range"))
-	if tgt.is_empty():
-		_probe("开枪 × 射程内没有对准的目标")
-		_toast("射程内没有对准的目标")
+	var chk: Dictionary = sim.can_act("shoot", {"actor": int(sim.me_idx),
+		"victim": int(tgt.get("i", -1))})
+	var reason := String(chk.get("reason", ""))
+	if not bool(chk.get("ok", false)):
+		_probe("开枪 × can_act 拒绝 " + reason)
+		_toast("射程内没有对准的目标" if reason == "no_target" \
+			else _act_reason(reason))
 		return
 	if not sim.shoot(int(sim.me_idx), int(tgt.get("i", -1))):
 		_probe("开枪 × 结算拒绝（视线被挡 / 目标已倒下）")
@@ -7343,6 +7897,9 @@ func _sync_day_meeting_teleport() -> void:
 func _sync_player_pos() -> void:
 	if player == null:
 		return
+	# 卡墙兜底需要网格真源：玩家物理与 AI 网格同读一份 nav（交接 P0 根因 2）。
+	if player.nav == null and sim != null and sim.nav != null:
+		player.nav = sim.nav
 	var me: Dictionary = sim.me()
 	if me.is_empty() or not bool(me.get("alive", true)):
 		return
@@ -7573,19 +8130,35 @@ func _settle_votes_text() -> String:
 	return "\n".join(lines)
 
 
+## ESC 单一出口（PLAN §六）：只关最上层 UI / 释放鼠标，永不退出游戏、永不重开。
+## 旧版 ESC 散在 5 个分支（设置面板 / 信息层 / 管道 / 轮盘 / 鼠标释放），
+## 互相抢事件，实机出现「按 E 像 ESC 退出」。现在所有解释只此一处。
+func _close_topmost() -> void:
+	if ui_panels != null and ui_panels.any_open():
+		ui_panels.close_all()
+		return
+	if _info_open:
+		_close_info()
+		return
+	if wheel != null and wheel.is_open():
+		wheel.cancel()
+		return
+	if _pipe_open:
+		_close_pipe_ui()
+		return
+	if mg_layer != null and mg_layer.is_open():
+		mg_layer.cancel()
+		return
+	if sim != null and not sim.meeting.is_empty():
+		_toast("会议进行中 · Esc 只释放鼠标")
+	mouse_released = not mouse_released
+	_refresh_mouse_mode()
+
+
 func _input(event: InputEvent) -> void:
 	if _screenshot_mode:
 		return
 	if sim == null or not started:
-		return
-	## 设置 / 复盘面板在最上层（2.5D 的 SKSettings.isOpen() 守卫）：
-	## 只允许 P / ESC 关闭，其余按键一律不落到对局，避免面板开着时误触发交互。
-	if ui_panels != null and ui_panels.any_open():
-		if event is InputEventKey and (event as InputEventKey).pressed:
-			var pk := (event as InputEventKey).keycode
-			if pk == KEY_P or pk == KEY_ESCAPE:
-				ui_panels.close_all()
-				get_viewport().set_input_as_handled()
 		return
 	## F2 = DEV（2.5D js/game.js:7928）：设置面板之外一律可用，会议/轮盘/信息面板都不挡。
 	if event is InputEventKey and (event as InputEventKey).pressed \
@@ -7595,17 +8168,38 @@ func _input(event: InputEvent) -> void:
 		# 打开时把旧拦截记录视为已读：不要一开 DEV 就吐一屏历史 toast。
 		_dev_log_n = sim.dev_log.size() if bool(sim.dev) else 0
 		_refresh_dev_panel()
-		_toast("DEV：无敌 + 全知（F2 关闭）" if bool(sim.dev) else "DEV：已关闭")
+		_toast("DEV 透视：开（F3 文字总览）" if bool(sim.dev) else "DEV 透视：已关闭")
 		_probe("F2 → DEV %s" % ("开" if bool(sim.dev) else "关"))
 		get_viewport().set_input_as_handled()
 		return
-	## 信息面板（尸检记录 / 全船监控）在最上层：只剩 ESC 关闭，其余按键不落到对局。
-	## 对应 2.5D 的 G.inspect / G.camView 输入屏蔽（js/game.js:7932 起）。
-	if _info_open:
+	## F3 = 旧的右侧文字总览（默认隐藏，避免常驻面板占屏幕右侧 1/3）。
+	if event is InputEventKey and (event as InputEventKey).pressed \
+			and not (event as InputEventKey).echo \
+			and (event as InputEventKey).keycode == KEY_F3:
+		text_dev_open = not text_dev_open
+		_refresh_dev_panel()
+		_toast("DEV 文字总览：开" if text_dev_open else "DEV 文字总览：关（F2 透视仍在）")
+		get_viewport().set_input_as_handled()
+		return
+	## ESC 只走单一出口；同一帧内打开 UI 的那个键不允许顺手关掉它。
+	if event is InputEventKey and (event as InputEventKey).pressed \
+			and not (event as InputEventKey).echo \
+			and (event as InputEventKey).keycode == KEY_ESCAPE:
+		_probe_input("ESC", "_close_topmost")
+		_close_topmost()
+		get_viewport().set_input_as_handled()
+		return
+	## 设置 / 复盘面板在最上层（2.5D 的 SKSettings.isOpen() 守卫）：
+	## 只允许 P 关闭（ESC 已统一处理），其余按键一律不落到对局。
+	if ui_panels != null and ui_panels.any_open():
 		if event is InputEventKey and (event as InputEventKey).pressed \
-				and (event as InputEventKey).keycode == KEY_ESCAPE:
-			_close_info()
+				and (event as InputEventKey).keycode == KEY_P:
+			ui_panels.close_all()
 			get_viewport().set_input_as_handled()
+		return
+	## 信息面板（尸检记录 / 全船监控）/ 管道出口列表在最上层：只剩 ESC（已统一处理），
+	## 其余按键不落到对局（对应 2.5D 的 G.inspect / G.camView / G.pipePick 输入屏蔽）。
+	if _info_open or _pipe_open:
 		return
 	if event is InputEventKey and (event as InputEventKey).pressed:
 		if (event as InputEventKey).keycode == KEY_M 				and not (event as InputEventKey).echo and audio != null:
@@ -7618,20 +8212,6 @@ func _input(event: InputEvent) -> void:
 				ui_panels.close_all()
 			else:
 				ui_panels.open_settings()
-			get_viewport().set_input_as_handled()
-			return
-		if _pipe_open and (event as InputEventKey).keycode == KEY_ESCAPE:
-			_close_pipe_ui()
-			get_viewport().set_input_as_handled()
-			return
-		# Esc 释放 / 收回鼠标（自由游玩时）。面板 / 小游戏 / 轮盘各自处理 Esc，
-		# 这里只在没有任何模态时生效 —— 旧版 player.gd 设了 VISIBLE，但
-		# `_refresh_mouse_mode()` 下一帧又把它 CAPTURED，等于 Esc 完全无效。
-		if (event as InputEventKey).keycode == KEY_ESCAPE and not (event as InputEventKey).echo:
-			if _want_mouse_visible():
-				return
-			mouse_released = not mouse_released
-			_refresh_mouse_mode()
 			get_viewport().set_input_as_handled()
 			return
 	# 点击画面收回鼠标（自由游玩时）。UI 面板的点击由 GUI 处理，不能在这里抢。
