@@ -17,6 +17,16 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # docs:sync / docs:check 需要「同级目录存在 2.5D 真源」。
+      # 主仓是公开仓，匿名检出即可，不需要额外 token；
+      # actions/checkout 不允许写到 workspace 外，所以先进 workspace 再软链成同级路径。
+      - uses: actions/checkout@v4
+        with:
+          repository: hxj-2888/returnlog
+          ref: main
+          path: upstream-returnlog
+      - name: Place 2.5D source as sibling directory
+        run: ln -s "$GITHUB_WORKSPACE/upstream-returnlog" "$GITHUB_WORKSPACE/../新返航录"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
