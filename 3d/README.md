@@ -133,7 +133,8 @@
 
 ## 3. 快速运行
 
-> CI：push/PR `master` 跑 `.github/workflows/check.yml`（`npm run check` + `baseline:check` + `agent:contract` + `guard`）。
+> CI：push/PR `3d` 跑 `.github/workflows/check.yml`（只读门禁：`npm run check` + `docs:check` + 基线 + `agent:contract` + `guard`）；
+> 上线另走 `.github/workflows/deploy-3d.yml`，见 §3.9。
 
 ```bash
 # 便携版 Godot（不在 PATH 上）—— 标准版
@@ -323,6 +324,39 @@ npm run 3d:probe
 截图留档：`screenshots/mg-*.png`、`screenshots/device-*.png`、`screenshots/e2e-device-minigame.png`；
 DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打印 `PROBESHOT_PATH=`）。
 
+## 3.9 部署上线（Web · https://returnlog-3d.pages.dev）
+
+**口径**：push 到 `3d` 分支即自动导出并上线。`.github/workflows/deploy-3d.yml` 是 3D 唯一
+部署入口，`check.yml` 只跑只读门禁不发布；2.5D 的 `deploy.yml`（`main` → `returnlog.pages.dev`）
+与本流水线互不干涉，**不要让 `3d` 触发它**（`3d` 里的 `index.html/js/assets` 是较旧的只读镜像）。
+
+**为什么要 Pages + R2 两条通道**：Pages 发布包的**单文件上限 25 MiB**（gzip 绕不过去），
+而 Web 导出物 2026-11-12 实测 `index.pck` 132 MB、`index.wasm` 37.7 MB 必然超限，
+其余 7 个文件全 < 320 KB。所以超限文件按内容哈希搬去 R2（bucket `returnlog-3d-assets`，
+键 `gen/<sha16>/<文件名>`），Pages 侧由 `3d/tools/stage-web-deploy.cjs` 生成一个 `_worker.js`，
+把 `/index.pck`、`/index.wasm` 这两个**原 URL** 从 R2 流式回源 —— 浏览器请求的还是同源相对路径，
+Godot 导出的 `index.html` / `index.js` 一行都不用改。键里带内容哈希是为了缓存正确性：
+URL 永远不变，键跟着内容变，才敢打 `immutable`；内容没改的两次部署又正好复用同一批对象。
+
+**流水线步骤**（单 job，任一步失败就不部署）：
+Godot 4.6 headless 导出 → `npm run 3d:web:stage` 拆分超限文件 → 探测 R2 权限并按需建桶 →
+上传超限文件 → `npm run 3d:pages:bind` 确保 Pages 项目绑上 `ASSETS_R2`（production + preview）→
+`wrangler pages deploy --branch <当前分支>`（推 `3d` 落生产域名，别的分支落预览域名，不会顶掉线上）→
+冒烟 HEAD `/ /index.html /index.js /index.wasm /index.pck`，五个全 200 才算成功。
+
+| 前置 | 口径 |
+|---|---|
+| 仓库 Secrets | `CF_API_TOKEN` / `CF_ACCOUNT_ID`（与 2.5D 同一对）。**Token 还需 Account → Cloudflare R2 Storage: Edit**；只给 Pages:Edit 会在「Check R2 access」一步红字退出，不会推上半个坏版本 |
+| 本机导出 | 本机 Godot **未装 Web 导出模板**（`%APPDATA%/Godot/export_templates` 空，模板约 1.2 GB），导出只在 CI 验证；本地要预演就先装模板，或直接把上线交给流水线 |
+| 首次运行 | Pages 项目 `returnlog-3d` 与 R2 bucket 都由流水线首跑自动创建，不用去后台手点 |
+
+**已知待办**
+
+- **R2 只增不清**：每次改图会留下一份约 169 MB 的旧 `gen/<hash>/` 对象，免费额度 10 GiB
+  约 58 次部署后见底。自动清理未接；手动删旧前缀是安全的（生产用的是最新一批键）。
+- **首屏要下 169 MB**：pck 里的贴图/模型压缩属美术侧，压下来直接改善打开速度，不改部署结构。
+- 作品集侧 3D 版本卡仍是 `local`；域名验证通过后改 `live` 并补 `liveUrl`。
+
 ## 4. 资产复用结论
 
 | 资产 | 结论 | 说明 |
@@ -384,6 +418,8 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
     blender-export.py       Blender 导出预设
     smoke-test.py           无真资产的导出自检
     sync-models.cjs         .glb → preview（npm run 3d:sync:models）
+    stage-web-deploy.cjs    Web 导出物拆分 + _worker.js 生成（npm run 3d:web:stage）
+    ensure-pages-project.cjs Pages 项目 R2 绑定（npm run 3d:pages:bind）
   preview/
     project.godot           Godot 4.6 工程
     scenes/main.tscn        唯一入口场景

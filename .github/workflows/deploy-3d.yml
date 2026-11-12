@@ -1,18 +1,26 @@
-# ===== GitHub Actions — 3D 版独立部署（returnlog-3d.pages.dev）=====
+# ===== GitHub Actions — 3D 版部署（Godot Web → Cloudflare Pages + R2）=====
 #
 # 与 2.5D 的 deploy.yml 完全平等、互不干涉：
 #   · 触发分支不同：本文件只认 3d，deploy.yml 只认 main；
-#   · 部署目标不同：本文件 → Cloudflare Pages 项目 returnlog-3d，
-#     deploy.yml → returnlog（2.5D 静态页）；
-#   · 产物不同：本文件先把 Godot 工程导出成 Web（HTML5/WASM），再部署 build/web；
-#     deploy.yml 部署的是 index.html/js/audio/assets 白名单。
+#   · 部署目标不同：本文件 → Pages 项目 returnlog-3d，deploy.yml → returnlog（2.5D 静态页）；
+#   · 产物不同：本文件部署 Godot Web 导出物，deploy.yml 部署 index.html/js/assets 白名单。
 #
-# 前置：仓库 Secrets 已有 CF_API_TOKEN / CF_ACCOUNT_ID（deploy.yml 在用）。
-# 首次运行会自动创建 Pages 项目 returnlog-3d，默认域名 https://returnlog-3d.pages.dev
+# 为什么要 R2（2026-11-12 实测）：Pages 的**单文件上限 25 MiB**，而导出物里
+# `index.pck` 132 MB、`index.wasm` 37.7 MB 必然超限（其余 7 个文件全 < 320 KB）。
+# 所以拆成两条通道：
+#   1. 超限文件 → `3d/tools/stage-web-deploy.cjs` 按内容哈希搬进 build/r2-stage，
+#      上传到 R2 bucket `returnlog-3d-assets`（键 gen/<sha16>/<文件名>）；
+#   2. 其余静态文件 + 生成的 `_worker.js` → Pages；`_worker.js` 把 `/index.pck`、
+#      `/index.wasm` 这两个原 URL 从 R2 流式回源，Godot 的加载代码一行不用改。
+#      Pages 项目的 R2 绑定（变量名 ASSETS_R2）由 `3d/tools/ensure-pages-project.cjs` 写。
 #
-# 体积守卫：Cloudflare Pages 单文件上限 25 MiB。Godot 工程资源约 396 MB，
-# 首次导出大概率超限；超限时本工作流会失败并打印大文件清单（不部署坏版本），
-# 需要先做贴图/模型压缩再上线。
+# 前置：仓库 Secrets 的 CF_API_TOKEN / CF_ACCOUNT_ID 除 Pages:Edit 外，
+# **还需要 Account → Cloudflare R2 Storage: Edit**；缺了会在「Check R2 access」
+# 这步直接红字报出来，不会推上半个坏版本。
+#
+# R2 存储：键是内容哈希，资源没变的两次部署复用同一批对象；每次改图会留下一份
+# 约 169 MB 的旧对象。R2 免费额度 10 GiB，约 58 次部署后要清旧 gen/ 前缀
+# （自动清理尚未接，口径见 3d/README.md「部署上线」小节）。
 
 name: deploy-3d
 
@@ -28,11 +36,22 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GODOT_VER: 4.6-stable
+  PAGES_PROJECT: returnlog-3d
+  PAGES_URL: https://returnlog-3d.pages.dev
+  R2_BUCKET: returnlog-3d-assets
+  R2_BINDING: ASSETS_R2
+  CF_API: https://api.cloudflare.com/client/v4
+
 jobs:
-  export:
-    name: Godot Web export
+  deploy-3d:
+    name: Godot Web export → R2 + Pages
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 45
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,18 +63,18 @@ jobs:
             ~/.local/share/godot/export_templates
           key: godot-4.6-web-${{ runner.os }}
 
-      - name: Install Godot 4.6 + Web export templates
+      - name: Install Godot ${{ env.GODOT_VER }} + Web export templates
         run: |
-          set -e
+          set -euo pipefail
           mkdir -p ~/godot ~/.local/share/godot/export_templates/4.6.stable
           if [ ! -x ~/godot/godot ]; then
-            wget -q https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64.zip
+            wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_v4.6-stable_linux.x86_64.zip"
             unzip -q Godot_v4.6-stable_linux.x86_64.zip -d ~/godot
             mv ~/godot/Godot_v4.6-stable_linux.x86_64 ~/godot/godot
             chmod +x ~/godot/godot
           fi
           if [ ! -f ~/.local/share/godot/export_templates/4.6.stable/web_release.zip ]; then
-            wget -q https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_export_templates.tpz
+            wget -q "https://github.com/godotengine/godot/releases/download/${GODOT_VER}/Godot_v4.6-stable_export_templates.tpz"
             mkdir -p /tmp/tpl
             unzip -q Godot_v4.6-stable_export_templates.tpz -d /tmp/tpl
             cp /tmp/tpl/templates/web_*.zip ~/.local/share/godot/export_templates/4.6.stable/
@@ -68,6 +87,7 @@ jobs:
 
       - name: Export Web build
         run: |
+          set -euo pipefail
           mkdir -p build/web
           ~/godot/godot --headless --path 3d/preview \
             --export-release "Web" "$GITHUB_WORKSPACE/build/web/index.html"
@@ -79,48 +99,107 @@ jobs:
           echo "== 最大的 15 个文件 =="
           find build/web -type f -printf '%10s  %p\n' | sort -rn | head -15
 
-      - name: 25MiB single-file guard
+      - name: Split oversized files out of the Pages bundle
         run: |
+          set -euo pipefail
+          node 3d/tools/stage-web-deploy.cjs --dir build/web \
+            --stage build/r2-stage --manifest build/r2-manifest.json
+          echo "== 拆分后 Pages 侧最大的 5 个文件（都必须 < 25 MiB）=="
+          find build/web -type f -printf '%10s  %p\n' | sort -rn | head -5
           n=$(find build/web -type f -size +25M | wc -l)
           if [ "$n" -gt 0 ]; then
-            echo "::error::$n 个文件超过 Cloudflare Pages 25MiB 单文件上限，先压缩资源再上线"
+            echo "::error::拆分后仍有 $n 个文件超过 25MiB，stage 工具口径与 Pages 上限不一致"
             find build/web -type f -size +25M -printf '%10s  %p\n'
             exit 1
           fi
-
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: web-build
-          path: build/web
-          if-no-files-found: warn
-
-  deploy:
-    name: Cloudflare Pages · returnlog-3d
-    needs: export
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: build/web
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Ensure Pages project
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 pages project create returnlog-3d --production-branch=3d || true
+      - name: Install wrangler
+        run: npm install -g wrangler@4
 
-      - name: Deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 pages deploy build/web --project-name returnlog-3d --commit-dirty=true
+      - name: Check R2 access and ensure bucket
+        id: r2
+        run: |
+          set -euo pipefail
+          res=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$CF_API/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets")
+          if ! printf '%s' "$res" | jq -e '.success == true' >/dev/null; then
+            echo "::error::CF_API_TOKEN 读不到 R2 —— 要给这个 Token 加上 Account → Cloudflare R2 Storage: Edit"
+            printf '%s' "$res" | jq -c '.errors'
+            exit 1
+          fi
+          if printf '%s' "$res" | jq -e --arg b "$R2_BUCKET" '[.result[].name] | index($b)' >/dev/null; then
+            echo "R2 bucket $R2_BUCKET 已存在"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "R2 bucket $R2_BUCKET 不存在，本次创建"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Smoke test
-        run: curl -fsSL -o /dev/null --max-time 30 https://returnlog-3d.pages.dev/
+      - name: Create R2 bucket
+        if: steps.r2.outputs.created == 'true'
+        run: wrangler r2 bucket create "$R2_BUCKET"
+
+      - name: Upload oversized files to R2
+        run: |
+          set -euo pipefail
+          total=$(jq '.files | length' build/r2-manifest.json)
+          if [ "$total" = "0" ]; then
+            echo "没有超限文件，跳过 R2 上传"
+            exit 0
+          fi
+          jq -c '.files[]' build/r2-manifest.json | while read -r row; do
+            key=$(printf '%s' "$row" | jq -r '.key')
+            src=$(printf '%s' "$row" | jq -r '.staged')
+            ct=$(printf '%s' "$row" | jq -r '.content_type')
+            mib=$(printf '%s' "$row" | jq -r '(.size / 1048576) | floor')
+            echo "→ $src（${mib} MiB，$ct）⇒ $R2_BUCKET/$key"
+            wrangler r2 object put "$R2_BUCKET/$key" --file "$src" --content-type "$ct" --remote
+          done
+
+      - name: Ensure Pages project with R2 binding
+        run: |
+          set -euo pipefail
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "$CF_API/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$PAGES_PROJECT")
+          if [ "$code" = "404" ]; then
+            wrangler pages project create "$PAGES_PROJECT" --production-branch 3d
+          elif [ "$code" != "200" ]; then
+            echo "::error::读取 Pages 项目 $PAGES_PROJECT 返回 HTTP $code（Token 还有 Pages:Edit 吗？）"
+            exit 1
+          else
+            echo "Pages 项目 $PAGES_PROJECT 已存在"
+          fi
+          node 3d/tools/ensure-pages-project.cjs \
+            --project "$PAGES_PROJECT" --bucket "$R2_BUCKET" --binding "$R2_BINDING"
+
+      - name: Deploy to Cloudflare Pages
+        run: |
+          set -euo pipefail
+          wrangler pages deploy build/web --project-name "$PAGES_PROJECT" \
+            --branch "${{ github.ref_name }}" --commit-dirty=true
+
+      - name: Smoke test production URL
+        if: github.ref_name == '3d'
+        run: |
+          set -euo pipefail
+          # 新版本到边缘有几秒延迟，先等首页可用，再逐个验资源
+          for i in $(seq 1 12); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "$PAGES_URL/" || true)
+            [ "$code" = "200" ] && break
+            echo "等待 $PAGES_URL 生效（第 $i 次，HTTP ${code:-无响应}）"; sleep 10
+          done
+          for p in / /index.html /index.js /index.wasm /index.pck; do
+            code=$(curl -sS -o /dev/null -I -w '%{http_code}' --max-time 60 "$PAGES_URL$p")
+            echo "HEAD $p → $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::$p 返回 $code（大文件走 R2：多半是 ASSETS_R2 没绑上，或对象没上传）"
+              exit 1
+            fi
+          done
+          echo "== 大文件响应头（应见 content-type / content-length / immutable 缓存）=="
+          curl -sS -I --max-time 60 "$PAGES_URL/index.wasm" \
+            | grep -iE '^(content-type|content-length|cache-control|etag|cf-cache-status):' || true

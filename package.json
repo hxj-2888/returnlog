@@ -38,6 +38,8 @@
     "3d:export:version": "node 3d/tools/export-version.cjs",
     "3d:simdump": "node 3d/tools/simdump.cjs",
     "3d:probe": "node 3d/tools/player-probe.cjs",
+    "3d:web:stage": "node 3d/tools/stage-web-deploy.cjs",
+    "3d:pages:bind": "node 3d/tools/ensure-pages-project.cjs",
     "3d:port:check": "node 3d/tools/check-port-manifest.cjs",
     "3d:events:check": "node 3d/tools/check-events.cjs",
     "3d:lines:check": "node 3d/tools/check-lines.cjs",

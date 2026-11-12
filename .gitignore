@@ -21,12 +21,17 @@ desktop.ini
 # ---- Godot 本机缓存与截图（可再生成，随盘保留、不入库）----
 3d/preview/.godot/
 3d/preview/screenshots/
+# Web 导出物（约 163 MB，CI 每次重导，本机产物只留盘上）：
+# build/web = Pages 侧、build/r2-stage = 待上传 R2 的超限文件
+build/
+3d/preview/build/
 3d/preview/scripts/_*.gd
 3d/preview/scripts/_*.gd.uid
 3d/tools/_*.cjs
 3d/tools/_*shots/
 
 # ---- Python / 工具临时产物 ----
+.wrangler/
 __pycache__/
 *.pyc
 3d/tools/__pycache__/
