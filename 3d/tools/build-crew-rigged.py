@@ -5,12 +5,14 @@
 #   （浅灰勤务服、珊瑚红胸带/护膝、黑靴、短黑发、背包、无头盔）。
 # 产物：3d/assets/models/char_crew_lowpoly.blend
 #       3d/assets/export/char_crew_lowpoly.glb（idle / walk 两个动作）
-# 约定：米制 / +Y 前 / +Z 上 / 底面中心 / 18 根形变骨 / 4 材质 / 无贴图。
+# 约定：米制 / +Y 前 / +Z 上 / 底面中心 / 18 根形变骨 / 5 材质（含脸贴图）/
+#       身体 512² 千问贴图 + 法线；头部一张正面脸 UV。
 # 用法：
 #   "E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b \
 #     -P 3d/tools/build-crew-rigged.py
 # =============================================================
 import bpy
+import math
 import os
 import sys
 
@@ -18,20 +20,51 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 MODELS = os.path.join(ROOT, '3d', 'assets', 'models')
 EXPORTS = os.path.join(ROOT, '3d', 'assets', 'export')
 ASSET_ID = 'char_crew_lowpoly'
+CREW_TEX = os.path.join(ROOT, '3d', 'preview', 'assets', 'models', 'crew_tex')
+CREW_NRM = os.path.join(ROOT, '3d', 'assets', 'textures', 'crew')
 
 if tuple(bpy.app.version[:2]) < (5, 2):
     raise SystemExit('[crew-rigged] 需要 Blender 5.2+（权威版 5.2.2 LTS）')
 
 
-def material(name, color, metallic=0.0, rough=0.7):
+def _load_img(path, non_color=False):
+    if not path or not os.path.exists(path):
+        return None
+    im = bpy.data.images.load(path, check_existing=True)
+    if non_color:
+        im.colorspace_settings.name = 'Non-Color'
+    return im
+
+
+def material(name, color, metallic=0.0, rough=0.7, albedo=None, normal=None):
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
+    bsdf = None
     for node in mat.node_tree.nodes:
         if node.type == 'BSDF_PRINCIPLED':
+            bsdf = node
             node.inputs['Base Color'].default_value = color
             node.inputs['Metallic'].default_value = metallic
             node.inputs['Roughness'].default_value = rough
             break
+    if bsdf is None:
+        return mat
+    nt = mat.node_tree
+    img = _load_img(albedo)
+    if img is not None:
+        tex = nt.nodes.new('ShaderNodeTexImage')
+        tex.image = img
+        tex.label = 'albedo'
+        nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
+    nimg = _load_img(normal, True)
+    if nimg is not None:
+        ntex = nt.nodes.new('ShaderNodeTexImage')
+        ntex.image = nimg
+        ntex.label = 'normal'
+        nmap = nt.nodes.new('ShaderNodeNormalMap')
+        nmap.inputs['Strength'].default_value = 0.8
+        nt.links.new(ntex.outputs['Color'], nmap.inputs['Color'])
+        nt.links.new(nmap.outputs['Normal'], bsdf.inputs['Normal'])
     return mat
 
 
@@ -69,6 +102,20 @@ def sphere(name, radius, center, mat, bone, segments=12, rings=8):
     obj.name = name
     _finish(obj, mat)
     return assign(obj, bone)
+
+
+def face_uv(obj):
+    """头部球体：正面 +Y 映射到贴图中心，背面接缝；V 从下巴到头顶。"""
+    uv = obj.data.uv_layers.active
+    if uv is None:
+        uv = obj.data.uv_layers.new(name='UVMap')
+    for poly in obj.data.polygons:
+        for li in poly.loop_indices:
+            v = obj.data.vertices[obj.data.loops[li].vertex_index].co
+            u = math.atan2(v.x, v.y) / (2.0 * math.pi) + 0.5
+            vv = 0.5 + math.asin(max(-1.0, min(1.0, v.z / 0.105))) / math.pi
+            uv.data[li].uv = (u, vv)
+    return obj
 
 
 def cyl(name, radius, depth, center, mat, bone, verts=8):
@@ -254,10 +301,21 @@ def build():
     bpy.context.scene.unit_settings.system = 'METRIC'
     bpy.context.scene.unit_settings.scale_length = 1.0
 
-    suit = material('crew_suit', (0.70, 0.72, 0.75, 1.0), metallic=0.02, rough=0.78)
-    accent = material('crew_accent', (0.78, 0.28, 0.24, 1.0), metallic=0.0, rough=0.62)
-    gear = material('crew_gear', (0.09, 0.10, 0.12, 1.0), metallic=0.3, rough=0.5)
-    skin = material('crew_skin', (0.62, 0.45, 0.34, 1.0), metallic=0.0, rough=0.62)
+    suit = material('crew_suit', (1.0, 1.0, 1.0, 1.0), metallic=0.02, rough=0.78,
+                    albedo=os.path.join(CREW_TEX, 'crew-fabric.png'),
+                    normal=os.path.join(CREW_NRM, 'crew-fabric_normal.png'))
+    accent = material('crew_accent', (1.0, 1.0, 1.0, 1.0), metallic=0.0, rough=0.62,
+                      albedo=os.path.join(CREW_TEX, 'crew-webbing.png'),
+                      normal=os.path.join(CREW_NRM, 'crew-webbing_normal.png'))
+    gear = material('crew_gear', (1.0, 1.0, 1.0, 1.0), metallic=0.3, rough=0.5,
+                    albedo=os.path.join(CREW_TEX, 'crew-leather.png'),
+                    normal=os.path.join(CREW_NRM, 'crew-leather_normal.png'))
+    skin = material('crew_skin', (1.0, 1.0, 1.0, 1.0), metallic=0.0, rough=0.62,
+                    albedo=os.path.join(CREW_TEX, 'crew-skin.png'),
+                    normal=os.path.join(CREW_NRM, 'crew-skin_normal.png'))
+    face = material('crew_face', (1.0, 1.0, 1.0, 1.0), metallic=0.0, rough=0.60,
+                    albedo=os.path.join(CREW_NRM, 'crew-face_albedo.png'),
+                    normal=os.path.join(CREW_NRM, 'crew-face_normal.png'))
     parts = []
 
     # 躯干：骨盆(hips) / 腰(spine) / 胸(chest)；三段分开，走路不扯腰部。
@@ -267,15 +325,10 @@ def build():
     parts.append(box('neck', (0.11, 0.11, 0.07), (0, 0, 1.515), skin, 'neck'))
     parts.append(box('collar', (0.20, 0.18, 0.05), (0, 0, 1.475), gear, 'chest'))
 
-    # 头：皮肤球 + 深色短发 + 双眼 + 鼻；不做头盔
-    parts.append(sphere('head', 0.105, (0, 0, 1.645), skin, 'head'))
-    parts.append(box('hair', (0.19, 0.15, 0.07), (0, -0.015, 1.715), gear, 'head'))
-    for sx in (-1, 1):
-        parts.append(box('eye_%d' % sx, (0.030, 0.012, 0.018),
-                         (0.036 * sx, 0.100, 1.665), gear, 'head'))
-        parts.append(box('ear_%d' % sx, (0.018, 0.040, 0.055),
-                         (0.106 * sx, 0.0, 1.645), skin, 'head'))
-    parts.append(box('nose', (0.025, 0.038, 0.035), (0, 0.108, 1.635), skin, 'head'))
+    # 头：球体正面贴脸（无表情），深色短发 + 耳；不做头盔、不再堆眼球/鼻子方块
+    head = sphere('head', 0.105, (0, 0, 1.645), face, 'head')
+    face_uv(head)
+    parts.append(head)
 
     # 胸带 / 扣具 / 背包（参考图的珊瑚红 H 型胸带）
     for sx in (-1, 1):

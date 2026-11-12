@@ -55,13 +55,14 @@
 
 ---
 
-## 3. 开工前按顺序读这 5 份
+## 3. 开工前按顺序读这 6 份
 
 1. `3D/AGENTS.md` §一 红线、§二 硬约束（含第 7 条「规则同源」）
-2. `3D/docs/ASSET_GOVERNANCE.md` §11A 美术资产生产工作流
-3. `3D/3d/ASSETS.md` 现有资产清单与历史迭代（很长，先看目录）
-4. `3D/3d/CHARACTER_ART_PIPELINE.md` 人物写实方案（P1 用）
-5. `3D/3d/ARCHITECTURE.md` §4 单位/坐标、§7 资产管线
+2. **`3D/3d/ART_DIRECTION.md` 四条美术裁定的唯一真源**（门 / 天花板 / 保安机器人 / 人物）
+3. `3D/docs/ASSET_GOVERNANCE.md` §11A 美术资产生产工作流
+4. `3D/3d/ASSETS.md` 现有资产清单与历史迭代（很长，先看目录）
+5. `3D/3d/CHARACTER_ART_PIPELINE.md` 人物写实方案（P1 用）
+6. `3D/3d/ARCHITECTURE.md` §4 单位/坐标、§7 资产管线
 
 ---
 
@@ -144,13 +145,13 @@ npm run 3d:import:check
 | 门（双扇 + 框） | ≤ 1.5k tris |
 | 保安机器人 | ≤ 4k tris |
 | 医疗机器人 | 现有 `medbot.glb` 为准 |
-| 人物 | 1,812 tris（不要加面，走贴图） |
+| 人物 | 8,544 tris（2026-11-11 第三版重做；旧 1,812 体块仅作 blockout 对照） |
 | 天花板模块 / 舱 | ≤ 1.8k tris |
 
 贴图预算：
 
-- 角色图集：albedo 2048² + normal 2048² + ORM 1024²（发布包 +2.5~3 MB）。
-- 场景道具：albedo 1024²、normal 1024²、rough 512²；小件可 512²。
+- 角色：身体 768² 图集 + 脸 768² + 头发 768²（albedo+normal；用户 2026-11-11 统一 768²，2048 目标取消）。
+- 场景道具（门/保安机器人/天花板）：本轮统一 768² albedo+normal（rough/emissive 同 768²）；后续新资产沿用 768² 基准。
 - 平铺材质必须**正交、铺满、无投影、无背景、可平铺**（见 §6 prompt 规范）。
 
 ---
@@ -199,7 +200,11 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 | **保安机器人** | `_robot()` 代码手搓：两个盒子 + 球眼 + 灯条 | `scene_extras.gd:618`；仓库里只有 `medbot.glb`，没有 `secbot.glb` |
 | **天花板** | 单层平面 + 一圈发光灯带，没有结构层次 | `map_builder.gd:337` 天花板面、`:350 _add_ceiling_strip()` |
 | **舱壁铁板** | 多舱共用同一套 `panel-metal.png`，没有按舱主题区分 | `3d/preview/assets/textures/panel-metal.png` + `rooms[].theme` 未被材质使用 |
-| **人物近景** | 1,812 tri / 4 纯色 / 17 骨 / 259 KB；贴图有，UV 与法线没有 | `3d/CHARACTER_ART_PIPELINE.md` §七 |
+| **人物近景** | 1,812 tri / 4 纯色 / 17 骨 / 259 KB；贴图有，UV 与法线没有（第三版已重做为 8,544 tris + 768² 图集） | `3d/CHARACTER_ART_PIPELINE.md` §七点六 |
+
+> **2026-11-11 晚更新**：门、保安机器人、工业天花板三件 P0 已落地并接线，
+> 人物第三版（截面放样 + 768² 图集）也已重做；清单见 `ART_DIRECTION.md` §10 与
+> `ASSETS.md`「2026-11-11 · 美术方向四件套」。舱壁分舱材质仍是欠账。
 
 ---
 
@@ -210,6 +215,7 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 | 门板 | `2.5D/assets/scene/v4/tex/door-panel.png`（1536²） | 2.5D `drawDoors()` 在 `js/game.js:9393` 直接采样这张图；3D 门必须能看出同一块门板的分缝、螺栓、磨损 |
 | 舱壁 | `2.5D/assets/scene/v4/tex/wall-panel.png`（1536²） | 舱壁基色/分缝 |
 | 每舱墙/地板 | `2.5D/docs/qwen21/room-skins/<room>-wall_768.png`、`<room>-floor_768.png`（10 舱） | 逐舱材质差异 |
+| 保安机器人 | `2.5D/assets/scene/v4/facility/secbot.png`（512² RGBA）+ `2.5D/tools/gen-facility-sprites.py:50` | **双足造型真源**；`drawRobotBody()` 的矢量圆头版只是冷启动兜底，不要照它建 |
 | 全船底图 | `2.5D/assets/scene/v4/base-lit.png`、`hull-deck.png` | 舱室布局与配色总览 |
 | 房间主题 | `3D/3d/preview/data/map_v2.json` → `rooms[].theme {wall, top, glow, gs, mark}` | 天花板/墙面色带的参数真源 |
 | 当前 3D 截图 | `3D/3d/preview/screenshots/`（`bridge.png`、`bridge-blackout.png` 等） | 改前/改后对照 |
@@ -223,6 +229,7 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 ### P0-A 门（替换 `_build_doors`）
 
+- **已拍板：3D 滑门结构 + 2.5D 门板**（2026-11-11 用户裁定；详细映射、分缝落位、贴图派生见 `ART_DIRECTION.md` §3）。
 - 结构：门框（左右立柱 + 门楣）+ 双扇滑门 + 顶部灯带 + 门侧状态灯。
 - 尺寸：洞宽 **1.8 m**、高 **2.5 m**、门扇厚 0.10 m；门柱 0.16 × 2.5 × 0.30；门楣 2.2 × 0.26 × 0.30。
 - 材质槽：`frame`（喷粉金属）、`leaf`（门板，采样 `door-panel.png` 的分缝/螺栓）、
@@ -236,11 +243,16 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 ### P0-B 保安机器人（新增 `secbot.glb`）
 
-- 现有手搓尺寸（照这个轮廓做，别改比例）：身体 0.62 × 0.90 × 0.50，头 0.34 × 0.24 × 0.30，
-  眼/灯条在 **-Z** 侧，总高约 1.25 m。
-- 结构：躯干（装甲板 + 检修口）、头（单眼/双传感器）、肩部警灯、履带或双足（按 2.5D 造型选）、
-  胸前编号牌。
-- 材质槽：`paint`（机身漆）、`glass`（传感器）、`emissive`（红色警灯/眼）。
+- **已拍板：双足**（2026-11-11 用户裁定；造型真源是 `2.5D/assets/scene/v4/facility/secbot.png`，
+  细节与尺寸见 `ART_DIRECTION.md` §4）。
+- 旧手搓盒子只是尺寸包络，不是造型：0.62 × 0.90 × 0.50 躯干、头 0.34 × 0.24 × 0.30、
+  眼/灯条在 **-Z** 侧、总高约 1.25 m。按 2.5D 贴图做成人形后，总高 1.25 m、
+  最大宽 ≤ 0.60 m、最大深 ≤ 0.45 m。
+- 结构：重装甲双足人形——红色目镜带、肩部红色警示条、背包天线、机械爪手、
+  髋部电击棍（仅造型）、大腿/小腿红色识别条；**不要**照 `drawRobotBody()` 的圆头兜底做，
+  也不要照旧规格加“胸前编号牌”。
+- 材质槽：`paint`（装甲漆）、`accent`（红色识别/目镜）、`metal`（关节/爪/脚掌/电击棍）、
+  `glass`（目镜罩，可选）；见 `ART_DIRECTION.md` §4.5。
 - 贴图：albedo 1024² + normal 1024² + rough 512²（与 `medbot` 同规格）。
 - 朝向 -Z，pivot 在脚下；≤ 4k tris；导出到 `3d/preview/assets/models/secbot.glb`。
 - 接线提案：`scene_extras._robot()` 改为优先加载 `secbot.glb`，缺失时回退现有盒子版；
@@ -248,6 +260,8 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 ### P0-C 天花板（替换单层平面 + 灯带）
 
+- **已拍板：工业材质**（2026-11-11 用户裁定；材质表、结构与“是否外露梁管”的解释见
+  `ART_DIRECTION.md` §2）。
 - 目标：抬头能看到主梁、次级梁、管线/线槽、灯槽，而不是一块平板。
 - 模块化：3 × 3 m 标准模块 + 边角/走廊模块；每舱按 `theme.top` 调基色、`theme.glow` 调灯带。
 - 高度：板底 3.2 m；灯槽内凹 0.12 m；梁高 0.18–0.25 m。
@@ -260,12 +274,13 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 ## 10. P1：人物写实（严格按 `CHARACTER_ART_PIPELINE.md`）
 
-- 不加面：保留 1,812 tris / 17 骨 / `idle` `walk` `knife` `down` 四段动画。
-- UV 展开 4 个槽（suit / gear / accent / skin），烘 2048 图集：
-  albedo 2048² + normal 2048² + ORM 1024²。
-- 法线是写实度的关键：布纹、缝线、磨损都靠 normal；roughness ≥ 0.55 避免塑料感。
-- 15 个席位共用一套图集，靠 `crew_view._tint_model()` 的 tint 换色（材质名不能改）。
-- 验收：1 m 内近看无拉伸、布纹可见；发布包增幅 ≤ 3 MB。
+- 拓扑：8,544 tris / 6 材质 / 17 骨 / `idle` `walk` `knife` `down` 四段动画；躯干/四肢放样，
+  头为放样头型 + 独立发盖/刘海。
+- UV：身体一张 768² 图集（suit / accent / gear / skin 分区）+ 脸 768² + 头发 768²；
+  分区真源 `3d/tools/crew_atlas.py`，2048 目标已按用户要求取消。
+- 法线：布纹、缝线、磨损由图集亮度派生；roughness ≥ 0.55 避免塑料感。
+- 15 个席位共用一套图集，靠 `crew_view._tint_model()` 只给 `crew_suit` 乘色（材质名不能改）。
+- 验收：1 m 内近看无拉伸、布纹可见；`--crewshot` + `render-crew-check.py` 三张近景。
 
 ---
 
@@ -308,13 +323,18 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
 
 ---
 
-## 13. 需要用户拍板的 4 件事（开工前问）
+## 13. 已拍板的 4 件事（2026-11-11）
 
-1. **门**：完全复刻 2.5D 的平面门板（分缝/螺栓/磨损），还是保留 3D 滑门结构 + 2.5D 门板材质？
-2. **天花板**：做到「有梁有管线」的工业层次，还是「轻量吊顶 + 灯槽」？前者面数高、后者更干净。
-3. **保安机器人**：履带式（更工业）还是双足（更人形）？2.5D 是俯视剪影，3D 需要定一个。
-4. **人物写实度**：目标是「风格化写实」（贴图 + 法线，近看有布纹）还是「照片级」？
-   后者要换高模，超出当前预算。
+| 议题 | 用户裁定 | 详情 |
+|---|---|---|
+| 门 | **复刻 3D 滑门结构 + 2.5D 门板材质** | `ART_DIRECTION.md` §3 |
+| 天花板 | **采用工业材质** | `ART_DIRECTION.md` §2 |
+| 保安机器人 | **双足**（按 2.5D `secbot.png` 的人形，不是新设计） | `ART_DIRECTION.md` §4 |
+| 人物写实度 | **风格化写实**（低模 + UV + PBR 贴图/法线，不换高模） | `ART_DIRECTION.md` §5、`CHARACTER_ART_PIPELINE.md` |
+
+> 四条裁定的唯一真源是 `ART_DIRECTION.md`；本表只做索引，不复制细节。
+> 天花板“工业材质”按“工业表面 + 外露梁/管线/线槽”落地；若只要表面材质、不要外露结构，
+> 按 `ART_DIRECTION.md` §2.1 的说明删结构项即可。
 
 ---
 

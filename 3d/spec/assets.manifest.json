@@ -658,14 +658,14 @@
       "source": "models/char_crew_lowpoly.blend",
       "export": "export/char_crew_lowpoly.glb",
       "budget": {
-        "tris": 12000,
-        "materials": 4,
-        "textures": 0
+        "tris": 8544,
+        "materials": 6,
+        "textures": 6
       },
       "dimensions": [
-        0.53,
-        0.42,
-        1.75
+        0.52,
+        0.41,
+        1.766
       ],
       "pivot": "base_center",
       "collision": "none",
@@ -674,7 +674,7 @@
         1
       ],
       "license": "原创",
-      "notes": "2026-11-11 按 docs/qwen21/crew-refs 三视图建模：1812 tris / 17 形变骨 / 4 材质 / 4 动作 idle+walk+knife+down；normal 对局默认使用，walk 2.9x 匹配 4.2m/s，knife 事件触发，down 倒地触发。浅灰勤务服 + 珊瑚红胸带/护膝、短黑发、背包、黑靴。"
+      "notes": "2026-11-11 第三版重做（用户否决第二版“伪人”）：躯干/四肢截面放样 + 球关节过渡，头为 20 段放样头型 + 独立发盖/刘海；身体 768² UV 图集（crew_atlas.py 为唯一分区真源）+ 脸/发各 768²；8,544 tris / 6 材质 / 17 骨 / idle+walk+knife+down；脚本 build-crew-rigged-v2.py + build-crew-textures-v2.py。crew_view 只给 crew_suit 乘色，不换图集。"
     },
     {
       "id": "char_crew_rig",
@@ -2136,6 +2136,181 @@
       "collision": "none",
       "license": "原创（3d/tools/build-medbot.py 程序化生成）",
       "notes": "替换 scene_extras._drone 的球+圆环占位体。白色喷漆外壳/青色玻璃医疗舱/四组悬浮推进器/红十字/扫描灯/机械臂；走 covers_lib 的 PBR 贴图。不走 sight_extend（悬浮体不补落地背板）。"
+    },
+    {
+      "id": "door_frame",
+      "name": "门框 · 工业喷粉金属（3D 滑门）",
+      "category": "prop",
+      "status": "done",
+      "source": "models/door_frame.blend",
+      "export": "export/door_frame.glb",
+      "budget": {
+        "tris": 688,
+        "materials": 2,
+        "textures": 2
+      },
+      "dimensions": [
+        2.22,
+        0.37,
+        3.0
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "原创（3d/tools/build-door-v2.py 程序化生成；钢纹由千问本地生成，Qwen Research License 非商用）",
+      "notes": "2026-11-11 v2：贯穿墙厚的门洞内衬 + 双面止口压条 + 门楣实体 + 顶部滑轨/端挡 + 门槛导向槽；原点是门洞地面中心；脚本 build-door-v2.py。"
+    },
+    {
+      "id": "door_leaf_l",
+      "name": "左滑门扇 · 2.5D 门板",
+      "category": "prop",
+      "status": "done",
+      "source": "models/door_leaf_l.blend",
+      "export": "export/door_leaf_l.glb",
+      "budget": {
+        "tris": 448,
+        "materials": 3,
+        "textures": 6
+      },
+      "dimensions": [
+        0.9,
+        0.219,
+        2.485
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "门板派生自 2.5D assets/scene/v4/tex/door-panel.png（项目自有资产）",
+      "notes": "2026-11-11 v2：核心板 + 双面凹槽面板（2.5D 门板 768² 图集中央 384×768）+ 周边压框 + 吊挂滚轮 + 中缝密封；原点是门扇中心；场景抬到 1.25 m。"
+    },
+    {
+      "id": "door_leaf_r",
+      "name": "右滑门扇 · 2.5D 门板",
+      "category": "prop",
+      "status": "done",
+      "source": "models/door_leaf_r.blend",
+      "export": "export/door_leaf_r.glb",
+      "budget": {
+        "tris": 448,
+        "materials": 3,
+        "textures": 6
+      },
+      "dimensions": [
+        0.9,
+        0.219,
+        2.485
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "门板派生自 2.5D assets/scene/v4/tex/door-panel.png（项目自有资产）",
+      "notes": "2026-11-11 v2：同左扇，右半幅 2.5D 门板；原点是门扇中心。"
+    },
+    {
+      "id": "secbot",
+      "name": "保安机器人 · 双足人形",
+      "category": "prop",
+      "status": "done",
+      "source": "models/secbot.blend",
+      "export": "export/secbot.glb",
+      "budget": {
+        "tris": 3776,
+        "materials": 5,
+        "textures": 9
+      },
+      "dimensions": [
+        0.592,
+        0.45,
+        1.25
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "原创（3d/tools/build-secbot.py）；三张材质由千问本地生成，Qwen Research License 非商用",
+      "notes": "造型真源 2.5D assets/scene/v4/facility/secbot.png；重装甲/红色目镜带/肩警示条/背包天线/髋部电击棍；idle+walk 两段循环；贴图统一 768²。"
+    },
+    {
+      "id": "ceiling_beam",
+      "name": "工业天花板 · 工字钢梁（3m）",
+      "category": "prop",
+      "status": "done",
+      "source": "models/ceiling_beam.blend",
+      "export": "export/ceiling_beam.glb",
+      "budget": {
+        "tris": 400,
+        "materials": 1,
+        "textures": 2
+      },
+      "dimensions": [
+        3.0,
+        0.12,
+        0.18
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "原创（3d/tools/build-ceiling-kit.py）；钢纹由千问本地生成，非商用",
+      "notes": "3m 段，原点在底/长度中心；局部 X 为梁长，Godot 侧按房间跨度缩放或旋转 90°。"
+    },
+    {
+      "id": "ceiling_pipe",
+      "name": "工业天花板 · 金属管（3m）",
+      "category": "prop",
+      "status": "done",
+      "source": "models/ceiling_pipe.blend",
+      "export": "export/ceiling_pipe.glb",
+      "budget": {
+        "tris": 200,
+        "materials": 1,
+        "textures": 2
+      },
+      "dimensions": [
+        3.0,
+        0.07,
+        0.07
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "原创（3d/tools/build-ceiling-kit.py）；管纹由千问本地生成，非商用",
+      "notes": "3m 段，沿长轴缩放；连续管，不挂卡箍，避免缩放后卡箍拉长。"
+    },
+    {
+      "id": "ceiling_tray",
+      "name": "工业天花板 · 电缆桥架（3m）",
+      "category": "prop",
+      "status": "done",
+      "source": "models/ceiling_tray.blend",
+      "export": "export/ceiling_tray.glb",
+      "budget": {
+        "tris": 250,
+        "materials": 1,
+        "textures": 2
+      },
+      "dimensions": [
+        3.0,
+        0.255,
+        0.07
+      ],
+      "pivot": "origin",
+      "collision": "none",
+      "lod": [
+        0
+      ],
+      "license": "原创（3d/tools/build-ceiling-kit.py）；钢纹由千问本地生成，非商用",
+      "notes": "3m 段，连续电缆桥架（两侧轨 + 底槽），沿房间长轴缩放。"
     }
   ]
 }

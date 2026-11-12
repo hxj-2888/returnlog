@@ -32,7 +32,7 @@
 | prop_shelf | `assets/models/prop_shelf.blend` | `assets/export/prop_shelf.glb` | 1080 | `5048b75191e7a461` |
 | prop_pipe_run | `assets/models/prop_pipe_run.blend` | `assets/export/prop_pipe_run.glb` | 552 | `a202cb6397711f09` |
 | prop_pipe_port | `assets/models/prop_pipe_port.blend` | `assets/export/prop_pipe_port.glb` | 2336 | `85cac12b33787621` |
-| char_crew_lowpoly | `assets/models/char_crew_lowpoly.blend` | `assets/export/char_crew_lowpoly.glb` | 1812 | `b73e56d08f110369` |
+| char_crew_lowpoly | `assets/models/char_crew_lowpoly.blend` | `assets/export/char_crew_lowpoly.glb` | 8,544 | `1a3ed86dff759626` |
 | char_crew_blockout | `assets/models/char_crew_blockout.blend` | `assets/export/char_crew_blockout.glb` | 864 | `b48182690c295fbe` |
 
 面数都低于 `spec/conventions.md` 的 `device 8k / prop 3k` 预算；`npm run 3d:assets` 可复核。
@@ -40,9 +40,9 @@
 **人物模型（2026-11-11）**：
 
 - `char_crew_lowpoly`：按 `docs/qwen21/crew-refs/crew-turnaround_768.png` 建模的
-  1.75 m / 1812 tris / 4 材质（`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin`）/
-  17 形变骨 / **idle + walk + knife + down** 已导出；脚本 `3d/tools/build-crew-rigged.py`。
-  正常对局默认使用它；`--crew-billboard` 回退旧 billboard。
+  1.766 m / 8,544 tris / 6 材质（`crew_suit` / `crew_accent` / `crew_gear` / `crew_skin` /
+  `crew_face` / `crew_hair`）/ 17 形变骨 / **idle + walk + knife + down** 已导出；
+  脚本 `3d/tools/build-crew-rigged-v2.py`。正常对局默认使用它；`--crew-billboard` 回退旧 billboard。
 - `char_crew_blockout`：864 tris / 3 材质 / 无骨骼的体块验证件，保留作 fallback 与对比；
   脚本 `3d/tools/build-crew-blockout.py`。
 - 参考图：`docs/qwen21/crew-refs/`（完整 768²，本地 3 张）+ `3d/assets/crew_refs/`
@@ -51,23 +51,38 @@
 - 动画：`walk` 为 24fps / 1 秒循环；Godot 侧按移速 4.2 m/s 播 2.9 倍速，避免脚底滑动。
   `knife` 由 `sim.events#knife` 一次性触发，`down` 由 `downed` 状态触发；V-CREW 已标 `ported`（full）。
 
+**2026-11-11 人物重做（第三版）**：
+
+- 拓扑：躯干/四肢从方块拼贴改为截面放样；肩/肘/膝/髋用球体过渡；腰带、护膝、背包、靴子用圆角实体；
+  头是 20 段放样头型（下颌/颧骨/后脑），发盖与刘海为独立几何。用户否决的第二版（1,740 tris，
+  球体贴照片脸）已整体替换。
+- UV/贴图：身体一张 768² 图集（`crew-body_albedo/normal`，glb 内嵌），分区画布
+  `3d/tools/crew_atlas.py` 是 UV 唯一真源；脸 768²、头发 768²。全部贴图统一 **768×768**。
+- 脸：千问本地 img2img（参考 `crew-turnaround_768.png` 正面头，seed 20261160）出风格化中性脸；
+  去掉头发后只取脸区，计划贴到正面 UV；`crew_view._tint_model()` 只给 `crew_suit` 乘席位色，
+  不换贴图、不改 `uv1_scale`，其余材质保持 glb 内嵌。
+- 旧 512² 平铺贴图（`preview/assets/models/crew_tex/`）保留作历史对照，已不再被 glb 或运行时引用。
+- 验收命令：`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`；
+  `render-crew-check.py` 输出 `crew-face-check.png` / `crew-body-check.png` / `crew-full-check.png`。
+
 **材质贴图（2026-11-11 · 千问本地生成，SDXL 已退役）**：
 
 | 用途 | 运行时文件 | 尺寸 | 生成脚本 |
 |---|---|---|---|
-| 制服布 | `preview/assets/models/crew_tex/crew-fabric.png` | 384² | `gen-qwen-materials.ps1` |
-| 胸带织带 | `preview/assets/models/crew_tex/crew-webbing.png` | 384² | 同上 |
-| 靴/背包皮革 | `preview/assets/models/crew_tex/crew-leather.png` | 384² | 同上 |
-| 皮肤 | `preview/assets/models/crew_tex/crew-skin.png` | 384² | 同上 |
-| 刀身金属 | `preview/assets/weapons/knife-blade.png` | 384² | 同上 |
+| 身体图集 albedo | `assets/textures/crew/crew-body_albedo.png`（glb 内嵌） | 768² | `gen-qwen-materials.ps1` + `build-crew-textures-v2.py` |
+| 身体图集法线 | `assets/textures/crew/crew-body_normal.png` | 768² | 同上（亮度派生） |
+| 脸部 | `assets/textures/crew/crew-face_albedo.png`（glb 内嵌） | 768² | `gen-qwen-crew-face-v2.ps1` + `build-crew-textures-v2.py` |
+| 脸部法线 | `assets/textures/crew/crew-face_normal.png` | 768² | 同上 |
+| 短发 | `assets/textures/crew/crew-hair_albedo.png`（glb 内嵌） | 768² | `build-crew-textures-v2.py`（512 源放大到 768） |
+| 短发法线 | `assets/textures/crew/crew-hair_normal.png` | 768² | 同上 |
+| 刀身金属 | `preview/assets/weapons/knife-blade.png` | 384² | 既有刀资产，不在本轮 3D 人物范围 |
 | 刀柄橡胶 | `preview/assets/weapons/knife-grip.png` | 384² | 同上 |
 
-- 原始 512² 方图在 `3d/assets/renders/qwen-materials/`（`.gitignore` 已忽略），manifest 同目录。
-- 裁切/缩放：`3d/tools/crop-materials.gd`（取画面中心 70~78%，去掉白边与光照渐变）。
-- 装配：`crew_view.gd::_tint_model()` 按材质名挂图（`suit/accent/gear/skin`），tint 仍用于 15 席换色；
-  `player.gd::_build_knife_view()` 给第一人称刀挂刀身/刀柄图。缺图自动退回纯色。
+- 原始千问方图在 `3d/assets/renders/`（`.gitignore` 已忽略），manifest 同目录；
+  768 原图单张约 340 s，因此材质采用 512 原图放大到 768，唯一新出的脸是 512 img2img 后放大。
+- 装配：`crew_view.gd::_tint_model()` 只复制 `crew_suit` 材质并设 `albedo_color`；
+  15 席共用同一网格/图集，靠 tint 换色。`crew_face` / `crew_hair` / `crew_gear` / `crew_accent` 不参与 tint。
 - 许可证：Qwen Research License **非商用**，仅本地生成；商用发布需替换权重或单独授权。
-- 当前限制：贴图直接按盒子面 UV 平铺，未做 UV 展开与法线烘焙（见 `CHARACTER_ART_PIPELINE.md` §四 P1）。
 - 验收命令：`--crewshot` 输出 `preview/screenshots/crew-lowpoly.png`；`--probetest`
   会断言 `moving=true → walk`、`moving=false → idle`。
 **设备原点约定**：`device_*` 统一用 `base_center`（底面中心），便于按地面/掩体顶面摆放；
@@ -586,3 +601,118 @@ albedo / normal / roughness、emissive 细节、几何倒角与分件。
 已 `git checkout` 还原，并补上真正的 `--dry`（只建场景不渲染）与 `--out <路径>`
 （试渲染写到别处）。**底图是入库资产，重烘必须是显式动作。**
 
+
+## 2026-11-11 · 美术方向四件套（门 / 保安机器人 / 工业天花板）
+
+> 裁定与规格真源：`3d/ART_DIRECTION.md`（2026-11-11 用户拍板）。
+> 三件 P0 全部走 **千问本地出材质 → Blender 建模/导出 glb**；门板直接采样 2.5D
+> `assets/scene/v4/tex/door-panel.png`，不重新生成。SDXL 未使用。
+
+### 1. 模型（`3d/assets/export/` → `3d/preview/assets/models/`）
+
+| 资产 | 源文件 | 导出物 | 三角面 | 体积 | SHA256（前 16） | 尺寸（m） | 材质/贴图 |
+|---|---|---|---:|---:|---|---|---|
+| door_frame | `assets/models/door_frame.blend` | `assets/export/door_frame.glb` | 688 | 72 KB | `41c6fd5acc593203` | 2.22 × 0.37 × 3.0 | 2 / 2 |
+| door_leaf_l | `assets/models/door_leaf_l.blend` | `assets/export/door_leaf_l.glb` | 448 | 479 KB | `8b609f755535cd42` | 0.9 × 0.219 × 2.485 | 3 / 6 |
+| door_leaf_r | `assets/models/door_leaf_r.blend` | `assets/export/door_leaf_r.glb` | 448 | 473 KB | `07f1f550afd4583a` | 0.9 × 0.219 × 2.485 | 3 / 6 |
+| secbot | `assets/models/secbot.blend` | `assets/export/secbot.glb` | 3,776 | 685 KB | `ae2379b9b612dc5a` | 0.592 × 0.45 × 1.25 | 5 / 9 |
+| ceiling_beam | `assets/models/ceiling_beam.blend` | `assets/export/ceiling_beam.glb` | 36 | 65 KB | `11203f50de7b3c41` | 3.0 × 0.12 × 0.18 | 1 / 2 |
+| ceiling_pipe | `assets/models/ceiling_pipe.blend` | `assets/export/ceiling_pipe.glb` | 52 | 19 KB | `5e5aa3e8d2886b8c` | 3.0 × 0.07 × 0.07 | 1 / 2 |
+| ceiling_tray | `assets/models/ceiling_tray.blend` | `assets/export/ceiling_tray.glb` | 36 | 65 KB | `a124030949a18924` | 3.0 × 0.255 × 0.07 | 1 / 2 |
+
+- **2026-11-11 晚 v2 门**：`build-door-v2.py` 重建门框为“贯穿墙厚的内衬 + 双面止口压条 +
+  门楣实体 + 顶部滑轨/端挡 + 门槛导向槽”；门扇为“核心板 + 双面凹槽面板 + 周边压框 + 吊挂滚轮”，
+  不再是贴在墙洞上的方盒。场景路径不变，`scene_extras._build_doors()` 无需改接线。
+- 脚本：`build-door-v2.py` / `build-secbot.py` / `build-ceiling-kit.py`；共享材质与导出：
+  `art_direction_lib.py`。
+- 朝向：Blender +Y 前 → Godot **-Z 前**；门扇原点在门扇中心（场景抬到 1.25 m），门框/梁/管线/线槽原点在
+  底/长度中心；脚底 pivot = 0。
+- `secbot` 动画：`idle` + `walk`（24fps，51 通道/段），由 `scene_extras._robot()` 加载、
+  `secbot_view.gd` 按真实位移切段；缺 glb 时回退旧盒子版。
+- 门框 2 个 primitive（门框 + 暗色滑轨）；门扇 3 个 primitive（门板 + 门边 + 暗色五金）；
+  天花板套件各 1 个 primitive。
+
+### 2. 门板派生贴图（`3d/assets/textures/art-direction/door/`）
+
+源：2.5D `assets/scene/v4/tex/door-panel.png`（1536²，项目自有资产）。
+派生脚本：`derive-door-textures.py`；外侧各裁 2.5%、50% 切左右半幅，每半幅 384×768
+画在 **768²** 画布中央（UV 对应 u=0.25..0.75）；emissive 只保留每半幅外侧 10% 的灯槽。
+
+| 文件 | 体积 | SHA256（前 16） | 用途 |
+|---|---:|---|---|
+| `door_panel_L_albedo.jpg` | 93 KB | `988d44676bd2608e` | 左扇 albedo（768²） |
+| `door_panel_L_normal.jpg` | 75 KB | `900a2260fdb12697` | 左扇 normal（768²） |
+| `door_panel_L_rough.jpg` | 47 KB | `6103add091c7f6f4` | 左扇 rough（768²） |
+| `door_panel_L_emissive.png` | 3 KB | `102001f8f9eed783` | 左扇灯槽自发光（768²） |
+| `door_panel_R_albedo.jpg` | 91 KB | `dc4a4777fa46f292` | 右扇 albedo（768²） |
+| `door_panel_R_normal.jpg` | 73 KB | `d4cb952264c41535` | 右扇 normal（768²） |
+| `door_panel_R_rough.jpg` | 46 KB | `27f618cc08f68bb7` | 右扇 rough（768²） |
+| `door_panel_R_emissive.png` | 3 KB | `1818664332ed4df6` | 右扇灯槽自发光（768²） |
+
+### 3. 千问材质（本地生成，Qwen Research License · 非商用）
+
+脚本：`gen-qwen-art-direction.ps1`；原始图在 `3d/assets/renders/qwen-art-direction/`
+（`.gitignore` 已忽略整个 `3d/assets/renders/`）。调色/派生：
+`grade-art-direction-textures.py`。六张的 prompt 与 seed：
+
+| slug | seed | prompt（尾缀统一省略） | 用途 |
+|---|---:|---|---|
+| ceiling-deck | 20261132 | `industrial pressed steel ceiling deck panels, dark gunmetal, stamped rectangular panels with recessed seams, subtle grime and fine scratches, matte painted finish` | 天花板顶板 albedo |
+| ceiling-beam | 20261133 | `galvanized steel structural beam surface, cool grey metal, worn edges, faint rust at bolt holes, industrial` | 梁/门框/桥架 |
+| ceiling-pipe | 20261134 | `painted steel industrial pipe surface, dark grey, clamp marks, oil grime, slightly worn paint` | 管线 |
+| secbot-paint | 20261135 | `painted steel armor plate surface, matte dark charcoal, chipped edges, fine wear and faint scratches, flat panel` | 保安装甲漆 |
+| secbot-accent | 20261136 | `deep red industrial warning paint, slightly worn matte finish, fine scratches, dark crimson` | 红色识别/目镜 |
+| secbot-metal | 20261137 | `dark machined steel joint surface, oiled metal, worn edges, fine machining marks, gunmetal grey` | 关节/爪/脚掌/电击棍 |
+
+尾缀（所有 prompt 必带）：`seamless flat texture map, orthographic top-down view, evenly lit
+with no shadow, fills the entire frame edge to edge, no object outline, no background, no
+perspective, tileable, high detail`。negative 同 `gen-qwen-materials.ps1`。
+`secbot-paint` 首版 prompt 含 "robot"，千问画成了机器人而非平铺材质；已去掉该词并重跑，
+当前入库为修正后的平铺钢板。
+
+天花板顶板运行时贴图（`map_builder._ceiling_material()` 读取）：
+
+| 文件 | 体积 | SHA256（前 16） |
+|---|---:|---|
+| `preview/assets/textures/ceiling-deck.png` | 333 KB | `7017de8ac064074c` |
+| `preview/assets/textures/ceiling-deck-normal.png` | 173 KB | `4125a7ad534dc297` |
+| `preview/assets/textures/ceiling-deck-rough.png` | 66 KB | `bd8016150372ddcd` |
+
+### 4. 三态声明（`docs/ASSET_GOVERNANCE.md` §1）
+
+- **入库**：是。模型/贴图/脚本在 `3d/assets/**`，运行时副本在 `3d/preview/assets/**`。
+- **发布**：否。2.5D 发布白名单 `tools/deploy-config.cjs#ENTRIES` 只含 `index.html` /
+  `js` / `audio` / `assets` 等，不含 `3d/`；本轮是 3D 预演本地资产。
+- **留盘**：是。原始千问图在 `3d/assets/renders/qwen-art-direction/`（忽略，不随仓）；
+  重跑见 `gen-qwen-art-direction.ps1`。
+
+### 5. 接线与验收
+
+- `scene_extras.gd`：`_build_doors()` 优先实例化 `door_frame.glb` + 左右门扇；
+  `_apply_door_state()` 的 leaf 类型由 `MeshInstance3D` 放宽到 `Node3D`，开合/碰撞/
+  扫描/音效契约不变；缺 glb 回退旧 BoxMesh。
+- `scene_extras.gd::_robot()`：优先加载 `secbot.glb`，`secbot_view.gd` 切 `idle/walk`；
+  缺 glb 回退旧盒子版。`secbot_view` 只读父节点位移，不碰 sim。
+- `map_builder.gd`：顶板改用 `ceiling-deck` 材质；`_add_ceiling_kit()` 按 `room.rect`
+  铺主梁（3m 档）、次梁（6m 档）、2 条管线、1 条线槽；全部进 `_ceil_nodes`，
+  `set_ceiling_visible()` 仍能整层隐藏；灯带仍随 `set_power` 变暗。
+- `godot --headless --path 3d/preview --import`：新 glb/贴图的 `.import` 已生成；
+  normal 贴图 `.import` 已设 `compress/normal_map=1`（仅本轮新资产）。
+- `scene_extras.gd` / `map_builder.gd` / `secbot_view.gd` 均通过 Godot `--check-only`。
+- `npm run baseline:check`：**BASELINE OK 443 个文件**（2.5D 只读基线未动）。
+- **全项目编译**：`--crewshot` / `--doorshot` 已实际跑通，人物与门的新 glb 在真实
+  `map_v2.json` 场景中加载；编译期剩余的类型推断问题已在 `main.gd` 同批修正。
+- **分辨率统一**：本轮所有运行时贴图（人物 / 门 / 门板 / 保安机器人 / 天花板）统一 **768×768**；
+  千问原始 512 方图仅在 `3d/assets/renders/` 作为源图保留。
+
+### 6. 验收截图（`3d/preview/screenshots/`）
+
+| 截图 | 内容 |
+|---|---|
+| `artcheck-door.png` / `artcheck-secbot.png` / `artcheck-ceiling.png` | 独立打光下的三件资产 |
+| `artcheck-room-door.png` | 真实 bridge 舱：3D 滑门 + 2.5D 门板（v1 截图，历史） |
+| `artcheck-room-ceiling.png` | 真实 bridge 舱：工业顶板 + 梁 + 灯带 |
+| `artcheck-room-secbot.png` | 真实 armory 舱：双足保安机器人 + 工业天花板 |
+| `door-closed.png` / `door-open.png` | v2 门：关闭两扇合拢 / 打开让出整段门洞（真实 bridge） |
+| `crew-lowpoly.png` | 第三版人物 in-game 同框（2.5D billboard / 3D / 换色） |
+| `crew-face-check.png` / `crew-body-check.png` / `crew-full-check.png` | 第三版人物近景验收 |

@@ -1,5 +1,98 @@
 # 3D 修改记录
 
+## 2026-11-11 · 玩家能力链路机制对齐（用户现场：按键合法但能力一点都没有）
+
+- **根因**：3D 把 2.5D 的「无条件动作键」做成了「靠近才生成的上下文交互项」；
+  `_update_interaction()` 在 `offers` 为空时直接 return，**专用键被静默吞掉**；
+  管道 / 出刀 / 刀模型还各自读开始页 `role` 字符串，与 `sim.me().alien` 双源。
+  旧自测只断言「offer 里有这个 id / 按钮合法」，从不验证按键下去 sim 状态是否写回 —— 验收盲区。
+- **能力恒入口**：`_update_interaction()` 每帧更新全部键沿；专用键按下时若无对应 offer，
+  走 `_fallback_action()` 直达模拟层，由 `sim.can_act()` 返回精确失败原因（不再静默）。
+  新增 `sim.can_act(kind, ctx)` 只读判定单一真源（@src 见函数注释），玩家出刀/开枪与 AI 出刀都调它。
+- **双源清零**：管道 offer、`_use_pipe()`、`_player_knife()`、`_tick_knife_view()` 全部改读
+  `sim.me().alien`；`--b4test` / `--interacttest` 夹具同步改为按真源设置。
+- **输入层**：`project.godot` 声明 8 个 InputMap action，代码只读 action（`ACTION_BINDINGS`）；
+  ESC 收口成 `_close_topmost()` 单一出口，永不退出/重开；新增 `--inputlog` 埋点；
+  轮盘改屏幕中心环形 8 扇区 + 常显提示（旧版竖排且一半按钮在屏外）。
+- **DEV 透视**：新增 `EspCanvas`（F2，方框+名牌+穿墙可见+>25m 不画+异形红/人类青/濒死橙/尸体灰），
+  右侧文字总览改 F3 默认隐藏；DEV/旁观时会议投票行显示 `[异形]/[人类]`、尸体卡显示凶手。
+- **卡墙根因 2**：`player.gd` 接同一份 `nav`，`safe_margin=0.04` 补贴墙滑移；
+  物理把人推进网格不可走区时钳回，想走却 0.3s 没动时走 `nav.nearest_free`。
+- **验收**：新增 `--abilitytest`（真实 InputEvent 逐键验证拖拽/放下/出刀/管道/破坏/空场景反馈/
+  InputMap/卡墙兜底），8 项全绿；`npm run check` 7/0、四项只读门禁全 PASS；
+  16 项无头自测除 `--meetuitest`（需真实窗口，窗口下 23/0）外全 0 失败。
+- **裁决**：不新增 `friendly_fire_*` 配置（2.5D 无此规则，红线 11/14）；
+  PARITY_DECISIONS §3 的 AI 决策细项与复盘帧受上游常量未导出阻塞，逐条登记在 §5。
+
+## 2026-11-11 · 人物重做（第三版）+ 门 v2 + 贴图统一 768²
+
+- **人物**：用户否决第二版（1,740 tris，球体贴照片脸，近看“伪人”+方块拼接）后重做
+  `char_crew_lowpoly`：躯干/四肢改为截面放样，肩/肘/膝/髋用球体过渡；头是 20 段放样头型，
+  发盖/刘海为独立几何；8,544 tris / 6 材质 / 17 骨 / idle+walk+knife+down。
+  身体一张 **768² UV 图集**（分区唯一真源 `3d/tools/crew_atlas.py`），脸与头发各 768²；
+  `crew_view._tint_model()` 改为只给 `crew_suit` 乘席位色，不再替换贴图或改 `uv1_scale`。
+  脚本：`build-crew-rigged-v2.py` + `build-crew-textures-v2.py` + `gen-qwen-crew-face-v2.ps1`
+  （千问本地 img2img，参考图正面头，seed 20261160）。
+- **门**：`build-door-v2.py` 重建门框/门扇：贯穿墙厚的门洞内衬、双面止口、门楣实体、
+  顶部滑轨/端挡、门槛导向槽；门扇为核心板 + 双面凹槽 2.5D 门板 + 周边压框 + 吊挂滚轮。
+  关闭合拢、打开让出整段门洞（`--doorshot` 验证），碰撞/扫描/音效契约不变。
+- **分辨率**：人物、门框、门板、保安机器人、天花板运行时贴图统一 **768×768**；
+  门板派生图改为 768² 画布中央 384×768；千问 512 原图只作源图保留。
+- **验证**：`3d:assets` PASS（0 错误 / 3 既有提醒，合计 700,818 tris）；
+  `3d:import:check` 0 差异；`baseline:check` OK 443；`audit:parity:strict` 全 0；
+  `--crewshot` / `--doorshot` 实跑；近景 `crew-face-check.png` / `crew-body-check.png` /
+  `crew-full-check.png`、门 `door-closed.png` / `door-open.png` 已更新。
+- **编译修正**：`main.gd` 8 处 `:=` 改为显式类型（`d/r/q/b/chk` 为 `Dictionary`，`dev/brk/bd`
+  去掉推断），不改变任何玩法语义；`--crewshot`/`--doorshot` 通过。
+- **备注**：根目录 `返航录3D_演示_68s.mp4` 仍是重做前的实机录制；新一轮演示片待重录。
+  旧 512² 平铺贴图/法线仍在磁盘上作历史对照，当前 glb 与运行时只引用 768² 图集。
+
+## 2026-11-11 · 船员贴图上身（脸 + 身体法线）
+
+- 重建 `char_crew_lowpoly`：1,740 tris / 5 材质 / 10 贴图 / 3.5 MB；17 形变骨 + idle/walk/knife/down 不变。
+- 头部：去掉眼球/鼻子/耳朵方块；头球正面做等距圆柱脸 UV；千问正面中性脸（seed 20261141）+ 短发材质（seed 20261150），发际线 V≈0.70。
+- 身体：四槽改为 512² 千问贴图 + 亮度派生法线（`3d/assets/textures/crew/*_normal.png`，glb 内嵌）；`crew_view` 继续覆盖运行时 albedo 并按席位 tint，但保留 glb 法线；`crew_face` 不参与 tint。
+- 脚本：`3d/tools/build-crew-textures.py`、`gen-qwen-crew-face.ps1`；`--crewshot`、`crew-face-check.png`、`crew-body-check.png` 已验收。
+- 欠账：身体完整 UV 展开 + 2048² 单图集仍未做；当前是头部脸 UV + 身体 512 平铺贴图。
+
+## 2026-11-11 · 3D 演示片（68 秒 · 实机录制）
+
+- 新增 `3d/preview/scripts/demo_reel.gd` + `demo_director.gd`：加载真实 `main.tscn`，跳过开局公开讨论，按时间线接管玩家相机；HUD/自动门/保安巡逻/灯光仍由真实 sim 驱动。
+- `main.gd::_has_screenshot_arg` 增加 `--reel`：复用截图模式（不捕获鼠标、玩家输入锁定），避免录制时抢系统光标。
+- 演示片停掉 AI 决策（`sim.ai_enabled=false`），只避免随机凶杀/夜会挡镜头；正式对局 AI 不受影响。
+- 录制：Godot Movie Maker 1280×720@30fps，2054 帧 / 68.47s；ffmpeg 转 H.264/AAC，游戏原声 +8dB，淡入淡出。
+- 产物：项目根目录 `返航录3D_演示_68s.mp4`（约 54 MB）。分镜：桥厅 → 工业天花板 → 自动门/走廊 → 双足保安机器人 → HUD/任务 → 收尾。
+
+## 2026-11-11 · 机制同步批 3（严格函数映射：2.5D 为唯一规则真源）
+
+- **映射清零**：`spec/gameplay-parity.json` 385 条全部落位（映射 199 / 自动 69 / 未映射 **0**），`audit:parity:strict` 预算收紧到全 0 并 PASS。裁决记录见 `docs/agent/PARITY_DECISIONS.md`；建议器 `3d/tools/suggest-parity-map.cjs` 与补丁器 `3d/tools/apply-parity-map.cjs` 入库（补丁器校验目标函数必须真实存在）。
+- **门是模拟层状态**（js/game.js:448/484/495 逐行）：`sim_state.door_tick / door_blocked_segment / los_now`。此前关着的门不挡人、不挡视线/枪线；`scene_extras.door_update` 的第二套开合计算删除，改为 `sync_doors` 单向读 sim（key=舱室|边|坐标 对齐）。POWERTEST 门段改驱动 `sim.door_tick`：未扫满拦人+挡 LOS ✓ / 扫满放行+LOS 通 ✓ / 离开重新上锁 ✓。
+- **听觉链**（js/game.js:1827 aiHear + 13 处调用点逐行）：新增 `sim_state.hear()`（conf=距离衰减×隔墙 0.72，最低 0.12；EV_W 权重×conf 进 sus）。接通：door 7 / power 30 / pipe 12 / sabotage 20 / drag 8（每 1.6s）/ knife 14 / scream 16 / alarm 22 / detain 26/18 / robot 18 / robot_down 18 / shot 20（在射手位置）。此前 3D 听见出刀/拉闸/钻管道不留任何证据。
+- **LOS 收口**：shoot / knife(玩家 stab) / ai_can_see / mind MISID 池 / bots 视野判定全部改走 `los_now`（墙+掩体+门）；bots 的 secbotWouldSee 保持 los_walls（2.5D 同源）。
+- **死亡不是出局**（js/game.js:2371 aiGhost 逐行）：`_ghost_tick`——异形幽灵全局一次正统破坏（`sabotage_room(ghost)`：故障/警报/统计照常、不写目击、仍计 sabUsed）+2.4 游荡；人类幽灵 6.5 额度内继续做任务（站桩 dur×1.6），做完 2.4 巡舱。幽灵寻路失败带 1.2s 冷却（2.5D walkTo 同规则）。
+- **报告链按真源重写**（js/game.js:2524/2591/2621/2144 逐行）：`scan_bodies`（0.5s 扫 5.4 格→observeBody→搜查/翻尸→canReportBody→延迟拉铃）+ `alien_report_worth`（MISLEAD 效用表全读 rules.json + _stallBias）+ `ai_wants_loot`（弹/医疗包/申请单三动机）。**删除此前 3D 自造的 35%/20% 报告概率**；人类 AI 也接同一条链（此前完全没有）。
+- **拆保安的围攻前置**（js/game.js:8365 逐行）：`secbot_raid_ok`（≥2 名 8 格内队友 + 共同目标 ≤7 格 + 0.45 掷骰）接入 ai_alien 机器人候选（保安过围攻门、医疗机照常、td>5 才候选、<1.8 用刀）。
+- **救队友**（js/game.js:3590 逐行）：`alienMateRevive` 进 _decide。
+- **移动健壮性**（js/game.js:828 逐行）：门挡住就停步、围墙兜底、0.7s 卡死从最近可走点重寻路（此前只有 ai_human 有 _stuck，被门/拐角卡死的 AI 会原地踏步）。
+- **杂项对齐**：dead-guard 识别入审阅器（G.noReport 全仓无写入=死代码，不迁）；`_cast_ai_votes` 受 ai_enabled 门禁；移除自造 `_log("door")`（2.5D 无此事件），events.schema 补 `invariant`，`3d:events:check` OK；b4/b6 会议测试改为显式投票构造（ai_enabled=false 语义收紧后的确定性断言）。
+- **验证**：B4 8/0、SIM 26/0、NAV 28/0、BOT 7/0、ROLE 4/0、B6 6/0、SPEECH 17/0、MEETING ok、POWERTEST 全项、INTERACT 全项；`agent:contract` PASS、`baseline:check` OK 443、`audit:parity:strict` PASS（全 0）、`3d:events:check` OK。批量模拟 2 局冒烟：会议 11.5 场/局（2.5D 9.64）、刀 5.0/局、超时 1/2 —— 节奏显著靠近 2.5D，等待千局分片基线复核。
+
+## 2026-11-11 · 美术方向首批落地（门 / 双足保安机器人 / 工业天花板）
+
+- **门**：新增 `door_frame.glb`（496 tris / 37 KB）、`door_leaf_l/r.glb`（各 44 tris / 约 706 KB）。门板直接采样 2.5D `door-panel.png`，派生 albedo/normal/rough/emissive（512×1024）；`scene_extras._build_doors()` 优先实例化，缺 glb 回退旧 BoxMesh；开合/碰撞/扫描/音效契约不变。
+- **保安机器人**：新增 `secbot.glb`（3,776 tris / 542 KB / 0.592 × 0.45 × 1.25 m / 5 材质 / idle+walk）。按 2.5D `secbot.png` 做双足人形；`scene_extras._robot()` 优先加载，`secbot_view.gd` 按真实位移切 idle/walk；缺 glb 回退旧盒子。
+- **工业天花板**：新增 `ceiling_beam/pipe/tray.glb`（36/52/36 tris），连续长件沿房间长轴缩放；bridge 42×16 约 572 tris/舱（≤1.8k）。`map_builder` 顶板改用 `ceiling-deck` 材质（512² + normal + rough），新增 `_add_ceiling_kit()`；`set_ceiling_visible()` / `set_power` 不变。
+- **材质**：本地千问生成 6 张平铺材质（seeds 20261132–20261137）；`secbot-paint` 首版因 prompt 含 “robot” 出成机器人，已去词重跑。Qwen Research License 非商用。
+- **文档**：`ART_DIRECTION.md` §10 落地清单；`ASSETS.md` 新增「2026-11-11 · 美术方向四件套」；manifest 新增 7 项 status=done。
+- **验证**：`3d:assets` 0 错误 / 3 既有提醒；`3d:import:check` 0 差异；`baseline:check` OK 443；三份脚本 `--check-only` 通过；截图 `artcheck-*.png` 与真实舱 `artcheck-room-*.png`。
+- **后续**：并行代理收尾后全项目编译已恢复；演示片 `返航录3D_演示_68s.mp4` 已实机录制。
+
+## 2026-11-11 · 美术方向四条裁定（专属文档）
+
+- 新增 `3d/ART_DIRECTION.md`：门 = **3D 滑门结构 + 2.5D 门板材质**；天花板 = **工业材质**；保安机器人 = **双足**（按 2.5D `secbot.png` 人形，旧盒子只是包络）；人物 = **风格化写实**。
+- `ART_HANDOFF.md` 同步：§13 由“待拍板”改为“已拍板”；§3 阅读清单加入新文档；§8 补保安机器人 2.5D 造型真源；§9 P0-A/B/C 锁定裁定，P0-B 废止“履带或双足”“胸前编号牌”旧表述。
+- 只改文档：未动 `3d/preview/assets/**`、`3d/assets/**`、`js/`、`assets/`、`audio/`、`tools/`、`index.html`；未跑资产构建。
+
 ## 2026-11-11 · 机制同步批 2（审阅驱动）
 
 - **补齐停摆机器人**：2.5D `sabotageBot()` 在 3D 没有入口。新增 `sim.sabotage_bot()` + B 键交互项「停摆 · 保安/医疗」：活着的异形、1.8 格、每夜一次、不耗刀弹；`sabUsed` 记账、目击 `saw_bot`、18 格噪声、保安记案。

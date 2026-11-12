@@ -1,0 +1,33 @@
+{
+  "source": "3d/assets/renders/qwen-art-direction/ (768 if present, else 512 upscaled)",
+  "license": "Qwen Research License - NON-COMMERCIAL; local generation only",
+  "size": 768,
+  "derived": "crop 78% center, resize 768, grade, normal/rough from luminance",
+  "runtime_textures": [
+    "ceiling-deck.png",
+    "ceiling-deck-normal.png",
+    "ceiling-deck-rough.png"
+  ],
+  "build_textures": [
+    "ceiling-beam_albedo.jpg",
+    "ceiling-beam_normal.jpg",
+    "ceiling-beam_rough.jpg",
+    "ceiling-deck_albedo.jpg",
+    "ceiling-pipe_albedo.jpg",
+    "ceiling-pipe_normal.jpg",
+    "ceiling-pipe_rough.jpg",
+    "door",
+    "door_frame_albedo.jpg",
+    "door_frame_normal.jpg",
+    "manifest_derived.json",
+    "secbot-accent_albedo.jpg",
+    "secbot-accent_normal.jpg",
+    "secbot-accent_rough.jpg",
+    "secbot-metal_albedo.jpg",
+    "secbot-metal_normal.jpg",
+    "secbot-metal_rough.jpg",
+    "secbot-paint_albedo.jpg",
+    "secbot-paint_normal.jpg",
+    "secbot-paint_rough.jpg"
+  ]
+}
