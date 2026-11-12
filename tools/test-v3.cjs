@@ -206,6 +206,8 @@ function section(t) { console.log('\n== ' + t); }
   ok(S.b && Math.abs(S.b[0] - 28.2) < 0.01 && Math.abs(S.b[1] - 44.0) < 0.01, '尸体留在死亡点 (28.2,44.0)');
   ok(!S.st.alive && S.st.ghost && S.st.cause === 'knife', '死亡 → 幽灵态，死因刀伤');
   ok(S.dur && S.dur.fails.length === 0, '死亡后不变量仍全过');
+  const MGP = await T(() => ({ search: SKV3._t.mgAllowed('search'), task: SKV3._t.mgAllowed('task') }));
+  ok(MGP.search === false && MGP.task === true, '搜尸不弹小游戏；维修任务仍可弹');
   await page.keyboard.press('s');
   await page.waitForTimeout(1700);
   const card = await T(() => {
@@ -963,6 +965,8 @@ function section(t) { console.log('\n== ' + t); }
   });
   ok(QD.room === 'bridge' && CL.do === null && CL.qual === 1 && CL.pending === 0,
     '中央会议室圆桌：2.1 格外交互即领（无站桩无小游戏，判定 2.3 格）');
+  /* 领取后 HUD 在下一帧刷新；headless 下同一 evaluate 内读会偶发读到旧值。 */
+  await page.waitForTimeout(80);
   const Q5 = await T(() => {
     const g = SKV3._t.G();
     return { qual: g.me.qual, pending: g.me.qualPending,
@@ -2464,8 +2468,30 @@ function section(t) { console.log('\n== ' + t); }
 
   section('走廊灯 · 配电室拉闸');
   await fresh(false);
-  const L0 = await T(() => ({ l: SKV3._t.lights(), lamps: SKV3._t.lamps() }));
-  ok(L0.lamps.length === 11 && L0.lamps.every(n => n === 2), '11 条走廊各 2 盏灯');
+  const L0 = await T(() => {
+    /* 2026-11-12：旧实现每条走廊固定 2 盏，长走廊（c6 38 格 / c11 23 格）中段与拐角
+       超出 2.35 格光池半径 → 一片黑。改成按弧长均布 + 拐点强制补灯后，
+       验收口径也换成真正的不变量：**走廊上任意点到最近灯 ≤ 光池半径**。 */
+    const M = window.SKMapData, S = window.SKT2Space;
+    const counts = []; let total = 0, worst = 0, worstAt = '';
+    for (const c of M.corridors) {
+      const lamps = S.corridorLampPos(c);
+      counts.push(lamps.length); total += lamps.length;
+      for (let i = 0; i < c.pts.length - 1; i++) {
+        const a = c.pts[i], b = c.pts[i + 1];
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (let d = 0; d <= L; d += 0.25) {
+          const x = a[0] + (b[0] - a[0]) * d / L, y = a[1] + (b[1] - a[1]) * d / L;
+          let best = 1e9;
+          for (const p of lamps) best = Math.min(best, Math.hypot(p[0] - x, p[1] - y));
+          if (best > worst) { worst = best; worstAt = (c.id || '?') + '@' + d.toFixed(1); }
+        }
+      }
+    }
+    return { l: SKV3._t.lights(), counts, total, worst: +worst.toFixed(2), worstAt };
+  });
+  ok(L0.counts.length === 11 && L0.counts.every(n => n >= 2) && L0.worst <= 2.35,
+    '11 条走廊：拐角与长段都有灯（灯 ' + L0.total + ' 盏，离最近灯最大 ' + L0.worst + ' 格 @' + L0.worstAt + '）');
   ok(L0.l.state === 0 && L0.l.corr === true && L0.l.lit.bridge && !L0.l.lit.engine && !L0.l.lit.power,
     '常态：走廊灯亮，引擎/配电暗');
   const L1 = await T(() => {
@@ -6846,14 +6872,15 @@ function section(t) { console.log('\n== ' + t); }
   await page.waitForFunction(() => {
     const d = SKV3._t.sfx();
     const ks = Object.keys(d);
-    return ks.length === 12 && ks.every(k => d[k].every(a => a.ready >= 1 || a.err));
+    return ks.length === 13 && ks.every(k => d[k].every(a => a.ready >= 1 || a.err));
   }, null, { timeout: 8000 }).catch(() => {});
   const AU = await T(() => SKV3._t.sfx());
   const auKeys = Object.keys(AU);
   const auBad = auKeys.flatMap(k => AU[k].filter(a => a.ready < 1 || a.err)
     .map(a => k + ':' + a.src + ' ready=' + a.ready + ' err=' + a.err));
-  ok(auKeys.length === 12 && auKeys.every(k => AU[k].length >= 2),
-    '12 类采样全部建立音频池（枪 / 刀 / 命中 / 脚步 / 交互 / 维修 / 结算…）');
+  /* 2026-11-12：SND 表接线 click（设置滑条），池 12 → 13 类 */
+  ok(auKeys.length === 13 && auKeys.every(k => AU[k].length >= 2),
+    '13 类采样全部建立音频池（枪 / 刀 / 命中 / 脚步 / 交互 / 点击 / 维修 / 结算…）');
   const gunSrc = (AU.gun || []).map(a => a.src);
   const knifeSrc = (AU.knife || []).map(a => a.src);
   ok(gunSrc.length >= 2 && gunSrc.every(x => x === 'audio/sfx-gun.ogg') &&

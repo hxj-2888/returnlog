@@ -6,12 +6,19 @@
 #   - 凭据来自 secrets.CF_API_TOKEN / secrets.CF_ACCOUNT_ID
 #   - 变量或凭据缺失时只跑门禁、跳过部署，流水线保持绿而不是直接失败
 #   - 部署一律走 tools/deploy-pages.cjs 白名单暂存，禁止整仓直推
+# 2026-11-12 发布资产解耦（仓库只放核心代码）：
+#   - vars.PUBLISH_ASSETS_URL 指向 assets.tar.gz（Release 附件 / R2 / 私有资产仓）
+#   - secrets.PUBLISH_ASSETS_TOKEN 可选，用于读取私有附件
+#   - 未配置 URL 时沿用仓库内 assets/ audio/；两个 job 各自 checkout，需各自注入
+#   - 资产不完整时跳过部署并告警，绝不把缺图版本推上线（防静默事故）
 # 触发：push 到 main / 手动 workflow_dispatch
 # =============================================================
 name: deploy
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -26,11 +33,20 @@ jobs:
   gate:
     name: Syntax · schema · staging gate
     runs-on: ubuntu-latest
+    outputs:
+      assets_ready: ${{ steps.assets.outputs.ready }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Restore publish assets
+        if: vars.PUBLISH_ASSETS_URL != ''
+        env:
+          ASSETS_URL: ${{ vars.PUBLISH_ASSETS_URL }}
+          PUBLISH_ASSETS_TOKEN: ${{ secrets.PUBLISH_ASSETS_TOKEN }}
+        run: node tools/publish-assets.cjs fetch --from "$ASSETS_URL"
 
       - name: Syntax check (js + tools)
         run: |
@@ -50,9 +66,46 @@ jobs:
           node tools/deploy-pages.cjs --dry-run | tee /tmp/stage.txt
           grep -q '^\[deploy\] 暂存 ' /tmp/stage.txt
 
+      - name: Verify publish assets
+        id: assets
+        run: node tools/publish-assets.cjs verify --github-output
+
+  behavior-gate:
+    name: Behavior · T3 · guard (Windows Edge)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore publish assets
+        if: vars.PUBLISH_ASSETS_URL != ''
+        env:
+          ASSETS_URL: ${{ vars.PUBLISH_ASSETS_URL }}
+          PUBLISH_ASSETS_TOKEN: ${{ secrets.PUBLISH_ASSETS_TOKEN }}
+        run: node tools/publish-assets.cjs fetch --from $env:ASSETS_URL
+
+      - name: Install test dependency
+        run: npm install --no-audit --no-fund
+
+      - name: Behavior gate (test-v3 + flaky allowlist)
+        run: npm run ci:gate
+
+      - name: T3 acceptance check
+        run: npm run t3:check
+
+      - name: Redline contract
+        run: npm run agent:contract
+
+      - name: Publish guard
+        run: npm run guard
+
   deploy:
     name: Cloudflare Pages
-    needs: gate
+    needs: [gate, behavior-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     env:
       CF_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
@@ -61,6 +114,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Restore publish assets
+        if: vars.PUBLISH_ASSETS_URL != ''
+        env:
+          ASSETS_URL: ${{ vars.PUBLISH_ASSETS_URL }}
+          PUBLISH_ASSETS_TOKEN: ${{ secrets.PUBLISH_ASSETS_TOKEN }}
+        run: node tools/publish-assets.cjs fetch --from "$ASSETS_URL"
 
       - name: Check deploy config
         id: cfg
@@ -71,6 +131,9 @@ jobs:
           if [ -z "$CF_PROJECT" ] || [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "::notice::未配置 vars.CF_PAGES_PROJECT 或 CF secrets，跳过 Pages 部署"
+          elif [ "${{ needs.gate.outputs.assets_ready }}" != "true" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::发布资产不完整（贴图/音频缺失），跳过 Pages 部署，避免上线缺图版本。请配置 vars.PUBLISH_ASSETS_URL 或恢复仓库内 assets/ audio/"
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
@@ -84,7 +147,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: node tools/deploy-pages.cjs
+        run: |
+          node tools/publish-assets.cjs verify --strict
+          node tools/deploy-pages.cjs
 
       - name: Smoke test
         if: steps.cfg.outputs.ready == 'true'

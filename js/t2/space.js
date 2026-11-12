@@ -51,22 +51,40 @@
   }
 
   /* ---- 地图几何（纯入参计算） ---- */
-  /* 每条走廊两盏顶灯，配电室拉闸后整条走廊全熄 */
+  /* 走廊顶灯位置：按弧长均布 + **每个内拐点强制一盏**。
+     2026-11-12 现场：旧实现对每条走廊固定只放 2 盏（28% / 72%），
+     - c6 长 38 格只有一个拐角 → 两灯相距 16.7 格；
+     - c11 长 23 格有两个拐角 → 两灯相距 10.1 格；
+     而灯光光池半径只有 2.35 格（drawCorridorLights 的 radialGradient），
+     所以长走廊中段和**拐角**必然出现死黑块。灯距上限取 4.2 格
+     （≈ 2×2.35 再留 0.5 格重叠），拐点单独补灯，保证走廊上任意点都在光池里。
+     配电室拉闸后整条走廊全熄，仍由 G.corrLit 控制。 */
   function corridorLampPos(c){
     let total=0; const segs=[];
     for(let i=0;i<c.pts.length-1;i++){
       const a=c.pts[i],b=c.pts[i+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);
       segs.push({a,b,L,s:total,ang:Math.atan2(b[1]-a[1],b[0]-a[0])}); total+=L;
     }
-    const at=(f)=>{
-      const d=total*f;
+    const at=(d)=>{
       for(const s of segs) if(d<=s.s+s.L||s===segs[segs.length-1]){
         const k=s.L?Math.min(1,Math.max(0,(d-s.s)/s.L)):0;
         return [s.a[0]+(s.b[0]-s.a[0])*k,s.a[1]+(s.b[1]-s.a[1])*k,s.ang];
       }
       return [c.pts[0][0],c.pts[0][1],0];
     };
-    return [at(0.28),at(0.72)];
+    const out=[];
+    const push=(p)=>{
+      /* 同一位置不重复放灯（拐角灯与均布灯撞车时保留拐角那一盏） */
+      for(const q of out) if(Math.hypot(q[0]-p[0],q[1]-p[1])<0.45) return;
+      out.push(p);
+    };
+    /* ① 拐角优先：折线内顶点各一盏，朝向取拐出去那一段 */
+    for(let i=1;i<c.pts.length-1;i++) push(at(segs[i].s));
+    /* ② 再按 4.2 格上限均布补灯（短走廊至少 2 盏，保持原来的观感） */
+    const STEP=4.2;
+    const n=Math.max(2,Math.ceil(total/STEP));
+    for(let k=0;k<n;k++) push(at(total*(k+0.5)/n));
+    return out;
   }
   function corrJoinsRoom(r,c){return !!(r&&c&&(c.a===r.id||c.b===r.id));}
 

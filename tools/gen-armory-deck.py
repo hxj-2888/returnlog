@@ -3,12 +3,15 @@
 # 这里走与 gen-hull.py / gen-pbr-textures.py 同类的程序化顶视无缝甲板：
 #   钢底板 + 防滑菱形 tread + 螺栓网格 + 两条平行橡胶通道 + 黄色边线
 #   + 同向步枪 stencil + 弹药箱脚印。无六边形、无透视收敛、方向保持可平铺。
-# 输出覆盖 3d/preview/assets/textures/qwen/armory/floor.png（floor_spec 单一真源指向它）。
+# 输出覆盖素材层 referenced/2.5d-preview-textures/qwen/armory/floor.png
+# （2026-11-12 起 2.5D 仓不再保留 preview 过期副本；同步到 3D 运行时由部署/同步步骤负责）。
 import os
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures', 'qwen', 'armory', 'floor.png')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+OUT = os.path.join(ASSET_LAYER, 'referenced', '2.5d-preview-textures', 'qwen', 'armory', 'floor.png')
 S = 1536
 
 STEEL = (104, 110, 112)

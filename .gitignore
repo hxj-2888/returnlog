@@ -81,5 +81,5 @@ tools/style-align-report.json
 tools/tex-detail-fusion-report.json
 
 # ---- 2026-11-11 治理规范：L2 生成过程配图（新增不入库）----
-# 主仓历史已入库的 88 个 docs/qwen21/ 文件不受影响，待 §9 保留期评估；两仓口径见 docs/ASSET_GOVERNANCE.md §7-C
+# 2026-11-12 起两仓 docs/qwen21/ 全部移入素材层 returnlog_assets/qwen21/；此规则仅防重新落仓
 docs/qwen21/

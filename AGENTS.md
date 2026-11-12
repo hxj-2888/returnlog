@@ -1,23 +1,25 @@
 # AGENTS.md — 新返航录（试玩版 · 返航录V3）
 
 > **架构节点**（2026-11-04 · 按根 `ARCHITECTURE.md` 贴标）：本文件属 **文档栏**（跨会话团队契约），不隶属 T1/T2/T3；`flag: N`（红线与流程）/ `F`（读数）。
-> **本文件服从 `ARCHITECTURE.md`，不自称真源**。下文「权威口径（2026-11-04 校对）」按 **F 档现行事实快照** 解读：`tools/mc-report.md` 是**第 3 层验收台账**，不是数值真源；数值真源在 `js/ai/sanity.js` 与 `js/data/map.js`。
-> 现行架构为**三层**：T1 工程大层（AI 拟人化 ‖ 空间与资源 ‖ 玩家决策）→ T2 机制与执行层（原 L2+L3 合并同类）→ T3 验收层；层外参考层 R（`docs/_reference/`，已入库：2026-11-04 用户裁定）与预增层 P（`docs/_planned/`）；体验层移出架构图，见 `docs/00-先导-游戏体验.md`。
-> §三文件地图的「层」列将在档 1 重构时换为 `T1/T2/T3 + domain`；**§一红线、§二命令、§五改动流程原文保留**，历史踩坑记录保留为附录。
+> **本文件服从 `ARCHITECTURE.md`，不自称真源**。下文「权威口径（2026-11-04 校对）」按 **F 档现行事实快照** 解读：读数台账见 `CHANGELOG.md` 最新批次；`tools/mc-report.md` 已废弃；数值真源在 `js/ai/sanity.js` 与 `js/data/map.js`。
+> 现行架构为**三层**：T1 工程大层（AI 拟人化 ‖ 空间与资源 ‖ 玩家决策）→ T2 机制与执行层（原 L2+L3 合并同类）→ T3 验收层；层外参考层 R 与预增层 P 已于 2026-11-12 收口归档（不占层号、不进依赖链），待办只记 `CHANGELOG.md`；体验层移出架构图，见 `docs/00-先导-游戏体验.md`。
+> §三文件地图的「层」列将在档 1 重构时换为 `T1/T2/T3 + domain`；**§一红线原文保留**；命令与改动流程见 `docs/workflow.md`，历史踩坑记录保留为附录。
 
 > **当前版本**：返航录V3.7（2026-11-11）· `package.json` 3.7.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
-> **权威口径（2026-11-06 校对）**：数值基线唯一真源是 `tools/mc-report.md`（生成 2026-11-06T11:29Z ·
-> seed 20261030 · 1000 局 · 人类 **74.8% / 异形 25.2% / 超时 0**，Wilson 72.02~77.39）。§六 是它的摘录；
-> **2026-11-08 语言批（完整证言 + 语言对称）只改台词，未改判定**；门禁已到 899/0，平衡基线仍待单独重跑。
-> §六 以后的逐批数字是**历史读数**，不是现行基线。门禁现值 **838 通过 / 0 失败**（2026-11-06 实跑）。
-> ⚠ 2026-11-07 目击认错（`MISID.chance=0.2`）把基线从 78.8% 拉到 **74.8%**（−4.0pp，同批 A/B 实测）。
-> 之前从 74.3% 跳到 78.8% 里只有 **+1.1pp** 是机制（1000 局同 seed A/B），
-> 其余是「关掉零概率随机调用」造成的**随机路径位移** —— 跨批只比同批 A/B 两臂，不要直接相减。
+> **权威口径（2026-11-12 校正 · T3 验收层规范落地）**：
+> **数值 / 语料 / 地图的唯一真源在 T2 模块**（`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；
+> `CHANGELOG.md` 是 **T3 读数载体**，只记「本批改了什么 → 读数怎么变」，不是真源。
+> `tools/mc-report.md` **已废弃**（磁盘上不存在；历史引用只作对照，不得当作现行基线）。
+> **现行基线 / 门禁现值只在 `CHANGELOG.md` 最新批次的「读数变化」段声明一次**，须带实跑时间、
+> seed、局数与 `X 通过 / Y 失败`；本文件与其余文档一律写指针，不复制数值。
+> 各批 74.8 / 78.8 / 49.9 / 57.6 / 59.5 等胜率、838 / 899 / 914 / 918 等门禁数均为**历史读数**，
+> 只作对照，禁止当现行基线或跨批直接相减；跨批只比同批 A/B 两臂。
+> T3 细则 `docs/acceptance.md`；体检 `npm run t3:check`；红线契约 `npm run agent:contract`。
 > 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
-> **接手顺序（2026-11-11 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `docs/ASSET_LAYERS.md` → 按任务加载 `docs/agent/` 分册。
+> **接手顺序（2026-11-12 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `docs/acceptance.md`（改台账 / 读数 / 导出时）→ `docs/workflow.md`（跑命令 / 提交时）→ `CHANGELOG.md`。
 ## 一、红线（违反即回退）
 
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，
@@ -70,7 +72,7 @@
     - 找不到但**确实需要** → 先判断它是不是真·维度产物（A* 网格、第一人称相机、碰撞、LOD 等）；
       是 → 写进 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
       不是 → **先改 2.5D 真源**，再导出/移植，不许只加在 3D。
-    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/MIGRATION.md` §10。
+    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/PORTING_PROTOCOL.md` §6。
 12. **素材优先取自公开网络与开源社区，不自己单独造。**（2026-11-09 用户裁定，四项目统一）
     任何美术 / 音频 / 模型素材，先检索公开素材站与开源社区（Kenney / OpenGameArt / Poly Haven /
     itch.io 免费包 / 公开 wiki 与 ArtStation 参照等），许可合适的直接用；没有合适的才本地生成，
@@ -81,7 +83,7 @@
     - `main` 只承载 **2.5D 主线**（`js/`、`index.html`、2.5D 底图/美术管线、共享数据与文档），
       是 Pages 部署与对外发布的目标分支。
     - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
-      （当前 `v1-preview`），**不得混入 main**。
+      （2.5D 仓当前 `3d`；独立仓 `returnlog-3d` 的 `master` 为其镜像），**不得混入 main**。
     - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
       随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
     - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
@@ -96,7 +98,7 @@
       （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
       不得另立第二份定义。**多父允许、多份定义禁止。**
     - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
-    - 3D 子项目工程不占根层号（边界见 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
+    - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
 
@@ -117,19 +119,18 @@
 - 新增资产：登记层级与保留期 → 声明三态 → 同步四处规则 → L1 写明来源 / 许可 / 再生成脚本
 - 版本迭代：旧版本整批归档并写恢复口径 → 候选帧与正式图后缀分离 → 代码只引用正式图
 - 发版：`npm run guard` PASS → `deploy --dry-run` ≤ 50 MB → L4 缓存已清 → 超期批次已评估 → `CHANGELOG.md` 记录体积基线
-- 改智能体契约：`npm run agent:contract` 校验红线与本仓 `docs/agent/REDLINES.md` 一致
+- 改智能体契约：`npm run agent:contract` 校验红线与本仓 `docs/REDLINES.md` 一致；改 §一 后先 `npm run agent:contract:write`
+- 改门禁 / CI：跑 `npm run ci:gate`（test-v3 + `tools/flaky-assertions.txt`）；未登记失败不得加白名单，只能按回归处理
+- 改台账 / 读数 / 导出快照：`npm run t3:check`（T3 验收层体检，细则 `docs/acceptance.md`）；发版前跑 `npm run t3:check:strict`
+- **改技术方案 / 参数 / 美术资产**：先按 `docs/ASSET_GOVERNANCE.md` §14（红线 12 执行细则）检索并登记 ≥2 个公开来源（官方文档 / 开源实现 / 公开素材站），写清比对结论；无登记不得动实现，自研须写明「已检索但无适用方案 + 理由」。灯光、材质、分辨率 / 帧率、渲染缩放、部署方案一律适用。**公开素材文件的直接使用须用户逐项批准；方法论与技术指导可直接吸收**
 
 ## 四、分册索引（按需加载，不在本文件展开）
 
 | 分册 | 内容 | 何时读 |
 |---|---|---|
-| `docs/ASSET_GOVERNANCE.md` | 存储与资产治理规范（现行口径） | 涉及资产 / 发布 / 清理时 |
-| `docs/ASSET_LAYERS.md` | 资产层级登记表 | 新增目录时 |
-| `docs/agent/REDLINES.md` | 红线逐字副本（校验基准） | 校验红线时 |
-| `docs/agent/commands.md` | 命令、本机环境、Blender 权威版本 | 需要跑工具时 |
-| `docs/agent/filemap.md` | 文件地图与工具表 | 定位文件 / 工具时 |
-| `docs/agent/architecture.md` | 架构约定与机制逐条说明 | 改逻辑 / 数据时 |
-| `docs/agent/process.md` | 改动流程 | 提交前 |
-| `docs/agent/baseline-history.md` | 历史门禁读数与踩坑归档 | 查历史时（**非现行基线**） |
+| `docs/ASSET_GOVERNANCE.md` | 存储与资产治理规范（含资产层级登记表附录 B） | 涉及资产 / 发布 / 清理 / 新增目录时 |
+| `docs/acceptance.md` | **T3 验收层执行规范（现行）**：真源/读数分离、三段式、单一现值、导出快照、存量债 | 改台账 / 读数 / 导出 / 体检时 |
+| `docs/REDLINES.md` | 红线逐字副本（校验基准） | 校验红线时 |
+| `docs/workflow.md` | 命令、本机环境、Blender 权威版本、改动流程 | 需要跑工具 / 提交前 |
 
 > **口径优先级**：本文件与 `docs/ASSET_GOVERNANCE.md` 为现行口径；分册为历史原文逐字搬迁，仅供查阅，冲突时以现行口径为准并回写更新。

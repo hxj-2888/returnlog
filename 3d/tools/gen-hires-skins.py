@@ -27,7 +27,11 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SRC = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+SRC = os.path.join(ASSET_LAYER, 'referenced', 'scene-v4-tex')
+if not os.path.isdir(SRC):
+    SRC = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
 PBR = os.path.join(ROOT, '3d', 'assets', 'textures', 'pbr')
 OUT = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures', 'cover')
 
@@ -87,7 +91,7 @@ def main():
                 resized = True
                 print('  [warn] %s 源尺寸 %s 与成品 %d 不一致，做了插值对齐' % (key, orig, hi))
             im = im.filter(ImageFilter.UnsharpMask(radius=1.0, percent=55, threshold=2))
-            albedo_src = 'assets/scene/v4/tex/' + src
+            albedo_src = 'returnlog_assets/referenced/scene-v4-tex/' + src
         else:
             p = os.path.join(PBR, key + '_albedo.jpg')
             im = Image.open(p).convert('RGB').resize((hi, hi), Image.LANCZOS)

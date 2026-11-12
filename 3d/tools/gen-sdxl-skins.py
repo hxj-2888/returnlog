@@ -30,7 +30,11 @@ from datetime import datetime
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SRC = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
+SRC = os.path.join(ASSET_LAYER, 'referenced', 'scene-v4-tex')
+if not os.path.isdir(SRC):
+    SRC = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
 OUT = os.path.join(ROOT, '3d', 'assets', 'textures', 'sdxl')
 
 # covers_lib.py 的 PBR key → 本机 SDXL 成品贴图（按材质语义配对）
@@ -73,7 +77,7 @@ def main():
         entries.append({
             'key': key,
             'albedo': '3d/assets/textures/sdxl/%s_albedo.jpg' % key,
-            'source': 'assets/scene/v4/tex/' + src,
+            'source': 'returnlog_assets/referenced/scene-v4-tex/' + src,
             'source_size': list(orig),
             'out_size': [hi, hi],
             'bytes': os.path.getsize(dst),
