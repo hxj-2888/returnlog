@@ -271,9 +271,11 @@ func set_power(on: bool) -> void:
 ## 用户 2026-11-10：旁观者向上穿时，要能从上面看到完整的剖面；
 ## 上层/下层只是"贴板"，作用是不让人掉进虚空，不是封死的盒子。
 func set_ceiling_visible(v: bool) -> void:
-	for mi: MeshInstance3D in _ceil_nodes:
-		if is_instance_valid(mi):
-			mi.visible = v
+	## _ceil_nodes 里既有顶板 MeshInstance3D，也有梁/管/线槽 GLB 实例化的 Node3D；
+	## 迭代变量写成 MeshInstance3D 会在走到套件节点时报类型断言错，整层显隐半途而废。
+	for node: Node3D in _ceil_nodes:
+		if is_instance_valid(node):
+			node.visible = v
 
 
 func ceiling_height() -> float:

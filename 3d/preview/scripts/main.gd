@@ -8608,6 +8608,9 @@ func _run_taskflowtest() -> bool:
 ## 仰视天花板：相机在舱心离地 1.5m，向上看天花板。
 ## 天花板材质/尺度有没有做对，只能这样看。
 func _run_ceilshot(room_id: String) -> void:
+	## new_game 会开 MEET_PRE：不先走完，开局公开讨论面板会把整张截图挡住
+	## （2026-11-12 实拍踩到，口径与其他自测 _finish_meeting 一致）。
+	_finish_meeting(sim)
 	var rect := Rect2(0, 0, 8, 8)
 	for r: Dictionary in map_data.get("rooms", []):
 		if String(r.get("id", "")) != room_id:
