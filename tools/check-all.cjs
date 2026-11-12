@@ -22,13 +22,15 @@ const CHECKS = [
   ['3d:lines:check', '3d/tools/check-lines.cjs'],
   ['3d:parity:check', '3d/tools/check-parity.cjs'],
   ['3d:ui:check', '3d/tools/check-ui-spec.cjs'],
+  // 大文件棘轮：单文件/单函数行数上限 + tests/ 外不得出现调试夹具（2026-11-12）
+  ['file:check', '3d/tools/filemap.cjs', ['--check']],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;
 const results = [];
 
-for (const [name, script] of CHECKS) {
-  const r = spawnSync(process.execPath, [script], { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+for (const [name, script, args] of CHECKS) {
+  const r = spawnSync(process.execPath, [script, ...(args || [])], { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
   const code = r.status === null ? 1 : r.status;
   const text = ((r.stdout || '') + '\n' + (r.stderr || '')).split(/\r?\n/).filter(Boolean);
   const hints = text.filter(l => KEY.test(l)).slice(-3);

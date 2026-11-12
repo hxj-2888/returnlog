@@ -1,10 +1,11 @@
 # AGENTS.md — 新返航录 3D 版（独立工程）
 
 > **工程契约**（2026-11-09 · 分离日）。适用对象：本工程根目录 `新返航录 3D 版/` 及其下全部内容。
-> 本文件**服从** `3d/ARCHITECTURE.md` 的工程边界声明与根 `README.md` / `SPLIT.md` 的事实口径，不自称数值真源。
+> 本文件**服从** `3d/ARCHITECTURE.md` 的工程边界声明与根 `README.md` / `BASELINE.md` 的事实口径，不自称数值真源。
 >
 > **红线保真声明**：下文 §一「红线（违反即回退）」与主仓 `新返航录/AGENTS.md` §一 **逐字一致**。
-> 2026-11-11 基线同步：主仓 11-10 新增第 13、14 条，本工程已补齐，共 **14 条**；原文一字未改。
+> 2026-11-11 基线同步：主仓 11-10 新增第 13、14 条，本工程已补齐，共 **14 条**；
+> 2026-11-12 修正第 13 条的分支名（`v1-preview` → `3d` / `returnlog-3d@master`）与第 11 条落地检查路径，其余原文未改。
 > 其中若某条在本工程里不直接适用（如 `file://`、`index.html`、DOM），
 > 一律走 §三「适用性映射」解释与落地，**不许回写 §一、不许删红线、不许另起一套宽松口径**。
 > §三只是解释层，不能覆盖 §一；两者冲突时以 §一 原文为准并回到上游 2.5D 确认。
@@ -14,10 +15,10 @@
 > 能在本工程内闭环，不需要跨仓猜测，也不允许借「已经独立了」的理由自造规则。
 >
 > **版本**：3D `V1P-0.2` / `0.2.0`（真源 `3d/version.json`）· 移植基线 `返航录V3.7` / `3.7.0`（只读标识见 `package.json`）。
-> **接手顺序**：根 `README.md` → `SPLIT.md` → 本文件 → `3d/README.md` → `3d/HANDOFF.md` → `3d/MIGRATION.md` → `3d/CHANGELOG.md` → 再动代码。
-> **分离时刻的现场事实**：玩家除移动外**无法进行任何操作**；门禁有 2 项既有失败。两者均见 §六，本轮只分离、未修复。
+> **接手顺序**：根 `README.md` → 本文件 → `BASELINE.md` → `3d/README.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → `3d/CHANGELOG.md` → 再动代码。
+> **2026-11-09 分离时刻的历史事实**：当时玩家除移动外无法操作、门禁有 2 项既有失败；现状与读数见 `3d/HANDOFF.md` 与 `3d/CHANGELOG.md`，本文件不再维护 §六。
 
-> **接手顺序（2026-11-11 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `BASELINE.md` → 按任务加载 `docs/agent/` 分册。
+> **接手顺序（2026-11-12 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md`。
 ## 一、红线（违反即回退）
 
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，
@@ -70,7 +71,7 @@
     - 找不到但**确实需要** → 先判断它是不是真·维度产物（A* 网格、第一人称相机、碰撞、LOD 等）；
       是 → 写进 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
       不是 → **先改 2.5D 真源**，再导出/移植，不许只加在 3D。
-    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/MIGRATION.md` §10。
+    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/PORTING_PROTOCOL.md` §6。
 12. **素材优先取自公开网络与开源社区，不自己单独造。**（2026-11-09 用户裁定，四项目统一）
     任何美术 / 音频 / 模型素材，先检索公开素材站与开源社区（Kenney / OpenGameArt / Poly Haven /
     itch.io 免费包 / 公开 wiki 与 ArtStation 参照等），许可合适的直接用；没有合适的才本地生成，
@@ -81,7 +82,7 @@
     - `main` 只承载 **2.5D 主线**（`js/`、`index.html`、2.5D 底图/美术管线、共享数据与文档），
       是 Pages 部署与对外发布的目标分支。
     - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
-      （当前 `v1-preview`），**不得混入 main**。
+      （2.5D 仓当前 `3d`；独立仓 `returnlog-3d` 的 `master` 为其镜像），**不得混入 main**。
     - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
       随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
     - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
@@ -96,7 +97,7 @@
       （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
       不得另立第二份定义。**多父允许、多份定义禁止。**
     - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
-    - 3D 子项目工程不占根层号（边界见 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
+    - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
 
@@ -118,21 +119,22 @@
 - 新增资产：登记层级与保留期 → 声明三态 → 同步四处规则 → L1 写明来源 / 许可 / 再生成脚本
 - 版本迭代：旧版本整批归档并写恢复口径 → 候选帧与正式图后缀分离 → 代码只引用正式图
 - 发版：`npm run guard` PASS → 发布暂存 ≤ 50 MB → L4 缓存已清 → 超期批次已评估 → `CHANGELOG.md` 记录体积基线
-- 改智能体契约：`npm run agent:contract` 校验红线与本仓 `docs/agent/REDLINES.md` 一致；改上游规则后跑 `npm run baseline:check`
+- 改智能体契约：`npm run agent:contract` 校验红线与本仓 `docs/REDLINES.md` 一致；改上游规则后跑 `npm run baseline:check`
+- **改技术方案 / 参数 / 美术资产**：先按 `docs/ASSET_GOVERNANCE.md` §14（红线 12 执行细则）检索并登记 ≥2 个公开来源（官方文档 / 开源实现 / 公开素材站），写清比对结论；无登记不得动实现，自研须写明「已检索但无适用方案 + 理由」。灯光、材质、分辨率 / 帧率、渲染缩放、部署方案一律适用。**公开素材文件的直接使用须用户逐项批准；方法论与技术指导可直接吸收**
+- **改大文件 / 找函数**：先 `npm run file:map -- --section <函数名片段>` 或 `-- --file main.gd` 定位（不要整文件读），改完跑 `npm run file:check`。调试夹具一律放 `3d/preview/scripts/tests/`，**不得写回 `main.gd`**——`3d/spec/file-budgets.json` 是只许下调的棘轮，`check` 已含此项
+- 共享规范：`npm run docs:sync` 从 2.5D 生成 `docs/REDLINES.md` / `docs/ASSET_GOVERNANCE.md`；提交前 `npm run docs:check`
+- 改 3D 只读门禁：跑 `npm run check` + `npm run baseline:check` + `npm run guard`；CI 见 `.github/workflows/check.yml`
 
 ## 四、分册索引（按需加载，不在本文件展开）
 
 | 分册 | 内容 | 何时读 |
 |---|---|---|
-| `docs/ASSET_GOVERNANCE.md` | 存储与资产治理规范（现行口径） | 涉及资产 / 发布 / 清理时 |
-| `docs/ASSET_LAYERS.md` | 资产层级登记表 | 新增目录时 |
-| `docs/agent/REDLINES.md` | 红线逐字副本（校验基准） | 校验红线时 |
-| `docs/agent/directory-roles.md` | 工程目录职责 | 判断可否修改时 |
-| `docs/agent/applicability-3d.md` | 红线适用性映射（§三 原解释层） | 红线落地到 Godot 时 |
-| `docs/agent/commands-3d.md` | 命令表 | 需要跑工具时 |
-| `docs/agent/process-3d.md` | 改动流程 | 提交前 |
-| `docs/agent/baseline-history-3d.md` | 已知问题与门禁读数（历史） | 查历史时（**非现行基线**） |
-| `3d/ART_HANDOFF.md` | 美术 / 建模交接：权限边界、P0 规格、2.5D 参照物、交付格式 | 接美术 / 建模任务时 |
-| `3d/PORTING_PROTOCOL.md` | 2.5D → 3D 逐函数移植规程（规则同源） | 改玩法规则前 |
+| `docs/ASSET_GOVERNANCE.md` | 存储与资产治理规范（含资产层级登记表附录 B） | 涉及资产 / 发布 / 清理 / 新增目录时 |
+| `docs/REDLINES.md` | 红线逐字副本（校验基准） | 校验红线时 |
+| `3d/HANDOFF.md` | 唯一交接：现行状态、接手陷阱、改动流程（§0.10） | 接手 / 提交前 |
+| `3d/PORTING_PROTOCOL.md` | 移植规程 + 红线适用性映射（附录 A）+ 映射裁决（附录 B）+ `buildMeetCtx` 映射（附录 C） | 改玩法规则前 |
+| `3d/ARCHITECTURE.md` | 引擎与分层 + 工程目录职责（附录） | 判断可否修改时 |
+| `3d/README.md` | 运行方式与常用命令 | 需要跑工具时 |
+| `3d/docs/art/ART_HANDOFF.md` | 美术 / 建模交接：权限边界、P0 规格、2.5D 参照物、交付格式 | 接美术 / 建模任务时 |
 
-> **口径优先级**：本文件、`docs/ASSET_GOVERNANCE.md` 与上游主仓 §一 为现行口径；分册为历史原文逐字搬迁，仅供查阅，冲突时以现行口径为准。第 13、14 条红线（2026-11-10 主仓新增）尚无逐条适用性映射，按 §一 原文执行，不得自行放宽。
+> **口径优先级**：本文件、`docs/ASSET_GOVERNANCE.md` 与上游主仓 §一 为现行口径；原 `docs/agent/` 分册已于 2026-11-12 并入上述核心文档。第 13、14 条红线（2026-11-10 主仓新增）尚无逐条适用性映射，按 §一 原文执行，不得自行放宽。

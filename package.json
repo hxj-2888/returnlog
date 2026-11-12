@@ -10,15 +10,19 @@
   "private": true,
   "x-baseline": {
     "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
-    "captured": "2026-11-11",
+    "captured": "2026-11-12",
     "manifest": "BASELINE.sha256.json",
     "note": "js/ assets/ audio/ tools/ 为 2.5D 只读基线镜像，禁止修改；docs/ 自 2026-11-09 起移出基线可改（见 BASELINE.md §1/§6）；version/gameVersion 是上游基线标识（3d/tools/export-version.cjs 依赖），不是 3D 版本；3D 版本真源在 3d/version.json"
   },
   "scripts": {
     "check": "node tools/check-all.cjs",
+    "file:map": "node 3d/tools/filemap.cjs",
+    "file:check": "node 3d/tools/filemap.cjs --check",
     "guard": "node tools/asset-guard.cjs",
     "guard:expired": "node tools/asset-guard.cjs --expired",
     "agent:contract": "node tools/check-agent-contract.cjs",
+    "docs:sync": "node 3d/tools/sync-docs.cjs",
+    "docs:check": "node 3d/tools/sync-docs.cjs --check",
     "export:all": "npm run 3d:export:map && npm run 3d:export:minigames && npm run 3d:export:space && npm run 3d:export:sim && npm run 3d:export:lines && npm run 3d:export:rules && npm run 3d:export:version",
     "baseline:check": "node tools/sync-baseline.cjs --check",
     "baseline:sync": "node tools/sync-baseline.cjs",

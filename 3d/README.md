@@ -1,9 +1,10 @@
 # 新返航录 3D 预演（独立子项目）
 
-> 状态：**2.5D 的完整功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
-> 34 项 Godot 自测全绿、`npm run check` 7/0、parity 0 WARN）。仍是本地预演、不发行。
+> 状态：**2.5D 的功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
+> 已知缺口见 `HANDOFF.md` §0.4 与 `spec/gameplay-parity.json#budget`）。门禁现值与本次实跑读数只在
+> `3d/CHANGELOG.md` 指向的当月文件最新批次声明，本文件不复制。仍是本地预演、不发行。
 > **接手先读 `HANDOFF.md` §0（最新交接）与 §0.8（第一小时清单）**；
-> 红线/继承审查见 **`REDLINE-AUDIT.md`**（2026-11-11：红线 1–10 通过，11/12 未全过）。
+> 红线 / 移植约束以两仓 `AGENTS.md` §一与 `docs/REDLINES.md` 为现行口径；历史审查快照已清理。
 > 创建：2026-11-03 晚。引擎：**Godot 4.6 stable**（`89cea1439`，GL Compatibility）。
 > 2026-11-04 早补：完整版（含 .NET / `GodotSharp`）已装，GDScript 工程两份编辑器读数一致，见 §3。
 > 主项目 2.5D 的 `file://` 红线**不适用**于本目录；这里不通过 `index.html` 加载。
@@ -38,19 +39,19 @@
 - `npm run 3d:parity:check`：改了任一 `js/` 真源没重导 → FAIL；`lines.json#rules` 与
   `rules.json` 出现第二套数值 → FAIL；3D 脚本出现自造阈值 → WARN。
 - `npm run 3d:audit:port`：只读审计 22 个 JS 文件，按「数据表 / 纯逻辑 / 适配 / DOM-UI /
-  运行时 DOM」分层，报告在 `3d/reports/portability-audit.md`。当前结论：数据表已自动导出；
+  运行时 DOM」分层；报告已清理（2026-11-12），需要时跑 `npm run 3d:audit:port` 生成。当前结论：数据表已自动导出；
   纯函数可做 IR + codegen；`game.js`（12k 行 / 438 DOM 引用）与 UI 必须先上游解耦，不能直接翻译。
 - `npm run 3d:poc:speech`：`parseSpeech` 差分 POC。2.5D 生成 503 条 fixtures，Godot 同时跑
   运行时手写解析器与 POC 生成解析器；当前 **runtime 503/503 / generated 503/503**。
   **边界**：词表/正则自动生成，控制流仍是固定模板；通用 JS→GDScript 转译尚未实现。
 - `npm run 3d:audit:coreui`：`game.js` 函数级 core/UI 解耦审计。341 个具名函数中
   `core-state` 196 / 7206 行、`ui` 47 / 1734 行、`pure` 96 / 1028 行；混用 DOM+G 39 个。
-  报告：`3d/reports/core-ui-audit.md`。
+  报告已清理（2026-11-12），需要时跑 `npm run 3d:audit:coreui` 生成。
 - `npm run 3d:ui:check`：会议面板 UI spec（`3d/spec/ui/meeting-panel.spec.json`）↔
   2.5D DOM 17/17 ↔ 3D Control 17/17 ↔ 模板 11/11；已并入 `npm run check`。
 - `npm run 3d:poc:ui`：从同一份 spec 生成 Godot Control 面板，验证 17 节点 / 11 模板 /
   3 状态可见性（7/0）。**不生成 handler、不替换运行时**；2.5D DOM 仍是 spec 来源。
-- 详见 `MIGRATION.md` §10。
+- 同源契约与逐函数移植规程见 `PORTING_PROTOCOL.md`。
 
 ### 版本号（2026-11-09）
 
@@ -59,7 +60,7 @@
 
 | | 真源 | 格式 | 当前 |
 |---|---|---|---|
-| 2.5D | `js/config/version.js` + `package.json.gameVersion` | `返航录V3.x` / `3.x.0` | `返航录V3.6` / `3.6.0` |
+| 2.5D | `js/config/version.js` + `package.json.gameVersion` | `返航录V3.x` / `3.x.0` | `返航录V3.7` / `3.7.0` |
 | 3D | `3d/version.json` | `V1P-<major>.<minor>` / `major.minor.0` | `V1P-0.2` / `0.2.0` |
 
 - 两个号互不占位：3D 用 `V1P-` 前缀，2.5D 继续走 `返航录V3.x`，谁也不挤谁。
@@ -73,7 +74,7 @@
 
 ## 2. 已实现
 
-- `js/data/map.js` → `3d/preview/data/map.json`（10 舱室 / 11 走廊 / 110 墙体线段 / 59 掩体 / 26 任务点）。
+- `js/data/map.js` → `3d/preview/data/map.json`（10 舱室 / 11 走廊 / 110 墙体线段 / 123 掩体 / 26 任务点）。
 - **26 个任务点 + 电闸**已落成 3D 设备（27 个交互点，14 种玩法全覆盖），设备优先用
   `3d/assets/export/*.glb`，缺失时程序化兜底；按掩体顶面自动抬升，正面朝向舱室中心。
 - **14 型基础交互全部移植**（`scripts/minigame/`）：wire / place / lever / sync / pour /
@@ -90,8 +91,8 @@
 - HUD：控制提示、当前舱室、FPS、最近设备提示；自动截图模式；无头移动/碰撞/小游戏/设备自测。
 - **模拟核心 B1（2026-11-08）**：`scripts/sim/sim_state.gd` 接「开局 → 任务 → 天亮 → 胜负」主回路，
   数据来自 `data/sim.json`（`3d/tools/export-sim.cjs`）。HUD 显示夜/倒计时/维修进度/自己的 4 个任务；
-  小游戏玩通写回进度；`--simtest` 26/0。**只搬非发言规则**，AI / 战斗 / 会议仍在后续批次，
-  边界与批次见 [`MIGRATION.md`](MIGRATION.md)。
+  小游戏玩通写回进度；`--simtest` 26/0。**只搬非发言规则**，AI / 战斗 / 会议在后续批次接入；
+  现行边界见 `AGENTS.md` §一.11 / `PORTING_PROTOCOL.md`，逐批记录见 `CHANGELOG-2026-11.md`。
 - **移植准备（2026-11-08）**：`spec/port-manifest.json` 把 2.5D 的 22 个 js 文件 / 19,765 行
   逐项登记为 47 个系统（当前 ported 9 / partial 26 / prepared 0 / reference 4 / excluded 8），
   `npm run 3d:port:check` 校验「无未认领文件 / 行覆盖 100% / target 存在 / 依赖无环 / 契约版本」。
@@ -131,6 +132,8 @@
   `--socialtest` 6/0、`--aiporttest` 13/0。
 
 ## 3. 快速运行
+
+> CI：push/PR `master` 跑 `.github/workflows/check.yml`（`npm run check` + `baseline:check` + `agent:contract` + `guard`）。
 
 ```bash
 # 便携版 Godot（不在 PATH 上）—— 标准版
@@ -177,12 +180,23 @@ npm run 3d:simdump           # 导出 2.5D 同 seed 事件流（可加 -- --seed
 "$GODOT" --headless --path 3d/preview -- --navtest         # 期望 28/0，walkable=5894
 "$GODOT" --headless --path 3d/preview -- --aittest         # 300 秒 AI 自跑：prog>0 / 刀 / 会议 / 驱逐
 "$GODOT" --headless --path 3d/preview -- --meetingtest     # 期望 ok=true，14 个投票按钮
-"$GODOT" --headless --path 3d/preview -- --bottest         # 期望 6/0（巡逻/抓捕/拘留/救人）
+"$GODOT" --headless --path 3d/preview -- --bottest         # 期望 7/0（巡逻/抓捕/拘留/救人）
 "$GODOT" --headless --path 3d/preview -- --b4test          # 期望 8/0（位置/管道/开枪/搜尸/会议）
 "$GODOT" --headless --path 3d/preview -- --hometest        # 期望 6/0（三张卡 + 图元 + 高亮）
 "$GODOT" --headless --path 3d/preview -- --roletest        # 期望 4/0
 "$GODOT" --headless --path 3d/preview -- --speechtest       # 期望 17/0（发言链路 + 模板 11/11）
 "$GODOT" --headless --path 3d/preview -- --b6test           # 期望 6/0（剩余系统）
+"$GODOT" --headless --path 3d/preview -- --parityfixture    # 期望 0 项失败（4 机制行为夹具，夹具由 2.5D _t 运行时导出）
+"$GODOT" --headless --path 3d/preview -- --invtest          # 期望 0 项失败（SKInvariants 44 条断言 + 正反双向对照）
+"$GODOT" --headless --path 3d/preview -- --knifebottest     # 期望 0 项失败（刀击机器人的守卫/红身/保安转向）
+"$GODOT" --headless --path 3d/preview -- --meetopentest     # 期望 0 项失败（报案播报 + 开场定调/附议）
+"$GODOT" --headless --path 3d/preview -- --dragtest          # 期望 0 项失败（拖行 0.62 / 视图 bodyPos / 抢修名额）
+# 大文件改动（2026-11-12 起）：先定位、再改、别整文件读
+npm run file:map                                  # 全仓结构总览（行数/函数数/夹具占比）
+npm run file:map -- --section dragtest            # 按名取函数原文（带行号）
+npm run file:check                                # 预算棘轮：单文件/单函数上限 + tests/ 外禁夹具
+# 调试夹具住在 3d/preview/scripts/tests/（6 个模块），main.gd 只保留分发，不放实现
+
 "$GODOT" --headless --path 3d/preview -- --sim1000 --games 200  # 3D 批量基线（含败因/驱逐/异形决策遥测）
 "$GODOT" --headless --path 3d/preview -- --simdiff 3d/reports/js-simdump-20261108.json（人类/异形开局）
 "$GODOT" --path 3d/preview --resolution 1280x720 -- --homeshot            # 开始页实拍
@@ -288,7 +302,7 @@ npm run 3d:probe
 "$GODOT" --headless --path 3d/preview -- --audiotest
 ```
 
-> **截图/机位硬约束（AGENTS.md §五.8）**：所有 `--shot / --crewshot / --doorshot /
+> **截图/机位硬约束（`HANDOFF.md` §0.5 ⑬）**：所有 `--shot / --crewshot / --doorshot /
 > --mgshot / --devshot / --covershot / --ceilshot / --pipeshot / --meetshot /
 > --endshot / --minishot / --homeshot` 一律使用 `MOUSE_MODE_VISIBLE`，
 > **禁止捕获鼠标、禁止转视角、禁止误触攻击**；进程退出时 `_exit_tree()` 再释放。
@@ -326,12 +340,16 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
 ```
 3d/
   README.md                 本文件（垂直切片说明）
-  HANDOFF.md                ★ 2026-11-05 资产工程化交接文档，接手先读
-  MIGRATION.md              ★ 2026-11-08 迁移施工单（同源 · 仅维度/美术/输入差异 + B1–B6 + §10 同源契约）
+  HANDOFF.md                ★ 唯一交接文档（接手先读 §0；专题增量并入 §0.9）
   ARCHITECTURE.md           引擎/分层/数据/资产管线
   DECISIONS.md              ADR（为什么这样选）
   ASSETS.md                 素材来源、许可、哈希
-  CHANGELOG.md              子项目变更记录
+  CHANGELOG.md              子项目变更索引（当月文件见下）
+  CHANGELOG-2026-11.md      2026-11 台账（82 批；最新批次见文件顶部）
+  PORTING_PROTOCOL.md       移植规程 + 红线适用性 / 映射裁决 / buildMeetCtx 映射（附录 A–C）
+  docs/
+    audit/                  留档报告（默认现跑生成、不入库）
+    art/                    ART_DIRECTION / ART_HANDOFF / CHARACTER_ART_PIPELINE
   spec/
     conventions.md          单位/命名/预算/边界的硬约定
     asset.schema.json       清单 schema
@@ -403,9 +421,9 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
     assets/                 复制的贴图、角色图、许可证
 ```
 
-> 分支口径：3D 工作分支是 **`v1-preview`**（历史分支 `启航路3D版` 已不再推进）；
-> `main` 只保留 2.5D 与 `3d/` 文档骨架，**不占用主分支**。
-> 3D 是 2.5D 的**延伸**（不是"两套并行产品"），见 `HANDOFF.md` §1 与 `MIGRATION.md` §10.1。
+> 分支口径：3D 工作分支是 **`3d`**（2.5D 仓；独立仓 `returnlog-3d` 的 `master` 为镜像；历史分支 `启航路3D版` 已不再推进）；
+> `main` 只保留 2.5D 与 `3d/` 构建输入快照（不含 3D 客户端脚本），**不占用主分支**。
+> 3D 是 2.5D 的**延伸**（不是"两套并行产品"），见 `HANDOFF.md` §1 与 `AGENTS.md` §一.11。
 
 ## 6. 已知限制
 
@@ -421,33 +439,26 @@ DEV 实拍在同一次探针里输出 `user://probe-dev.png`（实际路径打�
   不载入外部回放 JSON。
 - 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理。
 - 角色默认已切 `char_crew_lowpoly`（1.75 m / 1812 tris / 17 骨 / idle+walk）；
-  参考图在 `docs/qwen21/crew-refs/`。`--crew-billboard` 回退旧单帧 billboard，
+  参考图在素材层 `returnlog_assets/unreferenced/qwen21/3d/crew-refs/`。`--crew-billboard` 回退旧单帧 billboard，
   `char_crew_blockout` 只作模型缺失时的第二级回退；四动作 idle/walk/knife/down 已齐，
   V-CREW 标 `ported`（full）。
 - 事件词表静态 31/31/31 全覆盖，但**同 seed 一局内不一定 31 种都触发**；
   `--simdiff` 报告会如实列出该局两边的 kind 差与首个分歧点。
 - 灯光是预演级；**SDXL 新贴图只有 256² 低步数版**（内存余量不足），
   特写级 768² 面板仍需换机器重跑。
-- **1000 局基线**：`--sim1000` 入口已提供（A* 每帧都跑，1000 局约 1 小时）。
-  本轮 `--games 200` 实跑：**人类 36.5% / 异形 61.0% / 超时 5 局（2.5%）**，报告 `preview/reports/3d-simbatch-200.md`。
-  2.5D 同口径 1000 局是 **49.9% / 50.1% / 超时 0**；3D 仍有偏差，
-  原因是会议链（白天/开局会议、紧急按钮、身份公布追责）与异形进攻链
-  （RUSH / 目标承诺 / 管道突袭 / 异形开枪 / 构陷编排）未全迁，见 `MIGRATION.md` §9。
-- **平衡对齐（2026-11-08）**：先前 79.0/17.5 不是"两套实现不可比"，是 9 处真源漂移
-  （驱逐门槛、报告额度、票权层级、发言→票权、KNIFE 理智线、注意力过滤、
-  枪声证人、全 AI 模拟口径、人类 AI 开枪）。逐项修正后 `--sim1000` 增加败因 /
-  驱逐命中率 / 异形决策拦截遥测，详见 `CHANGELOG.md` 与 `MIGRATION.md` §9。
+- **平衡读数**：只认 `CHANGELOG-2026-11.md` 最新批次；历史 200 / 1000 局数值随报告清理
+  （2026-11-12）失效，本文件不复述。需要新基线时跑 `--sim1000`（A* 每帧都跑，约 1 小时／1000 局）。
+- **平衡对齐**：2026-11-08 的 9 处真源漂移已逐项修正（驱逐门槛、报告额度、票权层级、
+  发言→票权、KNIFE 理智线、注意力过滤、枪声证人、全 AI 模拟口径、人类 AI 开枪），
+  明细见 CHANGELOG 对应批次。
 
 ## 7. 下一里程碑
 
 1. **美术优化（用户已点名，下一批）**：2.5D 底图"铁板子太多、圆桌变方桌、会议室地毯没了"；
    3D 保安机器人太小/被遮挡、15 个 crew 全是同一张 billboard、天花板蓝色条纹。
    保持 2.5D / 3D 同一帧源（`floor_spec.json`），不拆成两套材质。
-2. **parity-map 的 25 个 pending 补完**：构陷编排 / 白天与开局会议 / 紧急按钮 /
-   身份公布追责 / RUSH / 目标承诺 / 管道突袭 / 异形开枪 / 完整假设层；补完前
-   `--sim1000` 基线不视为最终值。：白天/开局会议与紧急按钮、
-   `settleAccountability` 追责、RUSH 逃逸、目标承诺、管道突袭、异形开枪、构陷编排；
-   补完后启用 2.5D 的"每夜 1 把刀"额度，重跑基线对齐 49.9/50.1。
+2. **移植缺口补完**：待办只认 `3d/spec/gameplay-parity.json#budget` 与
+   `PORTING_PROTOCOL.md` 附录 B；补完后重跑 `--sim1000` 登记新基线。
 3. **S 轨编排层补完**：构陷 / 领袖剧本 / 完整假设层 / 时间线拆谎（与上项同一批）。
 4. **完整 1000 局基线**：在空闲机器上跑 `--sim1000`（不带 `--games`），登记新基线。
-5. **补高质量 SDXL 屏幕贴图**：`3d/tools/gen-panel-texture.py`（768² / 24 步）。
+5. **补高质量屏幕贴图**：按红线 6 用千问本地重出（768²）；SDXL 已退役，不再新增。
