@@ -1,10 +1,15 @@
 name: check
 
+# 2026-11-12：独立仓 returnlog-3d 已删除，3D 的唯一远端是老仓 returnlog.git 的
+# 3d 副分支（AGENTS.md 红线 13）。本地 master 通过 remote.origin.push 映射到 3d，
+# 所以这里触发分支改为 3d；只跑只读门禁，不发布任何网页。
+# 主站 / 作品集的部署仍只由老仓 main 的 deploy.yml 负责，避免用 3d 分支的
+# 2.5D 只读镜像覆盖线上版本。
 on:
   push:
-    branches: [master]
+    branches: [3d]
   pull_request:
-    branches: [master]
+    branches: [3d]
   workflow_dispatch:
 
 permissions:
