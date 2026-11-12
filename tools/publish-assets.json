@@ -1,0 +1,1033 @@
+{
+  "schema_version": 1,
+  "generated": "2026-11-12",
+  "source": "tools/publish-assets.cjs bundle",
+  "file_count": 256,
+  "total_bytes": 46675407,
+  "files": {
+    "assets/MANIFEST.json": {
+      "sha256": "ea12399462641aa75216ce10e93259410596de1ba50f39114025e9d627e90438",
+      "size": 12966
+    },
+    "assets/minigame/panel-breaker.png": {
+      "sha256": "3cb64bc7f23ac4c27d106bc0a8ef7a778023ef35225db7f21f15fe8edb18a227",
+      "size": 1090279
+    },
+    "assets/minigame/panel-fix.png": {
+      "sha256": "12f078b5c0d4046048c20c73a501480b96114f27382b3ce4d2fe7710a2bd15b9",
+      "size": 1269300
+    },
+    "assets/minigame/task-frame.png": {
+      "sha256": "c679776ac4b28d38f937d2edaea8fe7178df2e0e424d99eedd74b26cacbe3a57",
+      "size": 811094
+    },
+    "assets/portfolio/icon-512.png": {
+      "sha256": "6b0ce04608dcb33d4651ac7d001dde661b05cc6ed8d05246248980ccea50e425",
+      "size": 27295
+    },
+    "assets/portfolio/returnlog-demo-poster.jpg": {
+      "sha256": "e6da5f965564b6d220d4b33cd59f932a455f4efc2516c21d126bc2aa98470a27",
+      "size": 121672
+    },
+    "assets/portfolio/returnlog-demo.mp4": {
+      "sha256": "68ff10953bee729446538a12ef7d0b7f77f147b659aabce5c2d97fa8d62e6b68",
+      "size": 1768648
+    },
+    "assets/portfolio/returnlog-qr.png": {
+      "sha256": "729646e84892b058e37ca906283c2fa17d91fe6fb7db835d0ffa6903b68b175c",
+      "size": 2464
+    },
+    "assets/portfolio/returnlog-thumb.png": {
+      "sha256": "a6e582dcb9e575e6cfdf441e8a54b68b70ed5088b2344eb57ce73ae8ac45ebd0",
+      "size": 341994
+    },
+    "assets/qwen-lib/素材库清单.json": {
+      "sha256": "51640fb5cdd35f0b8515422236de05d148d628d544310fa19f88a9abc3de2667",
+      "size": 10014
+    },
+    "assets/scene/bg/departure-ring.svg": {
+      "sha256": "3ae0a8fce8c7e16603aadd14152a7de7ba9f50f8c551563fbc34909a45fcf07b",
+      "size": 4715
+    },
+    "assets/scene/bg/hull-tile.png": {
+      "sha256": "0c34acc1be608ecbd9ca07df8bac23a7bfb3b457566998378a65ccf8737a61e2",
+      "size": 6673
+    },
+    "assets/scene/bg/spaceship-interior-1600.jpg": {
+      "sha256": "dd26d46ce6f51db4ab7c5bf84302e199e4375c7d44d78d7f56f7ebfe59116ef9",
+      "size": 240225
+    },
+    "assets/scene/bg/spaceship-interior-v1.jpg": {
+      "sha256": "a1b9850663053a61681f3a1c92014331b5f9f6b47b4d182f1bc80bcfb26b0e51",
+      "size": 2144424
+    },
+    "assets/scene/cozy/LICENSE.txt": {
+      "sha256": "7944ac3c5d62b6582e5951a22c57c7114e3a803adeb5a313805196b1658b9272",
+      "size": 2764
+    },
+    "assets/scene/cozy/furniture/barrel.png": {
+      "sha256": "23c798cb9926b4293e72485b8d344436b300dd58b96404a461eb79580a846f9d",
+      "size": 163
+    },
+    "assets/scene/cozy/furniture/bed.png": {
+      "sha256": "4bdac1808ce2a90633f8bc60e0ba2e885a86f8f1e85cd324681dcfc690d1f1ee",
+      "size": 198
+    },
+    "assets/scene/cozy/furniture/bin.png": {
+      "sha256": "0749e3e25a4111500c62b50693991bf462bee19abdbb4136b93b6e184a44650c",
+      "size": 153
+    },
+    "assets/scene/cozy/furniture/bookshelf.png": {
+      "sha256": "458bbb13a1195ed027b6dca9e2e947370fccfb7d09d1e5317f762f43a9793ef6",
+      "size": 224
+    },
+    "assets/scene/cozy/furniture/chair.png": {
+      "sha256": "befac1760debd685c4cca8c119fc2dc3a897c5d2b41bf3c01d604bd97f4b5ced",
+      "size": 179
+    },
+    "assets/scene/cozy/furniture/console.png": {
+      "sha256": "6f2285a8114d88694947ba0327d2d2995165550bb71ed772b3ed03fbce07aad7",
+      "size": 247
+    },
+    "assets/scene/cozy/furniture/cooler.png": {
+      "sha256": "6adf99ac7c7c2ce46f4224d3e40f1a9f3c4cbc6377ada7a6ae69c493f499964c",
+      "size": 184
+    },
+    "assets/scene/cozy/furniture/crate.png": {
+      "sha256": "a0356f87a96771078f1a6361c896ff5445bac324d37e94e6d8925abb5a345c8c",
+      "size": 168
+    },
+    "assets/scene/cozy/furniture/cryopod.png": {
+      "sha256": "840ab6117c0105de33b22782b7671a5e321f3599201148e25c9e0ef37d7c1450",
+      "size": 220
+    },
+    "assets/scene/cozy/furniture/desk.png": {
+      "sha256": "dcd0e49f8f40a3db6a9d2eec2922fc1e77e958a5918edbc11725ab706d6a5dbc",
+      "size": 241
+    },
+    "assets/scene/cozy/furniture/fridge.png": {
+      "sha256": "86c93fa0741e4f34316a9182cdd0a52f2e69a1696b809b104b0be94a5d0de5a1",
+      "size": 177
+    },
+    "assets/scene/cozy/furniture/lamp.png": {
+      "sha256": "2117cef7b58f5a5a7a92632e410741e15b001e0069c0cd427261f12df9fed4bb",
+      "size": 182
+    },
+    "assets/scene/cozy/furniture/locker.png": {
+      "sha256": "3f54e24cd0e210c1ed74c65118fa7cb1d0d202d670a50028ed83083b9be1d9bf",
+      "size": 179
+    },
+    "assets/scene/cozy/furniture/plant.png": {
+      "sha256": "588042b2b079b05c5dfb05e359872708ca97b6e1daf3c49dcdad3d6d5060821c",
+      "size": 218
+    },
+    "assets/scene/cozy/furniture/rack.png": {
+      "sha256": "d226fc287e8434bb79e323a73d6747bbbbdef1af6c5a6e471bcdc559e3917fff",
+      "size": 229
+    },
+    "assets/scene/cozy/furniture/rug.png": {
+      "sha256": "904a5eade4defefaf87a74c8e3700f74bdbb081c728275de06a565b6b2700795",
+      "size": 193
+    },
+    "assets/scene/cozy/furniture/screen.png": {
+      "sha256": "a7f991493ebcbb5962d9168149fddda030f0c399fbeba380ede814ecf5e0c124",
+      "size": 227
+    },
+    "assets/scene/cozy/furniture/sink.png": {
+      "sha256": "1c4193e7f02b9ff85e808452b893232f47811e13c5462b541156536124acfbb7",
+      "size": 168
+    },
+    "assets/scene/cozy/furniture/sofa.png": {
+      "sha256": "616fbf8474d7b8d4baaf791b77b597803833998047c7643a2efc445131a3a06e",
+      "size": 209
+    },
+    "assets/scene/cozy/furniture/table.png": {
+      "sha256": "c862577d1d5efd17e15756bb94d81d43785214acea4f4c099cbc4c3d6fae0d7c",
+      "size": 198
+    },
+    "assets/scene/cozy/furniture/tallplant.png": {
+      "sha256": "c5324eb3b8600d67b2c019db21233ed9d890db8159e21538d1037b0216d7268a",
+      "size": 292
+    },
+    "assets/scene/cozy/furniture/terminal.png": {
+      "sha256": "8c0625ef397864c7c5fde8d785b923164829dcf6e4ba0f4c18c37af7192eb8ed",
+      "size": 219
+    },
+    "assets/scene/cozy/furniture/vending.png": {
+      "sha256": "58c068db56b2ce98bcd27c695abe97dc682e0a82f908cd330b6ddd587077d116",
+      "size": 237
+    },
+    "assets/scene/cozy/tiles/door-closed.png": {
+      "sha256": "95fa9aa4a1e11d178b8ffdb73daef2a2d0aa7981c5e6a94c730bee59276ff61b",
+      "size": 302
+    },
+    "assets/scene/cozy/tiles/door-open.png": {
+      "sha256": "8300649c8de905f690d75b8a3b1673e3019e35ddc026acb3f3a7e33d4f08afe0",
+      "size": 291
+    },
+    "assets/scene/cozy/tiles/floor-carpet-beige.png": {
+      "sha256": "abeb85fd3b4a70b4339d2c7671841f385b7a5e40225bfabb2e1b3209dda8b0c9",
+      "size": 329
+    },
+    "assets/scene/cozy/tiles/floor-carpet-blue.png": {
+      "sha256": "a73696282f957f2a665882bc8f0b6cc38235ee28bfcb7ec14e75fcc5fe8a5e06",
+      "size": 329
+    },
+    "assets/scene/cozy/tiles/floor-grate.png": {
+      "sha256": "954c8a353e549d732c74b0ed289ed81617cffad5312ac8f6206ae72045a0ac04",
+      "size": 278
+    },
+    "assets/scene/cozy/tiles/floor-hatch.png": {
+      "sha256": "aa4b5be54d9e71709ca4a4fa611234333b43076afb47f080da8ed326384cba20",
+      "size": 561
+    },
+    "assets/scene/cozy/tiles/floor-hazard.png": {
+      "sha256": "c67fd5567cb1430cf78d8736dff8314762cfe3d47253b08f862b69db25ed86b1",
+      "size": 415
+    },
+    "assets/scene/cozy/tiles/floor-lab.png": {
+      "sha256": "e99936ca6d89703e17dbb12015263a92c5afbb01b894cdd2dd5a0340779cf19d",
+      "size": 192
+    },
+    "assets/scene/cozy/tiles/floor-light-panel.png": {
+      "sha256": "25c948d5b35d7c0248a5bc0be45098583631636d49e2a93e6a340f28abb59232",
+      "size": 269
+    },
+    "assets/scene/cozy/tiles/floor-space.png": {
+      "sha256": "e82ba423bd223af4546227aace1412f828dbd87262ca1e5aa7d95f9497d420a3",
+      "size": 135
+    },
+    "assets/scene/cozy/tiles/floor-steel-bolts.png": {
+      "sha256": "08ed8ced94a384c5eba9ae806f15daf64cf143e3f6221c3598238996a83b98a9",
+      "size": 288
+    },
+    "assets/scene/cozy/tiles/floor-steel-plain.png": {
+      "sha256": "8847f101603f57fc47aed1233a6ffdc458e47b4c9e0501a9e35610060f6baf57",
+      "size": 135
+    },
+    "assets/scene/cozy/tiles/floor-steel-vent.png": {
+      "sha256": "707278eb2326caf853cf501a5c0ec42058128461fb38798da26b4bb45f180642",
+      "size": 296
+    },
+    "assets/scene/cozy/tiles/floor-steel.png": {
+      "sha256": "b9a1af8f4375bdc0a19b968e32e6eeaec0e02512a2cfc64dff34223f403f6c0f",
+      "size": 176
+    },
+    "assets/scene/cozy/tiles/wall-light.png": {
+      "sha256": "90b8d94506826967e0e548f02c75336c14ef3f93196b23b006a722639d4ab332",
+      "size": 253
+    },
+    "assets/scene/cozy/tiles/wall-pipes.png": {
+      "sha256": "d1dd2e1481bee7896d4e24582f5f584bd25f1d79d981f97f028e603b84a486f0",
+      "size": 317
+    },
+    "assets/scene/cozy/tiles/wall-screen.png": {
+      "sha256": "f23ca99ad352584afb7ba1e0f241a90e513d7718ea826ef584e4492fff5458c5",
+      "size": 361
+    },
+    "assets/scene/cozy/tiles/wall-sign.png": {
+      "sha256": "a99043f42b2ccfd6e99d287b9587d66de4f7e57eb8d2bf9dc015bdf6c7735efc",
+      "size": 286
+    },
+    "assets/scene/cozy/tiles/wall-vent.png": {
+      "sha256": "d05f1f683b8c48159ed161ea5c8d6bcce12125e0e083d5c05f5142e5eaeeff3d",
+      "size": 314
+    },
+    "assets/scene/cozy/tiles/wall-window-planet.png": {
+      "sha256": "8b8bf4681211a1e544334f8f12e774dcd2fb05770f28dde2ebe011481971b08f",
+      "size": 500
+    },
+    "assets/scene/cozy/tiles/wall-window.png": {
+      "sha256": "bf94bf071cf092b01ae65758a889e35367f9efa9d143439d9bc34c443a0ad769",
+      "size": 382
+    },
+    "assets/scene/cozy/tiles/wall.png": {
+      "sha256": "a22b30c22f9fb806ef481bc2ebab783a12c4611245e60ed9b1cb9e96aa6e0185",
+      "size": 188
+    },
+    "assets/scene/crew/LICENSE.txt": {
+      "sha256": "52666746796b6eaffb2adc43c441e67f005b6778ae1533ac4b6ae818a6e4eb4e",
+      "size": 2999
+    },
+    "assets/scene/crew/_pixel-backup/crew-01.png": {
+      "sha256": "ba7f236da31dc0dadc0fe5774344d930973df6388e37b0c3c104f43ab61a87a2",
+      "size": 6216
+    },
+    "assets/scene/crew/_pixel-backup/crew-02.png": {
+      "sha256": "aecdb03aa7faa6bf1511fcef86417dade0e1a3fe3f34ef9f24a3512740b2fafb",
+      "size": 6775
+    },
+    "assets/scene/crew/_pixel-backup/crew-03.png": {
+      "sha256": "7fe6992f662f13da32a49a2e63f49c7f7c7cb0a5567d48540137992d537cac5e",
+      "size": 6830
+    },
+    "assets/scene/crew/_pixel-backup/crew-04.png": {
+      "sha256": "53a22f3c9c375b366843fb73684d346cbfa57db20754960b3e92e561c6016019",
+      "size": 6859
+    },
+    "assets/scene/crew/_pixel-backup/crew-05.png": {
+      "sha256": "174465e2ab95c04d8b9caf0a73d4575c9dbcc94c3e5e03adc1bd821acf0c44c0",
+      "size": 6871
+    },
+    "assets/scene/crew/_pixel-backup/crew-06.png": {
+      "sha256": "81483de10ca9a40324db2f4f6257a7e683bec21a64f78fa3aef7512a6b689786",
+      "size": 6712
+    },
+    "assets/scene/crew/_pixel-backup/crew-07.png": {
+      "sha256": "c84195cbeea7802ecabd32e5aad2b92b3488c0ade81310ef61ae5805e23f3c91",
+      "size": 6997
+    },
+    "assets/scene/crew/_pixel-backup/crew-08.png": {
+      "sha256": "aa9a6b9067141f1990050b9d08a31f873e5b86c057eee53459e36100b5c3d372",
+      "size": 6972
+    },
+    "assets/scene/crew/_pixel-backup/crew-09.png": {
+      "sha256": "2d18354b3da0412ead29b97c7e0a8f1a747e3f2619904297fd2f4ec779d4a499",
+      "size": 6802
+    },
+    "assets/scene/crew/_pixel-backup/crew-10.png": {
+      "sha256": "5671929fb2f1a36bd383be9dfdcdf454eda2241d9463cdf721caaee864d8796b",
+      "size": 6448
+    },
+    "assets/scene/crew/_pixel-backup/crew-11.png": {
+      "sha256": "9ce43ef3af37470c5afe679d69b1cfd2883304cdac037e5e0627ea9822b8ec62",
+      "size": 7019
+    },
+    "assets/scene/crew/_pixel-backup/crew-12.png": {
+      "sha256": "4f2dd0514796cfba751c7a32757d3a782747c95932d952481924ba17566e805f",
+      "size": 6956
+    },
+    "assets/scene/crew/_pixel-backup/crew-13.png": {
+      "sha256": "13ed6adcbfc5f7d859ce3e50dfe040c21da65490ea8151f8322bcaa6122cd94a",
+      "size": 6502
+    },
+    "assets/scene/crew/_pixel-backup/crew-14.png": {
+      "sha256": "6f362328e31427d57105435caef92af8695fe2dffaa0ae37f7a6e3bf8bb35ac5",
+      "size": 6596
+    },
+    "assets/scene/crew/_pixel-backup/crew-15.png": {
+      "sha256": "1c6a40d80bbaef7a226763be5b9116776342b38c33ab33390d21c1afa2641f6d",
+      "size": 6724
+    },
+    "assets/scene/crew/crew-01.png": {
+      "sha256": "0c8839a85422f3c7b8ddbcd86c5e4a232811208ce12c06d63701071c099846f5",
+      "size": 145057
+    },
+    "assets/scene/crew/crew-02.png": {
+      "sha256": "d3a343666aad53e3c0ebf9ac46c90a1c0a9ad94d88191a10c93ab794b00c475d",
+      "size": 148368
+    },
+    "assets/scene/crew/crew-03.png": {
+      "sha256": "a98903d24033f28bf1618d36161b5faa083ef00665e96b1b22ef776782b72f65",
+      "size": 148078
+    },
+    "assets/scene/crew/crew-04.png": {
+      "sha256": "7b132fac06e3174d59c19093831aec5cd2d5a8f8f3d39936407befe11ef929d3",
+      "size": 147412
+    },
+    "assets/scene/crew/crew-05.png": {
+      "sha256": "3e9c7892236c163ef4381da7ddc1ddf539fcb12ec4027e8088d57fca3557f715",
+      "size": 141994
+    },
+    "assets/scene/crew/crew-06.png": {
+      "sha256": "896d58707ae4ce137f1d6b757cee29d7e8501de0afe2990f1e4a2253568bae09",
+      "size": 151043
+    },
+    "assets/scene/crew/crew-07.png": {
+      "sha256": "d5e7760a43e35cb24d387a8cdf6b56d6d90dd2591450c9c5c5a25813638351fa",
+      "size": 145637
+    },
+    "assets/scene/crew/crew-08.png": {
+      "sha256": "13e5ea6cfe61414531f3569bb0d777e89b77bb549170bf8defb1025c893059fa",
+      "size": 146335
+    },
+    "assets/scene/crew/crew-09.png": {
+      "sha256": "f73dd0a5619331589b47ca91f9087fcce6cbea1b357e1eb3bf7b5041b95d60d7",
+      "size": 151071
+    },
+    "assets/scene/crew/crew-10.png": {
+      "sha256": "010d4c2556cf35d4c4a3602f50eb9578e313555244e71b6f5f31251e1ebd4541",
+      "size": 140936
+    },
+    "assets/scene/crew/crew-11.png": {
+      "sha256": "81e6aaa1182d18009b9d3b389170beee6c2963b5753de45cc4c481f4498e2af8",
+      "size": 145223
+    },
+    "assets/scene/crew/crew-12.png": {
+      "sha256": "4988858a56eca74558e625d7e1bb6286434572898ca8f28df6162eabcb1ea2f9",
+      "size": 147303
+    },
+    "assets/scene/crew/crew-13.png": {
+      "sha256": "c67c0c88799c03b5d7b55fdfeedf1d72d28a070fbb2a04e22e174ed5d3f51a6e",
+      "size": 146144
+    },
+    "assets/scene/crew/crew-14.png": {
+      "sha256": "7d2d2062d8d103b8137e7826a25f113119aa0da447437cff02229905a5e05d39",
+      "size": 150059
+    },
+    "assets/scene/crew/crew-15.png": {
+      "sha256": "d48476480c86a9ee4a5a601043ae4ad1b735fc11486a42b0f1251eb7565b09d0",
+      "size": 147022
+    },
+    "assets/scene/crew/manifest.json": {
+      "sha256": "70a688a1aeb58fa5c4a122388dcdf9afc356dbbff63c569a0260d3e77ab6e41c",
+      "size": 1764
+    },
+    "assets/scene/rooms/LICENSE.txt": {
+      "sha256": "25c02966e914f7b90e34f4bada4c4a0d8a1368876043bde3fbd9c1725d8d4c7d",
+      "size": 1952
+    },
+    "assets/scene/rooms/armory.png": {
+      "sha256": "20eb6c181a56ea3329effb868d0bcd82d47248aabb7add2374866792426ceaa6",
+      "size": 2934
+    },
+    "assets/scene/rooms/medical.png": {
+      "sha256": "713dd1dabc0623089c4a803d492b76eb22cb67101e1ad4f4d653fd82a5d3754c",
+      "size": 2644
+    },
+    "assets/scene/rooms/meeting.png": {
+      "sha256": "ed6b61718d5e6a5eb50af34078d9db53995dfebce785375f7c9fe553501217c4",
+      "size": 2166
+    },
+    "assets/scene/rooms/patrol.png": {
+      "sha256": "a515b67bbe6716dd3c0431fb108e0ba5f0f489e2b89c96683c64529aa9336ddd",
+      "size": 2920
+    },
+    "assets/scene/rooms/pharma.png": {
+      "sha256": "30fe3e4f80c8a789cd800501e220c80ec1e835b3b148cc7a5e0b31f8ef89efcc",
+      "size": 2836
+    },
+    "assets/scene/rooms/repair.png": {
+      "sha256": "68002071f024fe0197b3e81e5a333482a8e19ed81a9f7ac7fcb731610cb26837",
+      "size": 3242
+    },
+    "assets/scene/rooms/safe.png": {
+      "sha256": "d728e7c2db89e4bf693409a7eaff4cb6a27c23f65a9d0acfaea4a329387f8e0a",
+      "size": 2983
+    },
+    "assets/scene/rooms/verify.png": {
+      "sha256": "3a9933aad5d1452f3b357a47c479a92df724a5922f404a04b67759aea6778610",
+      "size": 2938
+    },
+    "assets/scene/station/LICENSE-Kenney.txt": {
+      "sha256": "e8de83b5cb2f01810e32f07691cb1dcf9494dc4a7f8cce0ec8175dfb8c5d98d9",
+      "size": 720
+    },
+    "assets/scene/station/balcony-floor-center.png": {
+      "sha256": "1a2592130b824d32f491b57d060753bc80b298790f7e9e4aa097e675db082ffe",
+      "size": 1541
+    },
+    "assets/scene/station/balcony-floor-corner.png": {
+      "sha256": "581bebf237b35b61789a9893ead1a3fd7cf3768efae1b5abbdc705e8ff00d628",
+      "size": 1960
+    },
+    "assets/scene/station/balcony-floor.png": {
+      "sha256": "2c319fb0b911ab8fe7ded54cd715c7dad6eebb9f5bb5b26ce07d2e87b989dd7c",
+      "size": 1903
+    },
+    "assets/scene/station/balcony-rail-center.png": {
+      "sha256": "3c0414c3a22582a92652cf8a5dae9de2067480b74592b1955ddbded8648a29ee",
+      "size": 1844
+    },
+    "assets/scene/station/balcony-rail-corner.png": {
+      "sha256": "45dcf4de65d6b64df1a290f1e678d4288efaa957bca68cda5438111d63d8b6dd",
+      "size": 1689
+    },
+    "assets/scene/station/balcony-rail.png": {
+      "sha256": "1bdfa58adff593c7959d651de3c6d655232fe9d48c15a73c119a225438bf98a0",
+      "size": 1928
+    },
+    "assets/scene/station/bed-double-cover.png": {
+      "sha256": "1abf15baf1c355c45b1642e44735532a24e30c9625d21b0ab203bc0c7c376d00",
+      "size": 1524
+    },
+    "assets/scene/station/bed-double.png": {
+      "sha256": "2f5541fdb98c0d6bbcc5ed91b30ceb7bf8a226ede6c7bc7a73ec7a13680fcc31",
+      "size": 1945
+    },
+    "assets/scene/station/bed-single-cover.png": {
+      "sha256": "328e25487996d04e283515ee1207ea8103dc42c5414a55762805611a9bfcb478",
+      "size": 1819
+    },
+    "assets/scene/station/bed-single.png": {
+      "sha256": "a2d7f72af10e2d9a973fa21461b5603f113f68ee55d15fe730ebf989031aef61",
+      "size": 1957
+    },
+    "assets/scene/station/chair-armrest-headrest.png": {
+      "sha256": "9b558baef0c5d28fb1e1bddbe6c32d02d004a6f3d08e3a473a1f7396a593ef37",
+      "size": 1613
+    },
+    "assets/scene/station/chair-armrest.png": {
+      "sha256": "e168f9ba92148da5bf6ee8e09b58e8055669554948457281f191171f975d8e84",
+      "size": 1720
+    },
+    "assets/scene/station/chair-cushion-headrest.png": {
+      "sha256": "3306ba5e9e38bbe0d5987de28bf7b76f42dd44e88375d11f46c85400452ca867",
+      "size": 1578
+    },
+    "assets/scene/station/chair-cushion.png": {
+      "sha256": "21b825d3e73f91497061951e71d69728a4ca0face67ea2085bb17034ee5521da",
+      "size": 1668
+    },
+    "assets/scene/station/chair-headrest.png": {
+      "sha256": "17bf604e66a8b2caa0dd2f1afcfca004356033557a8df690d0553bed15736702",
+      "size": 1571
+    },
+    "assets/scene/station/chair.png": {
+      "sha256": "0e5e87db4f13e1415ff8d9c73463814b74a5b9ac8337477517fe60b83aab0b95",
+      "size": 1652
+    },
+    "assets/scene/station/computer-screen.png": {
+      "sha256": "c1fa28f105681cab9b951734e3a391324879cf5f2f3b65b301dc780088054e50",
+      "size": 1835
+    },
+    "assets/scene/station/computer-system.png": {
+      "sha256": "f84a63e55b95d65af44836dc14071184dc4b0d552216a514cad37b485cc6c00d",
+      "size": 1988
+    },
+    "assets/scene/station/computer-wide.png": {
+      "sha256": "92987776b0e47f2453e58a1ac287419144c5b92b602aabb55516708d8e4157c8",
+      "size": 2065
+    },
+    "assets/scene/station/computer.png": {
+      "sha256": "7e7b4620a87cf8ca4e4221db3ded9fcb07eb1a8d87b1dc19b87e26dfe742a3a1",
+      "size": 1700
+    },
+    "assets/scene/station/container-flat-open.png": {
+      "sha256": "67b18a261db824e831a7adef0fac5f9fea2420c0becd1fa107a9dafe618f2eb8",
+      "size": 1934
+    },
+    "assets/scene/station/container-flat.png": {
+      "sha256": "72e15a35b422a10e7a7fc9e32d2bafd2ce1f72cb14958fddbe5770c2d55f9601",
+      "size": 2003
+    },
+    "assets/scene/station/container-tall.png": {
+      "sha256": "ffd4efd757429e9fb5801561fa28123bf5fdda0a158d93282be20baaa822df6a",
+      "size": 1679
+    },
+    "assets/scene/station/container-wide.png": {
+      "sha256": "3945c4e7e09f2b1a44b320ae6f0fd96c0d6da0e69869a20259f85ae31d0f63f3",
+      "size": 1895
+    },
+    "assets/scene/station/container.png": {
+      "sha256": "6ffdf4da5a2900e94ef25a16d987507cb0c2c7c956cedfeeb758c2f9afc5679f",
+      "size": 1834
+    },
+    "assets/scene/station/display-wall-wide.png": {
+      "sha256": "8626ab2e4d2e71a80d0b1fcf467c6c2fd0063b678967666ff189976cfb5359eb",
+      "size": 1970
+    },
+    "assets/scene/station/display-wall.png": {
+      "sha256": "201a74dacb81774ef92002489dbb46f954b7c42a6f56259daf8fe241781d0e2c",
+      "size": 1874
+    },
+    "assets/scene/station/door-double-closed.png": {
+      "sha256": "52ef278341f90bc980b65f691b44ea5832b8ca26073fe7c99e24f0880d736142",
+      "size": 1703
+    },
+    "assets/scene/station/door-double-half.png": {
+      "sha256": "3ff1e811ae0d449341e3a4464f721fdd221fd9f025160e05dfc6d55c28622a96",
+      "size": 1682
+    },
+    "assets/scene/station/door-double.png": {
+      "sha256": "9077b0bb61a7ce43a5533ceeda5ff5092d531d47818dc8e97c13fe6b2826d4ff",
+      "size": 1717
+    },
+    "assets/scene/station/door-single-closed.png": {
+      "sha256": "9f4ac8b4a0d2b86dc5e2ab4a9dc1aaeb7e29a59a4c8899ee04a2f9d7cca46c3e",
+      "size": 1640
+    },
+    "assets/scene/station/door-single-half.png": {
+      "sha256": "e3b26feb6ca32a6bd9e9ae9ffe490efcae659eba1be9ead532c8b6d5a9cee769",
+      "size": 1641
+    },
+    "assets/scene/station/door-single.png": {
+      "sha256": "d2b33d1e54e594bbece4237548340d3ebaa5e6edf67e26c3a7f54607d1e0ce73",
+      "size": 1667
+    },
+    "assets/scene/station/floor-corner.png": {
+      "sha256": "df1df478964ec8c983d1a35edf169afc920ed62f3ab89a9cf0814ffc21b17c97",
+      "size": 1641
+    },
+    "assets/scene/station/floor-detail.png": {
+      "sha256": "f24e95f32fde68f3c8b2d49558e1fa885b2ba435844e6272a32297cc3eece1af",
+      "size": 1979
+    },
+    "assets/scene/station/floor-panel-corner.png": {
+      "sha256": "990123696545383917b1a37bebe036e0b93d08523e8113114c86fbcd30c92cc7",
+      "size": 2030
+    },
+    "assets/scene/station/floor-panel-end.png": {
+      "sha256": "2c6ee2b230feefa8ffa895cd33ad5c8813d66cef4dfdb79ca29676cf21e41e0c",
+      "size": 2013
+    },
+    "assets/scene/station/floor-panel-straight.png": {
+      "sha256": "51d8e859e72cfa2ac5004b30afdd183a75a656fa555b830aaf5619297fea70d3",
+      "size": 1987
+    },
+    "assets/scene/station/floor-panel.png": {
+      "sha256": "da076baf1092346c69670fec316660c188ab183cbae6eb832c73f4ba84fccb8b",
+      "size": 2074
+    },
+    "assets/scene/station/floor.png": {
+      "sha256": "3b964f65a09bb8c646962ebd627af47394018c3f3e60d6065afcfc05ced84ec3",
+      "size": 1658
+    },
+    "assets/scene/station/pipe-bend-diagonal.png": {
+      "sha256": "6af2093f78f4db18cc5ae8574757ddb54a9d1bbd4a0c09f5b596eb7fe7ef226d",
+      "size": 1654
+    },
+    "assets/scene/station/pipe-bend.png": {
+      "sha256": "1c2f0e8aa1a6e9bab800cbb097a76510577723dd4a15dc0a59a559b51c2d436e",
+      "size": 2005
+    },
+    "assets/scene/station/pipe-end-colored.png": {
+      "sha256": "dbf072988ceda10c0b786879bf0a8fc44e6c663643ded49478ae9f81fd5ad2df",
+      "size": 1641
+    },
+    "assets/scene/station/pipe-end.png": {
+      "sha256": "60015714b9d0192a25aa621628b0409cb1fa5541e743f3b612d9aef6e3785ce1",
+      "size": 1664
+    },
+    "assets/scene/station/pipe-ring-colored.png": {
+      "sha256": "f07d733a0e421efef3b3a2bc80612ec6a7eb0bced1da0cdfb6f0d267d8038dc8",
+      "size": 1695
+    },
+    "assets/scene/station/pipe-ring.png": {
+      "sha256": "e55b8f5376302ed704e11f33376ef330cfa6b119ad49a37b46a1a12ae6225022",
+      "size": 1719
+    },
+    "assets/scene/station/pipe.png": {
+      "sha256": "dcf37506cf1c04eacaf4e89324d95895c409fb0ea9bb71a88efe6e69e8f4c05e",
+      "size": 1648
+    },
+    "assets/scene/station/rail-narrow.png": {
+      "sha256": "feb4f17636db15db9dcbaf7d5e30703fe55c3e535c41f3c2e4a099f2914744d2",
+      "size": 1518
+    },
+    "assets/scene/station/rail.png": {
+      "sha256": "3a3eadc5635d9aeda970dd292463c94a84c5aee663837339ae4f35a02736ff39",
+      "size": 1490
+    },
+    "assets/scene/station/rocks.png": {
+      "sha256": "0e0228e00b0be69aa064a6742c194f1195acf693e3ad365d25775929b12881aa",
+      "size": 1910
+    },
+    "assets/scene/station/skip-rocks.png": {
+      "sha256": "d32fc50618049b545c61d15ab2984053204891087b3835dd4797174aae463699",
+      "size": 1898
+    },
+    "assets/scene/station/skip.png": {
+      "sha256": "0b1a5f708636a86c3e84defdbf2fc17cd2c4aba4c709add8415f1b461880f780",
+      "size": 2098
+    },
+    "assets/scene/station/stairs-corner-inner.png": {
+      "sha256": "ad422de598ee87af86887da51c1998a3057618c0051e5fbe06c92c6f9515589b",
+      "size": 2018
+    },
+    "assets/scene/station/stairs-corner.png": {
+      "sha256": "3e0d0bae2fdf3a65b3362196264daca0730f6bdee280b024d47debc8e2b7ae21",
+      "size": 1878
+    },
+    "assets/scene/station/stairs-handrail-single.png": {
+      "sha256": "aebafe3b69b4ffc9f8444680cb124284ac0052b1d328c6c8984c0814397165a7",
+      "size": 1308
+    },
+    "assets/scene/station/stairs-handrail.png": {
+      "sha256": "e552033fd3663f21c016ae90456ace2e3c5037b2b519881ca2fce42e207fda97",
+      "size": 1492
+    },
+    "assets/scene/station/stairs-ramp.png": {
+      "sha256": "e12f70b7d4414897a552fd0c15cbf73fac7353d1f824e42db80cc2a99662af13",
+      "size": 1992
+    },
+    "assets/scene/station/stairs-small-center.png": {
+      "sha256": "5d61311c8b8d11400686c4e2d85aa491e675ecaf3cf233c5cc1e930e25641d6c",
+      "size": 1958
+    },
+    "assets/scene/station/stairs-small-corner-inner.png": {
+      "sha256": "52a0701846079257c3196e00c0442a87689561e30b26496ef116b6702b0f9a94",
+      "size": 1738
+    },
+    "assets/scene/station/stairs-small-corner.png": {
+      "sha256": "a9a644e34b90f40aaa580e87fd61bf75311a12e83eec40a32b4c3d692b28c3ef",
+      "size": 1560
+    },
+    "assets/scene/station/stairs-small-edge-handrail.png": {
+      "sha256": "f54701614e441398516030e460d57f58e56dbec89074e5f19ba14fbd017b57bf",
+      "size": 1717
+    },
+    "assets/scene/station/stairs-small-edge.png": {
+      "sha256": "9bd41cc7e2611c593b68b3fac059e257c263b8cdfdf85913e1f9a23c8d518230",
+      "size": 1968
+    },
+    "assets/scene/station/stairs-small-edges-handrail.png": {
+      "sha256": "2e3fb1eb82dd7f4fdd7aee191c1a18ca7b9cce6a530092ecab3028ccb816f930",
+      "size": 1773
+    },
+    "assets/scene/station/stairs-small-edges.png": {
+      "sha256": "e8d84b12e9052d29ff927f64ec5979478dd2abc3a300e986a9309f8c7049af0c",
+      "size": 1870
+    },
+    "assets/scene/station/stairs.png": {
+      "sha256": "ef3065df4bc532965b675c37fe82ce0dcec9c3dabd213df5d1d3e7ea24aae0ff",
+      "size": 1952
+    },
+    "assets/scene/station/structure-barrier-high.png": {
+      "sha256": "f00f30f88cbd1b436e6aa225bc8f0616d0ecc4c5c1ba9caaa71f22cca2cf4e04",
+      "size": 1697
+    },
+    "assets/scene/station/structure-barrier.png": {
+      "sha256": "8c5b9d969a396e4a484e28da5baf8036611ac9993fa07244ffa1a2bdc7f340f8",
+      "size": 1694
+    },
+    "assets/scene/station/structure-panel.png": {
+      "sha256": "866a0d45fc6507ae88cd012a9fd8dc0a5ad8ec2c60fb82b3a65bc4cd6ebb66b0",
+      "size": 1976
+    },
+    "assets/scene/station/structure.png": {
+      "sha256": "7fe66cbcc454c747f904cd619707d30623884c3a2aaadf636b907ba778d7ca7e",
+      "size": 1686
+    },
+    "assets/scene/station/table-display-planet.png": {
+      "sha256": "f3cedd348fe9f1e55cbe27497e0214b9f83fcd5f2bd4a699268dd1f5b516ac50",
+      "size": 1629
+    },
+    "assets/scene/station/table-display-small.png": {
+      "sha256": "2cb3ecdc8435175a53286ef5f6e7c824f1143f88be985c4e3f1c15566670cc25",
+      "size": 1760
+    },
+    "assets/scene/station/table-display.png": {
+      "sha256": "295f8cc0782e07ef5e630af26ac7cb488179197c3cdb4cf24f0d8c7c9015cd95",
+      "size": 1876
+    },
+    "assets/scene/station/table-inset-small.png": {
+      "sha256": "51213b15e57dda78d29bd7641673f9df6f75c62f76ab1e48019bd1b0111682b2",
+      "size": 1926
+    },
+    "assets/scene/station/table-inset.png": {
+      "sha256": "07545bac0d80cc1a743add001d3685dba7b05e878d02d184d1deba02038944c9",
+      "size": 1969
+    },
+    "assets/scene/station/table-large.png": {
+      "sha256": "20df9c2a0efbad58050b192d11585d3b3fa0e118db8cec9e1a1227e5181c6810",
+      "size": 2048
+    },
+    "assets/scene/station/table.png": {
+      "sha256": "29565da7d49211d97291fd69e91d3dbc1784fd431d60d20a60750eddcdef0ac1",
+      "size": 2198
+    },
+    "assets/scene/station/wall-banner.png": {
+      "sha256": "8f0fc8827c13f4baa78c3d826120cb65e053efb459d06d59fd4e380ce1c48508",
+      "size": 1734
+    },
+    "assets/scene/station/wall-corner-banner.png": {
+      "sha256": "f354c26b8644865ef0fbb9e0e45cc8523eb599e156b3c70b565242ce5d427049",
+      "size": 1625
+    },
+    "assets/scene/station/wall-corner-round-banner.png": {
+      "sha256": "7842992ea74f59f428dea334e4f32874c491b2fd1700565ab8d62365b6777ac2",
+      "size": 1470
+    },
+    "assets/scene/station/wall-corner-round.png": {
+      "sha256": "7cadbe090264d6d8e1d0c1160ecedd6eb71384c838b4852a94834aef99007184",
+      "size": 1473
+    },
+    "assets/scene/station/wall-corner.png": {
+      "sha256": "46fa795d3fc463c09082e37a40f09bf5827d102f29a1f4a4931a4717ce3fde84",
+      "size": 1632
+    },
+    "assets/scene/station/wall-detail.png": {
+      "sha256": "65bf525583d1bb96cfec2c4f7f23766ebd355604834ea1949792059e7eacfd82",
+      "size": 1596
+    },
+    "assets/scene/station/wall-door-banner.png": {
+      "sha256": "1f4d9ebb55a6ff931f4d12578aa99071635796652c739e38a0488901dcc0c4bc",
+      "size": 1751
+    },
+    "assets/scene/station/wall-door-center.png": {
+      "sha256": "2bbf84a3f91c149df2b4e7578d9c62e5f686fc03355a5408bf8f5cedd2d3e1d7",
+      "size": 1960
+    },
+    "assets/scene/station/wall-door-edge-banner.png": {
+      "sha256": "d920354f27c9d64a48f5a2412dbf3c7562cacbd53ba965a4a4c60711fdf0537f",
+      "size": 2075
+    },
+    "assets/scene/station/wall-door-edge.png": {
+      "sha256": "7ef6fe1160ea5d9af0c30e29c4c8ac06232bd4a50818c67469328aff3b54265b",
+      "size": 2078
+    },
+    "assets/scene/station/wall-door-wide-banner.png": {
+      "sha256": "fe3606535256e2a85841bdc0402ce4ec83c6ff76c358d8c19b4360ae9f38e502",
+      "size": 1692
+    },
+    "assets/scene/station/wall-door-wide.png": {
+      "sha256": "10f5b83e27b3755d9bde8c510408f0d8cdec0ada6ffa1d8e1724bc0b9c188ecb",
+      "size": 1699
+    },
+    "assets/scene/station/wall-door.png": {
+      "sha256": "c228aa8970c15e65be0b738f8c654b69141eb2e75414b519453c83d298dcf515",
+      "size": 1761
+    },
+    "assets/scene/station/wall-pillar-banner.png": {
+      "sha256": "5044cf8cee00ccb5f36fb79aa2ab9ccaea13f1626c6e5b83bc626632f90f02dc",
+      "size": 1858
+    },
+    "assets/scene/station/wall-pillar.png": {
+      "sha256": "a856573b5b0f14bba8dc1e0c8764f5c96dd506af72e3b26102e5d198aa3348c3",
+      "size": 1842
+    },
+    "assets/scene/station/wall-switch.png": {
+      "sha256": "c22f617c0f4ea88f6f323e1346cc5ae53964c8764419767727e4394ccbf3b672",
+      "size": 1558
+    },
+    "assets/scene/station/wall-window-banner.png": {
+      "sha256": "5d03b955186366890cd5093cd2c3f71235f7fb1d06d5ca79a4e9b8657bdb2612",
+      "size": 1767
+    },
+    "assets/scene/station/wall-window-frame.png": {
+      "sha256": "84a9e3ffcaeedb1936cd016dedd6c12199ad45983dfe59e183245aff63cdb446",
+      "size": 1777
+    },
+    "assets/scene/station/wall-window-shutters.png": {
+      "sha256": "0ae1777ca31583628faf9927645e18b7cc96f2c481f5c2a94b5aa6afdc04c21b",
+      "size": 1862
+    },
+    "assets/scene/station/wall-window.png": {
+      "sha256": "4e3e68b3f7ddd286dddf0c7340b27a8c5668445ff6d6d2de179765329df3d2cf",
+      "size": 1776
+    },
+    "assets/scene/station/wall.png": {
+      "sha256": "dbc28a1da64de0f9df07925291c8ebca88da0c4129ab9a474c609fc3db78a153",
+      "size": 1757
+    },
+    "assets/scene/v4/_preview.png": {
+      "sha256": "925685db055098a4a099ab39b6ffbcca164c1608ceaaa2c26231d6d5561ad1a0",
+      "size": 714819
+    },
+    "assets/scene/v4/base-lit.png": {
+      "sha256": "7e73c60c4829c3295a203d915f1c1497909dd1f0ef5e2deb868f48a1bb185a42",
+      "size": 14194673
+    },
+    "assets/scene/v4/facility/breaker-c0.png": {
+      "sha256": "f575c443ac255b990fb38f4f8eeab06b75c0a69ad7a1055cdc7f6ccc6894696b",
+      "size": 160082
+    },
+    "assets/scene/v4/facility/breaker-c1.png": {
+      "sha256": "e7418189b8c1c99c4dc13ec7feee2379a611bbe8b82c5a0559076f33e3d4e9ed",
+      "size": 162458
+    },
+    "assets/scene/v4/facility/breaker-c2.png": {
+      "sha256": "fc0832914b21d89c0d751202f2d8468f897e0176416651d5ffd483d9889a7548",
+      "size": 93251
+    },
+    "assets/scene/v4/facility/breaker.png": {
+      "sha256": "f575c443ac255b990fb38f4f8eeab06b75c0a69ad7a1055cdc7f6ccc6894696b",
+      "size": 160082
+    },
+    "assets/scene/v4/facility/fx-arc.png": {
+      "sha256": "193c423380f98224437fa4a1acb3c655ce689b9d02b3c25349678402da57803b",
+      "size": 218180
+    },
+    "assets/scene/v4/facility/fx-task-c0.png": {
+      "sha256": "0a70b99c66004596756c1024e85970cb6a5631cdf7992f8319ac4d1182cef56d",
+      "size": 414739
+    },
+    "assets/scene/v4/facility/fx-task-c1.png": {
+      "sha256": "1c21e9d6389b59a7ffb0c4b08956782ced4670fdad3cd8c1a58c20dc58a5e68a",
+      "size": 536632
+    },
+    "assets/scene/v4/facility/fx-task.png": {
+      "sha256": "a6dc9a0145bf13fddb023cb4cc1a6c9a60966014263da486eabb29fd4f2b85a2",
+      "size": 425720
+    },
+    "assets/scene/v4/facility/fx-weld-c0.png": {
+      "sha256": "936504e83cdf79a0d668d2c8cef3256b5009c9cb65bfdae62b0bfeef604b51c3",
+      "size": 302368
+    },
+    "assets/scene/v4/facility/fx-weld-c1.png": {
+      "sha256": "25419cd59b3af3ee0c7de44d4041119d9fd126d97db4f2097fa701e5ec7009ca",
+      "size": 452581
+    },
+    "assets/scene/v4/facility/fx-weld.png": {
+      "sha256": "0cda3c938dec6566584412866c9e5f67ab48b9324153b2baadb778c6ba81d587",
+      "size": 151446
+    },
+    "assets/scene/v4/facility/medbot-c0.png": {
+      "sha256": "9b8f1581f22c5dd02d9da23e93b8132262d4161145db6d762f4a8fca30f1d394",
+      "size": 118187
+    },
+    "assets/scene/v4/facility/medbot-c1.png": {
+      "sha256": "aeb5fab2278a2d0dc57c11628f7eae025e5eea9492374933553accc634982aad",
+      "size": 204333
+    },
+    "assets/scene/v4/facility/medbot-c2.png": {
+      "sha256": "403796ed9023618eae68c3036acd1c4d2f12e74215b9ecb182563f7165cabed1",
+      "size": 96145
+    },
+    "assets/scene/v4/facility/medbot.png": {
+      "sha256": "403796ed9023618eae68c3036acd1c4d2f12e74215b9ecb182563f7165cabed1",
+      "size": 96145
+    },
+    "assets/scene/v4/facility/monitor-c0.png": {
+      "sha256": "ae0b44381521f54bfdfb3ee107d9b1f24604bd015dc5fddf55809c8cbfd88590",
+      "size": 114347
+    },
+    "assets/scene/v4/facility/monitor-c1.png": {
+      "sha256": "fc5fd8aaf2f4d368e17e98e3970e4a632117a79265cf6268b332dc66e838d5f0",
+      "size": 132984
+    },
+    "assets/scene/v4/facility/monitor-c2.png": {
+      "sha256": "ec2bb6c63cc325723a7a492163ed410bea21bb5554d5a8a3c9efe4f251d95526",
+      "size": 178813
+    },
+    "assets/scene/v4/facility/monitor.png": {
+      "sha256": "ae0b44381521f54bfdfb3ee107d9b1f24604bd015dc5fddf55809c8cbfd88590",
+      "size": 114347
+    },
+    "assets/scene/v4/facility/pipe-port-armory.png": {
+      "sha256": "7437d322cee399f6814212d9b36c56cdbfbe51388ee1cf37887664033aeaf9f5",
+      "size": 74533
+    },
+    "assets/scene/v4/facility/pipe-port-cam.png": {
+      "sha256": "778f5d0394534c752a6b1458fdad79c9031123825ac711da4b04425cdcb30c3a",
+      "size": 69979
+    },
+    "assets/scene/v4/facility/pipe-port-ecosys.png": {
+      "sha256": "926364d98633fbc91877f78b9faae73a021f56f1639cba4e71365febfd9cf523",
+      "size": 39707
+    },
+    "assets/scene/v4/facility/pipe-port-engine.png": {
+      "sha256": "84bb25c4438d8c928d46d0708e4014eeca95eabaa0d0ccfcdf87e5ccb1183435",
+      "size": 64257
+    },
+    "assets/scene/v4/facility/pipe-port-fun.png": {
+      "sha256": "b8b6ad01c6bd20182c5c37bc97c666dc0d92d9f080b2b39b9109685cb379fe4e",
+      "size": 63567
+    },
+    "assets/scene/v4/facility/pipe-port-med.png": {
+      "sha256": "f182e9e2f39363564d6ee7380a003a01d1fd384faa9a8df5f2a85ae4f54bc9dc",
+      "size": 94573
+    },
+    "assets/scene/v4/facility/pipe-port-transit.png": {
+      "sha256": "77a7fdca79d4788b390f64beaf9de5aa7d7c949eae45d4f0d239b42009e55f19",
+      "size": 69874
+    },
+    "assets/scene/v4/facility/pipe-port-warehouse.png": {
+      "sha256": "7a15b38eeba751648759cd9a37fc218ca14afe53fbdd8ddcdd41312b7bedc962",
+      "size": 35760
+    },
+    "assets/scene/v4/facility/secbot-c0.png": {
+      "sha256": "85faa4004a962115f83f5746c96fdfc16ea5ace4b0a4365cbbe4a43c6261fb57",
+      "size": 217583
+    },
+    "assets/scene/v4/facility/secbot-c1.png": {
+      "sha256": "17d8296115ec35ed8511c9834724602e9b0931678dffb30b35c623f1400bf89d",
+      "size": 126527
+    },
+    "assets/scene/v4/facility/secbot.png": {
+      "sha256": "17d8296115ec35ed8511c9834724602e9b0931678dffb30b35c623f1400bf89d",
+      "size": 126527
+    },
+    "assets/scene/v4/facility/supply-ammo-c0.png": {
+      "sha256": "8a80c39b4f789f2795543d8b61dc862323bbc126a875bf6ace15bdb891f3d8ab",
+      "size": 267960
+    },
+    "assets/scene/v4/facility/supply-ammo.png": {
+      "sha256": "4c047fc69bc996ce7448fab51c5dbc55137b422f1a76fe6d11d54abe22b66bfd",
+      "size": 172843
+    },
+    "assets/scene/v4/facility/supply-med-c0.png": {
+      "sha256": "cac353b9dc79a057eb1980e381965e88d15c0535110207aae1c41bcbd33b40ac",
+      "size": 153176
+    },
+    "assets/scene/v4/facility/supply-med-c1.png": {
+      "sha256": "cdbbb5806eb99a6a358d4f2a50e5197ef65262ba132e375ca25b125bd0817d6d",
+      "size": 232251
+    },
+    "assets/scene/v4/facility/supply-med.png": {
+      "sha256": "281e7b5c37b377397afec52269b92533e13e94005c76bb4907cbbccd042d20ed",
+      "size": 166347
+    },
+    "assets/scene/v4/facility/tool-wrench.png": {
+      "sha256": "52719895c09f85065c6b446959fd14a3a6a3bc03612b30b81859d0454084a9ab",
+      "size": 65251
+    },
+    "assets/scene/v4/hull-deck.png": {
+      "sha256": "022d17d707f4bf672fd611d4f1511338fa99dd3faef92320e0d3469c815b6106",
+      "size": 7300895
+    },
+    "assets/scene/v4/tex/door-panel.png": {
+      "sha256": "e4fe221cf6377e45db5839aa5fccefcff41654a81e9ecffdee3e501471a65802",
+      "size": 4037351
+    },
+    "audio/music-bgm.m4a": {
+      "sha256": "8d4a63bb1bfec500ef8390325a0117dc5354a48ee20951098f352d04296fabf4",
+      "size": 3755288
+    },
+    "audio/sfx-click.ogg": {
+      "sha256": "f4597ea6f65e172ca7fb83f435cad8b76eb3fb7aaa6362c0314e8548e74123cb",
+      "size": 4927
+    },
+    "audio/sfx-door.ogg": {
+      "sha256": "ece381fe7b79ee2c1cddd75504ab4885109fb46c2a1f74d1a3a5469b3912a369",
+      "size": 8199
+    },
+    "audio/sfx-flesh.ogg": {
+      "sha256": "eb9f878ec6a71829a6630fd63e7612f9b23d5a02c58ca6f6bc64c8174a203017",
+      "size": 8832
+    },
+    "audio/sfx-gun.ogg": {
+      "sha256": "1581ee369835bda2c295da2deb7c4d519395519cc046fd33d612187ed7614a7c",
+      "size": 9093
+    },
+    "audio/sfx-knife-01.ogg": {
+      "sha256": "70c16f721fb7377e95f8cb6dc8774604007e302e21011998e7cd174b085ff33b",
+      "size": 7534
+    },
+    "audio/sfx-knife-02.ogg": {
+      "sha256": "ac4180fa156d2f38644c9fb6b8e08cec81bb30272352acbbcdc59b09a7d275d5",
+      "size": 7285
+    },
+    "audio/sfx-lose.ogg": {
+      "sha256": "84c2e6d8699d4eb25a4dddc541e515308589a00cf07f1829833f094f4aa2b233",
+      "size": 12250
+    },
+    "audio/sfx-metal.ogg": {
+      "sha256": "1481109f59c5ba2c0168dd8a8041b61f6da75d40e5c4e928c3084199094bb1c2",
+      "size": 9022
+    },
+    "audio/sfx-notify.ogg": {
+      "sha256": "0119b5eedbbb93270a30b7a56be6c99783f24324a46cd9a3e8b8c20516e7ce1c",
+      "size": 7935
+    },
+    "audio/sfx-scream-01.ogg": {
+      "sha256": "eacd025de9bd9044e7167ab2dadd9107438224f21b1d85b1ba73152ab84d4a14",
+      "size": 7834
+    },
+    "audio/sfx-scream-02.ogg": {
+      "sha256": "4718a2cddd5e63e5fbfb361023f847018251b9a6980972abe43d09cf71e5f17d",
+      "size": 9078
+    },
+    "audio/sfx-step-01.ogg": {
+      "sha256": "5e787482fade5fda3f07b562b0ebaeec41007e0a184582125dd14c70680ceee5",
+      "size": 6439
+    },
+    "audio/sfx-step-02.ogg": {
+      "sha256": "ea9f28cff12f0d5d40b0fed878dc74b87a6a557d0f7cdb5469952072b531e8c5",
+      "size": 7314
+    },
+    "audio/sfx-ui.ogg": {
+      "sha256": "836a1770ae7dad2d57bd7e35d34493a9a474bcae84bd091673f61edbefac1f56",
+      "size": 5566
+    },
+    "audio/sfx-win.ogg": {
+      "sha256": "e5bd4b7e9896bd382d346ea1e76dbb8c2fa7a4aeff1278b1117d527becfa3ba9",
+      "size": 9582
+    },
+    "audio/sfx-work.ogg": {
+      "sha256": "840133881b09ff29cc2f3a85d2b9d00787cc1b0277510d293f0bd06c730c197e",
+      "size": 5561
+    }
+  }
+}

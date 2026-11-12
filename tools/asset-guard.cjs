@@ -111,7 +111,7 @@ function guardExpired() {
     console.log(`  ${r.name}：${hit.length} 个 / ${mb(bytes)} MB / 保留期 ${r.days} 天`);
   }
   if (!found) console.log('  无超期批次');
-  console.log('[guard:expired] 逐文件明细见 docs/ASSET_LAYERS.md 登记与清理台账');
+  console.log('[guard:expired] 逐文件明细见 docs/ASSET_GOVERNANCE.md 附录 B 与清理台账');
 }
 
 if (EXPIRED) guardExpired(); else guardPublish();

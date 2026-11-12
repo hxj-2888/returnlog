@@ -74,8 +74,10 @@ if (has('--from-git')) {
   const ref = val('--from-git', '46aa05b');   // 出仓前的最后一个提交
   console.log('[assets] 从 ' + ref + ' 恢复：用 worktree，别用管道重定向（PowerShell 的 > 会重编码，二进制会坏）');
   console.log('  git worktree add ../returnlog-assets ' + ref);
-  console.log('  Copy-Item ../returnlog-assets/assets/scene/v4/tex/* assets/scene/v4/tex/ -Exclude door-panel.png');
-  console.log('  Copy-Item ../returnlog-assets/3d/preview/assets/textures/* 3d/preview/assets/textures/');
+  console.log('  # 2.5D 烘焙源贴图已移入素材层（2026-11-12）：');
+  console.log('  Copy-Item $env:USERPROFILE\\Documents\\returnlog_assets\\referenced\\scene-v4-tex\\* assets/scene/v4/tex/ -Exclude door-panel.png');
+  console.log('  # 2.5D 预览贴图已移入素材层（2026-11-12）：');
+  console.log('  Copy-Item $env:USERPROFILE\\Documents\\returnlog_assets\\unreferenced\\textures\\2.5d-preview-stale\\* 3d/preview/assets/textures/');
   console.log('  git worktree remove ../returnlog-assets');
   console.log('[assets] 拷回后跑本工具校验 sha256。');
   process.exit(0);

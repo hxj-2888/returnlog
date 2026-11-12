@@ -99,7 +99,7 @@ tools/ship-layout-plan.json                  方案真源：rooms[].walls[] / sd
   日志有两条 `Material.use_nodes` 的 Blender 6.0 弃用警告，5.2.2 上不影响结果。
 - **19:07 追加真图实测**：`--stage sdxl --only med_vitalscreen,fun_neonsign --execute`
   → 两张 512² 原图（43.1 s / 36.1 s，seed 802 / 602）；`--stage grade --room med|fun
-  --execute` → 两张 512² 成品（SHA256 见 `3d/ASSETS.md`）；
+  --execute` → 两张 512² 成品（SHA256 见 3D 仓 `3d/ASSETS.md`）；
   `blender -b -P ... -- --stage blender --test` → **exit 0**，出
   `3d/assets/renders/room-wall-all.png`（10 行 × 4 列，两块贴真图、其余主题色占位）
   与 `room_wall_all.blend`。**SDXL → grade → Blender 三阶段全通，不再是 dry-run。**
@@ -135,7 +135,7 @@ tools/ship-layout-plan.json                  方案真源：rooms[].walls[] / sd
 
 ## 6. 与既有资产工程的关系
 
-- 本管线是 `3d/ASSETS.md` 里「SDXL 设备屏幕 / 管道舱盖」两条既有管线的**同一路数**，
+- 本管线是 3D 仓 `3d/ASSETS.md` 里「SDXL 设备屏幕 / 管道舱盖」两条既有管线的**同一路数**，
   只是把对象换成墙面装饰、把粒度从「一张通用图」改成「每舱一套」。
   既有两条走的是 sdcpp CPU q2_K 小图；本管线主路径改走 GPU diffusers（见 §1 修正说明）。
 - 后处理口径沿用 `3d/tools/grade-screen.py` / `grade-pipe.py`（降亮、冷调、扫描线、暗角）。

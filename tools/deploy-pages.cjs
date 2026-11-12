@@ -2,7 +2,7 @@
  * 用法： node tools/deploy-pages.cjs [--dry-run]
  * 依赖： wrangler（PATH 或 WRANGLER_CMD 指向 wrangler.cmd）+ CLOUDFLARE_API_TOKEN/ACCOUNT_ID
  *
- * 为什么要暂存：项目根带着 android/（37MB 的 www 副本）、tools/、assets/scene/v4/tex（20MB 烘焙源材质）
+ * 为什么要暂存：项目根带着 android/（37MB 的 www 副本）、tools/、assets/scene/v4/tex（仅 door-panel 运行时依赖；其余源材质已移入素材层）
  * 与 .git，直接 deploy 会把它们全推上去，既慢又容易撞 Pages 的 25MiB 单文件限制。
  * 白名单只带运行时真正会读的文件；v4/tex 只留 door-panel.png（drawDoors 会采样）。
  * 2026-11-11 治理：assets/qwen-lib/*.png（78 MB 烘焙源）与 facility/_raw_fx/（渲染中间帧）

@@ -2,7 +2,7 @@
  *
  * 依据 docs/ASSET_GOVERNANCE.md §3 / §7：
  *   「是否入库」「是否发布」「是否留在磁盘」是三个独立决策，必须分别声明。
- *   本文件只管「是否发布」；入库口径见 .gitignore，磁盘留存见 docs/ASSET_LAYERS.md。
+ *   本文件只管「是否发布」；入库口径见 .gitignore，磁盘留存见 docs/ASSET_GOVERNANCE.md 附录 B。
  *
  * 背景：此前 .gitignore 已声明素材库 PNG 只在本机留档，但部署 SKIP 未同步排除，
  * 导致 78.03 MB 烘焙源材质 + 1.23 MB 渲染中间帧被上传（发布包虚胖到 124.85 MB）。

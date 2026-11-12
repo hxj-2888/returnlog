@@ -22,6 +22,8 @@ TEX = os.path.join(ROOT, 'assets', 'scene', 'v4', 'tex')
 MINI = os.path.join(ROOT, 'assets', 'minigame')
 PREVIEW_TEX = os.path.join(ROOT, '3d', 'preview', 'assets', 'textures')
 NEW_TEX = os.path.join(ROOT, '3d', 'assets', 'textures')
+ASSET_LAYER = os.environ.get('RETURNLOG_ASSET_LAYER') or os.path.join(
+    os.path.expanduser('~'), 'Documents', 'returnlog_assets')
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 
 if tuple(bpy.app.version[:2]) < (5, 2):
@@ -365,7 +367,9 @@ def build_prop_pipe_port():
     """地板通风管道口（2026-11-10 写实版）：顶面贴千问写实百叶风口贴图
     （assets/qwen-lib/vent-grille_768.png）+ 可染色外圈 pipe_rim + 侧短管。
     不再矢量直接画；2.5D 精灵由 render-pipe-port.py 从本模型渲染。"""
-    grille_tex = os.path.join(ROOT, 'assets', 'qwen-lib', 'vent-grille_768.png')
+    grille_tex = os.path.join(ASSET_LAYER, 'referenced', 'qwen-lib', 'vent-grille_768.png')
+    if not os.path.exists(grille_tex):
+        grille_tex = os.path.join(ROOT, 'assets', 'qwen-lib', 'vent-grille_768.png')
     body = material('pipe_hatch', grille_tex, metallic=0.75, rough=0.38)
     dark = material('pipe_dark', os.path.join(TEX, 'facility-panel.png'), metallic=0.6, rough=0.42)
     rim = material('pipe_rim', None, color=(0.30, 0.75, 0.85, 1), metallic=0.25, rough=0.30,

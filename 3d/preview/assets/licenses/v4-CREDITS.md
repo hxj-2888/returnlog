@@ -59,7 +59,7 @@
   Qwen-Image 2.1 Turbo Q4_K_M + Qwen3-VL-8B-Instruct UD-Q4_K_XL，
   768² / Turbo 8 步 / CFG 1.0 / euler / seed 20261107 起），
   6 舱 × 墙面 + 地板 = 12 张，产物 `E:/ai-models/qwen-image-2.1/output/room-skins/`，
-  留档 `docs/qwen21/room-skins/`（含 manifest）。脚本内硬守卫拒绝铁板 4 舱。
+  留档素材层 `returnlog_assets/unreferenced/qwen21/2.5d/room-skins/`（含 manifest）；仓库内不再保留。脚本内硬守卫拒绝铁板 4 舱。
 - **加工**：`3d/tools/bake-qwen-room-skins.py`。千问概念图带光照与透视边缘，
   按 `bake-refs.py` 红线**裁中心 88%** 去掉踢脚线 / 地面 / 顶部光斑，
   再套项目同款 grade（降饱和 + 冷调）+ **四向镜像拼贴成 1536² 无缝贴图**，

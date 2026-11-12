@@ -161,7 +161,7 @@ node tools/ship-layout-check.cjs     # 每次重建后必跑，必须 82/0
   + `3d/assets/renders/ship-scene-v2.png`：Blender 5.2.2 LTS 实测 **exit 0 / 2.31 s**，
   289 个对象，按舱室分 Collection、墙体为 0.34×3.0 m 实体、掩体按三档高度着色。
   这就是后续 MCP 活会话里可直接改写的场景起点。
-- MCP 工具链已装 `F:\AI-MCP\`（见 `3d/DECISIONS.md` ADR-0010 与
+- MCP 工具链已装 `F:\AI-MCP\`（见 3D 仓 `3d/DECISIONS.md` ADR-0010 与
   `docs/调研报告_Blender_Godot_AI_MCP插件_20261106.md`）。
 
 ### 已接进 Godot 主场景（17:51 全权授权后）

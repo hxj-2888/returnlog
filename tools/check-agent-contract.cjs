@@ -5,7 +5,7 @@
  *   node tools/check-agent-contract.cjs
  *   node tools/check-agent-contract.cjs --compare "<另一仓 AGENTS.md 路径>"
  *
- * 校验：本仓 AGENTS.md §一 红线与 docs/agent/REDLINES.md 逐字一致；
+ * 校验：本仓 AGENTS.md §一 红线与 docs/REDLINES.md 逐字一致；
  *       传 --compare 时，再校验另一仓 §一 红线哈希与本仓一致。
  * 只读，不修改任何文件。两仓红线若漂移（如主仓新增条目未同步），退出码 1。
  */
@@ -32,17 +32,26 @@ function redlines(text) {
 function hash(s) { return crypto.createHash('sha256').update(s).digest('hex'); }
 
 const agentPath = path.join(ROOT, 'AGENTS.md');
-const basePath = path.join(ROOT, 'docs', 'agent', 'REDLINES.md');
-if (!fs.existsSync(agentPath) || !fs.existsSync(basePath)) {
-  console.error('[agent-contract] FAIL 缺少 AGENTS.md 或 docs/agent/REDLINES.md');
+const basePath = path.join(ROOT, 'docs', 'REDLINES.md');
+if (!fs.existsSync(agentPath)) {
+  console.error('[agent-contract] FAIL 缺少 AGENTS.md');
   process.exit(1);
 }
 const cur = redlines(read(agentPath));
-const base = read(basePath).trimEnd();
 if (!cur) {
   console.error('[agent-contract] FAIL 未在 AGENTS.md 找到 §一 红线');
   process.exit(1);
 }
+if (argv.includes('--write')) {
+  fs.mkdirSync(path.dirname(basePath), { recursive: true });
+  fs.writeFileSync(basePath, cur + '\n', 'utf8');
+  console.log('[agent-contract] 已生成 docs/REDLINES.md');
+}
+if (!fs.existsSync(basePath)) {
+  console.error('[agent-contract] FAIL 缺少 docs/REDLINES.md（可加 --write 生成）');
+  process.exit(1);
+}
+const base = read(basePath).trimEnd();
 
 const h1 = hash(cur);
 const h2 = hash(base);
@@ -52,7 +61,7 @@ console.log(`[agent-contract] REDLINES.md  ：${h2.slice(0, 16)}`);
 
 let fail = false;
 if (cur !== base) {
-  console.error('[agent-contract] FAIL §一 与 docs/agent/REDLINES.md 不一致');
+  console.error('[agent-contract] FAIL §一 与 docs/REDLINES.md 不一致');
   fail = true;
 }
 const ci = argv.indexOf('--compare');
