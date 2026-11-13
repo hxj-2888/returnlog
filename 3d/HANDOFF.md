@@ -14,9 +14,9 @@
 
 ## 0. 最新交接（2026-11-10）
 
-> **一句话现状**：3D 已是 2.5D 的功能移植（判定 / 会议 / 结算 / 小地图 / HUD），已知缺口见 §0.4 与 `spec/gameplay-parity.json#budget`。
+> **一句话现状**：3D 已是 2.5D 的功能移植（判定 / 会议 / 结算 / 小地图 / HUD），已知缺口见 §0.4 与 `spec/mapping-layers.json#parity_budget`。
 > 39 项 Godot 自测曾全绿；门禁现值与本次实跑读数见 `3d/CHANGELOG.md` 指向的当月文件最新批次（本文件不复制）。
-> 表现层像素排布与人物美术仍是预演级；玩法缺口见 §0.4 与 `spec/gameplay-parity.json#budget`。
+> 表现层像素排布与人物美术仍是预演级；玩法缺口见 §0.4 与 `spec/mapping-layers.json#parity_budget`。
 > 当前工作区未提交项以 `git status` 为准；提交前按 §0.10 审阅。
 
 ### 0.1 一分钟上手
@@ -283,7 +283,7 @@ foreach ($t in $tests) {
 - **卡墙根因 2**：`player.gd` 接同一份 nav、`safe_margin=0.04`、不可走区钳回、卡住 0.3s 走 `nearest_free`。
 - **验收补洞**：`--abilitytest` 真实 InputEvent 逐键验拖拽/放下/出刀/管道/破坏 + 空场景反馈 + InputMap + 卡墙兜底。
 
-**未完成**：以 `3d/spec/gameplay-parity.json#budget` 的 `pending` 项与 `3d/CHANGELOG-2026-11.md`
+**未完成**：以 `3d/spec/mapping-layers.json#parity_budget` 的 `pending` 项与 `3d/CHANGELOG-2026-11.md`
 最新批次为准；本文件不另立缺口清单，也不复制预算数字。
 
 ### 0.10 改动流程（3D）
@@ -321,8 +321,9 @@ foreach ($t in $tests) {
 - `npm run check` 现在共 **9 项**，最后一项是 `map:check`：账本与 2.5D 不一致、目标悬空、缺口超预算都会红。
   `map:check` 同时做**反向覆盖**：`sim/` 里的函数必须要么有 2.5D 来源，要么在 `extras` 登记理由；
   当前 102 个未登记是下一批的归因清单（`mapping-layers.json#reverse`）。
-- `audit:parity:strict` 与 `3d:parity:check` 都已改为**只读账本**；`gameplay-parity.json`（已废弃）与
-  `parity-map.modules`（已移除）都不再参与判决，旧的同名自动配对与 DOM 正则猜测已删除。
+- `audit:parity:strict` 与 `3d:parity:check` 都已改为**只读账本**；`gameplay-parity.json` 已删除
+  （备份 `_backup/20261113_retire-gameplay-parity/`），`parity-map.modules` 已移除，
+  旧的同名自动配对与 DOM 正则猜测已删除。
 
 ---
 

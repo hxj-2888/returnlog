@@ -8,7 +8,7 @@
 - 桩函数：`TODO 逐行移植`
 
 这些 `.gd` **不在** `3d/preview` 工程内，不会被 Godot 编译；它们只是移植工作单。
-已完成的函数以 `3d/preview/scripts/**` 的实现为准，并在 `3d/spec/gameplay-parity.json` 登记。
+已完成的函数以 `3d/preview/scripts/**` 的实现为准，并在 `3d/spec/mapping-ledger.json` 登记。
 
 重新生成：
 

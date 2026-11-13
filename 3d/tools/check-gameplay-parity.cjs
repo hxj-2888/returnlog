@@ -388,7 +388,7 @@ md.push('');
 md.push('## 下一步（由审阅表驱动，不靠抽查）');
 md.push('');
 md.push('1. 每条 `守卫缺 / 写入缺`：打开 2.5D 原文逐行核对，补进 3D 或写 `@deviation` 说明。');
-md.push('2. 每个 `pending`：要么映射到实现，要么在 `spec/gameplay-parity.json` 标 `not-applicable` 并写理由。');
+md.push('2. 每个 `pending`：要么映射到实现，要么在 `spec/mapping-ledger.json` 标 `not-applicable` 并写理由。');
 md.push('3. 每个 3D 独有写入：确认它是表现/输入映射；不是就删。');
 md.push('4. 每次改完跑 `npm run audit:parity:strict`，缺口必须为 0 才能提交。');
 md.push('');

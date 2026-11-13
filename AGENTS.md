@@ -29,7 +29,7 @@
 
 | 任务 | 读 | 默认不读 |
 |---|---|---|
-| 玩法 / 判定 / 数值 / 语料 | `3d/preview/scripts/sim/` + `3d/spec/gameplay-parity.json` + 只读基线 `js/` | `3d/preview/scripts/tests/`、`3d/preview/assets/`、`3d/preview/reports/` |
+| 玩法 / 判定 / 数值 / 语料 | `3d/preview/scripts/sim/` + `3d/spec/mapping-ledger.json` + 只读基线 `js/` | `3d/preview/scripts/tests/`、`3d/preview/assets/`、`3d/preview/reports/` |
 | 界面 / 输入 / 交互 | `3d/preview/scripts/main.gd`、`ui_*`、`minimap.gd` | `3d/preview/scripts/tests/`、`3d/preview/data/` 大 JSON |
 | 验收 / 门禁 | `3d/HANDOFF.md` §0.8、当月 `3d/CHANGELOG-*.md` 最新批次 | 历史台账全文、`3d/preview/screenshots/` |
 | 数据链 / 导出 | `3d/tools/export-*.cjs` + `3d/spec/*.json` | `3d/preview/data/` 生成物（只读产物，不手改） |
@@ -134,7 +134,7 @@
 4. **迭代归档**：旧版本整批移入 L3 命名目录（`_backup/YYYYMMDD_<主题>` 或 `tools/_bak/<主题>-时间戳`）并写恢复口径；保留期为候选帧 7 天、中间产物与截图 14 天、退役批次与 `.blend1` 30 天、L4 缓存随时清。
 5. **删除授权（最高优先级）**：未经用户逐项确认，不得删除、移动、重命名任何资产文件；清理必须走规范 §9 六步（冻结 → 完整备份 → 只进回收站 → 每批 ≤10 → 逐批校验 → 写台账）；禁止 `rm` / `del /F` / `shutil.rmtree` / 通配符批量删。禁止以「修改时间久」或「文件名带 v1 / 日期」作为删除依据。
 6. **基线契约**：本工程 `js/`、`assets/`、`audio/`、`tools/`、`index.html` 为 2.5D 只读镜像，改上游主仓后再 `npm run baseline:sync`；**`docs/` 已移出基线，可改**；不得为了让门禁变绿直接改镜像文件。
-7. **规则同源（2026-11-11 用户裁定）**：3D 直接沿用 2.5D，规则只有一处真源。**禁止在 3D 新增计时器 / 阈值 / 阵营过滤 / 状态分支**；每个规则函数必须在 `3d/spec/gameplay-parity.json` 有映射并保留 `@src`；提交前 `npm run audit:parity:strict` 不得比 `spec/gameplay-parity.json#budget` 更差；缺口下降后跑 `--update-baseline` 收紧。逐函数移植流程见 `3d/PORTING_PROTOCOL.md`。
+7. **规则同源（2026-11-11 用户裁定）**：3D 直接沿用 2.5D，规则只有一处真源。**禁止在 3D 新增计时器 / 阈值 / 阵营过滤 / 状态分支**；每个规则函数必须在 `3d/spec/mapping-ledger.json` 有映射并保留 `@src`；提交前 `npm run audit:parity:strict` 不得比 `spec/mapping-layers.json#parity_budget` 更差；缺口下降后跑 `--update-baseline` 收紧。逐函数移植流程见 `3d/PORTING_PROTOCOL.md`。
 
 ## 三、变更检查清单
 

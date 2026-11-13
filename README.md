@@ -59,7 +59,7 @@ npm run export:all
 ## 4. 当前状态
 
 门禁与已知缺口只认 `3d/CHANGELOG-2026-11.md` 最新批次与
-`3d/spec/gameplay-parity.json#budget`，本文件不复制读数。
+`3d/spec/mapping-layers.json#parity_budget`，本文件不复制读数。
 分离时刻的两项失败（行段未认领 / `rules.json` 源哈希漂移）已在后续批次转绿，明细见 CHANGELOG。
 
 ## 5. 文档索引

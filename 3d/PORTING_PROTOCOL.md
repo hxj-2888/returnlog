@@ -43,7 +43,7 @@ node 3d/tools/gen-port-stubs.cjs --only knife,fireShot,die,dawn
 # 2) 在桩里逐行翻译；每个函数头保留 @src
 #    # @src js/game.js:4226 knife(killer,victim)
 
-# 3) 在 spec/gameplay-parity.json 登记映射
+# 3) 在 spec/mapping-ledger.json 登记映射
 #    { "src": "js/game.js:knife", "target": "sim/sim_state.gd:knife", "status": "ported" }
 
 # 4) 跑审阅：缺口必须逐条清零
@@ -53,7 +53,7 @@ npm run audit:parity
 npm run audit:parity:strict
 ```
 
-### 状态定义（`spec/gameplay-parity.json`）
+### 状态定义（`spec/mapping-ledger.json`）
 
 | 状态 | 含义 | 要求 |
 |---|---|---|
@@ -100,8 +100,8 @@ npm run audit:parity:strict
 
 ## 6. 提交前检查清单
 
-- [ ] `npm run audit:parity:strict` → 不差于 `spec/gameplay-parity.json#budget`（缺口下降后 `--update-baseline` 收紧）
-- [ ] 新增或修改的规则函数有 `@src`，并在 `spec/gameplay-parity.json` 登记
+- [ ] `npm run audit:parity:strict` → 不差于 `spec/mapping-layers.json#parity_budget`（缺口下降后 `--update-baseline` 收紧）
+- [ ] 新增或修改的规则函数有 `@src`，并在 `spec/mapping-ledger.json` 登记
 - [ ] 新增/修改的 `adapter` 有行为夹具（输入 → 输出集合/顺序/文案），且 `audit:parity` 回放通过
 - [ ] 任何 `adapter` 的 `note` 写清了「拆到哪里」与「为什么不是逐行」
 - [ ] 没有新增计时器、阈值、阵营过滤、状态分支（除非 `@deviation` + 用户裁定）
@@ -173,7 +173,7 @@ npm run audit:parity:strict
 
 | 裁决 | 依据 / 落点 |
 |---|---|
-| 新增 `sim.can_act(kind, ctx)` 只读判定 | 2.5D 无同名函数：动作键无条件直达 `attack()/toggleDrag()/sabotage()/tryReport()`，守卫散在函数内。3D 收口为只判定不写状态的单一真源，逐条 `@src`，玩家与 AI 共用；执行仍走原入口。已在 `gameplay-parity.json#extras_allow` 登记 |
+| 新增 `sim.can_act(kind, ctx)` 只读判定 | 2.5D 无同名函数：动作键无条件直达 `attack()/toggleDrag()/sabotage()/tryReport()`，守卫散在函数内。3D 收口为只判定不写状态的单一真源，逐条 `@src`，玩家与 AI 共用；执行仍走原入口。已在 `mapping-ledger.json#extras` 登记 |
 | 删掉 `role` 双源 | 管道 / 刀 viewmodel / 出刀门槛统一读 `sim.me().alien`；旧夹具只改 `role` 就能解锁管道的洞已修 |
 | 不新增 `friendly_fire` 配置 | 2.5D `knife()` / `fireShot()` 都不查目标阵营；只能删 3D 自造限制，不能往 3D 加真源没有的新状态 |
 | 交互键位 | 属红线 11 允许的「输入映射」差异；8 个键收敛进 InputMap，代码只读 action |

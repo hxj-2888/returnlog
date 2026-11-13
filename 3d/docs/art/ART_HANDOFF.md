@@ -26,7 +26,7 @@
 | `3D/js/`、`3D/assets/`、`3D/audio/`、`3D/tools/`、`3D/index.html` | 2.5D 只读基线 | **禁止修改**（`baseline:check` 会报） |
 | `3D/3d/preview/scripts/sim/**`、`main.gd`、`player.gd` | 规则同步代理 | **不要改**（正在做 2.5D 机制对齐） |
 | `3D/3d/preview/scripts/scene_extras.gd`、`map_builder.gd` | 共用接线 | **先出 `WIRING.md` 提案，由规则代理合入** |
-| `3D/3d/spec/gameplay-parity.json` | 规则同步代理 | **不要改** |
+| `3D/3d/spec/mapping-ledger.json` | 规则同步代理 | **不要改** |
 
 > 两个代理并行时，最容易撞的是 `scene_extras.gd` / `map_builder.gd`。
 > 约定：**美术代理只交付资产 + 接线提案（函数名、行号、节点契约、替换前后截图），不改这两个文件。**
@@ -308,7 +308,7 @@ border, frame, text, watermark, logo, person, hand, face, cartoon, sketch, blurr
    ```
 6. 提交信息：`art(<topic>): <资产> — <一句话>`；只提交你拥有的路径。
 
-**不要**在同一个提交里改玩法脚本、`spec/gameplay-parity.json`、`AGENTS.md`。
+**不要**在同一个提交里改玩法脚本、`spec/mapping-ledger.json`、`AGENTS.md`。
 
 ---
 

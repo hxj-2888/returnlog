@@ -1,7 +1,7 @@
 # 新返航录 3D 预演（独立子项目）
 
 > 状态：**2.5D 的功能移植**（判定 / 会议 / 结算 / 小地图 / HUD 已同源；
-> 已知缺口见 `HANDOFF.md` §0.4 与 `spec/gameplay-parity.json#budget`）。门禁现值与本次实跑读数只在
+> 已知缺口见 `HANDOFF.md` §0.4 与 `spec/mapping-layers.json#parity_budget`）。门禁现值与本次实跑读数只在
 > `3d/CHANGELOG.md` 指向的当月文件最新批次声明，本文件不复制。仍是本地预演、不发行。
 >
 > **按需读（2026-11-13）**：§1–§2 定位工程与同源口径；日常命令 §3；数据链与门禁 §4–§5；
@@ -503,7 +503,7 @@ Godot 4.6 headless 导出 → `npm run 3d:web:stage` 拆分超限文件 → 探�
 1. **美术优化（用户已点名，下一批）**：2.5D 底图"铁板子太多、圆桌变方桌、会议室地毯没了"；
    3D 保安机器人太小/被遮挡、15 个 crew 全是同一张 billboard、天花板蓝色条纹。
    保持 2.5D / 3D 同一帧源（`floor_spec.json`），不拆成两套材质。
-2. **移植缺口补完**：待办只认 `3d/spec/gameplay-parity.json#budget` 与
+2. **移植缺口补完**：待办只认 `3d/spec/mapping-layers.json#parity_budget` 与
    `PORTING_PROTOCOL.md` 附录 B；补完后重跑 `--sim1000` 登记新基线。
 3. **S 轨编排层补完**：构陷 / 领袖剧本 / 完整假设层 / 时间线拆谎（与上项同一批）。
 4. **完整 1000 局基线**：在空闲机器上跑 `--sim1000`（不带 `--games`），登记新基线。
