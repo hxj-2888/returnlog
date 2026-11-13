@@ -1294,22 +1294,6 @@ func corr_joins_room(rid: String, c: Dictionary) -> bool:
 	return String(c.get("a", "")) == rid or String(c.get("b", "")) == rid
 
 
-## 噪音广播（2.5D hear() 的最小实现）：刀声/枪声/破坏写进附近 AI 的 mind.noise，
-## 高警觉的人会跑去现场看一眼（ai_human 的 _look 行为）—— 这也让"发现尸体"变频繁。
-func _broadcast_noise(at: Vector2, radius: float) -> void:
-	if not speech_enabled:
-		return
-	var now := night_len() - maxf(0.0, float(t))
-	for a: Dictionary in agents:
-		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
-			continue
-		if float(a.get("doing", 0.0)) > 0.0:
-			continue
-		if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(at) > radius:
-			continue
-		a["noise"] = {"x": at.x, "y": at.y, "t": now, "night": int(night)}
-
-
 ## 最近的濒死者（2.5D nearestDowned：还活着但已倒地的人，可被医疗包救起）
 ## 2.5D nearestDowned（js/game.js:2843）：距离 + **看得见**（aiCanSee）双条件。
 ## observer 为空时只按距离（玩家交互项由 main.gd 自己再判一次可见）。
@@ -2124,7 +2108,7 @@ func _ghost_move(a: Dictionary, dt: float, sp: float) -> void:
 
 
 #  ---------------- 听觉（2.5D aiHear，js/game.js:1827） ----------------
-# 3D 之前只有 _broadcast_noise 往 a.noise 写一个点，**不写任何证据**：
+# 3D 之前只往 a.noise 写一个点、**不写任何证据**：
 # 隔墙听见有人出刀 / 拉闸 / 钻管道，在 3D 里完全不留痕迹（2.5D 会记 heard_# 并加嫌疑）。
 # 这里按 2.5D 原样：距离衰减 × 视线（听得见 = 1.0，隔墙 0.72），
 # 最低 0.12；EV_W 里有对应权重且给了 subj 才 susAdd。
