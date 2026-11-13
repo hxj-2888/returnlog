@@ -97,12 +97,13 @@ node 3d/tools/sync-cover-height.cjs --check
   是第二级回退。`walk` 1 秒循环、Godot 侧 2.9× 播放以匹配 4.2 m/s 移速；
   `knife/down` 已补（事件/倒地触发），V-CREW 已标 `ported`（full）。人物仍属美术栏，
   不在判定层加状态；外观不得泄露异形身份。
-- **鬼魂模式（2026-11-11 登记）**：2.5D `die()` 会 `ghost=true`，死亡后可穿墙、
-  修剩余任务（1.6× 时长 / `GHOST_TASK_CAP` 额度）、异形幽灵可破坏一次；
-  3D `die()` 只置 `alive=false`，玩家死亡直接出结算页。用户裁定**先做人物模型，鬼魂后置**，
-  这是当前唯一未迁的核心玩法。
-- **parity**：20 个 2.5D 源码字面量已登记 `3d/tools/check-parity.cjs#SOURCE_LITERALS`
-  （每项带 `js/game.js:行号`，扫描时回读该行验证）；**当前 0 WARN**。
+- **鬼魂模式（2026-11-13 核实：已迁）**：2.5D `die()` 的 `ghost=true` 已同源 —— 玩家由
+  `player.set_ghost` 接管（穿墙 / 全视 / 抬头飞），AI 死者走 `sim._ghost_tick`：
+  人类幽灵赶路 6.5 格/秒、游荡 2.4 格/秒，任务时长 ×1.6 且受 `ghost_task_cap` 额度限制；
+  异形幽灵全局一次正统破坏（`alien_ghost_sab_used`）后游荡。2026-11-13 已把赶路速度误用 2.4
+  的偏差按 `js/game.js#aiGhost` 修正。当前无未迁的核心玩法。
+- **parity**：15 个 2.5D 源码字面量已登记 `3d/tools/check-parity.cjs#SOURCE_LITERALS`
+  （每项带 `js/game.js:行号`，扫描时回读该行验证；2026-11-13 行号随上游 +119 行重登记）；**当前 0 WARN**。
   不导出到 `rules.json`，否则会造出第二份定义；上游改行会直接 FAIL，不会静默放过。
 
 > **判据**：判定层/UI 层的差异清单已清零；剩余差异只有表现层像素排布、

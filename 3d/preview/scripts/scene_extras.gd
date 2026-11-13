@@ -226,6 +226,7 @@ func _task_placement(point: Dictionary, data: Dictionary) -> Dictionary:
 	var py := float(point.get("y", 0.0))
 	var covers: Array = data.get("cover", [])
 	var hits: Array = []
+	var buried := false
 	for c: Dictionary in covers:
 		var cx := float(c.get("x", 0.0))
 		var cy := float(c.get("y", 0.0))
@@ -233,8 +234,15 @@ func _task_placement(point: Dictionary, data: Dictionary) -> Dictionary:
 		var ch := float(c.get("h", 0.0))
 		if px >= cx - 0.2 and px <= cx + cw + 0.2 and py >= cy - 0.2 and py <= cy + ch + 0.2:
 			hits.append(c)
+			## 2.5D 2026-11-13「任务点贴家具」：锚点落在柜体边线上时不能当"压在掩体里"搬走，
+			## 只有真正埋进柜体 ≥0.1 格才算；否则设备离锚点 >2m，玩家够不到。
+			if px >= cx + 0.1 and px <= cx + cw - 0.1 and py >= cy + 0.1 and py <= cy + ch - 0.1:
+				buried = true
 	if hits.is_empty():
 		return {"x": px, "y": py, "base_y": _cover_top(point, data), "relocated": false}
+	if not buried:
+		## 贴边锚点：设备留在锚点、用 0.55m 台座抬离地面（高柜会吞掉设备高度）。
+		return {"x": px, "y": py, "base_y": 0.57, "relocated": true}
 	var x0 := 1e9; var y0 := 1e9; var x1 := -1e9; var y1 := -1e9
 	for c: Dictionary in hits:
 		x0 = minf(x0, float(c.get("x", 0.0)))

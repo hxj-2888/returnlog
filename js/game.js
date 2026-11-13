@@ -288,7 +288,7 @@
         /* 局内统计（2026-10-31）：医疗无人机救治 / 医疗包施救 / 幽灵任务 / 幽灵修故障。
            只累加、不参与任何判定，供结束页与复盘报告读取。 */
         stats:{medbotRevives:0,medkitRevives:0,ghostTasks:0,ghostFixes:0},
-         inv:{runs:0,checks:0,fails:[],warned:{},lastTag:''},devT:0};
+         inv:{runs:0,checks:0,fails:[],warned:{},lastTag:''},devAt:0};
       G.aimX=me.x+1; G.aimY=me.y;
       logEvent('game_start',{night:1});
       recordFrame();
@@ -593,12 +593,31 @@
 
     /* DEV 横栏：一人一张小卡（名字 / 身份 / 状态 / 舱室 + 身上的资源）。
        资源是玩家在正常对局里看不到的信息，所以只在这里展示，不进 HUD。
-       卡片横向排开贴顶，#hud 由 syncDevUi 下移让位，绝不压住左上角。 */
+       卡片横向排开贴顶，#hud 由 syncDevUi 下移让位，绝不压住左上角。
+
+       性能（2026-11-13）：以前每 30 帧重建一次 innerHTML。高刷屏 30 帧只有 ~0.18s，
+       15 张卡反复重建会周期性顶掉一帧；现在卡片只建一次，之后原地改文本，
+       并按墙钟 500ms 刷新（与原注释的 0.5s 口径一致），内容没变就不写 DOM。 */
+    let devCards=[];
     function renderDevPanel(){
       const box=document.getElementById('dev-rows');
       if(!box||!G)return;
-      const out=[];
+      if(devCards.length!==G.agents.length||devCards.some((r,i)=>r.a!==G.agents[i])){
+        box.textContent='';devCards=[];
+        for(const a of G.agents){
+          const root=document.createElement('div');
+          const top=document.createElement('div');top.className='top';
+          const b=document.createElement('b'),sp=document.createElement('span');
+          top.append(b,sp);
+          const i=document.createElement('i'),u=document.createElement('u');
+          root.append(top,i,u);
+          box.append(root);
+          devCards.push({a,root,b,sp,i,u,line:'',res:'',cls:''});
+        }
+      }
       for(const a of G.agents){
+        const r=devCards[a.i];
+        if(!r)continue;
         let st='待机';
         if(!a.alive) st=a.ghost?'幽灵':'出局';
         else if(a.downed) st='濒死';
@@ -609,17 +628,20 @@
         else if(a.moving) st='移动';
         const bp=bodyPos(a);
         const where=bp?roomNameAt(bp[0],bp[1]):roomNameAt(a.x,a.y);
+        const name=a.name+(a===G.me?(G.spectMode?'（AI）':'（你）'):'');
         /* 卡片会被压到 1/8 屏宽，资源行必须紧凑：空格与「·」在这里是纯浪费 */
         const res='弹'+a.bullet+' 包'+a.medkit+' 单'+a.qual
           +(a.qualPending>0?'+'+a.qualPending:'')
           +' 任务'+a.tIdx+'/'+a.tasks.length+(a.alien?' 刀'+a.knife:'');
-        out.push('<div class="dr'+(a.alien?' al':'')+((a===G.me&&!G.spectMode)?' me':'')+(!a.alive?' dead':'')+'">'
-          +'<div class="top"><b>'+a.name+(a===G.me?(G.spectMode?'（AI）':'（你）'):'')+'</b>'
-          +'<span>'+(a.alien?'异形':'人类')+'</span></div>'
-          +'<i>'+st+' · '+where+(a.detained?' · 被锁':(a.draggedBy!=null?' · 被拖':(a.drag!=null?' · 拖尸':'')))+'</i>'
-          +'<u>'+res+'</u></div>');
+        const line=st+' · '+where+(a.detained?' · 被锁':(a.draggedBy!=null?' · 被拖':(a.drag!=null?' · 拖尸':'')));
+        const cls='dr'+(a.alien?' al':'')+((a===G.me&&!G.spectMode)?' me':'')+(!a.alive?' dead':'');
+        if(r.b.textContent!==name)r.b.textContent=name;
+        const role=a.alien?'异形':'人类';
+        if(r.sp.textContent!==role)r.sp.textContent=role;
+        if(r.line!==line){r.line=line;r.i.textContent=line;}
+        if(r.res!==res){r.res=res;r.u.textContent=res;}
+        if(r.cls!==cls){r.cls=cls;r.root.className=cls;}
       }
-      box.innerHTML=out.join('');
     }
     function syncDevUi(){
       if(SIM_RUN)return;
@@ -8793,7 +8815,49 @@
     /* ---------------- 素材 ---------------- */
     const A='assets/scene/';
     const IMG={};
-    function loadImg(k,src){const i=new Image();i.src=A+src;IMG[k]=i;return i;}
+    /* 大图运行时预缩放（2026-11-13）：
+       v4/base-lit.png 是 4704×4413，超过 4096 的纹理上限。整图每帧 drawImage 时，
+       部分渲染路径会按 4096 分块重传；实测 4× CPU 降速下每 5 秒会出现 0.8–1.1 秒的
+       单帧停顿（`ctx.fill` 撞上整块回传）。公开做法是加载时把大图预缩放到目标尺寸，
+       不要在 drawImage 里反复缩放（MDN Optimizing canvas）。
+       源文件与 assets() 读数保持原尺寸；这里只保留一份 ≤4096 的运行时副本。 */
+    const MAX_TEX=4096;
+    const RTIMG={};
+    const SRCDIM={};
+    function rtImg(k){
+      const src=IMG[k];
+      const sw=src?(src.naturalWidth||src.width||0):0;
+      const sh=src?(src.naturalHeight||src.height||0):0;
+      if(!sw||!sh)return src;
+      if(RTIMG[k])return RTIMG[k];
+      const m=Math.max(sw,sh);
+      if(m<=MAX_TEX)return(RTIMG[k]=src);
+      if(!SRCDIM[k])SRCDIM[k]={w:sw,h:sh};
+      const q=MAX_TEX/m;
+      const c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(sw*q));
+      c.height=Math.max(1,Math.round(sh*q));
+      const o=c.getContext('2d');
+      o.imageSmoothingEnabled=true;
+      o.imageSmoothingQuality='high';
+      o.drawImage(src,0,0,c.width,c.height);
+      /* 让 ready()/naturalWidth 继续成立，同时让原图可被回收：
+         4704×4413 的原图约 83 MB，留着会和运行时副本一起挤压长局内存。 */
+      c.complete=true;
+      c.naturalWidth=c.width;
+      c.naturalHeight=c.height;
+      IMG[k]=c;
+      return(RTIMG[k]=c);
+    }
+    const mapReady=im=>!!im&&(im.naturalWidth?im.naturalWidth>0:im.width>0);
+    function loadImg(k,src){
+      const i=new Image();
+      IMG[k]=i;
+      /* 底图/船壳加载完就预热运行时副本，避免第一帧才建 4096 画布造成一次性卡顿 */
+      i.addEventListener('load',()=>{ if(k==='base'||k==='hull')rtImg(k); });
+      i.src=A+src;
+      return i;
+    }
     const FLOOR={bridge:'cozy/tiles/floor-carpet-blue.png',ecosys:'cozy/tiles/floor-grate.png',
       engine:'cozy/tiles/floor-grate.png',power:'cozy/tiles/floor-steel-vent.png',
       transit:'cozy/tiles/floor-carpet-beige.png',fun:'cozy/tiles/floor-carpet-beige.png',warehouse:'cozy/tiles/floor-steel.png',
@@ -9128,12 +9192,13 @@
             ctx.fillStyle=g0;ctx.beginPath();ctx.arc(0,0,1.05*s,0,7);ctx.fill();
           }
           const blink=off?(0.50+0.35*Math.sin(T*6)):(0.60+0.30*Math.sin(T*2.2));
+          /* 状态层落在闸组台面上：锚点是闸组前缘（贴家具），柜体在锚点 +y 方向 */
           ctx.fillStyle=(off?'rgba(127,211,240,':'rgba(127,227,180,')+blink.toFixed(2)+')';
-          ctx.beginPath();ctx.arc(-0.46*s,-0.62*s,0.085*s,0,7);ctx.fill();
+          ctx.beginPath();ctx.arc(-0.46*s,0.55*s,0.085*s,0,7);ctx.fill();
           ctx.fillStyle='rgba(205,216,230,.90)';
           ctx.font='600 '+Math.max(8,0.17*s).toFixed(1)+'px system-ui';
           ctx.textAlign='left';ctx.textBaseline='middle';
-          ctx.fillText(off?'断电':'供电',-0.32*s,-0.62*s);
+          ctx.fillText(off?'断电':'供电',-0.32*s,0.55*s);
           /* 拉闸进度环 */
           if(pull&&pull.p>0){
             const hot=pull.heavy;
@@ -9153,7 +9218,7 @@
               }
             }
           }
-          drawIcon('bolt',off?'#7FD3F0':'#F0C674',0.40*s,-0.50*s,0.30*s,0);
+          drawIcon('bolt',off?'#7FD3F0':'#F0C674',0.40*s,0.60*s,0.30*s,0);
           ctx.restore();
         }else if(f.kind==='monitor'){
           const cut=G.lightState===2;
@@ -9539,8 +9604,8 @@
       g.fillStyle='#04070B';g.fillRect(0,0,W,H);
       const cols=4, rows=Math.ceil(M.rooms.length/cols);
       const tw=(W-pad*(cols+1))/cols, th=(H-pad*(rows+1))/rows;
-      const base=IMG['base'], bReady=ready(base);
-      const isc=base&&base.naturalWidth?base.naturalWidth/M.bounds.w:48;
+      const base=rtImg('base'), bReady=mapReady(base);
+      const isc=base?(base.naturalWidth||base.width)/M.bounds.w:48;
       const cut=G.lightState===2;
       const rooms=M.rooms;
       rooms.forEach((r,n)=>{
@@ -10063,11 +10128,53 @@
     }
     /* 头顶常显「席位号 + 名字」；编号永远在前，会议里也用同一套标签 */
     let TAG_RECTS=[];
+    /* 文字量测缓存：DEV 全知标签每帧要量 15~30 条文本，measureText 在部分机器上很贵。
+       键带字体，避免切换字号后读到旧宽度。 */
+    const MEASURE={};
+    function textW(txt){
+      const k=ctx.font+'|'+txt;
+      const v=MEASURE[k];
+      if(v!=null)return v;
+      const w=ctx.measureText(txt).width;
+      if(Object.keys(MEASURE).length>600)for(const q in MEASURE)delete MEASURE[q];
+      return(MEASURE[k]=w);
+    }
+    /* 身份/凶手标签预渲染成小精灵：DEV 每帧只 drawImage，不再重复 roundRect + fillText。
+       文本变化很少（名字/身份/状态），缓存命中率接近 100%。 */
+    const LABELSPR={};
+    function labelSprite(txt,fg,bg){
+      const d=Math.min(3,Math.max(1,dpr||1));
+      const key=d+'|'+bg+'|'+fg+'|'+txt;
+      if(LABELSPR[key])return LABELSPR[key];
+      ctx.save();ctx.font='500 11px system-ui';
+      const tw=ctx.measureText(txt).width;ctx.restore();
+      const w=Math.ceil(tw+8),h=16;
+      const c=document.createElement('canvas');
+      c.width=Math.ceil(w*d);c.height=Math.ceil(h*d);
+      const o=c.getContext('2d');
+      o.setTransform(d,0,0,d,0,0);
+      o.font='500 11px system-ui';o.textAlign='center';o.textBaseline='middle';
+      o.fillStyle=bg;o.beginPath();o.roundRect(0,0,w,h,4);o.fill();
+      o.fillStyle=fg;o.fillText(txt,w/2,h/2+0.5);
+      return(LABELSPR[key]={c,w,h});
+    }
+    /* 幽灵光晕预渲染：以前每个幽灵每帧 createRadialGradient + fill。 */
+    let GHOST_GLOW=null;
+    function ghostGlow(){
+      if(GHOST_GLOW)return GHOST_GLOW;
+      const R=96,c=document.createElement('canvas');c.width=c.height=R*2;
+      const o=c.getContext('2d');
+      const g=o.createRadialGradient(R,R,0,R,R,R);
+      g.addColorStop(0,'rgba(127,211,240,.20)');
+      g.addColorStop(1,'rgba(127,211,240,0)');
+      o.fillStyle=g;o.fillRect(0,0,R*2,R*2);
+      return(GHOST_GLOW=c);
+    }
     function drawNameTag(a,x,y,isMe){
       const no=seatNo(a), nm=a.name;
       ctx.save();
       ctx.font='600 10.5px system-ui';
-      const wNo=ctx.measureText(no).width, wNm=ctx.measureText(nm).width;
+      const wNo=textW(no), wNm=textW(nm);
       const w=wNo+wNm+17, h=15;
       /* 同屏标签互相压住时向上错开，保证编号和名字始终可读 */
       for(let k=0;k<12;k++){
@@ -10223,13 +10330,13 @@
       updateCamera();
       ctx.fillStyle='#07090D';ctx.fillRect(0,0,innerWidth,innerHeight);
       const me=G.me;
-      const base=IMG['base'];
-      const hull=IMG['hull'];
-      if(ready(hull)){
+      const base=rtImg('base');
+      const hull=rtImg('hull');
+      if(mapReady(hull)){
         ctx.drawImage(hull,SX(0),SY(0),M.bounds.w*VIEW.s,M.bounds.h*VIEW.s);
         if(G.lightState===2){ctx.fillStyle='rgba(4,7,11,.45)';ctx.fillRect(SX(0),SY(0),M.bounds.w*VIEW.s,M.bounds.h*VIEW.s);}
       }
-      if(ready(base)){
+      if(mapReady(base)){
         ctx.drawImage(base,SX(0),SY(0),M.bounds.w*VIEW.s,M.bounds.h*VIEW.s);
         for(const r of M.rooms){
           if(G.lit[r.id])continue;
@@ -10455,9 +10562,8 @@
         if(a.alive||!a.ghost)continue;
         if(a!==me&&me.alive&&!G.dev)continue;
         const x=SX(a.x),y=SY(a.y);
-        const rad=ctx.createRadialGradient(x,y-0.4*VIEW.s,0,x,y-0.4*VIEW.s,1.5*VIEW.s);
-        rad.addColorStop(0,'rgba(127,211,240,.20)');rad.addColorStop(1,'rgba(127,211,240,0)');
-        ctx.fillStyle=rad;ctx.beginPath();ctx.arc(x,y-0.4*VIEW.s,1.5*VIEW.s,0,7);ctx.fill();
+        const gs=ghostGlow();
+        ctx.drawImage(gs,x-1.5*VIEW.s,y-0.4*VIEW.s-1.5*VIEW.s,3*VIEW.s,3*VIEW.s);
         const im=IMG['cr_'+((a.i%15)+1)];
         if(ready(im)){
           const w=1.15*VIEW.s,h=w*160/96;
@@ -10540,26 +10646,21 @@
          尸体上的"凶手 X"属于额外的全知信息，仍然只在 DEV / 旁观出现（2026-11-03）。 */
       if(G.dev||G.spectMode||G.revealAll){
         const omniscient=!!(G.dev||G.spectMode);
-        ctx.font='500 11px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
         for(const a of G.agents){
           const y=SY(a.y)-(a.alive&&!a.downed?1.55:0.9)*VIEW.s;
           let txt=tagName(a)+(a.alien?' · 异形':' · 人类');
           if(!a.alive)txt+=' · 幽灵';
           else if(a.downed)txt+=' · 濒死';
           else if(a.detained)txt+=' · 被擒';
-          const w=ctx.measureText(txt).width+8;
-          ctx.fillStyle='rgba(8,11,16,.82)';
-          ctx.beginPath();ctx.roundRect(SX(a.x)-w/2,y-8,w,16,4);ctx.fill();
-          ctx.fillStyle=a.alien?'#FF7B72':((!G.spectMode&&a===G.me)?'#F0C674':'#7FD3F0');
-          ctx.fillText(txt,SX(a.x),y);
+          const fg=a.alien?'#FF7B72':((!G.spectMode&&a===G.me)?'#F0C674':'#7FD3F0');
+          const sp=labelSprite(txt,fg,'rgba(8,11,16,.82)');
+          ctx.drawImage(sp.c,SX(a.x)-sp.w/2,y-sp.h/2,sp.w,sp.h);
           const bp=bodyPos(a);
           if(omniscient&&bp&&!a.alive){
             const by=SY(bp[1])+0.95*VIEW.s;
             const kt='尸体 · 凶手 '+(a.killedBy!=null?G.agents[a.killedBy].name:'?');
-            const kw=ctx.measureText(kt).width+8;
-            ctx.fillStyle='rgba(40,8,8,.85)';
-            ctx.beginPath();ctx.roundRect(SX(bp[0])-kw/2,by-8,kw,16,4);ctx.fill();
-            ctx.fillStyle='#FF9A90';ctx.fillText(kt,SX(bp[0]),by);
+            const kp=labelSprite(kt,'#FF9A90','rgba(40,8,8,.85)');
+            ctx.drawImage(kp.c,SX(bp[0])-kp.w/2,by-kp.h/2,kp.w,kp.h);
           }
         }
       }
@@ -10568,8 +10669,8 @@
       if(G.msgT>0){G.msgT-=d;
         ctx.fillStyle='rgba(240,198,116,.95)';ctx.font='500 14px system-ui';ctx.textAlign='center';
         ctx.fillText(G.msg,innerWidth/2,innerHeight-56);}
-      // DEV 面板刷新（0.5s）
-      if(G.dev){ G.devT=(G.devT+1)%30; if(G.devT===1)renderDevPanel(); }
+      // DEV 面板刷新（墙钟 0.5s；高刷屏不再按帧数误触发）
+      if(G.dev){ const now=performance.now(); if(now-(G.devAt||0)>=500){ G.devAt=now; renderDevPanel(); } }
     }
     /* 小地图：照蓝图风格重画 —— 房间轮廓 + 连接通道 + 舱室名 + 任务点图例 */
     function drawMini(){
@@ -10840,49 +10941,63 @@
       });
       box.innerHTML=h;
     }
+    /* HUD 每帧都会调 syncHud；textContent 即使写同值也会弄脏布局。
+       DEV 横栏把 DOM 变高后，这个每帧重排会放大成可感知的卡顿。
+       这里只缓存节点、只在值变化时写（2026-11-13）。 */
+    const HUD_EL={};
+    function hudEl(id){return HUD_EL[id]||(HUD_EL[id]=document.getElementById(id));}
+    function hudText(id,v){
+      const el=hudEl(id);
+      if(!el)return null;
+      const s=String(v);
+      if(el.textContent!==s)el.textContent=s;
+      return el;
+    }
     function syncHud(){
       if(SIM_RUN)return;
       const spectator=!!G.spectMode;
-      const pers=document.getElementById('personal');
+      const pers=hudEl('personal');
       if(pers)pers.classList.toggle('hide',spectator);
-      document.getElementById('pg').textContent=G.prog;
-      const pgmax=document.getElementById('pgmax');
+      hudText('pg',G.prog);
+      const pgmax=hudEl('pgmax');
       if(pgmax&&pgmax.textContent!==String(WIN_PTS))pgmax.textContent=WIN_PTS;
-      document.getElementById('pgi').style.width=Math.min(100,G.prog/WIN_PTS*100)+'%';
-      document.getElementById('tm').textContent=Math.max(0,G.t).toFixed(0);
-      document.getElementById('nt').textContent=G.night;
+      const pgi=hudEl('pgi');
+      if(pgi){
+        const w=Math.min(100,G.prog/WIN_PTS*100)+'%';
+        if(pgi.style.width!==w)pgi.style.width=w;
+      }
+      hudText('tm',Math.max(0,G.t).toFixed(0));
+      hudText('nt',G.night);
       const alive=G.agents.filter(a=>a.alive).length;
       const hum=G.agents.filter(a=>a.alive&&!a.alien).length;
       const ali=G.agents.filter(a=>a.alive&&a.alien).length;
-      document.getElementById('alive').textContent=alive;
-      document.getElementById('hum').textContent=hum;
-      document.getElementById('ali').textContent=ali;
+      hudText('alive',alive);
+      hudText('hum',hum);
+      hudText('ali',ali);
       /* 濒死人数只在 DEV / 旁观全知时才有值（正常对局看不到谁倒了几个） */
-      const dnEl=document.getElementById('dn');
-      if(dnEl)dnEl.textContent=(G.dev||G.spectMode)?G.agents.filter(a=>a.downed&&a.alive).length:0;
-      document.getElementById('tk').textContent=G.me.tIdx;
-      document.getElementById('ql').textContent=G.me.qual;
-      const qpEl=document.getElementById('qp');
-      if(qpEl)qpEl.textContent=G.me.qualPending||0;
-      const qh=document.getElementById('qual-hint');
+      hudText('dn',(G.dev||G.spectMode)?G.agents.filter(a=>a.downed&&a.alive).length:0);
+      hudText('tk',G.me.tIdx);
+      hudText('ql',G.me.qual);
+      hudText('qp',G.me.qualPending||0);
+      const qh=hudEl('qual-hint');
       if(qh)qh.classList.toggle('hide',!(G.me.qualPending>0));
-      document.getElementById('bl').textContent=G.me.bullet;
-      document.getElementById('md').textContent=G.me.medkit;
+      hudText('bl',G.me.bullet);
+      hudText('md',G.me.medkit);
       /* 稀缺资源（2026-11-02）：报告额度全局 2 次、每夜会议 2 场 —— 必须显示出来，
          否则玩家不会知道"这次拉铃值不值"。 */
-      const rpEl=document.getElementById('rp');
-      if(rpEl)rpEl.textContent=Math.max(0,G.me.reportLeft|0);
-      const mtEl=document.getElementById('mt');
+      hudText('rp',Math.max(0,G.me.reportLeft|0));
+      const mtEl=hudEl('mt');
       if(mtEl){
-        mtEl.textContent=Math.max(0,(G.nightMeets||0));
+        hudText('mt',Math.max(0,(G.nightMeets||0)));
         const cap=SKSanity.MEET.perNight;
         const full=(G.nightMeets||0)>=cap;
-        mtEl.style.color=full?'#FF8A80':'';
+        const col=full?'#FF8A80':'';
+        if(mtEl.style.color!==col)mtEl.style.color=col;
       }
-      const pwr=document.getElementById('pwr');
+      const pwr=hudEl('pwr');
       if(pwr){
         const off=G.lightState===2;
-        pwr.textContent=off?'全船断电':(G.powerFixed?'照明已修复':'照明正常');
+        hudText('pwr',off?'全船断电':(G.powerFixed?'照明已修复':'照明正常'));
         pwr.classList.toggle('off',off);
         pwr.classList.toggle('full',!off&&G.powerFixed);
       }
@@ -11532,9 +11647,13 @@
       acts:()=>G.agents.map(a=>a.act&&a.act.kind).filter(Boolean),
       roomName:id=>roomNameById(id),
       roomIdAt:(x,y)=>roomIdAt(x,y),
-      assets:()=>({base:ready(IMG['base']),hull:ready(IMG['hull']),
-        w:IMG['base']?IMG['base'].naturalWidth:0,h:IMG['base']?IMG['base'].naturalHeight:0,
-        hw:IMG['hull']?IMG['hull'].naturalWidth:0,hh:IMG['hull']?IMG['hull'].naturalHeight:0}),
+      assets:()=>{const b=IMG['base'],r=rtImg('base');
+        const sd=SRCDIM.base||{w:b?b.naturalWidth:0,h:b?b.naturalHeight:0};
+        return {base:ready(b),hull:ready(IMG['hull']),
+          w:sd.w,h:sd.h,
+          hw:IMG['hull']?IMG['hull'].naturalWidth:0,hh:IMG['hull']?IMG['hull'].naturalHeight:0,
+          rtW:r?(r.naturalWidth||r.width||0):0,rtH:r?(r.naturalHeight||r.height||0):0,
+          texLimit:MAX_TEX};},
       sfx:()=>SND.debug(),
       playSfx:name=>{const f=SND[name];if(typeof f!=='function')return false;f(1);return true;},
       pause:()=>{togglePause();return {paused:!!G.paused,ui:!document.getElementById('pause').classList.contains('hide')};},

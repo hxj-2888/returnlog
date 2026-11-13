@@ -1,5 +1,37 @@
 # 3D 修改记录
 
+## 2026-11-13 · 上游 11-13 同步（设施/任务点锚点）+ 幽灵/搜尸链回归修正
+
+- **本批改动**：
+  ① **基线同步**：`baseline:sync` 取上游 11-13 的 `js/data/map.js`（监控台 / 电闸锚点贴回家具，
+  4 个任务点微调 ≤0.4 格）与 `js/game.js`（DEV 渲染性能批，净 +119 行）；重跑
+  `export:all → build-map-v2 → 3d:export:sim`，12 个 `3d/preview/data` 快照与 `rules.json#sources` 同步。
+  ② **行号对账**：`port-manifest.json` 全表 `js/game.js` 行段按插入位移重算（X-BIND → 11874–12065，
+  文件末行 12065）；`check-parity.cjs#SOURCE_LITERALS` 15 条源码字面量重新登记并逐行回读校验。
+  ③ **3D 设备落位回归**：上游把任务点贴到柜体边线后，`scene_extras._task_placement` 的 0.2 格
+  「压掩体」判据把贴边锚点误判成埋进柜体，设备被搬到 2.54 m 外（`REACHTEST` FAR 1 项）。
+  改为只对「真正埋进柜体 ≥0.1 格」的点重定位；贴边锚点留在原地、用 0.55 m 台座抬离地面。
+  ④ **幽灵速度**：人类幽灵赶去做任务时按 `js/game.js#aiGhost` 用 6.5 格/秒（此前误用游荡的 2.4）。
+  ⑤ **尸体/搜尸链**（按 `bodyHasLoot / bodyNear / searchBody / lootBody` 逐行）：
+  - AI 站桩 `_doing='search'` 完成后补 `_finish_doing` 结算分支（此前 AI 搜尸无任何产出）；
+  - AI 人类 AI 里重复的「即时搜尸」副本删除，统一走 `sim.scan_bodies`（STAND.search 1.2 s）；
+  - 子弹/医疗包各只补到 1、申请单补到 2，并继承 `qualPending`；濒死者可被搜；
+  - 已搜过的死者只有身上仍有物资时才可再搜；`draggedBy` 的 `null/-1` 双空值按真源归一；
+  - 尸检链拆到 `scripts/sim/body_state.gd`（`sim_state.gd` 3600 行棘轮：3628 → 3573）。
+  ⑥ **文档**：HANDOFF §0.4 的「幽灵未迁」、README §6 的「假设层/BGM 未接」等过时口径按实况更正。
+- **读数变化**（本次实跑）：
+  `npm run check` **8 通过 / 0 失败**；`audit:parity:strict` **总函数 391 / 映射 210 / 未映射 0 /
+  守卫缺口 0 / 写入缺口 0 / 漂移 0**；`3d:port:check` **0 错误 / 1 既有 legacy WARN**；
+  `3d:parity:check` PARITY OK；`baseline:check` OK **407 文件**；`file:check` **52 文件 / 26,819 行 /
+  最大 main.gd 5,539 行 / 10 个历史超长函数待拆**；`guard` PASS、`agent:contract` PASS。
+  Godot 无头自测：`navtest 28/0`、`tasktest 26 点 0 失败`、`reachtest 26 点 0 走不到 0 缺设备`、
+  `simtest 26/0`、`b4test 8/0`、`socialtest 6/0`、`meetingtest ok=true`、`dragtest 0 失败`、
+  `abilitytest 0 失败`、`powertest` 三态/门/时长全过、`interacttest` 轮盘/管道/领取全过、
+  `taskflowtest ok=true`、`aittest prog=20/45 nights=3`。
+  上游 2.5D 门禁同批复核：**920 通过 / 3 失败**（3 条均为上游已登记时序抖动，exit 0）。
+- **下一批立项依据**：`file-budgets.json` 的 10 条超长函数 WARN 仍是待拆清单；
+  `3d/preview/data/cover_refs.json` 缺 `schema_version`（legacy）；美术侧（人物/家具）照旧归美术栏。
+
 ## 2026-11-12 · 大文件工程化：调试夹具迁出 main.gd + 结构索引与预算棘轮
 
 - **本批改动**（纯结构，不动任何玩法语义）：

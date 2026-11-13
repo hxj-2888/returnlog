@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-12T12:40:54.915Z",
+  "generated_at": "2026-11-13T08:42:24.896Z",
   "note": "本文件由 3d/tools/export-sim.cjs 生成，勿手改。只含\"一局怎么开始、多少分算赢、天亮怎么推进\"的非发言规则；台词另见 data/lines.json（S 轨，2026-11-08 已接）。",
   "sources": {
     "js/ai/sanity.js": "a2dd222adc5c",
     "js/t2/space.js": "b9c59b5ea93b",
     "js/data/names.js": "96414d4fb89c",
-    "3d/preview/data/map_v2.json": "f5cfd2d14584",
+    "3d/preview/data/map_v2.json": "87b0a25b967b",
     "3d/preview/data/minigames.json": "960dbd696c41"
   },
   "roles": {

@@ -866,6 +866,10 @@ func _decide(a: Dictionary) -> void:
 		bvic = sim.agent(fallback)
 	if best < 0:
 		_bump("no_target")
+		# 2.5D aiAlien `if(a.knife>0&&td>12&&alienSupport(a,dt))return`：没目标时也会
+		# 拉闸/破坏/拆机器人/伪装（td=无穷大 = 附近没人），不是握刀原地站着。
+		if _exec_plan(a, _plan(a, 999.0)):
+			return
 		# 2.5D huntSpotFor（js/game.js:3616-3665）：没目标时也去“可能有人”的位置，
 		# 只给管道机动用，不进任何攻击判定。
 		var hunt := _hunt_spot(a)

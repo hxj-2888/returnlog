@@ -23,6 +23,7 @@ const AIAlienScript := preload("res://scripts/sim/ai_alien.gd")
 const BotsScript := preload("res://scripts/sim/bots.gd")
 const LinesDataScript := preload("res://scripts/sim/lines_data.gd")
 const RulesDataScript := preload("res://scripts/sim/rules_data.gd")
+const BodyStateScript := preload("res://scripts/sim/body_state.gd")
 const MindScript := preload("res://scripts/sim/mind.gd")
 const SpeechScript := preload("res://scripts/sim/speech.gd")
 const InvariantsScript := preload("res://scripts/sim/invariants.gd")
@@ -750,8 +751,14 @@ func _finish_doing(a: Dictionary) -> void:
 			a["medkit"] = int(a.get("medkit", 0)) - 1
 			if speech_enabled and mind != null:
 				mind.cred_broadcast(ai, "revive", a.get("pos", Vector2.ZERO))
+	elif kind == "search":
+		# 2.5D finishDoing('search')：站桩结束才 lootBody 并写目击证据
+		var sv := int(a.get("_sv", -1))
+		if sv >= 0:
+			search_body(sv, ai)
 	a["_doing"] = ""
 	a["_item"] = ""
+	a["_sv"] = -1
 	a["taskPt"] = -1
 	a["_rv"] = -1
 	a["_aiT"] = 0.25
@@ -1400,29 +1407,14 @@ func _track_pass() -> void:
 
 
 ## 破坏：登记一处 30 秒故障；到点未修则全船进度 -faultPenalty。
-## 搜尸：把死者身上的子弹 / 医疗包 / 申请单转给搜的人，一具尸体只搜一次。
-## 对应 2.5D `lootBody`（js/game.js），口径是"只转移、不凭空生成"。
+## 尸体链（bodyNear / searchBody / lootBody / bodyHasLoot）已拆到 sim/body_state.gd
+## （sim_state.gd 有 3600 行棘轮）；这里只保留同名入口，调用方不变。
+func body_has_loot(b: Dictionary) -> bool:
+	return BodyStateScript.body_has_loot(b)
+
+
 func search_body(body_i: int, by: int) -> bool:
-	# 2.5D searchBody()：`if(G.over||G.meet||G.inspect)return`
-	if over or not meeting.is_empty():
-		return false
-	var b := agent(body_i)
-	var a := agent(by)
-	if b.is_empty() or a.is_empty():
-		return false
-	if bool(b.get("alive", false)) or bool(b.get("bodyGone", false)) \
-			or bool(b.get("searched", false)):
-		return false
-	b["searched"] = true
-	var got: Array = []
-	for k in ["bullet", "medkit", "qual"]:
-		var n := int(b.get(k, 0))
-		if n > 0:
-			a[k] = int(a.get(k, 0)) + n
-			b[k] = 0
-			got.append("%s×%d" % [String(k), n])
-	_log("search", {"actor": by, "victim": body_i, "got": ", ".join(got)})
-	return true
+	return BodyStateScript.search(self, body_i, by)
 
 
 ## 玩家动作入口：2.5D 的 rescue() / sabotage() 由玩家按键触发，AI 走
@@ -1855,8 +1847,11 @@ func scan_bodies(a: Dictionary, dt: float) -> void:
 			break
 	var rescue: bool = int(a.get("medkit", 0)) > 0 and bool(best.get("alive", false)) \
 		and bool(best.get("downed", false))
+	# 3D 的 draggedBy 有 null 与 -1 两种空值（历史遗留）；2.5D `best.draggedBy==null` 两者都算空。
+	var best_db: Variant = best.get("draggedBy", null)
+	var best_free: bool = best_db == null or int(best_db) < 0
 	if not rescue and not busy_search and int(a.get("drag", -1)) < 0 \
-			and best.get("draggedBy") == null and bd < 2.2 \
+			and best_free and bd < 2.2 \
 			and float(a.get("doing", 0.0)) <= 0.0 and (want_evidence or want_loot):
 		start_doing(ai, "search", SpaceData.num(space, "stand", "search"), -1, "")
 		a["_sv"] = int(best.get("i", -1))
@@ -1988,8 +1983,10 @@ func _ghost_tick(a: Dictionary, dt: float) -> void:
 		# 2.5D：破坏之后继续游荡，不再原地待机
 		_ghost_roam(a, dt, 2.4)
 		return
-	# 人类幽灵：额度内继续做任务
+	# 人类幽灵：额度内继续做任务（2.5D aiGhost：赶路 6.5 格/秒，额度尽/做完才 2.4 游荡）
 	var tasks: Array = a.get("tasks", []) as Array
+	if float(a.get("_pathCD", 0.0)) > 0.0:
+		a["_pathCD"] = maxf(0.0, float(a.get("_pathCD", 0.0)) - dt)
 	if int(a.get("ghostPts", 0)) < ghost_cap() and int(a.get("tIdx", 0)) < tasks.size():
 		var pi := int(tasks[int(a.get("tIdx", 0))])
 		var p: Dictionary = point(pi)
@@ -2001,13 +1998,13 @@ func _ghost_tick(a: Dictionary, dt: float) -> void:
 					# 2.5D startTask(a,p,true)：幽灵站桩 = 任务时长 ×1.6，结算走同一条链
 					start_doing(i, "task", float(p.get("dur", 6.0)) * 1.6, pi)
 					return
-			elif (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
-				# 2.5D walkTo 冷却：不可达目标 1.2 秒内不重跑 A*
-				if float(a.get("_pathCD", 0.0)) > 0.0:
-					a["_pathCD"] = maxf(0.0, float(a.get("_pathCD", 0.0)) - dt)
-					return
-				if not set_path(i, tp):
-					a["_pathCD"] = 1.2
+			else:
+				if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty() \
+						and float(a.get("_pathCD", 0.0)) <= 0.0:
+					if not set_path(i, tp):
+						a["_pathCD"] = 1.2
+				# 2.5D aiGhost：`stepMove(a,dt,6.5)` —— 赶去做自己的剩余任务
+				_ghost_move(a, dt, 6.5)
 				return
 	_ghost_roam(a, dt, 2.4)
 
@@ -2109,14 +2106,7 @@ const MEET_NIGHT := "night"
 
 ## 报告尸体 → 静默投票（无发言）：5 秒后按票数驱逐，公布身份。
 func body_near(pos: Vector2, radius: float) -> Dictionary:
-	for a: Dictionary in agents:
-		if bool(a.get("alive", false)):
-			continue
-		if bool(a.get("bodyGone", false)) or bool(a.get("bodyReported", false)):
-			continue
-		if (a.get("bodyPos", Vector2.ZERO) as Vector2).distance_to(pos) <= radius:
-			return a
-	return {}
+	return BodyStateScript.body_near(self, pos, radius)
 
 
 ## 开一场会议。kind ∈ {pre, day, night}。
@@ -2281,18 +2271,25 @@ func dawn() -> void:
 
 
 ## 在 bridge 房间里随机取一个可行走点（2.5D randIn(br) 的等价物）。
+## 2.5D 采样的是 **rect 内的随机点**（js/game.js:340-347），旧实现只采 poly 顶点：
+## 顶点全在墙线上、is_free 永假，200 次后必然落到同一个 label 点 ——
+## 天亮时所有活人叠在一格上，看起来就是「AI 全卡住了」。
 func _rand_in_bridge() -> Vector2:
 	var bridge: Dictionary = rooms_by_id.get("bridge", {}) as Dictionary
-	var poly: Array = bridge.get("poly", []) as Array
+	var rect: Array = bridge.get("rect", []) as Array
+	if rect.size() < 4:
+		var lab: Array = bridge.get("label", [31.0, 33.5]) as Array
+		return Vector2(float(lab[0]), float(lab[1]))
+	var x0 := float(rect[0])
+	var y0 := float(rect[1])
+	var w := float(rect[2])
+	var h := float(rect[3])
 	for _k in 200:
-		if poly.is_empty():
-			break
-		var p: Array = poly[_rng.randi_range(0, poly.size() - 1)]
-		var pos := Vector2(float(p[0]), float(p[1]))
+		var pos := Vector2(x0 + _rng.randf() * w, y0 + _rng.randf() * h)
 		if nav != null and nav.is_free(pos):
 			return pos
-	var lab: Array = bridge.get("label", [31.0, 33.5]) as Array
-	return Vector2(float(lab[0]), float(lab[1]))
+	var center := Vector2(x0 + w * 0.5, y0 + h * 0.5)
+	return nav.nearest_free(center) if nav != null else center
 
 
 ## 玩家（或旁观快进）可以提前结束讨论，讨论秒数仍取自真源，不写死。
@@ -2923,15 +2920,30 @@ func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 				return _act_no("not_dragging")
 			return _act_ok(int(a.get("drag", -1)))
 		"report":
-			# 2.5D collectInteractions():8133 `!bodyReported(nb)` → tryReport。
+			# 2.5D tryReport()（js/game.js:4901）：2.4 格内**最近的未报告**身体；
+			# 额度/夜场先判，避免"按了 R 但会开不起来"白掉一次报告额度。
 			if ghost:
 				return _act_no("ghost")
-			var body: Dictionary = body_near(pos, SpaceData.num(space, "reach", "body"))
-			if body.is_empty():
+			var best_body: Dictionary = {}
+			var best_bd := 2.4
+			for v: Dictionary in agents:
+				if v == a or bool(v.get("bodyReported", false)) \
+						or bool(v.get("bodyGone", false)) \
+						or String(v.get("deathCause", "")) == "vote":
+					continue
+				if bool(v.get("alive", false)) and not bool(v.get("downed", false)):
+					continue
+				var bp: Vector2 = v.get("pos", Vector2.ZERO) if bool(v.get("alive", false)) \
+					else v.get("bodyPos", Vector2.ZERO)
+				var d := bp.distance_to(pos)
+				if d < best_bd:
+					best_bd = d
+					best_body = v
+			if best_body.is_empty():
 				return _act_no("no_body")
-			if not can_report_body(a, body):
+			if int(a.get("reportLeft", 0)) <= 0 or night_meet_left() <= 0:
 				return _act_no("no_report_quota")
-			return _act_ok(int(body.get("i", -1)))
+			return _act_ok(int(best_body.get("i", -1)))
 		"sabotage":
 			# 2.5D sabotage():8228-8229 异形专用、每夜一次、bridge 不可破坏。
 			if not bool(a.get("alien", false)):

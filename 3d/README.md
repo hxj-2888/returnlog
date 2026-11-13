@@ -466,13 +466,13 @@ Godot 4.6 headless 导出 → `npm run 3d:web:stage` 拆分超限文件 → 探�
 
 **除美术外的系统都已接入主链路；下面列的是"接了但还没做到 2.5D 那么细"的部分。**
 
-- **S 轨编排层**：构陷编排 `planAlienDeception` / `planMateBus`、领袖型玩家剧本、
-  完整假设层（hypGap / hypMinEvidence）、时间线拆谎未迁；目前发言是"六类说服策略 +
-  证词→嫌疑 + 玩家自由发言"的完整链路，不是 2.5D 那 1,784 行调度逐行照搬。
-- **AI 认知**：sus / cred / warm / reliability / heard 滑动窗口已接，但没有 2.5D 的
-  `envEstimate` 假说竞争与 `MISID` 误认模型。
-- 机器人 HP 与反制已接，但没有"机器人被修好"的回路；BGM 是 `.m4a`，Godot 不支持，未接。
-- 设置面板有音量滑块与本机持久化，音效无 3D 空间衰减；复盘只读 `sim.events`，
+- **S 轨编排层**：构陷编排 `plan_alien_deception` / `planMateBus`、领袖剧本（`roll_leader`）、
+  假设层（`MIND.hypGap`）、时间线拆谎（`mind.check_alibi`）均已接入（2026-11-13 核实）。
+- **AI 认知**：sus / cred / warm / reliability / heard 滑动窗口、`env_estimate` 假说竞争与
+  `MISID` 误认模型均已接入；逐函数差异只认 `spec/parity-map.json`（63 synced / 7 adapter）。
+- 机器人 HP 与反制已接，夜间复位与 2.5D 同源（"修好"回路 2.5D 本身没有）；BGM 已由 ffmpeg
+  转成 `assets/audio/music-bgm.ogg` 接入（`audio.play_music`）。
+- 设置面板有音量滑块与本机持久化，音效仍是 2D 播放（无 3D 距离衰减）；复盘只读 `sim.events`，
   不载入外部回放 JSON。
 - 舱外甲板仍可走；碰撞盒未按 2.5D 口径收缩；家具仍是盒体代理。
 - 角色默认已切 `char_crew_lowpoly`（1.75 m / 1812 tris / 17 骨 / idle+walk）；

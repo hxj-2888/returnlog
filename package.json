@@ -10,7 +10,7 @@
   "private": true,
   "x-baseline": {
     "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
-    "captured": "2026-11-12",
+    "captured": "2026-11-13",
     "manifest": "BASELINE.sha256.json",
     "note": "js/ assets/ audio/ tools/ 为 2.5D 只读基线镜像，禁止修改；docs/ 自 2026-11-09 起移出基线可改（见 BASELINE.md §1/§6）；version/gameVersion 是上游基线标识（3d/tools/export-version.cjs 依赖），不是 3D 版本；3D 版本真源在 3d/version.json"
   },

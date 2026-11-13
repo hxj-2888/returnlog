@@ -74,48 +74,9 @@ func tick(dt: float) -> void:
 		if float(a.get("_fleeT", 0.0)) > 0.0:
 			a["_fleeT"] = float(a.get("_fleeT", 0.0)) - dt
 			continue
-		# 尸体扫描（2.5D aiScanBodies:2505）：看见未报告的尸体 → 搜尸 / 排报告
-		var best_body: Dictionary = {}
-		var best_bd := 5.4
-		for v: Dictionary in sim.agents:
-			if v == a or bool(v.get("alive", false)) or bool(v.get("bodyReported", false)):
-				continue
-			var bpos2: Vector2 = v.get("bodyPos", Vector2.ZERO)
-			var dd2 := ap.distance_to(bpos2)
-			if dd2 < 5.4 and sim.ai_can_see(a, bpos2):
-				# 看见尸体就记一条（2.5D observeBody）：报案太快时用来怀疑报案人。
-				sim.note_body(int(a.get("i", -1)), int(v.get("i", -1)))
-				if dd2 < best_bd:
-					best_bd = dd2
-					best_body = v
-		if not best_body.is_empty() and float(a.get("_reportT", 0.0)) <= 0.0:
-			var bi := int(best_body.get("i", -1))
-			# 贴近且没搜过 → 先搜尸取证+拿物资（2.5D wantEvidence，1.2 秒站桩）
-			if best_bd < 2.2 and not bool(best_body.get("searched", false)) \
-					and float(a.get("doing", 0.0)) <= 0.0:
-				sim.search_body(bi, int(a.get("i", -1)))
-				a["_aiT"] = 0.5
-				continue
-			# 排报告（人类延迟 1.4~3.0 秒；额度/场次在 open_meeting 里再筛）
-			if int(a.get("reportLeft", 0)) > 0:
-				a["_reportBody"] = bi
-				a["_reportT"] = 1.4 + sim._rng.randf() * 1.6
-				continue
-		# ---- 尸体扫描（2.5D aiScanBodies:2478 同源）----
-		# 5.4 格内 + ai_can_see → 先搜尸（<2.2 格）→ 排 1.4~3.0 秒 → 远程拉铃（≤5.8 格）。
-		# 同一夜每具尸体只能被报告一次；异形按误导价值也会报告（MISLEAD）。
-		var report_body := int(a.get("_reportBody", -1))
-		var report_t := float(a.get("_reportT", 0.0))
-		if report_t > 0.0:
-			a["_reportT"] = report_t - dt
-			if float(a.get("_reportT", 0.0)) <= 0.0:
-				a["_reportBody"] = -1
-				var rb: Dictionary = sim.agent(report_body)
-				if not rb.is_empty() and bool(rb.get("bodyReported", false)) == false:
-					var rbp: Vector2 = rb.get("bodyPos", Vector2.ZERO)
-					if ap.distance_to(rbp) <= 5.8 and sim.ai_can_see(a, rbp):
-						if sim.open_meeting(int(a.get("i", -1)), report_body):
-							return
+		# 尸体扫描 / 搜尸 / 拉铃统一由 sim.scan_bodies 承担（2.5D aiScanBodies 逐行移植，
+		# 本函数开头每帧已调用）。这里不再重复扫描：旧副本会绕过 STAND.search 直接结算物资，
+		# 还会在 scan_bodies 已排好的 _reportT 上再排一次。
 		# 医疗包优先救人：濒死者拖到天亮会失血而死（2.5D aiHuman:2782）
 		if int(a.get("medkit", 0)) > 0:
 			var v: Dictionary = sim.nearest_downed(a.get("pos", Vector2.ZERO), 7.5)
@@ -318,17 +279,23 @@ func _decide(a: Dictionary) -> void:
 				return
 			else:
 				a["_lightGo"] = false
+	elif bool(a.get("_lightGo", false)):
+		# 2.5D `}else if(a._lightGo)a._lightGo=false;`：复电后把指派标记清掉，
+		# 否则下一次断电时这个人仍被算作"已有合闸人"，别人不再接手。
+		a["_lightGo"] = false
 
 	# 3) 故障抢修（2.5D aiHuman:2911-2934）：**不是全员扑同一个点**。
 	# 每人只在「已在修 / 正在赶」人数 < SKTeam.FIX_CREW_CAP 的故障里挑**最近**的一个，
 	# 并锁定 _fixGo 直到它被修好；锁定后不被任务点打断（避免来回踱步）。
 	# 3D 旧实现是 `dmg[0]` 一条写死、没有上限 —— 11 个人类 AI 会全部涌向同一处，
 	# 而破坏点本身就落在一个任务点坐标上，玩家看到的就是「一堆人挤在一个任务点」。
+	# 2.5D 只在有故障时更新 _fixGo，但**跨夜清故障后旧引用必须作废**：
+	# 旧实现把它放在 `if(sim.dmg.size()>0)` 里，天亮 dmg=[] 时永远清不掉。
+	var fix_go: Dictionary = a.get("_fixGo", {}) as Dictionary
+	if not fix_go.is_empty() and sim.dmg.find(fix_go) < 0:
+		a["_fixGo"] = {}
+		fix_go = {}
 	if sim.dmg.size() > 0:
-		var fix_go: Dictionary = a.get("_fixGo", {}) as Dictionary
-		if not fix_go.is_empty() and sim.dmg.find(fix_go) < 0:
-			a["_fixGo"] = {}
-			fix_go = {}
 		if fix_go.is_empty():
 			var cap := int(sim.rules.module_table("SKTeam").get("FIX_CREW_CAP", 3))
 			var best_fix: Dictionary = {}

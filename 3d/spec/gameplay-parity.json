@@ -1493,8 +1493,14 @@
     {
       "src": "js/game.js:pulseHud",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "2.5D DOM 高亮动画（classList）；3D HUD 由 main.gd:_refresh_sim_hud 整帧刷新，无 1:1 函数。"
+    },
+    {
+      "src": "js/game.js:hudText",
+      "target": "",
+      "status": "not-applicable",
+      "note": "2.5D DOM 文本节点直写（hudEl(...).textContent）；3D HUD 由 main.gd:_refresh_sim_hud 整帧刷新，无 1:1 函数。"
     },
     {
       "src": "js/game.js:pushEndorse",
@@ -1949,8 +1955,8 @@
     {
       "src": "js/game.js:syncHud",
       "target": "",
-      "status": "pending",
-      "note": ""
+      "status": "not-applicable",
+      "note": "2.5D DOM HUD 同步（节点缓存 + textContent/classList）；3D HUD 由 main.gd:_refresh_sim_hud 承担。"
     },
     {
       "src": "js/game.js:syncMeetTemplates",

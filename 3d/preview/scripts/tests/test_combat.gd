@@ -294,21 +294,28 @@ static func _run_b4test(__h) -> bool:
 	else:
 		fail_n += 1
 		print("B4TEST FAIL 开枪没生效 ok=%s downed=%s" % [str(shot_ok), str(target.get("downed", false))])
-	# ⑤ 搜尸：造一具带 2 发子弹的尸体，搜一次得物资、第二次被拒
+	# ⑤ 搜尸：2.5D lootBody 每次只把子弹补到 1；尸体还有剩余物资时允许再搜
 	target["alive"] = false
 	target["downed"] = false
 	target["bodyGone"] = false
 	target["bodyPos"] = Vector2(40.5, 30.0)
 	target["bullet"] = 2
+	target["medkit"] = 0
+	target["qual"] = 0
+	target["qualPending"] = 0
+	shooter["bullet"] = 0
 	var before := int(shooter.get("bullet", 0))
 	var s1: bool = __h.sim.search_body(int(target.get("i", -1)), int(__h.sim.me_idx))
-	var after := int(shooter.get("bullet", 0))
+	var after1 := int(shooter.get("bullet", 0))
 	var s2: bool = __h.sim.search_body(int(target.get("i", -1)), int(__h.sim.me_idx))
-	if s1 and not s2 and after == before + 2:
+	var after2 := int(shooter.get("bullet", 0))
+	target["bullet"] = 0
+	var s3: bool = __h.sim.search_body(int(target.get("i", -1)), int(__h.sim.me_idx))
+	if s1 and s2 and not s3 and after1 == before + 1 and after2 == after1:
 		pass_n += 1
 	else:
 		fail_n += 1
-		print("B4TEST FAIL 搜尸 s1=%s s2=%s 弹 %d→%d" % [str(s1), str(s2), before, after])
+		print("B4TEST FAIL 搜尸 s1=%s s2=%s s3=%s 弹 %d→%d→%d" % [str(s1), str(s2), str(s3), before, after1, after2])
 	# ⑥ 会议三段：discuss → vote → result → 关闭，结果里要有投票矩阵
 	var m = SimStateScript.new()
 	m.new_game(20261113, 0, __h.map_data, __h.space)

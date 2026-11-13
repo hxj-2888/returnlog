@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-12",
+  "generated": "2026-11-13",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
     "version": "3.7.0",
@@ -1221,8 +1221,8 @@
       "size": 91040
     },
     "js/data/map.js": {
-      "sha256": "3d25d88547b73614d5a31fd57e99b9fa29d0250222949a4e48f8527ab94342ca",
-      "size": 26089
+      "sha256": "c6763504114605746e78ad7df8511821c8587e4e8e69c672bb4a21b9a4692da9",
+      "size": 26317
     },
     "js/data/names.js": {
       "sha256": "e23159df4d8a7b7c1b1ce502e8a148cf55243ccdf680d8c528a7406777db3fdd",
@@ -1245,8 +1245,8 @@
       "size": 9025
     },
     "js/game.js": {
-      "sha256": "534b0b861f3fef26f357d72d2e7f1d8daad43010cf919026bba45cde3a41565a",
-      "size": 655450
+      "sha256": "2d48085dfb2e04fdb0a103f384282da39448905ceddd75f0c4c83502bdbc6cad",
+      "size": 660410
     },
     "js/main.js": {
       "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",
@@ -1513,8 +1513,8 @@
       "size": 5739
     },
     "tools/master-sfx.py": {
-      "sha256": "1ca5f4ab38587208bac9393f5d64a5a0b2a5c9e9049b64004766b35e53d22370",
-      "size": 10113
+      "sha256": "bc4a70dfbd8c6e6e95f7c40ae434cf1c130823d7fcceab9d2d6b014d0bf8e362",
+      "size": 10331
     },
     "tools/mc-results-E.json.gz": {
       "sha256": "f48290782a336bf1e28ed41d1a7574db245ce1246e501dd6a2451fd81df85162",
@@ -1617,7 +1617,7 @@
       "size": 34751
     },
     "tools/ship.cjs": {
-      "sha256": "ad8909aea2c48f5cf7d5ce92b3144dd2faa108110cca8fdc91a672c1131b8696",
+      "sha256": "086d2425dab36ea6b4635bd9156092403fd1600f256c48e5f9e8e9bada163a6b",
       "size": 19466
     },
     "tools/shots-facility.cjs": {

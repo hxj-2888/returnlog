@@ -3420,12 +3420,20 @@ func _update_interaction(_delta: float) -> void:
 
 	# 模态相位：按键不落到对局，但必须给一次明确反馈（旧版静默吞键）。
 	# 这里不清 _keys_down：边沿状态仍要连续，否则会议结束后会假触发一次。
+	# 2026-11-13：补上尸检/监控信息面板、设置/复盘面板与对局结束 —— 旧版只挡会议/
+	# 管道/小游戏/轮盘，_input 虽已拦键盘，但这里走的是轮询，面板开着按 F/G/R 仍会执行。
 	var blocked := ""
-	if sim != null and not sim.meeting.is_empty():
+	if sim != null and sim.over:
+		blocked = "对局已结束"
+	elif sim != null and not sim.meeting.is_empty():
 		blocked = "会议进行中 · 操作暂不可用"
-	elif _pipe_open or (mg_layer != null and mg_layer.is_open()) \
-			or (wheel != null and wheel.is_open()):
+	elif _pipe_open or _info_open or (mg_layer != null and mg_layer.is_open()) \
+			or (wheel != null and wheel.is_open()) \
+			or (ui_panels != null and ui_panels.any_open()):
 		blocked = "先关闭当前面板（Esc）"
+	elif not station.is_empty():
+		# 2.5D interact(): `if(G.wheel||me.doing>0)return` —— 站桩中不接收新的交互。
+		blocked = "站桩中 · 移动即中断"
 	if not blocked.is_empty():
 		prompt_label.text = ""
 		for kk3: String in _OFFER_KEY_KEYS:
@@ -3485,7 +3493,7 @@ func _update_interaction(_delta: float) -> void:
 		else:
 			_probe("E → 轮盘 %d 项" % offers.size())
 			player.ui_locked = true
-			wheel.open(offers,
+			wheel.open(_ranked_offers(offers),
 				func(it: Dictionary) -> void:
 					player.ui_locked = false
 					_probe("轮盘 → " + String(it.get("label", "")))
@@ -3542,8 +3550,8 @@ func _fallback_action(k: String, offers: Array) -> void:
 				return
 			var pp: Vector3 = port["pos"] as Vector3
 			var pd := Vector2(pp.x - pos.x, pp.z - pos.y).length()
-			if pd > dev_r:
-				_toast("离管道口还有 %.1f m（交互半径 %.1f m）" % [pd, dev_r])
+			if pd > PIPE_NEAR_R:
+				_toast("离管道口还有 %.1f m（交互半径 %.1f m）" % [pd, PIPE_NEAR_R])
 				return
 			_use_pipe(port)
 		"B":
@@ -3553,16 +3561,24 @@ func _fallback_action(k: String, offers: Array) -> void:
 				return
 			_on_sabotage(String(b.get("action", "")))
 		"F":
-			var dev = _nearest_device(pos)
+			# 先找「自己的、在交互半径内的」任务设备；最近的那个可能不是你的任务。
+			var dev = _nearest_device(pos, true)
 			if dev == null:
-				_toast("附近没有设备 / 故障点（走近再按 F）")
+				var other = _nearest_device(pos)
+				if other != null and float(other.reach_dist(p)) <= TASK_NEAR_R:
+					_toast("「%s」不是你现在的任务（看任务列表）" % String(other.task_label))
+				else:
+					_toast("附近没有设备 / 故障点（走近再按 F）")
 				return
 			var dd := float(dev.reach_dist(p))
-			if dd > dev_r:
-				_toast("离设备还有 %.1f m（交互半径 %.1f m）" % [dd, dev_r])
+			if dd > TASK_NEAR_R:
+				_toast("离设备还有 %.1f m（交互半径 %.1f m）" % [dd, TASK_NEAR_R])
 				return
 			_open_device(dev)
 		"V":
+			if sim != null and bool(sim.me().get("ghost", false)):
+				_toast("幽灵状态只能做自己的剩余任务")
+				return
 			var brk = _nearest_breaker(pos)
 			if brk == null:
 				_toast("附近没有电闸（去配电室）")
@@ -3573,12 +3589,15 @@ func _fallback_action(k: String, offers: Array) -> void:
 				return
 			(_breaker_offer(brk)["act"] as Callable).call()
 		"C":
+			if sim != null and bool(sim.me().get("ghost", false)):
+				_toast("幽灵状态只能做自己的剩余任务")
+				return
 			var mon := _nearest_facility(pos, "monitor")
 			if mon.is_empty():
 				_toast("附近没有监控台")
 				return
 			var mp := Vector2(float(mon.get("x", 0)), float(mon.get("y", 0)))
-			if mp.distance_to(pos) > dev_r:
+			if mp.distance_to(pos) > MONITOR_NEAR_R:
 				_toast("离监控台还有 %.1f m" % mp.distance_to(pos))
 				return
 			_open_cams()
@@ -3625,13 +3644,18 @@ func _nearest_pipe_port(pos: Vector2) -> Dictionary:
 	return best
 
 
-func _nearest_device(pos: Vector2):
+func _nearest_device(pos: Vector2, owned_only: bool = false):
 	if extras == null:
 		return null
 	var best = null
 	var best_d := INF
 	for dev in extras.devices:
 		if not is_instance_valid(dev):
+			continue
+		# 电闸等非任务设备由 V 负责；F 只找任务设备（2.5D nearPoint 也只认任务点）。
+		if dev.point_index < 0:
+			continue
+		if owned_only and (sim == null or not sim.can_do_task(dev.point_index)):
 			continue
 		var d := float(dev.reach_dist(Vector3(pos.x, 0.05, pos.y)))
 		if d < best_d:
@@ -3669,6 +3693,17 @@ func _nearest_facility(pos: Vector2, kind: String) -> Dictionary:
 	return best
 
 
+## 玩家与尸体/伤者之间的几何视线（2.5D collectInteractions 的 `visibleAt(bp)`）。
+## 3D 没有迷雾锥，这里退到墙 + 掩体遮挡；至少在墙后不能隔墙搜尸/报告/施救。
+func _body_visible_to_player(b: Dictionary) -> bool:
+	if sim == null or player == null or b.is_empty():
+		return false
+	var bp: Vector2 = b.get("pos", Vector2.ZERO) if bool(b.get("alive", false)) \
+		else b.get("bodyPos", Vector2.ZERO)
+	var p := player.global_position
+	return sim.los_now(p.x, p.z, bp.x, bp.y)
+
+
 ## --inputlog：每次按键打印「落在哪个分支 / 被谁挡住」，用于定位 E ≠ ESC 一类问题。
 func _probe_input(k: String, note: String) -> void:
 	if not input_log:
@@ -3694,6 +3729,14 @@ func _probe_input(k: String, note: String) -> void:
 ## 键位拆分真源：一个交互项只认一个专用键，E 只兜底。
 ## 2.5D 的现实是「交互不多但全塞在 E 上」，3D 按距离手边最近的语义拆开。
 const _OFFER_KEY_KEYS := ["F", "R", "G", "Q", "V", "B", "C"]
+
+## 2.5D 各交互的半径是分开的（js/game.js nearPoint / nearPipe / nearSupply / nearMonitor）。
+## 3D 旧版把它们全折成 reach.fix(2.0)：任务点实际 2.6 就能开，玩家站在 2.0–2.6m
+## 按 F 会「毫无反应」—— 这是现场「交互键有问题」的主因之一。
+const TASK_NEAR_R := 2.6      # js/game.js:1059 nearPoint
+const PIPE_NEAR_R := 1.6      # js/game.js:911 nearPipe
+const SUPPLY_NEAR_R := 1.7    # js/game.js:1000 nearSupply
+const MONITOR_NEAR_R := 1.8   # js/game.js:1018 nearMonitor
 
 
 func _offer_key(id: String) -> String:
@@ -3721,6 +3764,30 @@ func _offer_by_key(offers: Array, key: String) -> Dictionary:
 		if _offer_key(String(o.get("id", ""))) == key:
 			return o
 	return {}
+
+
+## 轮盘最多 8 项（ui_wheel.MAX_SLOTS）。旧版按收集顺序截断：站在尸体 + 补给 +
+## 机器人旁边时，排在后面的「施救 / 搜尸」会被静默丢掉（现场"没有施救选项"）。
+## 这里按行动价值排序，保证关键项先占位；E 的键位匹配仍用原数组。
+func _ranked_offers(offers: Array) -> Array:
+	var out := offers.duplicate()
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return _offer_rank(String(a.get("id", ""))) < _offer_rank(String(b.get("id", ""))))
+	return out
+
+
+const _OFFER_RANK := {
+	"revive": 0, "task": 1, "report": 2, "search": 3, "fix": 4, "drag": 5,
+	"inspect": 6, "attack": 7, "supply": 8, "req": 9, "pipe": 10, "breaker": 11,
+	"cams": 12, "sabotage": 13, "bot": 14,
+}
+
+
+func _offer_rank(id: String) -> int:
+	for k: String in _OFFER_RANK:
+		if id.begins_with(k):
+			return int(_OFFER_RANK[k])
+	return 15
 
 
 ## 键位 → InputMap action（project.godot 是唯一真源）。改键只改 project.godot，
@@ -3863,7 +3930,7 @@ func _collect_offers() -> Array:
 		if not is_instance_valid(cand) or cand.point_index < 0:
 			continue
 		var cand_d = float(cand.reach_dist(pos))
-		if cand_d <= dev_r and cand_d < nearest_task_d:
+		if cand_d <= TASK_NEAR_R and cand_d < nearest_task_d:
 			nearest_task_d = cand_d
 			nearest_task_dev = cand
 	var fwd := -player.global_transform.basis.z
@@ -3900,7 +3967,7 @@ func _collect_offers() -> Array:
 			if dev.distance_to(pos) <= SpaceData.num(space, "reach", "breaker"):
 				out.append(_breaker_offer(dev))
 			continue
-		if dev.reach_dist(pos) > dev_r:
+		if dev.reach_dist(pos) > TASK_NEAR_R:
 			continue
 		## 2.5D collectInteractions：先 nearPoint（最近的一个任务点），再判 mine
 		## （me.tasks.slice(me.tIdx).indexOf(point) >= 0）。非自己的任务点不生成任何 offer。
@@ -3920,7 +3987,8 @@ func _collect_offers() -> Array:
 	if sim != null and not sim.agents.is_empty():
 		var body: Dictionary = sim.body_near(Vector2(pos.x, pos.z),
 			SpaceData.num(space, "reach", "body"))
-		if not body.is_empty():
+		if not body.is_empty() and not bool(body.get("bodyReported", false)) \
+				and _body_visible_to_player(body):
 			out.append({
 				"id": "report",
 				"label": "报告尸体 · " + String(body.get("name", "?")),
@@ -3970,6 +4038,12 @@ func _collect_offers() -> Array:
 				var bp2: Vector2 = dead2.get("pos", Vector2.ZERO) if is_downed \
 					else dead2.get("bodyPos", Vector2.ZERO)
 				if bp2.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "body"):
+					continue
+				if not _body_visible_to_player(dead2):
+					continue
+				# 2.5D：已经被别人拖着 / 自己正拖着时不重复生成拖拽项（自己那项在上面）。
+				var db2: Variant = dead2.get("draggedBy", null)
+				if db2 != null and int(db2) >= 0:
 					continue
 				var body_i2 := int(dead2.get("i", -1))
 				out.append({
@@ -4032,19 +4106,28 @@ func _collect_offers() -> Array:
 					"act": func() -> void: _on_sabotage_bot(bk4),
 				})
 
-	# 搜尸：一具尸体只搜一次，站桩 STAND.search 秒后转移随身物资。
+	# 搜尸：站桩 STAND.search 秒后转移随身物资。2.5D searchBody：濒死者也能搜；
+	# 已搜过的死者只有身上还有剩余物资时才可再搜（搜的人当时子弹/包已满）。
 	if sim != null:
 		for dead: Dictionary in sim.agents:
-			if bool(dead.get("alive", false)) or bool(dead.get("bodyGone", false)) \
-					or bool(dead.get("searched", false)):
+			if bool(dead.get("alive", false)) and not bool(dead.get("downed", false)):
 				continue
-			var bp: Vector2 = dead.get("bodyPos", Vector2.ZERO)
+			if bool(dead.get("bodyGone", false)) or String(dead.get("deathCause", "")) == "vote":
+				continue
+			if bool(dead.get("searched", false)) \
+					and (bool(dead.get("alive", false)) or not sim.body_has_loot(dead)):
+				continue
+			var bp: Vector2 = dead.get("pos", Vector2.ZERO) if bool(dead.get("alive", false)) \
+				else dead.get("bodyPos", Vector2.ZERO)
 			if bp.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "body"):
+				continue
+			if not _body_visible_to_player(dead):
 				continue
 			var body_i := int(dead.get("i", -1))
 			out.append({
 				"id": "search-%d" % body_i,
-				"label": "搜尸 · " + String(dead.get("name", "?")),
+				"label": ("查看伤情 · " if bool(dead.get("alive", false)) else "搜尸 · ") \
+					+ String(dead.get("name", "?")),
 				"hint": "站桩 %.0fs · 取得随身物资" % SpaceData.num(space, "stand", "search"),
 				"accent": Color("#B9F5DA"),
 				"act": func() -> void: _start_station("搜尸",
@@ -4056,7 +4139,7 @@ func _collect_offers() -> Array:
 	if sim != null and not sim.agents.is_empty() and bool(sim.me().get("alien", false)):
 		for pp in extras.pipe_ports:
 			var d := Vector2((pp["pos"] as Vector3).x - pos.x, (pp["pos"] as Vector3).z - pos.z).length()
-			if d > dev_r:
+			if d > PIPE_NEAR_R:
 				continue
 			out.append({
 				"id": "pipe-%s" % String(pp["room"]),
@@ -4088,7 +4171,7 @@ func _collect_offers() -> Array:
 			continue
 		var sp := Vector3(float(fac.get("x", 0)), 0, float(fac.get("y", 0)))
 		var ds := Vector2(sp.x - pos.x, sp.z - pos.z).length()
-		if ds > dev_r:
+		if ds > SUPPLY_NEAR_R:
 			continue
 		var is_ammo := String(fac.get("label", "")).contains("军械") or String(fac.get("label", "")).contains("弹")
 		var dur := SpaceData.num(space, "stand", "ammo" if is_ammo else "med")
@@ -4107,7 +4190,7 @@ func _collect_offers() -> Array:
 		if int(me.get("medkit", 0)) > 0:
 			var downed: Dictionary = sim.nearest_downed(Vector2(pos.x, pos.z),
 				SpaceData.num(space, "reach", "body"))
-			if not downed.is_empty():
+			if not downed.is_empty() and _body_visible_to_player(downed):
 				var rv_i := int(downed.get("i", -1))
 				out.append({
 					"id": "revive-%d" % rv_i,
@@ -4128,6 +4211,8 @@ func _collect_offers() -> Array:
 				bp = b.get("pos", Vector2.ZERO)
 			if bp.distance_to(Vector2(pos.x, pos.z)) > SpaceData.num(space, "reach", "body"):
 				continue
+			if not _body_visible_to_player(b):
+				continue
 			var bi := int(b.get("i", -1))
 			out.append({
 				"id": "inspect-%d" % bi,
@@ -4141,7 +4226,7 @@ func _collect_offers() -> Array:
 		if String(mfac.get("kind", "")) != "monitor":
 			continue
 		var mp := Vector2(float(mfac.get("x", 0)), float(mfac.get("y", 0)))
-		if mp.distance_to(Vector2(pos.x, pos.z)) > dev_r:
+		if mp.distance_to(Vector2(pos.x, pos.z)) > MONITOR_NEAR_R:
 			continue
 		out.append({
 			"id": "cams",
@@ -4265,6 +4350,10 @@ func _open_cams() -> void:
 	# 2.5D openCams()：`if(!G||G.over||G.meet||G.inspect||G.pipePick...)return`
 	if sim.over or not sim.meeting.is_empty():
 		return
+	var me_cam: Dictionary = sim.me()
+	if not bool(me_cam.get("alive", false)) or bool(me_cam.get("downed", false)) \
+			or bool(me_cam.get("detained", false)):
+		return
 	var rooms: Array = map_data.get("rooms", [])
 	var lines: Array = []
 	if power_on:
@@ -4329,6 +4418,19 @@ func _start_station(label: String, dur: float, done: Callable) -> void:
 func _tick_station(delta: float) -> void:
 	if station.is_empty():
 		return
+	# 2.5D：会议 / 信息面板打开时世界冻结，站桩不推进（也不会在会议里偷偷完成）；
+	# 只有真实移动输入才中断站桩。
+	if sim != null and (not sim.meeting.is_empty() or _info_open or _pipe_open \
+			or (mg_layer != null and mg_layer.is_open()) \
+			or (wheel != null and wheel.is_open()) \
+			or (ui_panels != null and ui_panels.any_open())):
+		return
+	if sim != null:
+		var me_st: Dictionary = sim.me()
+		if me_st.is_empty() or bool(me_st.get("downed", false)) \
+				or bool(me_st.get("detained", false)):
+			station = {}
+			return
 	if _moving_input():
 		station = {}
 		_toast("站桩中断（移动）")
@@ -5040,9 +5142,15 @@ func _tick_detained() -> void:
 	## 小游戏卡片开着也算锁输入：2.5D 里 #mg 遮罩把 attention 归零、点击地面失效；
 	## 3D 若不算这一项，_tick_detained 每帧会把它重新写回 false，
 	## 玩家就能一边解题一边用 WASD 走开（卡片挡着画面）。
-	var ui_open: bool = _pipe_open or (mg_layer != null and bool(mg_layer.is_open()))
+	## 2026-11-13：轮盘 / 尸检-监控信息面板 / 设置-复盘面板同样要算进来 ——
+	## 旧版只算 pipe+minigame，打开轮盘或尸检卡后下一帧就被重写成 false，
+	## 玩家能一边选交互项一边走动，交互手感像"按键失灵"。
+	var ui_open: bool = _pipe_open or _info_open \
+		or (mg_layer != null and bool(mg_layer.is_open())) \
+		or (wheel != null and wheel.is_open()) \
+		or (ui_panels != null and ui_panels.any_open())
 	player.ui_locked = held or bool(me.get("downed", false)) \
-		or (not sim.meeting.is_empty()) or ui_open
+		or (not sim.meeting.is_empty()) or ui_open or sim.over
 	if held:
 		if not _detained_toast:
 			_detained_toast = true
