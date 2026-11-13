@@ -8,6 +8,7 @@
     {"target":"sim/ai_alien.gd:disguise_risk_parts","reason":"disguiseRiskParts 的拆分实现（主判定已映射 mind.disguise_risk）"},
     {"target":"sim/ai_alien.gd:sab_spot","reason":"sabSpot 的 AI 侧入口，委托 sim.sab_spot_for（与 damageRoom 共用同一落点）"},
     {"target":"sim/ai_alien.gd:tick","reason":"异形 AI 主 tick（2.5D 在 aiAlien 内联）"},
+    {"target":"sim/mind.gd:recent_witness_id","reason":"aiAlien:3900-3915「现场目击者优先」内联扫描（3D seenBy 反向存在目击者身上）"},
     {"target":"sim/ai_human.gd:setup","reason":"人类 AI 装配（3D 内部）"},
     {"target":"sim/body_state.gd:search","reason":"搜尸动作状态（2.5D search 为 NA）"},
     {"target":"sim/bots.gd:_release","reason":"保安机器人释放被拘留者（2.5D 在 _witnessDetain 内联）"},

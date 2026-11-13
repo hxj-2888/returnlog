@@ -1230,6 +1230,29 @@ func best_almost_target(a: Dictionary) -> Dictionary:
 	return {"i": best, "score": bs} if best >= 0 else {}
 
 
+## 2.5D aiAlien:3900-3915 的现场目击者：谁在 HUNT.memorySec 内看见过我、还活着、
+## 不是队友、且在 max_d 内 —— 返回最近的那个（3D 的 seenBy 存在目击者身上）。
+func recent_witness_id(a: Dictionary, max_d: float, stale: float) -> int:
+	var ai := int(a.get("i", -1))
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var best := -1
+	var bd := max_d
+	for w: Dictionary in sim.agents:
+		if w == a or not bool(w.get("alive", false)) or bool(w.get("downed", false)) \
+				or bool(w.get("detained", false)):
+			continue
+		if _is_mate(a, int(w.get("i", -1))):
+			continue
+		var rec: Variant = (w.get("seenBy", {}) as Dictionary).get(ai, null)
+		if rec == null or sim.elapsed - float((rec as Dictionary).get("t", 0.0)) > stale:
+			continue
+		var d := ap.distance_to(w.get("pos", Vector2.ZERO))
+		if d < bd:
+			bd = d
+			best = int(w.get("i", -1))
+	return best
+
+
 func evidence_reason(a: Dictionary, i: int) -> Dictionary:
 	var arr: Array = (a.get("why", {}) as Dictionary).get(i, []) as Array
 	return arr[arr.size() - 1] as Dictionary if not arr.is_empty() else {}

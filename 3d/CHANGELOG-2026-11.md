@@ -33,6 +33,10 @@
   射程/追猎判定从 `_shoot_target` 挪回 `_decide`（真源里射程是"能不能打"、chase 是"愿不愿追"）。
   ⑯ `js/game.js:3874` 异形挑目标先 `isMate` 排除队友（3D 旧实现缺）；`:3947` 没刀时贴身也用枪。
   ⑰ `js/game.js:2843 nearestDowned`：救人目标也要 `aiCanSee`（3D 旧实现只按距离，能隔墙救人）。
+  ⑱ `js/game.js:3900-3915` 异形"现场目击者优先"：刚看见我的人若在 12 格内、且比现目标近
+  2 格以上，就先处理他（3D 的 `seenBy` 存在目击者身上，`mind.recent_witness_id` 反查）。
+  ⑲ `js/game.js:3745 aiAlien` 首行 `if(a.detained)return`：被保安拘留的异形照常行动是 3D 漏洞，
+  异形 tick 补 detained 跳过（人类 tick 一直有）。
 - **改动**：`sim/ai_human.gd`（新增 `_task_threat / _loot_run / _start_loot_search / _look_around`）、
   `sim/ai_alien.gd`（新增 `_report_plan / _alibi_spot / _has_body`、错峰延迟、破坏落点委托）、
   `sim/sim_state.gd`（`sab_spot_for` + 每夜缓存、`fix_damage` 全員松手、`hear` 的 conf 门、
