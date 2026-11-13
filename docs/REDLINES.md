@@ -10,7 +10,7 @@
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
-4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tools/test-v3.cjs`，失败一律按回归处理；
+4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tests/test-v3.cjs`，失败一律按回归处理；
    报告里必须写本次实跑的「X 通过 / Y 失败」，不得沿用旧读数。
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
@@ -48,9 +48,10 @@
     动 3D 之前先问「2.5D 里这条在哪」：
     - 找得到 → 照抄语义，数值读 `rules.json`（由 `js/ai/sanity.js` 等导出），不在 GDScript 里硬编码；
     - 找不到但**确实需要** → 先判断它是不是真·维度产物（A* 网格、第一人称相机、碰撞、LOD 等）；
-      是 → 写进 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
+      是 → 写进 3d 副分支的 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
       不是 → **先改 2.5D 真源**，再导出/移植，不许只加在 3D。
-    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/PORTING_PROTOCOL.md` §6。
+    落地检查：在 **3d 副分支**执行 `npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+
+    `3d/PORTING_PROTOCOL.md` §6；主仓只保留 `3d/preview/data` 快照与 `3d/tools/export-*.cjs` 导出链。
 12. **素材优先取自公开网络与开源社区，不自己单独造。**（2026-11-09 用户裁定，四项目统一）
     任何美术 / 音频 / 模型素材，先检索公开素材站与开源社区（Kenney / OpenGameArt / Poly Haven /
     itch.io 免费包 / 公开 wiki 与 ArtStation 参照等），许可合适的直接用；没有合适的才本地生成，
@@ -62,8 +63,9 @@
       是 Pages 部署与对外发布的目标分支。
     - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
       （2.5D 仓当前 `3d`；独立仓 `returnlog-3d` 的 `master` 为其镜像），**不得混入 main**。
-    - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
-      随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
+    - 共享侧（`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
+      随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据；3D 资产、美术工具与 `3d/spec`
+      在 `3d` 副分支，不再进 main。
     - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
       跑门禁绿后提交推送；避免整分支 merge 把 3D 客户端带进 main。
     - 推送目标：`origin`(GitHub) 为主，`gitee` 为尽力镜像；分支同名歧义时用完整 ref
@@ -75,7 +77,7 @@
     - **真源唯一、跨层只引用不复制**：数值/语料/地图真源在 T1/T2 对应模块
       （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
       不得另立第二份定义。**多父允许、多份定义禁止。**
-    - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
+    - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tests/test-v3.cjs` 等），不得绕过验收层自证。
     - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。

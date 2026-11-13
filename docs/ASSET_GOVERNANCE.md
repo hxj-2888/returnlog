@@ -1,4 +1,4 @@
-<!-- GENERATED from 新返航录/docs/ASSET_GOVERNANCE.md @ sha256:03a2403b613c4d289f19a6a5257fe99dee863cf2b6099e41fd33ebd0fb442b97; do not edit; run npm run docs:sync -->
+<!-- GENERATED from 新返航录/docs/ASSET_GOVERNANCE.md @ sha256:fd10d921d6a50be31b6bf5dcafca202bf1ceef8052ce00c86ac69137ae5d867d; do not edit; run npm run docs:sync -->
 
 # 新返航录 2.5D / 3D 双仓 · 存储空间与过期资产治理规范 v1.0
 
@@ -64,7 +64,7 @@
 |---|---|---|---|---|---|---|
 | L0 运行时资产 | R | 浏览器/游戏加载时读取 | `js/`、`audio/`、`assets/scene/v4/*.png`（正式图）、`facility/*.png`（无后缀）、`minigame/`、`crew/`、`bg/`、`station/`、`portfolio/` | 是 | 是 | 永久（只优化不删） |
 | L1 构建期源 | S | 生成 L0 的源素材 | `returnlog_assets/referenced/qwen-lib/*.png`、`tools/_qwen_refs/`、`returnlog_assets/referenced/scene-v4-tex/*`（除 `door-panel.png`）、`3d/assets/models/*.blend`、`3d/assets/export/*.glb` | 否（素材层 + `assets/MANIFEST.json` 兜底） | 否 | 永久或按需归档 |
-| L2 中间产物 | I | 构建管线一次性输出 | `assets/scene/v4/facility/_raw/`、`_raw_fx/`、`tools/screenshots/`、`3d/preview/screenshots/`、`tools/_fxpreview/`、`*_report.json` | 否 | 否 | 保留期 14 天，之后清 |
+| L2 中间产物 | I | 构建管线一次性输出 | `assets/scene/v4/facility/_raw/`、`_raw_fx/`、`tests/screenshots/`、`3d/preview/screenshots/`、`tools/_fxpreview/`、`*_report.json` | 否 | 否 | 保留期 14 天，之后清 |
 | L3 过期迭代 | E | 被新版本取代或退役的批次 | `_backup/YYYYMMDD_*`、`tools/_bak/<主题>-YYYYMMDDHHMMSS/`、`*_bak/`、`.blend1`、`*-c0/c1/c2.png` | 否 | 否 | 保留期 30 天（候选帧 7 天），到期清 |
 | L4 缓存 | C | 工具/引擎自动再生（**不含 `3d/preview/.godot/imported/`**） | `__pycache__/`、`*.pyc`、`node_modules/`、`.wrangler/`、`*.log`、`*.err`、`.godot/` 其余子目录 | 否 | 否 | 随时清，不计入备份 |
 | L5 文档 | D | 规范、规划、过程记录 | `docs/`、`*.md`、`tools/*-report.md`、`3d/**/reports/`、`BASELINE.sha256.json` | 分两类（见 §7） | 否 | 规范层永久；过程层保留期后归档 |
@@ -408,6 +408,18 @@
 | 设施视觉分区 | https://meowservers.com/en/SCP-SL/Tutorial/Map | Meow Servers 公开教程 | 公开 wiki | HCZ 金属地板暗墙 / LCZ 白砖高天花板的分区识别 | 分舱配色与亮度层级 |
 | 室内布光实践 | https://www.pkold.com/docs/godot4/18-lighting-environment/ | 强曰为道 | 公开教程 | 分层照明（基础 / 功能 / 装饰）、阴影光源 ≤3–5、室内暗室 OmniLight + VoxelGI + SSAO | 灯光重构参考 |
 | 平面背面剔除 | https://uhiyama-lab.com/en/notes/godot/standardmaterial3d-basics | ういやまラボ | 公开教程（已验证排错项） | 「For a plate seen from behind, set Cull Mode to Disabled」——单面平板从背面看会被剔除，只剩背景色 | 天花板固定黑块、贴图 / 补光 / 金属度全部无效的根因 |
+| Canvas 大图预缩放（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 「Cache various sizes of your images on an offscreen canvas when loading as opposed to constantly scaling them in drawImage()」；重复图元/文本先离屏预渲染；「Render screen differences only」 | base-lit 4704×4413 每帧整图缩放；DEV 身份/凶手标签与幽灵光晕每帧重画 |
+| Canvas 尺寸上限（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 多数浏览器上限超过 10000×10000，但 iOS 限制 4096×4096；超过上限后绘制命令会失败 | 底图 4704 宽超过 4096 的纹理上限 |
+| 大图超纹理上限的实测症状（检索 2026-11-13） | https://issues.chromium.org/41173621 | Chromium issue tracker | 公开缺陷库 | Android 设备 max texture size 4096，超出上限的 2D/WebGL 内容会触发分块与明显变慢 | 4× CPU 降速实测：整图 drawImage 后 `ctx.fill` 单帧 0.8–1.1 秒 |
+
+> **2026-11-13 采纳（DEV 全图卡顿）**：公开方案是「加载时把大图预缩放到 ≤ 纹理上限 + 重复文本/图元离屏预渲染 + 只画差异」；
+> 本项目据此做三处：① `base-lit.png` 运行时缩到 4096 宽（源文件与 `assets()` 源尺寸不动）；
+> ② DEV 身份/凶手标签预渲染成精灵、幽灵光晕预渲染、`measureText` 缓存；
+> ③ DEV 卡片原地更新 + 墙钟 500ms、HUD 只在值变化时写。
+> 未采纳「静态背景改 CSS div」：会绕过镜头裁剪/迷雾/亮度层，且 2.5D 底图与设施状态层必须同帧对齐；
+> 未引入 `OffscreenCanvas`/第三方库：保持 `file://` 与零依赖红线。
+> 实测（1920×1080 dpr2、4× CPU 降速、DEV + 8 幽灵）：6 轮中 4 次单帧 >120ms（最坏 1001ms）→ 0 次；
+> 布局次数 440 → 23 / 6s，帧均值 13.7 → 11.0ms。
 
 > **2026-11-12 用户裁定（口径收紧，取代上面的待裁定表述）**：
 > ① 公开素材**文件的直接使用须经用户逐项批准** —— 包括 CC0 贴图 / HDRI / 模型；
@@ -461,7 +473,7 @@
 | 2.5D 仓 `3d/preview/assets/{audio,crew,plates,import-probe}/` | — | — | — | — | — | 2026-11-12 移入素材层 `returnlog_assets/unreferenced/2.5d-preview-assets/`；`licenses/` 保留在仓内 |
 | 3D 仓 `3d/preview/assets/models/` | L1 | 是 | 否 | 永久 | — | Godot 运行时依赖；836 个模型文件，无旧版命名残留 |
 | `assets/scene/v4/facility/_raw/`、`_raw_fx/` | L2 | 否 | **否（P0 已排除）** | 14 天 | `blender-fx.py` → `fx-post.py` | 渲染中间帧 |
-| `tools/screenshots/`、`3d/preview/screenshots/`、`3d/docs/audit/player-study-*` | L2 | 否 | 否 | 14 天 | 重跑截图脚本 | 2026-11-12 已整体移入素材层 `screenshots/{2.5d-tools,3d-preview,player-study-20261112}`；测试重跑会按需重建 |
+| `tests/screenshots/`、`3d/preview/screenshots/`、`3d/docs/audit/player-study-*` | L2 | 否 | 否 | 14 天 | 重跑截图脚本 | 2026-11-12 已整体移入素材层 `screenshots/{2.5d-tools,3d-preview,player-study-20261112}`；测试重跑会按需重建 |
 | `%USERPROFILE%\Documents\returnlog_assets\unreferenced\qwen21\{2.5d,3d}`（cabin-refs / room-skins / surfaces / task-refs / crew-refs） | L2 | 否 | 否 | 按需 | `gen-art-refs.ps1` | 2026-11-12 两仓 `docs/qwen21/` 全部移入素材层；仓库内不再保留 |
 | `tools/*-report.md`、`*-results.json`、`mc-results.json` | L2 | 否 | 否 | 14 天 | `npm run sim` / 对应审计脚本 | `.json.gz` 压缩基线属 L5，保留 |
 | `_backup/YYYYMMDD_*` | L3 | 否 | 否 | 30 天 | 见 3D 仓 `3d/CHANGELOG.md` 恢复口径 | 主仓 265 MB |
