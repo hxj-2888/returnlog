@@ -14,9 +14,15 @@
 #      `/index.wasm` 这两个原 URL 从 R2 流式回源，Godot 的加载代码一行不用改。
 #      Pages 项目的 R2 绑定（变量名 ASSETS_R2）由 `3d/tools/ensure-pages-project.cjs` 写。
 #
-# 前置：仓库 Secrets 的 CF_API_TOKEN / CF_ACCOUNT_ID 除 Pages:Edit 外，
-# **还需要 Account → Cloudflare R2 Storage: Edit**；缺了会在「Check R2 access」
-# 这步直接红字报出来，不会推上半个坏版本。
+# 前置（2026-11-13 实测，两件缺一不可，且都只能在 Cloudflare 后台办）：
+#   ① 账号已订阅 R2 —— 否则 API 回 10042「Please enable R2 through the Cloudflare Dashboard」；
+#      免费额度 10 GB-month 存储 / 1M Class A / 10M Class B 操作、出口流量不计费。
+#   ② 仓库 Secrets 的 CF_API_TOKEN / CF_ACCOUNT_ID 除 Pages:Edit 外，还需要
+#      Account → Cloudflare R2 Storage: Edit —— 否则回 10000「Authentication error」。
+#      该 Token 与 2.5D deploy.yml、作品集共用，加权限会同时放大三个项目的权限面。
+# 缺任一件都会在「Check R2 access」这步按错误码红字点名，不会推上半个坏版本。
+# API 侧补不了 ②：Cloudflare 明确「No OAuth scope covers this endpoint」，
+# OAuth 身份（含 Qoder 的 Cloudflare 连接器）读不到也改不了 /user/tokens。
 #
 # R2 存储：键是内容哈希，资源没变的两次部署复用同一批对象；每次改图会留下一份
 # 约 169 MB 的旧对象。R2 免费额度 10 GiB，约 58 次部署后要清旧 gen/ 前缀
@@ -126,8 +132,14 @@ jobs:
           set -euo pipefail
           res=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$CF_API/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets")
           if ! printf '%s' "$res" | jq -e '.success == true' >/dev/null; then
-            echo "::error::CF_API_TOKEN 读不到 R2 —— 要给这个 Token 加上 Account → Cloudflare R2 Storage: Edit"
             printf '%s' "$res" | jq -c '.errors'
+            # 10042 与 10000 是两件不同的事，报错了别指错方向（2026-11-13 实测两码都会出现）：
+            #   10042 = 账号根本没订阅 R2，加 Token 权限也没用；
+            #   10000/9109 = R2 服务本身没到这个 Token 面前，是 Token 缺权限。
+            case "$(printf '%s' "$res" | jq -r '.errors[0].code // "?"')" in
+              10042) echo "::error::账号还没开通 R2（10042）—— 后台 R2 Object Storage → Subscribe/Enable，这一步不用改 Token" ;;
+              *) echo "::error::CF_API_TOKEN 读不到 R2 —— 要给这个 Token 加上 Account → Cloudflare R2 Storage: Edit" ;;
+            esac
             exit 1
           fi
           if printf '%s' "$res" | jq -e --arg b "$R2_BUCKET" '[.result[].name] | index($b)' >/dev/null; then
