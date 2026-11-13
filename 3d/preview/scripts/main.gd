@@ -2419,6 +2419,7 @@ func _run_sim1000() -> void:
 	var sum_revive := 0
 	var timeout_humans := 0.0
 	var diag: Dictionary = {}
+	var ev_stat: Dictionary = {}
 	var t0 := Time.get_ticks_msec()
 	for g in games:
 		var s = SimStateScript.new()
@@ -2450,6 +2451,7 @@ func _run_sim1000() -> void:
 		for a: Dictionary in s.agents:
 			if bool(a.get("alien", false)) and bool(a.get("alive", false)):
 				aa += 1
+			if bool(a.get("alien", false)): diag["hides"] = int(diag.get("hides", 0)) + int(a.get("_hides", 0))
 		sum_alien_alive += float(aa)
 		var ha := 0
 		for a2: Dictionary in s.agents:
@@ -2463,6 +2465,7 @@ func _run_sim1000() -> void:
 				diag[k] = int(diag.get(k, 0)) + int(s._ai_alien.stats[k])
 		for e: Dictionary in s.events:
 			var k := String(e.get("kind", ""))
+			ev_stat[k] = int(ev_stat.get(k, 0)) + 1
 			if k == "chat":
 				sum_chat += 1
 			elif k == "knife":
@@ -2498,7 +2501,7 @@ func _run_sim1000() -> void:
 		timeout_humans / float(maxi(1, timeouts)), str(diag)])
 	var report := "# 3D 批量模拟基线（%s）\n\n" % Time.get_datetime_string_from_system()
 	report += "- 引擎：Godot 4.6 / `scripts/sim/sim_state.gd`，seed 20261108 起 %d 局，dt=0.1，上限 %d 夜（%d tick，2.5D simGame 口径）。\n" % [games, max_nights, max_ticks]
-	report += "- **人类 %.1f%% / 异形 %.1f%% / 超时 %d**（n=%d）。2.5D 同口径读数只认 CHANGELOG 最新批次；3D 剩余偏差见 `HANDOFF.md` §0.4 与 `spec/gameplay-parity.json#budget`。\n" % [hr, ar, timeouts, games]
+	report += "- **人类 %.1f%% / 异形 %.1f%% / 超时 %d**（n=%d）。2.5D 同口径读数只认 CHANGELOG 最新批次；3D 剩余偏差见 `HANDOFF.md` §0.4 与 `spec/mapping-layers.json#parity_budget`。\n" % [hr, ar, timeouts, games]
 	report += "- 平均夜 %.2f；场均发言 %.1f 条 / 出刀 %.1f 次 / 会议 %.1f 次 / 末进度 %.1f。\n" % [
 		sum_nights / float(games), float(sum_chat) / float(games),
 		float(sum_knife) / float(games), float(sum_meet) / float(games),
@@ -2514,6 +2517,7 @@ func _run_sim1000() -> void:
 		sum_human_alive / float(games), sum_alien_alive / float(games), sum_kill, sum_revive,
 		timeout_humans / float(maxi(1, timeouts))]
 	report += "- 异形决策遥测：`%s`。\n" % str(diag)
+	report += "- 行动事件（%d 局合计）：`%s`。\n" % [games, str(ev_stat)]
 	report += "- 用时 %.1f 秒。发言 S 轨已接入，讨论段按 `MEET.discussNight` 真实推进。\n" % sec
 	var dir := DirAccess.open("res://")
 	if dir != null and not dir.dir_exists("reports"):

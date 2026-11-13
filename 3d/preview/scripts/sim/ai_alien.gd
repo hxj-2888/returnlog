@@ -16,7 +16,6 @@ var _doors: Array = []
 ## 管道口（map_v2.pipes，2.5D M.pipes 同源）
 var _pipes: Array = []
 
-
 func _bump(k: String) -> void:
 	stats[k] = int(stats.get(k, 0)) + 1
 
@@ -230,8 +229,7 @@ func _hunt_spot(a: Dictionary) -> Vector2:
 ##   · 只在目标 >15 格、没拖尸、冷却完毕时考虑；
 ##   · 自己贴着某个管道口（<1.2 格）且**存在一个出口比走路显著更近**（收益 > 5 格）
 ##     → 直接传送过去（PIPE.cooldown 20 秒）；
-##   · 入口与出口 6 格内的目击者写 saw_pipe（ID_EVIDENCE 确证级）。
-## 收益不足时按计划走向入口（_pipePlan），每夜最多走 2 趟（_pipeSeeks）。
+## 入口/出口 6 格内目击写 saw_pipe；收益不足时走向入口（_pipePlan），每夜最多 2 趟。
 func _pipe_move(a: Dictionary, tgt_pos: Vector2, td: float, dt: float) -> bool:
 	if _pipes.is_empty() or td <= 15.0 or int(a.get("drag", -1)) >= 0:
 		a["_pipePlan"] = {}
@@ -799,8 +797,7 @@ func _decide(a: Dictionary) -> void:
 			continue
 		if bool(v.get("downed", false)) or bool(v.get("detained", false)):
 			continue
-		# B4 起玩家也能还手（左键出刀 / 右键开枪），所以这里不再对玩家留手。
-		# 保安机器人会抓现行：在它 6 格 + 180° 视野内动手，出刀就会被追。
+		# B4 起玩家能还手；保安机器人 6 格 + 180° 内动手会被抓现行。
 		var vi := int(v.get("i", -1))
 		var vp: Vector2 = v.get("pos", Vector2.ZERO)
 		var seen_now: bool = sim.ai_can_see(a, vp)
@@ -1024,14 +1021,15 @@ func _decide(a: Dictionary) -> void:
 					a["_dragTo"] = hid
 					sim._witness_action(a, "saw_drag", bpos)
 					return
-			# 2.5D 没有 25~35 秒全局冷却：限制是"每夜 1 把刀" + RUSH 逃逸，
-			# 早先为截图擅自加的长冷却已移除（它把异形削到 79/17.5 的主因之一）。
+			# 2.5D 无全局冷却：限刀数 + RUSH 逃逸；早先自加的长冷却已移除。
 			a["_aiT"] = 2.0
+		else:
+			# can_act 按当前坐标复判距离/LOS；失败后旧实现原地重试（实测 160:1），改为追当前坐标。
+			var live: Vector2 = sim.agent(best).get("pos", Vector2.ZERO) as Vector2
+			if live != Vector2.ZERO: sim.set_path(i, live)
+			a["_aiT"] = 0.5
 		return
-	# ---- 顺手藏别人尸体（2.5D findHideBody + aiAlien:4120）----
-	# 触发条件照真源：没在拖 / 冷却好了 / 每夜 ≤2 次 / 25 秒内没有目击者 /
-	# 离当前猎杀目标足够远（真源 `td>(busy?12:6)`，3D 的 real_d 就是到目标的距离）。
-	# 这是本批补的缺口：3D 之前只在「自家出刀后」即时拖尸，从不处理别人留下的尸体。
+	# ---- 顺手藏别人尸体（2.5D findHideBody：没在拖 / 冷却好 / 每夜≤2 / 25 秒无目击 / 离猎杀目标够远）----
 	if int(a.get("drag", -1)) < 0 and float(a.get("_hideCD", 0.0)) <= 0.0 \
 			and int(a.get("_hides", 0)) < 2 and real_d > 6.0 \
 			and not sim.recent_witness(a, 25.0):
@@ -1137,11 +1135,13 @@ func _exec_plan(a: Dictionary, plan: Dictionary) -> bool:
 			sim.start_doing(i, "fake", float(plan.get("dur", 5.0)), -1,
 				String(plan.get("room", "")))
 			a["_fakeCD"] = float(DG.get("cooldown", 18.0))
+			_bump("fake")
 			a["_lastFake"] = {"key": String(plan.get("key", "")), "t": float(sim.elapsed)}
 			return true
 		"fakeTask":
 			sim.start_doing(i, "fake", float(plan.get("dur", 4.0)), int(plan.get("pt", -1)))
 			a["_fakeCD"] = float(DG.get("cooldown", 18.0))
+			_bump("fake")
 			a["_lastFake"] = {"key": String(plan.get("key", "")), "t": float(sim.elapsed)}
 			return true
 	return false
