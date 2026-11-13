@@ -270,6 +270,15 @@ function main() {
       for (const m of missing.slice(0, 10)) console.error('  - ' + m.src + ' → ' + m.target);
     }
     if (!ok) process.exit(1);
+    // 系统/分层是机械字段：判决不变时不阻断，但要对齐 port-manifest，避免账本里的定位信息变旧。
+    const cm = new Map((committed.entries || []).map((e) => [e.src + (e.occ ? '#' + e.occ : ''), e]));
+    const meta = ledger.entries.filter((e) => {
+      const c = cm.get(e.src + (e.occ ? '#' + e.occ : ''));
+      return c && (c.system !== e.system || c.layer !== e.layer);
+    });
+    if (meta.length) {
+      console.log('[map] WARN ' + meta.length + ' 条的系统/分层与当前 port-manifest 不一致（跑 npm run map:build 刷新；不影响判决）');
+    }
     console.log(counts(ledger) + ' / 目标悬空 0 / 预算 ' + JSON.stringify(b));
     return;
   }
