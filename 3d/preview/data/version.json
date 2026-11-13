@@ -2,22 +2,22 @@
   "schema_version": 2,
   "name": "新返航录",
   "product": "启航路 3D 版",
-  "version": "V1P-0.2",
-  "semver": "0.2.0",
+  "version": "V1P-0.1",
+  "semver": "0.1.0",
   "channel": "preview",
-  "build": "2026-11-11",
+  "build": "2026-11-09",
   "license": "MIT",
   "repos": {
     "github": "https://github.com/hxj-2888/returnlog",
     "gitee": "https://gitee.com/hxj-2888/returnlog"
   },
   "base": {
-    "version": "返航录V3.7",
-    "semver": "3.7.0"
+    "version": "返航录V3.6",
+    "semver": "3.6.0"
   },
   "sources": {
-    "3d/version.json": "a829e1099c1a",
-    "js/config/version.js": "cc044b0b7e0d",
-    "package.json": "8900cf065f0a"
+    "3d/version.json": "f3d919505aee",
+    "js/config/version.js": "62b53cefb53c",
+    "package.json": "9cd8d35f627d"
   }
 }

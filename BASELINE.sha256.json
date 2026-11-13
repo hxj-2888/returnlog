@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-12",
+  "generated": "2026-11-13",
   "source": "C:\\Users\\ASUS\\Desktop\\新返航录",
   "baseline": {
     "version": "3.7.0",
@@ -1221,8 +1221,8 @@
       "size": 91040
     },
     "js/data/map.js": {
-      "sha256": "3d25d88547b73614d5a31fd57e99b9fa29d0250222949a4e48f8527ab94342ca",
-      "size": 26089
+      "sha256": "c6763504114605746e78ad7df8511821c8587e4e8e69c672bb4a21b9a4692da9",
+      "size": 26317
     },
     "js/data/names.js": {
       "sha256": "e23159df4d8a7b7c1b1ce502e8a148cf55243ccdf680d8c528a7406777db3fdd",
@@ -1245,8 +1245,8 @@
       "size": 9025
     },
     "js/game.js": {
-      "sha256": "534b0b861f3fef26f357d72d2e7f1d8daad43010cf919026bba45cde3a41565a",
-      "size": 655450
+      "sha256": "9c1dbf4da8af80a1ae15064fbd22b735c8533d283fc505ae677be99cf55e53cb",
+      "size": 655561
     },
     "js/main.js": {
       "sha256": "7b284ca021361d8ead4cdce1a2178e309d45bc08d475a97650c1aacbe2b28180",

@@ -6,7 +6,7 @@
     "js/ai/traits.js": "a6395c194def",
     "js/t2/ai.js": "3855ad5281d9",
     "js/t2/decision.js": "3db6ab20274c",
-    "js/game.js": "e6b13edab150",
+    "js/game.js": "8cb2a6a061db",
     "js/data/lines.js": "3e81434a06eb"
   },
   "tables": {
@@ -857,13 +857,6 @@
         "十四": 14,
         "十五": 15
       }
-    },
-    "SKTeam": {
-      "FIX_CREW_CAP": 3,
-      "BOT_SEC_VALUE": 8,
-      "BOT_MED_VALUE": 8,
-      "BREAKER_VALUE": 14,
-      "SABOTAGE_VALUE": 8
     }
   },
   "functions": {
@@ -944,8 +937,7 @@
       "stopChatter",
       "meetLater",
       "sayStreakOK"
-    ],
-    "SKTeam": []
+    ]
   },
   "fn_fingerprints": {
     "SKSanity.clamp": {
@@ -1715,17 +1707,6 @@
       "saw_red": 1,
       "saw_breaker": 1
     },
-    "IDENTITY": {
-      "evidenceW": 1,
-      "almostAlien": 0.05,
-      "almostHuman": 0.95,
-      "targetMulMin": 0.5,
-      "targetMulMax": 1.25,
-      "alienPow": 2,
-      "alienExplore": 0.08,
-      "priorMin": 0.02,
-      "priorMax": 0.98
-    },
     "MEET_SCHED_note": "MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值"
   },
   "dispatch": {
@@ -1753,15 +1734,14 @@
     "alienLineCap": 6
   },
   "stats": {
-    "modules": 5,
-    "table_keys": 53,
+    "modules": 4,
+    "table_keys": 48,
     "functions": 70,
     "fn_count": {
       "SKSanity": 16,
       "SKTrait": 3,
       "SKT2AI": 38,
-      "SKT2Decision": 13,
-      "SKTeam": 0
+      "SKT2Decision": 13
     }
   }
 }

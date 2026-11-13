@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-12T12:40:51.874Z",
+  "generated_at": "2026-11-12T11:53:09.569Z",
   "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
   "sources": {
     "js/ai/sanity.js": "a2dd222adc5c",
     "js/t2/space.js": "b9c59b5ea93b",
-    "js/game.js": "e6b13edab150"
+    "js/game.js": "2a2bd3149b36"
   },
   "grid": {
     "meters_per_cell": 1,
@@ -74,13 +74,7 @@
     "sec_arc_div": 2,
     "detain_sec": 30,
     "sec_uses": 2,
-    "med_uses": 2,
-    "med_heal_time": 7,
-    "med_touch_r": 1.15,
-    "med_fly_speed": 4.6,
-    "med_stun": 3,
-    "hp_secbot": 2,
-    "hp_medbot": 1
+    "med_uses": 2
   },
   "night": {
     "len": 75
