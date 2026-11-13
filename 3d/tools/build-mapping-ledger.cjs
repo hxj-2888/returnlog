@@ -365,5 +365,5 @@ if (require.main === module) {
 
 module.exports = {
   build, serialize, systemIndex, systemOf, snake, readJson,
-  jsInventory, gdInventory, counts, LEDGER_PATH, LAYERS_PATH, MANIFEST_PATH, SRC, ROOT,
+  jsInventory, gdInventory, reverseCoverage, counts, LEDGER_PATH, LAYERS_PATH, MANIFEST_PATH, SRC, ROOT,
 };

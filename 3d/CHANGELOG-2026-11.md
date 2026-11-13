@@ -1,5 +1,24 @@
 # 3D 修改记录
 
+## 2026-11-13 · 归因批次：3D sim 反向未登记 102 → 0
+
+- **本批改动**：
+  ① **29 条同名实现补 `target`**：27 条 `sim/mind.gd` ↔ `js/t2/ai.js`（susOf / crimeWindow /
+  bestSusTarget 等），2 条 `sim/lines_data.gd` ↔ `js/data/lines.js`（pool / toneOf）。
+  ② **6 条改指真实实现**：`bodyNear` / `bodyHasLoot` → `sim/body_state.gd`，
+  `roomAt` → `sim/grid_nav.gd`，`canReportBody` / `syncDragOf` / `findHideBody` → 自身；
+  原目标 `sim_state.gd` 的薄转发改登记 `extras`。
+  ③ **72 条登记 `ledger.extras` 并逐条写理由**：规则读取器（rules_data 11 条）、A* 网格维度（5 条）、
+  认知内部辅助（mind 10 条）、状态机拆分（sim_state 15 条）、机器人/视图/台词/发言装配等。
+  ④ `check-gameplay-parity.cjs` 的 GDScript 索引补 `static func`（此前 `body_state.gd` 整文件
+  被判 `broken-target`，暴露了 2 条假缺口）。
+  ⑤ `mapping-layers.json#reverse.budget_unregistered_sim` **102 → 0**。
+- **读数变化**（本次实跑）：反向未登记 **0**；`map:check` 999 函数 / 目标悬空 0 / 反向 0；
+  `audit:parity:strict` 391 / 映射 245 / 自动 67 / 未映射 0 / 守卫 0 / 写入 0 / 3D 独有 0 / 漂移 0；
+  `npm run check` **9 通过 / 0 失败**；`3d:parity:check` PARITY OK（10 条结构性 WARN）。
+- **下一批立项依据**：正向还剩 63 条缺口（pending 32 + unmapped 31），集中在回放界面与认知辅助；
+  逐条补完后，账本才算 2.5D 全覆盖。
+
 ## 2026-11-13 · 独立性审计：反向覆盖进账本，sim_state 纳入硬编码扫描
 
 - **本批改动**：

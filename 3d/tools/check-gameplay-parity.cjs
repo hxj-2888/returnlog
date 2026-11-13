@@ -103,7 +103,7 @@ function indexGd(file) {
   const lines = raw.split(/\r?\n/);
   const out = [];
   for (let i = 0; i < lines.length; i++) {
-    const m = /^(\s*)func\s+([A-Za-z_][\w]*)\s*\(/.exec(lines[i]);
+    const m = /^(\s*)(?:static\s+)?func\s+([A-Za-z_][\w]*)\s*\(/.exec(lines[i]);
     if (!m) continue;
     const indent = m[1].length;
     let end = i + 1;
