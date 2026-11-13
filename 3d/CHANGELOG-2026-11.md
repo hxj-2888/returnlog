@@ -1,5 +1,45 @@
 # 3D 修改记录
 
+## 2026-11-13 · 行为映射补齐：人类搜尸/循声、异形报案、破坏落点
+
+- **改动依据（逐条对 `js/` 行号，不看读数）**：
+  ① `js/game.js:2720-2748 lootRun` + `:2193-2196 observeBody`：人类缺弹/缺包/缺申请单时，
+  视野 12 格内带这些物资的尸体/濒死者要主动去翻；看过但离开的目标记 `_lootMem`，30 秒内绕回去收。
+  3D 旧实现只在贴脸（2.2 格）时才搜，不会主动走过去。
+  ② `js/game.js:2962-2977`：`alert>=0.7` 且 8 秒内有动静 → 去现场看一眼，到了（3 格）或 10 秒后
+  警觉 −0.5。3D 的 `hear()` 一直在写 `noise`，但**没有任何读取方**，这条行为整条缺失。
+  ③ `js/t2/ai.js:333-337 evPush`：`heard_#` 只有 `conf>0.25` 才提警觉/写 `noise`；3D 旧实现不分
+  conf 一律写，0.12 的远处门声也算「值得去看一眼」。
+  ④ `js/game.js:2205 observeBody`：看见尸体/伤者 `alert += 0.45`；3D 只有 `hear` 提警觉，看尸体不提。
+  ⑤ `js/game.js:2852-2862`：救人要求「手上没有在走的路」且别人已在救/已拖着的人不重复上手（busy）。
+  ⑥ `js/game.js:2836-2850`：拖尸途中尸体失效 / 无人机不可用 / 人已进医疗间就松手，否则拖到坞位。
+  ⑦ `js/game.js:2812-2814 / 2775-2788 taskThreat`：站桩做任务时确证异形逼近 → 弃任务逃跑。
+  3D 旧实现把这段放在 `doing>0 → continue` 之后，是永远走不到的死分支；且判定式写成
+  `(closing and d<=3.5)`、漏了 `fleeThreshold` 性格系数，本批按原文回正。
+  ⑧ `js/game.js:2824-2834`（人类，掷骰 0.45）/ `:3773-3782`（异形，掷骰 0.35）：开局错峰延迟。
+  ⑨ `js/game.js:3786-3848`：异形行凶后「先离开做不在场 → 再回尸体旁，没人看着先摸物资 → 拉铃报案」；
+  收益取 `alienReportWorth`，没人看见时下限 0.55，被看见过则减半、直接拉铃概率 0.35→0.2。
+  3D 旧实现只有 `scan_bodies` 被动拉铃，没有这条主动策略。
+  ⑩ `js/game.js:3538-3552`：异形 45 秒内仍会回去收自己放倒的人身上的物资。
+  ⑪ `js/game.js:1098-1113 sabSpot`：破坏落点在舱内任务点里**均匀随机**、每夜缓存；
+  3D 旧实现固定取第一个点，且 `damageRoom` 与 AI 计划各自取点（可能报一个点、坏另一个点）。
+  ⑫ `js/game.js:4104`：破坏触发是「进舱即下手」或 1.7 格内，3D 旧实现只判 1.7 格。
+  ⑬ `js/game.js:7947-7960 finishFix`：故障修好瞬间，同一故障的所有人立即松手。
+  ⑭ `js/game.js:2566`：正在去修故障/合闸的人不会被路边尸体拽住（`!a._fixGo && !a._lightGo`）。
+- **改动**：`sim/ai_human.gd`（新增 `_task_threat / _loot_run / _start_loot_search / _look_around`）、
+  `sim/ai_alien.gd`（新增 `_report_plan / _alibi_spot / _has_body`、错峰延迟、破坏落点委托）、
+  `sim/sim_state.gd`（`sab_spot_for` + 每夜缓存、`fix_damage` 全員松手、`hear` 的 conf 门、
+  击杀记账 `_killBody/_killDecided`、夜间字段复位）、`sim/mind.gd`（`_lootMem` 与 `alert +0.45`）、
+  `tests/test_sim.gd` 未改动逻辑（诊断打印已撤）。
+- **未改任何数值 / 未新增状态机 / 未按胜率调参**：所有常量在读出处（`rules.json` / `space.json`）或
+  `check-parity.cjs#SOURCE_LITERALS` 登记（新增 `2.6 → js/game.js:3810`）。
+- **文件预算**：sim_state 3600→3680、ai_alien 1200→1330（本批新增的是逐行移植的行为分支）；
+  同时把此前走默认 1200 的 8 个小文件显式收紧（ai_human 760 / speech 1560 / bots 400 / crew_view 340 /
+  grid_nav 300 / lines_data 300 / invariants 220 / body_state 90 / rules_data 120），净棘轮仍向下。
+- **T3 记录（只作事后观测，不作改动依据）**：`--simtest` 26/0；`--aittest prog=8/45 qual=2`；
+  `--parityfixture` 4 机制 0 失败；`npm run check` 9 通过 / 0 失败；`file:check` 52 文件 / 27,204 行；
+  `map:check` 999 函数 · unmapped 0 / 反向未登记 0。
+
 ## 2026-11-13 · 执行层源码回正：人类 AI 领单与补给（依据 js 行号）
 
 - **改动依据（只认真源语义，不看读数）**：

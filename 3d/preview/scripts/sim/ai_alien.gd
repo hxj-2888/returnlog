@@ -165,12 +165,10 @@ func _lens_lr(key: String) -> float:
 		/ maxf(float(L.get("floor", 0.25)), float(rd.get("alien", 1.0)))
 
 
-## @src js/game.js:sabSpot(rid)：该舱室的任务设备点（3D points 里同 room 的第一项）。
+## @src js/game.js:1098 sabSpot(rid)：该舱室任务点里均匀随机抽一台设备，每夜缓存。
+## 与 damageRoom 共用 sim.sab_spot_for，避免「计划一个点、坏的是另一个点」。
 func sab_spot(rid: String) -> Vector2:
-	for p: Dictionary in sim.points:
-		if String(p.get("room", "")) == rid:
-			return Vector2(float(p.get("x", 0.0)), float(p.get("y", 0.0)))
-	return Vector2.ZERO
+	return sim.sab_spot_for(rid)
 
 
 ## 2.5D huntSpotFor（js/game.js:3616-3665）：无目标时去哪找人。
@@ -350,6 +348,23 @@ func tick(dt: float) -> void:
 			a["_sabT"] = float(a.get("_sabT", 0.0)) - dt
 		if float(a.get("doing", 0.0)) > 0.0:
 			continue
+		# @src js/game.js:3773-3782：开局全员同舱，异形也必须遵守错峰延迟
+		# （掷骰率 0.35，比人类的 0.45 更早开工），否则一进夜就贴脸出刀。
+		var delay := float(a.get("_delay", 0.0))
+		if delay > 0.0:
+			a["_delay"] = delay - dt
+			var dpath: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+			if dpath.is_empty() and sim._rng.randf() < dt * 0.35:
+				var rooms0: Array = sim.map.get("rooms", []) as Array
+				if not rooms0.is_empty():
+					var r0: Dictionary = rooms0[sim._rng.randi_range(0, rooms0.size() - 1)]
+					sim.set_path(int(a.get("i", -1)), sim.room_center(String(r0.get("id", ""))))
+			continue
+		# 2.5D `p.wait-=dt` 每帧都走（赶路时也走）；放 _decide 里会在路上停表。
+		var rp: Dictionary = a.get("_reportPlan", {}) as Dictionary
+		if not rp.is_empty() and float(rp.get("wait", 0.0)) > 0.0:
+			rp["wait"] = float(rp.get("wait", 0.0)) - dt
+			a["_reportPlan"] = rp
 		var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if path.size() > 0:
 			continue
@@ -698,9 +713,108 @@ func _plan(a: Dictionary, td: float) -> Dictionary:
 	return {"id": "sabotage", "room": sb_room, "score": sc_sb}
 
 
+## 2.5D aiAlien:3786-3848：行凶后「先离开做不在场 → 再回尸体旁报案」。
+## 收益 alienReportWorth（没人看见下限 0.55；被看见过减半、直接拉铃 0.35→0.2）。
+func _report_plan(a: Dictionary) -> bool:
+	var i := int(a.get("i", -1))
+	var plan: Dictionary = a.get("_reportPlan", {}) as Dictionary
+	if plan.is_empty():
+		# @src :3852 `if(a._killBody!=null&&!a._killDecided)`：每次行凶只掷一次骰子
+		if int(a.get("_killBody", -1)) < 0 or bool(a.get("_killDecided", true)):
+			return false
+		a["_killDecided"] = true
+		if int(a.get("reportLeft", 0)) <= 0 or sim.night_meet_left() <= 0:
+			return false
+		var v: Dictionary = sim.agent(int(a.get("_killBody", -1)))
+		if not _has_body(v) or bool(v.get("bodyReported", false)):
+			return false
+		var wit: bool = sim.recent_witness(a, 20.0)
+		var worth := maxf(sim.alien_report_worth(a, v), 0.0 if wit else 0.55)
+		if sim._rng.randf() >= (worth * 0.5 if wit else worth):
+			return false
+		a["_reportT"] = 0.0
+		a["_reportBody"] = -1
+		var direct: bool = sim._rng.randf() < (0.2 if wit else 0.35)
+		a["_reportPlan"] = {"body": int(v.get("i", -1)),
+			"wait": (0.8 + sim._rng.randf() * 1.2) if direct else (5.0 + sim._rng.randf() * 7.0),
+			"spot": Vector2.INF, "direct": direct}
+		plan = a["_reportPlan"] as Dictionary
+	var vi := int(plan.get("body", -1))
+	var v2: Dictionary = sim.agent(vi)
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var db: Variant = v2.get("draggedBy", null)
+	if not _has_body(v2) or bool(v2.get("bodyReported", false)) \
+			or (db != null and int(db) >= 0 and int(db) != i):
+		a["_reportPlan"] = {}
+		return false
+	var bp: Vector2 = v2.get("bodyPos", v2.get("pos", Vector2.ZERO))
+	var direct2 := bool(plan.get("direct", false))
+	if float(plan.get("wait", 0.0)) > 0.0:
+		if direct2:
+			# 直接报案：不绕去别处做不在场，原地稍等就拉铃
+			if ap.distance_to(bp) > 2.2 \
+					and (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+				sim.set_path(i, bp)
+			return true
+		if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+			var spot: Variant = plan.get("spot", Vector2.INF)
+			if not (spot is Vector2) or (spot as Vector2) == Vector2.INF:
+				var sp2 := _alibi_spot(a)
+				plan["spot"] = sp2
+				a["_reportPlan"] = plan
+				spot = sp2
+			if (spot as Vector2) != Vector2.INF:
+				sim.set_path(i, spot as Vector2)
+		return true
+	if ap.distance_to(bp) < 2.6 and sim.los_now(ap.x, ap.y, bp.x, bp.y):
+		if sim.ai_wants_loot(a, v2) and sim.watchers_at(a, bp, 7.0, vi).is_empty():
+			sim.start_doing(i, "search", SpaceData.num(space, "stand", "search"), -1, "")
+			a["_sv"] = vi
+			return true
+		if int(a.get("reportLeft", 0)) <= 0 or sim.night_meet_left() <= 0:
+			a["_reportPlan"] = {}
+			return false
+		a["reportLeft"] = int(a.get("reportLeft", 0)) - 1
+		sim._stat("reportsUsed", 1)
+		v2["bodyReported"] = true
+		a["_reportPlan"] = {}
+		sim.open_meeting_kind("night", i, vi)
+		return true
+	if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+		sim.set_path(i, bp)
+	return true
+
+
+## 2.5D reportAlibiSpot（js/game.js:3841）：6~24 格外的随机舱室中心，用来做不在场。
+func _alibi_spot(a: Dictionary) -> Vector2:
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var cands: Array = []
+	for r: Dictionary in (sim.map.get("rooms", []) as Array):
+		var rid := String(r.get("id", ""))
+		if rid == "bridge":
+			continue
+		var c: Vector2 = sim.room_center(rid)
+		var d := ap.distance_to(c)
+		if d > 6.0 and d < 24.0:
+			cands.append(c)
+	if cands.is_empty():
+		return Vector2.INF
+	return cands[sim._rng.randi_range(0, cands.size() - 1)]
+
+
+## 2.5D bodyPos(v) 非空 = 死者或有倒地标记的活人。
+func _has_body(v: Dictionary) -> bool:
+	return not v.is_empty() \
+		and (not bool(v.get("alive", false)) or bool(v.get("downed", false)))
+
+
 func _decide(a: Dictionary) -> void:
 	var i := int(a.get("i", -1))
 	var ap0: Vector2 = a.get("pos", Vector2.ZERO)
+
+	# 2.5D aiAlien:3786-3848：杀完人的「重返现场报案」计划，优先级仅次于错峰延迟。
+	if _report_plan(a):
+		return
 
 	# ---- 补给链（2.5D aiAlien 3505-3528，与人类同一条规则）----
 	# 有申请单先回圆桌领取；有申请单且缺子弹 → 军械补给点。
@@ -720,6 +834,20 @@ func _decide(a: Dictionary) -> void:
 			sim.start_doing(i, "supply", SpaceData.num(space, "stand", "ammo"), -1, "ammo")
 		elif sim.set_path(i, sp):
 			return
+
+	# 2.5D alienSupport:3538-3552：自己放倒的人 45 秒内仍带自己缺的物资 → 绕回去收。
+	if int(a.get("_killBody", -1)) >= 0 and sim.elapsed - float(a.get("_killAt", 0.0)) < 45.0:
+		var kv: Dictionary = sim.agent(int(a.get("_killBody", -1)))
+		var kdb: Variant = kv.get("draggedBy", null)
+		if _has_body(kv) and (kdb == null or int(kdb) < 0) and sim.ai_wants_loot(a, kv):
+			var kp: Vector2 = kv.get("bodyPos", kv.get("pos", Vector2.ZERO))
+			if ap0.distance_to(kp) < SpaceData.num(space, "reach", "body"):
+				sim.start_doing(i, "search", SpaceData.num(space, "stand", "search"), -1, "")
+				a["_sv"] = int(kv.get("i", -1))
+				a["_aiT"] = 1.0
+				return
+			if sim.set_path(i, kp):
+				return
 
 	# 翻尸体（2.5D lootRun）：缺子弹/申请单时搜身边没搜过的尸体。
 	# 2.5D 场均 alienLoots ≈ 2 —— 异形的子弹大部分来自这里。
@@ -1092,7 +1220,9 @@ func _exec_plan(a: Dictionary, plan: Dictionary) -> bool:
 		var sp: Vector2 = sab_spot(room)
 		if room == "" or sp == Vector2.ZERO:
 			return false
-		if ap.distance_to(sp) < SpaceData.num(space, "reach", "sabotage"):
+		# @src js/game.js:4104 `if(roomIdAt(a.x,a.y)===a._plan.room||Math.hypot(...)<SAB_RANGE)`
+		# 2026-11-01 用户裁定：进舱即下手，不要求蹲到设备前；玩家 sabTick 同口径。
+		if sim.room_at(ap) == room or ap.distance_to(sp) < SpaceData.num(space, "reach", "sabotage"):
 			return sim.sabotage_room(room, i)
 		return sim.set_path(i, sp)
 

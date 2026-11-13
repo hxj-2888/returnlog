@@ -37,78 +37,102 @@ func tick(dt: float) -> void:
 		# 2.5D aiScanBodies（js/game.js:2524）：人类 AI 与异形共用同一条
 		# 扫描 → 观察 → 搜查取证 → 拉铃链，每帧都跑（不进 _decide 节流）。
 		sim.scan_bodies(a, dt)
-		if float(a.get("doing", 0.0)) > 0.0:
-			continue
 		var ap: Vector2 = a.get("pos", Vector2.ZERO)
-		# 2.5D dragToMed：拖着濒死者抵达医疗间就必须放下，交给无人机救活。
-		# 3D 之前 AI 侧没有任何 release_drag 调用点，路径走完后一直把人拖着直到失血死亡，
-		# 整条拖救链是断的（20 局只救起 1 次）。
-		if int(a.get("drag", -1)) >= 0:
-			var carried: Dictionary = sim.agent(int(a.get("drag", -1)))
-			if not carried.is_empty() and bool(carried.get("downed", false)) \
-					and sim.room_at(ap) == "med":
-				sim.release_drag(int(a.get("i", -1)))
-				continue
-		# ---- taskThreat / fleeTask（2.5D aiHuman:2743）----
-		# 站桩做事时，亲眼确证的异形正在逼近 → 弃任务逃跑。
-		# 弃任务本身是**能被看见的事实**（saw_task_abandon，EV_W 0.14）。
-		if float(a.get("doing", 0.0)) > 0.0 and sim.mind != null:
-			var kd := String(a.get("_doing", ""))
-			if kd == "task" or kd == "fix" or kd == "fake":
-				var kn: Dictionary = sim.mind.best_known_target(a)
-				if not kn.is_empty():
-					var kt: Dictionary = sim.agent(int(kn["i"]))
-					if not kt.is_empty() and bool(kt.get("alive", false)) \
-							and not bool(kt.get("downed", false)):
-						var kp: Vector2 = kt.get("pos", Vector2.ZERO)
-						var dd := ap.distance_to(kp)
-						if dd <= 7.0 and sim.ai_can_see(a, kp):
-							var closing: bool = bool(kt.get("moving", false)) \
-								or ((kt.get("path", PackedVector2Array()) as PackedVector2Array).size() > 0)
-							var travel := dd / maxf(1.0, SpaceData.num(space, "move", "speed"))
-							var remain := float(a.get("doing", 0.0))
-							if remain > (travel - 0.6) or (closing and dd <= 3.5):
-								_flee_from(a, kt)
-								continue
-		# 逃跑中：只沿路径走，不做任何决策
+		# 2.5D aiHuman:2812-2814：站桩做任务时，已确证的异形在视野内快速靠近、且赶不上做完全
+		# → 弃任务逃跑（弃任务写 saw_task_abandon，是可被看见的事实）。
+		# 旧实现把这段放在 `doing>0 → continue` 之后，成了永远走不到的死分支。
+		if float(a.get("doing", 0.0)) > 0.0:
+			if String(a.get("_doing", "")) == "task":
+				var th: Dictionary = _task_threat(a, float(a.get("doing", 0.0)))
+				if not th.is_empty():
+					_flee_from(a, th)
+			continue
+		# 逃跑中：只沿路径走，不做任何决策（2.5D aiHuman:2816-2820）
 		if float(a.get("_fleeT", 0.0)) > 0.0:
 			a["_fleeT"] = float(a.get("_fleeT", 0.0)) - dt
 			continue
-		# 尸体扫描 / 搜尸 / 拉铃统一由 sim.scan_bodies 承担（2.5D aiScanBodies 逐行移植，
-		# 本函数开头每帧已调用）。这里不再重复扫描：旧副本会绕过 STAND.search 直接结算物资，
-		# 还会在 scan_bodies 已排好的 _reportT 上再排一次。
-		# 医疗包优先救人：濒死者拖到天亮会失血而死（2.5D aiHuman:2782）
-		if int(a.get("medkit", 0)) > 0:
-			var v: Dictionary = sim.nearest_downed(a.get("pos", Vector2.ZERO), 7.5)
+		# 2.5D aiHuman:2824-2834：开局先各自散开、错峰开工，避免所有人同一秒冲向任务点。
+		var delay := float(a.get("_delay", 0.0))
+		if delay > 0.0:
+			a["_delay"] = delay - dt
+			var dp: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+			if dp.is_empty() and sim._rng.randf() < dt * 0.45:
+				var rooms: Array = sim.map.get("rooms", []) as Array
+				if not rooms.is_empty():
+					var rr: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
+					sim.set_path(int(a.get("i", -1)), sim.room_center(String(rr.get("id", ""))))
+			continue
+		# 2.5D aiHuman:2836-2850：拖尸途中——尸体失效 / 无人机不可用 / 人已进医疗间就松手，
+		# 否则继续把人拖到无人机坞位（medDropSpot）再放。3D 旧实现只在「已到医疗间」松手，
+		# 无人机半路报废时会把尸体一路拖到天亮。
+		if int(a.get("drag", -1)) >= 0:
+			var carried: Dictionary = sim.agent(int(a.get("drag", -1)))
+			if carried.is_empty() or not bool(carried.get("alive", false)) \
+					or not bool(carried.get("downed", false)):
+				sim.release_drag(int(a.get("i", -1)))
+			elif not _medbot_usable():
+				sim.release_drag(int(a.get("i", -1)))
+				a["_aiT"] = 1.0
+				continue
+			elif sim.room_at(carried.get("pos", Vector2.ZERO)) == "med" \
+					or ap.distance_to(sim.bots.med_home) < 4.5:
+				sim.release_drag(int(a.get("i", -1)))
+				a["_aiT"] = 1.0
+				continue
+			else:
+				if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty() \
+						and ap.distance_to(sim.bots.med_home) >= 1.0:
+					sim.set_path(int(a.get("i", -1)), sim.bots.med_home)
+				continue
+		# 医疗包优先救人（2.5D aiHuman:2852-2862）：只在**没有在走路**时找濒死者，
+		# 且别人已经在救/已经在拖的人不重复上手（busy）。
+		var path_now: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
+		if int(a.get("medkit", 0)) > 0 and path_now.is_empty():
+			var v: Dictionary = sim.nearest_downed(ap, 7.5)
 			if not v.is_empty():
-				var vp: Vector2 = v.get("pos", Vector2.ZERO)
-				if ap.distance_to(vp) < 1.7:
-					sim.start_doing(int(a.get("i", -1)), "revive",
-						SpaceData.num(space, "stand", "revive"), -1, "")
-					a["_rv"] = int(v.get("i", -1))
-					continue
-				elif sim.set_path(int(a.get("i", -1)), vp):
-					continue
+				var busy := int(v.get("draggedBy", -1)) >= 0
+				for x: Dictionary in sim.agents:
+					if busy:
+						break
+					if x != a and String(x.get("_doing", "")) == "revive" \
+							and int(x.get("_rv", -1)) == int(v.get("i", -1)):
+						busy = true
+				if not busy:
+					var vp: Vector2 = v.get("pos", Vector2.ZERO)
+					if ap.distance_to(vp) < 1.7:
+						sim.start_doing(int(a.get("i", -1)), "revive",
+							SpaceData.num(space, "stand", "revive"), -1, "")
+						a["_rv"] = int(v.get("i", -1))
+						continue
+					elif sim.set_path(int(a.get("i", -1)), vp):
+						continue
 		# 2.5D aiHuman（js/game.js:2875）：没有医疗包但医疗无人机可用时，
 		# 把视线内的濒死者拖进医疗间交给机器人复活。3D 之前缺这条，
 		# 于是「无人机只救医疗间内」时根本没人被送进去。
 		# 只排除"自己刚开枪打倒的人"，避免救活自己刚制服的嫌疑人。
 		if int(a.get("medkit", 0)) <= 0 and _medbot_usable():
 			var dv: Dictionary = sim.nearest_downed(ap, 8.5)
-			var dragged_by: Variant = dv.get("draggedBy", null)
-			var killer: Variant = dv.get("killedBy", null)
-			var free_body: bool = dragged_by == null or int(dragged_by) < 0
-			var self_killed: bool = killer != null and int(killer) == int(a.get("i", -1))
-			if not dv.is_empty() and free_body and not self_killed \
-					and sim.room_at(dv.get("pos", Vector2.ZERO)) != "med":
-				var dvp: Vector2 = dv.get("pos", Vector2.ZERO)
-				if ap.distance_to(dvp) < 1.9:
-					if sim.start_drag(int(a.get("i", -1)), int(dv.get("i", -1))):
-						# 2.5D medDropSpot：医疗间中心（无人机坞位）。
-						sim.set_path(int(a.get("i", -1)), sim.bots.med_home)
+			if not dv.is_empty():
+				var dragged_by: Variant = dv.get("draggedBy", null)
+				var killer: Variant = dv.get("killedBy", null)
+				var free_body: bool = dragged_by == null or int(dragged_by) < 0
+				var self_killed: bool = killer != null and int(killer) == int(a.get("i", -1))
+				if free_body and not self_killed \
+						and sim.room_at(dv.get("pos", Vector2.ZERO)) != "med":
+					var dvp: Vector2 = dv.get("pos", Vector2.ZERO)
+					if ap.distance_to(dvp) < 1.9:
+						if sim.start_drag(int(a.get("i", -1)), int(dv.get("i", -1))):
+							# 2.5D medDropSpot：医疗间中心（无人机坞位）。
+							sim.set_path(int(a.get("i", -1)), sim.bots.med_home)
+							continue
+					elif sim.set_path(int(a.get("i", -1)), dvp):
 						continue
-				elif sim.set_path(int(a.get("i", -1)), dvp):
-					continue
+		# 2.5D aiHuman:2960 lootRun：视野内 / 30 秒记忆里带自己缺的物资的尸体，主动去翻。
+		if _loot_run(a):
+			continue
+		# 2.5D aiHuman:2962-2977：高警觉（alert>=0.7）听到 8 秒内的动静 → 去现场看一眼。
+		if _look_around(a):
+			continue
 		var path: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if path.size() > 0:
 			continue
@@ -200,6 +224,145 @@ func _shoot_target(a: Dictionary) -> int:
 	return best
 
 
+## 2.5D taskThreat（js/game.js:2775-2788）逐行：已确证的异形在 7 格内、看得见，
+## 且「正在靠近 或 已贴身到 3.5 格」，而剩余站桩时间 > 逃跑所需时间 × fleeThreshold
+## （性格系数：激进的人剩 1 秒也要修完，谨慎的人早早就跑）→ 返回威胁。
+func _task_threat(a: Dictionary, remain: float) -> Dictionary:
+	if sim.mind == null or bool(a.get("alien", false)) or not bool(a.get("alive", false)) \
+			or bool(a.get("downed", false)):
+		return {}
+	var kn: Dictionary = sim.mind.best_known_target(a)
+	if kn.is_empty():
+		return {}
+	var t: Dictionary = sim.agent(int(kn.get("i", -1)))
+	if t.is_empty() or t == a or not bool(t.get("alive", false)) or bool(t.get("downed", false)):
+		return {}
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var tp: Vector2 = t.get("pos", Vector2.ZERO)
+	var d := ap.distance_to(tp)
+	if d > 7.0 or not sim.ai_can_see(a, tp):
+		return {}
+	var closing: bool = bool(t.get("moving", false)) \
+		or (t.get("path", PackedVector2Array()) as PackedVector2Array).size() > 0
+	if not closing and d > 3.5:
+		return {}
+	var travel := d / maxf(1.0, SpaceData.num(space, "move", "speed"))
+	if remain > (travel - 0.6) * sim.mind.trait_c("fleeThreshold", a):
+		return t
+	return {}
+
+
+## 2.5D lootRun（js/game.js:2720-2748）：缺弹 / 缺包 / 缺申请单时，
+## ① 视野内 12 格有带这些物资的尸体/濒死者 → 直接去翻；
+## ② 都没有 → 回到 30 秒内见过、仍然带自己缺的物资的目标（`_lootMem`）。
+func _loot_run(a: Dictionary) -> bool:
+	if float(a.get("doing", 0.0)) > 0.0 or int(a.get("drag", -1)) >= 0:
+		return false
+	if not (a.get("_fixGo", {}) as Dictionary).is_empty() or bool(a.get("_lightGo", false)):
+		return false
+	if not (int(a.get("bullet", 0)) < 1 or int(a.get("medkit", 0)) < 1
+			or int(a.get("qual", 0)) < 2):
+		return false
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var best: Dictionary = {}
+	var bd := 12.0
+	for v: Dictionary in sim.agents:
+		if v == a:
+			continue
+		if bool(v.get("alive", false)) and not bool(v.get("downed", false)):
+			continue
+		if bool(a.get("alien", false)) and sim.mind != null \
+				and sim.mind._is_mate(a, int(v.get("i", -1))):
+			continue
+		var db: Variant = v.get("draggedBy", null)
+		if not (db == null or int(db) < 0):
+			continue
+		if not sim.body_has_loot(v) or not sim.ai_wants_loot(a, v):
+			continue
+		var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+		var d := ap.distance_to(bp)
+		if d < bd and sim.ai_can_see(a, bp):
+			bd = d
+			best = v
+	if not best.is_empty():
+		return _start_loot_search(a, best)
+	var mem: Dictionary = (a.get("_lootMem", {}) as Dictionary).duplicate()
+	var target: Dictionary = {}
+	var md := 20.0
+	for k: Variant in mem.keys():
+		var rec: Dictionary = mem[k] as Dictionary
+		var v2: Dictionary = sim.agent(int(k))
+		var db2: Variant = v2.get("draggedBy", null)
+		if v2.is_empty() or float(sim.elapsed) - float(rec.get("t", 0.0)) > 30.0 \
+				or not sim.body_has_loot(v2) or not sim.ai_wants_loot(a, v2) \
+				or not (db2 == null or int(db2) < 0):
+			mem.erase(k)
+			continue
+		var bp2: Vector2 = v2.get("bodyPos", v2.get("pos", Vector2.ZERO))
+		var d2 := ap.distance_to(bp2)
+		if d2 < md:
+			md = d2
+			target = v2
+	a["_lootMem"] = mem
+	return not target.is_empty() and _start_loot_search(a, target)
+
+
+## 2.5D startLootSearch（js/game.js:2699-2718）：到位就站桩翻尸，否则走过去。
+func _start_loot_search(a: Dictionary, v: Dictionary) -> bool:
+	var i := int(a.get("i", -1))
+	var vi := int(v.get("i", -1))
+	if bool(a.get("alien", false)) and sim.mind != null and sim.mind._is_mate(a, vi):
+		return false
+	for x: Dictionary in sim.agents:
+		if x != a and String(x.get("_doing", "")) == "search" and int(x.get("_sv", -1)) == vi:
+			return false
+	var mem: Dictionary = (a.get("_lootMem", {}) as Dictionary).duplicate()
+	mem.erase(vi)
+	a["_lootMem"] = mem
+	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+	if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(bp) \
+			< SpaceData.num(space, "reach", "body"):
+		sim.start_doing(i, "search", SpaceData.num(space, "stand", "search"), -1, "")
+		a["_sv"] = vi
+		return true
+	# 2.5D `if(!a.path||!a.path.length)walkTo(...)`：已经在走的路不因顺手看见尸体而改道，
+	# 只有走不过去才忘掉这个目标。
+	if not (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+		return true
+	return sim.set_path(i, bp)
+
+
+## 2.5D aiHuman:2962-2977：听到尖叫/枪声/刀声 → 高警觉（alert>=0.7）且没有更急的事，
+## 去现场看一眼；到了（3 格）或超过 10 秒就收工并把警觉降回去。
+func _look_around(a: Dictionary) -> bool:
+	var i := int(a.get("i", -1))
+	var ap: Vector2 = a.get("pos", Vector2.ZERO)
+	var look: Dictionary = a.get("_look", {}) as Dictionary
+	if look.is_empty():
+		if float(a.get("alert", 0.0)) < 0.7:
+			return false
+		var nz: Dictionary = a.get("noise", {}) as Dictionary
+		if nz.is_empty():
+			return false
+		var np := Vector2(float(nz.get("x", 0.0)), float(nz.get("y", 0.0)))
+		if float(sim.elapsed) - float(nz.get("t", 0.0)) < 8.0 and ap.distance_to(np) > 3.0:
+			a["_look"] = {"x": np.x, "y": np.y, "t": float(sim.elapsed)}
+			sim.set_path(i, np)
+			return true
+		a["alert"] = 0.0
+		a["noise"] = {}
+		return false
+	var lp := Vector2(float(look.get("x", 0.0)), float(look.get("y", 0.0)))
+	if ap.distance_to(lp) < 3.0 or float(sim.elapsed) - float(look.get("t", 0.0)) > 10.0:
+		a["_look"] = {}
+		a["alert"] = maxf(0.0, float(a.get("alert", 0.0)) - 0.5)
+		a["noise"] = {}
+		return false
+	if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+		sim.set_path(i, lp)
+	return true
+
+
 func _decide(a: Dictionary) -> void:
 	var i := int(a.get("i", -1))
 	var ap: Vector2 = a.get("pos", Vector2.ZERO)
@@ -211,7 +374,6 @@ func _decide(a: Dictionary) -> void:
 	# 认知层的 best_known_target / affordable_almost_shot 结果没有消费者；第七批接通。
 	# 目标选择、门槛、射程全部复用 _shoot_target 与 space.json#shoot；节流复用 3D 已有的
 	# _aiT（对应 2.5D fireShot 后的 _rest = 2.5 + random()*2）。
-	# 未接部分：2.5D 的 chaseKnown/chaseSus 追猎分支（射程外仍愿意走过去），属后续全面移植。
 	if int(a.get("bullet", 0)) > 0:
 		var si: int = _shoot_target(a)
 		if si >= 0 and sim.shoot(i, si):
@@ -224,45 +386,6 @@ func _decide(a: Dictionary) -> void:
 			sim.set_path(i, sim.agent(ci).get("pos", Vector2.ZERO))
 			a["_aiT"] = 0.4
 			return
-
-	# 1) 有待领申请单：回圆桌领（个人进度 3 / 5 各生成一张）。
-	# @src js/game.js:2980 `if(a.qualPending>0)`：没有 qual<2 的附加条件。
-	if qual_pending > 0:
-		var spot: Vector2 = sim.claim_spot()
-		if sim.distance_to(i, spot) <= SpaceData.num(space, "reach", "round_table"):
-			# 2.5D 2026-11-10：领申请单改成**交互即领**（grantQual），STAND.qual 归 0。
-			# 站桩时长 <=0 时直接结算 —— 否则 start_doing 会以 dur<=0 报错、AI 永远领不到单。
-			var qdur := SpaceData.num(space, "stand", "qual")
-			if qdur <= 0.0:
-				sim.claim_qual(i)
-				a["_aiT"] = 0.6
-			else:
-				sim.start_doing(i, "claim", qdur)
-		elif not sim.set_path(i, spot):
-			_stuck(a)
-		return
-
-	# 2) 有申请单且确实需要：去对应补给点兑换。
-	# @src js/game.js:1007-1012 supplyTargetFor：有人濒死才买医疗包；否则缺弹才买弹。
-	# @src js/game.js:2999 supplyPoints().find(q=>q.item===need)：补给点键是 ammo / med。
-	var item := ""
-	var someone_downed := false
-	for v: Dictionary in sim.agents:
-		if v != a and bool(v.get("alive", false)) and bool(v.get("downed", false)):
-			someone_downed = true
-			break
-	if int(a.get("medkit", 0)) < 1 and someone_downed:
-		item = "medkit"
-	elif int(a.get("bullet", 0)) < 1:
-		item = "ammo"
-	if qual > 0 and item != "":
-		var sp: Vector2 = sim.supply_spot("med" if item == "medkit" else item)
-		if sim.distance_to(i, sp) <= SpaceData.num(space, "reach", "fix"):
-			var dur := SpaceData.num(space, "stand", "ammo" if item == "ammo" else "med")
-			sim.start_doing(i, "supply", dur, -1, item)
-		elif not sim.set_path(i, sp):
-			_stuck(a)
-		return
 
 	# 2.5D aiHuman:2847：全船断电时，指派 1 名人类 AI 去合闸（打断零散任务）
 	if not sim.power_on:
@@ -337,7 +460,46 @@ func _decide(a: Dictionary) -> void:
 				_stuck(a)
 			return
 
-	# 4) 做任务：按 tIdx 顺序取下一个剩余任务。
+	# 4) 有待领申请单：回圆桌领（个人进度 3 / 5 各生成一张）。
+	# @src js/game.js:2980 `if(a.qualPending>0)`：没有 qual<2 的附加条件。
+	if qual_pending > 0:
+		var spot: Vector2 = sim.claim_spot()
+		if sim.distance_to(i, spot) <= SpaceData.num(space, "reach", "round_table"):
+			# 2.5D 2026-11-10：领申请单改成**交互即领**（grantQual），STAND.qual 归 0。
+			# 站桩时长 <=0 时直接结算 —— 否则 start_doing 会以 dur<=0 报错、AI 永远领不到单。
+			var qdur := SpaceData.num(space, "stand", "qual")
+			if qdur <= 0.0:
+				sim.claim_qual(i)
+				a["_aiT"] = 0.6
+			else:
+				sim.start_doing(i, "claim", qdur)
+		elif not sim.set_path(i, spot):
+			_stuck(a)
+		return
+
+	# 5) 有申请单且确实需要：去对应补给点兑换。
+	# @src js/game.js:1007-1012 supplyTargetFor：有人濒死才买医疗包；否则缺弹才买弹。
+	# @src js/game.js:2999 supplyPoints().find(q=>q.item===need)：补给点键是 ammo / med。
+	var item := ""
+	var someone_downed := false
+	for v: Dictionary in sim.agents:
+		if v != a and bool(v.get("alive", false)) and bool(v.get("downed", false)):
+			someone_downed = true
+			break
+	if int(a.get("medkit", 0)) < 1 and someone_downed:
+		item = "medkit"
+	elif int(a.get("bullet", 0)) < 1:
+		item = "ammo"
+	if qual > 0 and item != "":
+		var sp: Vector2 = sim.supply_spot("med" if item == "medkit" else item)
+		if sim.distance_to(i, sp) <= SpaceData.num(space, "reach", "fix"):
+			var dur := SpaceData.num(space, "stand", "ammo" if item == "ammo" else "med")
+			sim.start_doing(i, "supply", dur, -1, item)
+		elif not sim.set_path(i, sp):
+			_stuck(a)
+		return
+
+	# 6) 做任务：按 tIdx 顺序取下一个剩余任务。
 	var rem: Array = sim.remaining_tasks(i)
 	if rem.is_empty():
 		# 2.5D aiIdleRoam（js/game.js:2312-2363）：任务做完**不许站桩** ——

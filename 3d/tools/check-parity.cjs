@@ -138,6 +138,7 @@ const SOURCE_LITERALS = {
   2.4: ['js/game.js', 4903],    // tryReport 报告半径
   16: ['js/game.js', 4298],     // 尖叫/枪声/刀声广播半径
   0.62: ['js/game.js', 2456],   // 尸体跟随拖拽者的距离
+  2.6: ['js/game.js', 3810],    // 行凶后回尸体旁报案的就位半径
 };
 
 const suspicious = [];

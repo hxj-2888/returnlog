@@ -105,7 +105,7 @@ node 3d/tools/sync-cover-height.cjs --check
   人类幽灵赶路 6.5 格/秒、游荡 2.4 格/秒，任务时长 ×1.6 且受 `ghost_task_cap` 额度限制；
   异形幽灵全局一次正统破坏（`alien_ghost_sab_used`）后游荡。2026-11-13 已把赶路速度误用 2.4
   的偏差按 `js/game.js#aiGhost` 修正。当前无未迁的核心玩法。
-- **parity**：15 个 2.5D 源码字面量已登记 `3d/tools/check-parity.cjs#SOURCE_LITERALS`
+- **parity**：19 个 2.5D 源码字面量已登记 `3d/tools/check-parity.cjs#SOURCE_LITERALS`
   （每项带 `js/game.js:行号`，扫描时回读该行验证；2026-11-13 行号随上游 +119 行重登记）；**当前 0 WARN**。
   不导出到 `rules.json`，否则会造出第二份定义；上游改行会直接 FAIL，不会静默放过。
 
@@ -114,6 +114,13 @@ node 3d/tools/sync-cover-height.cjs --check
 > 已定位并修复异形「贴近记忆位置、原地空转」的刀循环（`knife_try 10022 → 201`）。
 > 人类任务进度（15.1 vs 20.9）与异形实际钻管道（2.75 vs 9.83）仍是真差距，见
 > `CHANGELOG-2026-11.md` 最新批次。
+>
+> **2026-11-13 行为映射补齐**（同批 CHANGELOG）：人类 AI 恢复主动搜尸（`lootRun`）、循声查探（`alert>=0.7`）、
+> 开局错峰、救人 busy 判定、拖尸松手条件、弃任务逃跑（旧实现是走不到的死分支）；
+> 异形恢复「行凶后做不在场再回尸体旁报案」、45 秒内回收自己放倒者的物资、开局错峰；
+> 破坏落点改为舱内任务点均匀随机 + 每夜缓存，AI 计划与实际损坏点共用同一坐标（`sab_spot_for`）。
+> 全部按 `js/` 行号移植，未按读数调参。**剩余已知缺口**：异形每局 1 次的「真做任务换申请单」
+> （`js/game.js:3605-3611`）尚未移植，已写进 `mapping-ledger.json#alienSupport` 的 note。
 >
 > **判据**：判定层/UI 层的差异清单已清零；剩余差异只有表现层像素排布、
 > 3D 维度产物（A* / 相机 / 碰撞 / LOD）与人物美术。详见

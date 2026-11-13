@@ -95,6 +95,9 @@ var sim_run := false
 var _track_t: float = 0.0
 var point_done: Dictionary = {}
 var dmg: Array = []
+## 2.5D SAB_SPOT_CACHE（js/game.js:1093-1113）：同一夜的同一舱室必须返回同一个设备，
+## 否则「计划报的是手术台、坏的是药柜」，AI 的 _sabSpot 也会来回改目标。开夜清空。
+var _sab_spots: Dictionary = {}
 ## 2.5D G.doors（js/game.js:415 buildDoors）：门是**模拟层状态**，不是场景装饰。
 ## 开合 / 断电 2 秒扫描都会改变移动与视线（doorBlockedSegment / losNow），
 ## 所以必须和 2.5D 一样放在 sim 里；scene_extras 只按这里的 open/scan_t 摆门扇。
@@ -821,6 +824,9 @@ func _start_night(inc: bool) -> void:
 	var bc: Dictionary = space.get("bot", {}) as Dictionary
 	bot_hp = {"secbot": int(bc.get("hp_secbot", 2)), "medbot": int(bc.get("hp_medbot", 1))}
 	dmg = []
+	# 2.5D startNight：`for(const k in SAB_SPOT_CACHE)delete SAB_SPOT_CACHE[k];`
+	# 破坏落点每夜重抽，同一台设备不能连续几夜都坏在同一个位置。
+	_sab_spots = {}
 	power_fixed = false
 	# 2.5D startNight 的逐人复位（js/game.js:7800-7827）：只属于这一夜的状态清干净。
 	# 3D 原先只复位刀数与 sabUsed，其余（报告计划 / 藏尸冷却 / 伪装冷却 / 躲人计时 /
@@ -858,6 +864,10 @@ func _reset_agent_night(a: Dictionary) -> void:
 	a["_reportT"] = 0.0
 	a["_reportBody"] = -1
 	a["_reportMemo"] = {}
+	# 2.5D startNight:7886：行凶记账 / 报案计划不跨夜
+	a["_killBody"] = -1
+	a["_killDecided"] = true
+	a["_reportPlan"] = {}
 	a["_alienReports"] = 0
 	a["_hideCD"] = 0.0
 	a["_hides"] = 0
@@ -879,6 +889,17 @@ func _reset_agent_night(a: Dictionary) -> void:
 	a["_lightGo"] = false
 	a["_fleeT"] = 0.0
 	a["_aiT"] = 0.0
+	# 2.5D startNight：`a._lootMem={};a._look=null;` + mindReset 把 alert 归零。
+	# 3D 之前这些字段跨夜残留，alert 只涨不落，「循声查探」的门永远开着却没人用。
+	a["_lootMem"] = {}
+	a["_look"] = {}
+	a["noise"] = {}
+	a["alert"] = 0.0
+	# 2.5D startNight:7893：`(2+Math.random()*6)*SKTrait.C.delayScale(a)` —— 开局错峰。
+	var dscale := 1.0
+	if mind != null:
+		dscale = mind.trait_c("delayScale", a)
+	a["_delay"] = (2.0 + _rng.randf() * 6.0) * dscale
 	a["_rv"] = null
 	a["_lie"] = {}
 	a["_retract"] = null
@@ -995,7 +1016,10 @@ func knife(killer_i: int, victim_i: int) -> bool:
 	_kill_rush_start(k)
 	# 2.5D knife():4211 —— 异形作案记账（当晚要编自己的假口供 _lie）
 	if bool(k.get("alien", false)):
-		k["_killAt"] = night_len() - maxf(0.0, float(t))
+		# @src js/game.js:4280：行凶记账 —— 45 秒内会回尸体旁收物资 / 演一场报案。
+		k["_killAt"] = elapsed
+		k["_killBody"] = victim_i
+		k["_killDecided"] = false
 	# 2.5D js/game.js:4782：DEV 玩家作案时保安机器人「没有看见你」
 	if bots != null and not (dev and not spectator and killer_i == me_idx):
 		bots.on_crime(killer_i, k.get("pos", Vector2.ZERO))
@@ -1064,7 +1088,10 @@ func shoot(shooter_i: int, target_i: int) -> bool:
 	# RUSH：开枪放倒人同样给异形加速（2.5D fireShot 里的 killRushStart）
 	_kill_rush_start(k)
 	if bool(k.get("alien", false)):
-		k["_killAt"] = night_len() - maxf(0.0, float(t))
+		# @src js/game.js:4280：枪倒同样记 _killBody（报案计划与刀共用一条链）。
+		k["_killAt"] = elapsed
+		k["_killBody"] = target_i
+		k["_killDecided"] = false
 	if bots != null and not (dev and not spectator and shooter_i == me_idx):
 		bots.on_crime(shooter_i, kp)
 	return true
@@ -1468,19 +1495,38 @@ func player_sabotage(room_id: String) -> bool:
 	return true
 
 
+## 2.5D sabSpot（js/game.js:1098-1113）：在该舱室的**任务点**里均匀随机抽一台设备
+## （2026-11-01 用户裁定，不再给硬点加权），没有任务点则退回舱室中心。
+## 同一夜同舱室缓存同一个落点；开夜在 _start_night 清空。
+func sab_spot_for(rid: String) -> Vector2:
+	# 2.5D 的 SAB_SPOT_CACHE[rid]：命中缓存直接返回，保证同夜同舱室同一台设备。
+	var hit: Variant = _sab_spots.get(rid, null)
+	if hit is Vector2:
+		return hit as Vector2
+	var cands: Array = []
+	for p: Dictionary in points:
+		if String(p.get("room", "")) == rid:
+			cands.append(p)
+	var pt := Vector2.ZERO
+	if not cands.is_empty():
+		var pick: Dictionary = cands[_rng.randi_range(0, cands.size() - 1)]
+		pt = Vector2(float(pick.get("x", 0.0)), float(pick.get("y", 0.0)))
+	elif rooms_by_id.has(rid):
+		pt = room_center(rid)
+	var f: Vector2 = nav.nearest_free(pt) if nav != null else pt
+	_sab_spots[rid] = f
+	return f
+
+
 func sabotage_room(room_id: String, by: int, ghost: bool = false) -> bool:
 	if room_id == "" or room_id == "bridge":
 		return false
 	for d: Dictionary in dmg:
 		if String(d.get("room", "")) == room_id:
 			return false
-	var px := 0.0
-	var py := 0.0
-	for p: Dictionary in points:
-		if String(p.get("room", "")) == room_id:
-			px = float(p.get("x", 0.0))
-			py = float(p.get("y", 0.0))
-			break
+	var sp: Vector2 = sab_spot_for(room_id)
+	var px := sp.x
+	var py := sp.y
 	# 2.5D damageRoom()：`if(!G.designMode)a.sabUsed=true;` —— 每夜一次的账
 	# 记在破坏入口本身，而不是调用方；否则 AI 走 sabotage_room 时不会记账。
 	var sab_by := agent(by)
@@ -1505,6 +1551,18 @@ func fix_damage(room_id: String, by: int = -1) -> bool:
 		var d: Dictionary = dmg[i]
 		if String(d.get("room", "")) == room_id:
 			dmg.remove_at(i)
+			# 2.5D finishFix（js/game.js:7947-7960）：同一座故障有好几个人在赶/在修，
+			# 修好的一瞬间全部松手 —— 不用把剩下的 10 秒站完，也别再往已修好的设备跑。
+			for x: Dictionary in agents:
+				if String(x.get("_doing", "")) == "fix" \
+						and String(x.get("_item", "")) == room_id:
+					x["doing"] = 0.0
+					x["_doing"] = ""
+					x["path"] = PackedVector2Array()
+					x["moving"] = false
+				var fg: Variant = x.get("_fixGo", null)
+				if fg is Dictionary and String((fg as Dictionary).get("room", "")) == room_id:
+					x["_fixGo"] = {}
 			_log("fix", {"room": room_id, "ok": true})
 			# 2.5D credBroadcast：修好故障是"最像人"的动作 —— 目击者给**修的人**加信誉，
 			# 异形目击者加等值敌对分（一体两面）。
@@ -1789,8 +1847,9 @@ func scan_bodies(a: Dictionary, dt: float) -> void:
 	if not bool(a.get("alive", false)) or bool(a.get("downed", false)) \
 			or bool(a.get("detained", false)) or over:
 		return
-	# 正在拖尸时不让扫描抢先拉铃（2.5D a.drag!=null 短路）
-	if int(a.get("drag", -1)) >= 0:
+	# 正在拖尸 / 正按计划"绕一圈再回来报告"时，不让扫描抢先拉铃
+	# （2.5D `if(a.drag!=null||a._reportPlan)return;`）
+	if int(a.get("drag", -1)) >= 0 or not (a.get("_reportPlan", {}) as Dictionary).is_empty():
 		return
 	var rt := float(a.get("_reportT", 0.0))
 	if rt > 0.0:
@@ -1832,6 +1891,8 @@ func scan_bodies(a: Dictionary, dt: float) -> void:
 			bd = d
 			best = v
 	if best.is_empty():
+		# 2.5D `if(!best){a._sawBody=null;return;}`
+		a["_sawBody"] = -1
 		return
 	if mind != null:
 		mind.note_body_seen(a, int(best.get("i", -1)))
@@ -1850,9 +1911,13 @@ func scan_bodies(a: Dictionary, dt: float) -> void:
 	# 3D 的 draggedBy 有 null 与 -1 两种空值（历史遗留）；2.5D `best.draggedBy==null` 两者都算空。
 	var best_db: Variant = best.get("draggedBy", null)
 	var best_free: bool = best_db == null or int(best_db) < 0
+	# 2.5D 同一条件还要求 `!a._fixGo&&!a._lightGo`：正在去修故障/合闸的人
+	# 不会被路边尸体拽住（3D 之前缺这两条，抢修的人会被搜尸打断）。
 	if not rescue and not busy_search and int(a.get("drag", -1)) < 0 \
-			and best_free and bd < 2.2 \
-			and float(a.get("doing", 0.0)) <= 0.0 and (want_evidence or want_loot):
+			and best_free and bd < SpaceData.num(space, "reach", "body") \
+			and float(a.get("doing", 0.0)) <= 0.0 \
+			and (a.get("_fixGo", {}) as Dictionary).is_empty() \
+			and not bool(a.get("_lightGo", false)) and (want_evidence or want_loot):
 		start_doing(ai, "search", SpaceData.num(space, "stand", "search"), -1, "")
 		a["_sv"] = int(best.get("i", -1))
 		return
@@ -2079,9 +2144,12 @@ func hear(kind: String, at: Vector2, rad: float, extra: Dictionary = {}) -> void
 			continue
 		var los_ok := los_now(ap.x, ap.y, at.x, at.y)
 		var conf := maxf(0.12, 1.0 - d / rad) * (1.0 if los_ok else 0.72)
-		# 2.5D evPush 的 sounded 证据：3D 没有 mem 时间线，落到 noise 槽（AI 循声查探用）。
-		a["noise"] = {"x": at.x, "y": at.y, "t": elapsed, "night": int(night),
-			"kind": "heard_" + kind, "conf": snappedf(conf, 0.01)}
+		# @src js/t2/ai.js:333-337 evPush：**conf>0.25 的 heard_# 才**提警觉并写 noise 槽。
+		# 3D 之前不分 conf 一律写，等于把 0.12 的远处门声也当成"值得去看一眼的动静"。
+		if conf > 0.25:
+			a["alert"] = minf(1.0, float(a.get("alert", 0.0)) + conf * 0.35)
+			a["noise"] = {"x": at.x, "y": at.y, "t": elapsed, "night": int(night),
+				"kind": "heard_" + kind, "conf": snappedf(conf, 0.01)}
 		if mind == null or subj < 0:
 			continue
 		var w := float(ev_w.get("heard_" + kind, 0.0)) if not ev_w.is_empty() else 0.0

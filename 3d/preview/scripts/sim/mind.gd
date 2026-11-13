@@ -770,6 +770,12 @@ func note_body_seen(a: Dictionary, victim_i: int) -> void:
 		return
 	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
 	var rid: String = sim.room_at(bp)
+	# 2.5D observeBody:2193-2196：记住「这里有自己缺的物资」的尸体/倒地伤员，
+	# 即使离开视野，30 秒内也会专门绕回来收（lootRun 的 _lootMem 那一半）。
+	if sim.body_has_loot(v) and sim.ai_wants_loot(a, v):
+		var mem: Dictionary = (a.get("_lootMem", {}) as Dictionary).duplicate()
+		mem[victim_i] = {"t": sim.elapsed, "x": bp.x, "y": bp.y, "room": rid}
+		a["_lootMem"] = mem
 	# 2.5D observeBody（js/game.js:2175）：单槽 lastBody + 状态签名。
 	# 只有 alive/downed/伤口/移动/搜过/舱室 任一变化才重写 —— 每 0.5 秒刷屏会把
 	# mem / why 挤爆（2.5D 注释原文：只有状态变化才记一条）。
@@ -809,6 +815,8 @@ func note_body_seen(a: Dictionary, victim_i: int) -> void:
 					continue
 				sus_add(a, subj, 0.16, "near_body",
 					{"kind": "near_body", "src": "sight", "night": int(sim.night)})
+	# 2.5D observeBody:2205：看到尸体/伤者本身就让警觉抬起来（+0.45，封顶 1）。
+	a["alert"] = minf(1.0, float(a.get("alert", 0.0)) + 0.45)
 
 
 ## 异形看见有人**合闸**：给他记一笔「像人类」（2.5D humanishAdd，js/game.js:2037）。
