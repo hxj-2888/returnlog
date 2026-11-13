@@ -72,6 +72,8 @@ _backup/
 assets/qwen-lib/*.png
 # 色调对齐参考（bake 用，本机留档）
 tools/_qwen_refs/
+tools/_sfx/
+tools/plate-demo.html
 # Python 字节码不入库
 3d/tools/__pycache__/
 # 一次性 bench / 对齐临时产物

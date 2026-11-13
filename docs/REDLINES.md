@@ -48,9 +48,10 @@
     动 3D 之前先问「2.5D 里这条在哪」：
     - 找得到 → 照抄语义，数值读 `rules.json`（由 `js/ai/sanity.js` 等导出），不在 GDScript 里硬编码；
     - 找不到但**确实需要** → 先判断它是不是真·维度产物（A* 网格、第一人称相机、碰撞、LOD 等）；
-      是 → 写进 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
+      是 → 写进 3d 副分支的 `3d/spec/parity-map.json#allowed_differences` 并写明「为什么 2.5D 不需要」；
       不是 → **先改 2.5D 真源**，再导出/移植，不许只加在 3D。
-    落地检查：`npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+ `3d/PORTING_PROTOCOL.md` §6。
+    落地检查：在 **3d 副分支**执行 `npm run 3d:parity:check`（对账覆盖 + 3D 硬编码扫描）+
+    `3d/PORTING_PROTOCOL.md` §6；主仓只保留 `3d/preview/data` 快照与 `3d/tools/export-*.cjs` 导出链。
 12. **素材优先取自公开网络与开源社区，不自己单独造。**（2026-11-09 用户裁定，四项目统一）
     任何美术 / 音频 / 模型素材，先检索公开素材站与开源社区（Kenney / OpenGameArt / Poly Haven /
     itch.io 免费包 / 公开 wiki 与 ArtStation 参照等），许可合适的直接用；没有合适的才本地生成，
@@ -62,8 +63,9 @@
       是 Pages 部署与对外发布的目标分支。
     - **3D 客户端**（`3d/preview/scripts/`、`3d/preview/scenes/` 等 Godot 工程逻辑）只推**副分支**
       （2.5D 仓当前 `3d`；独立仓 `returnlog-3d` 的 `master` 为其镜像），**不得混入 main**。
-    - 共享侧（`3d/tools/` 美术管线、`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
-      随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据。
+    - 共享侧（`3d/preview/data/` 导出数据、`floor_spec.json` 等单一真源）
+      随 main 同步，保证 2.5D 烘焙与 3D 读同一份数据；3D 资产、美术工具与 `3d/spec`
+      在 `3d` 副分支，不再进 main。
     - 同步手法：在 main 上 `git checkout <副分支> -- <2.5D 与共享路径>`（**不含** 3D 客户端目录），
       跑门禁绿后提交推送；避免整分支 merge 把 3D 客户端带进 main。
     - 推送目标：`origin`(GitHub) 为主，`gitee` 为尽力镜像；分支同名歧义时用完整 ref

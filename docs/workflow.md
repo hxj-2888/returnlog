@@ -30,7 +30,7 @@
 | Blender | **`E:\SteamLibrary\steamapps\common\Blender\blender.exe`**（Blender 5.2.2 LTS，Steam 版，**唯一权威渲染版本**） |
 | 无头渲染 | `"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test` |
 | 本地 SDXL（**已退役**） | `D:\ai-models\sdxl-base`（fp16）+ `D:\ai-models\vae-fp16-fix`；2026-11-09 起不再新增出图，仅留历史产物回退 |
-| 本地千问（**唯一出图模型**） | `E:\ai-models\qwen-image-2.1` + `E:\ai-tools\sdcpp\vulkan\sd-cli.exe`（Qwen-Image 2.1 Turbo，768² / 8 步 / CFG 1.0）；入口 `3d/tools/gen-qwen-room-skins.ps1` / `gen-art-refs.ps1`，**必须 pwsh 7** |
+| 本地千问（**唯一出图模型**） | `E:\ai-models\qwen-image-2.1` + `E:\ai-tools\sdcpp\vulkan\sd-cli.exe`（Qwen-Image 2.1 Turbo，768² / 8 步 / CFG 1.0）；入口在 **3d 副分支** `3d/tools/gen-qwen-room-skins.ps1` / `gen-art-refs.ps1`（主仓不再保留美术管线），**必须 pwsh 7** |
 | Python | `C:\Python314\python.exe`（3.14.5，torch 2.11+cu128 / diffusers 0.42 / transformers） |
 | Playwright | 本仓 `node_modules/playwright-core`（devDependency `^1.64.1`；`node_modules/` 不入库，`npm i` 复现，驱动系统 Edge） |
 | GPU | RTX 5060 Laptop **8GB**；出图统一千问本地（768² / 8 步），SDXL 已退役 |

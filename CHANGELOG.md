@@ -10,6 +10,29 @@
 > 本仓暂不按月切文件：`tools/check-t3.cjs` 的 C4/C5 逐批解析本文件，移走历史批次会破坏「只标注不删除」的可核性；
 > 3D 仓已按 `3d/CHANGELOG.md`（索引）→ `3d/CHANGELOG-2026-11.md` 的口径切分。
 
+## [未发布 · 主仓出清：3D 资产/工具 + 素材源包 + 一次性夹具] — 2026-11-13
+
+- **本批改动**：按 2026-11-13 用户边界执行主仓出清（T3 正式门禁留主仓）：
+  ① 3D 资产 231 文件 / 99.9 MB、3D 工具 54 文件 / 0.7 MB、`3d/spec` 8 文件 / 0.1 MB
+  移出 main，进 `returnlog_assets/3d/` 与 `origin/3d` 副分支；3D 分支已同步
+  `js/data/map.js`、`js/game.js`、12 个 `3d/preview/data` 快照、`3d/spec/port-manifest.json`
+  的 X-BIND 行段到 11947、`BASELINE.sha256.json`，远端 3D 部署提交保留。
+  ② `tools/_qwen_refs` 20 文件 / 62.1 MB → 素材层 `unreferenced/qwen-refs`；
+  `tools/_sfx` 184 文件 / 9.9 MB → 素材层 `referenced/audio-source`；
+  `tools/master-sfx.py` 的 `RAW` 改指素材层（`RETURNLOG_SFX_RAW` 可覆盖）。
+  ③ 15 个 tracked 实验/演示 + 93 个 local 截图/探针/日志/bench + 5 个 `_mc-*.json`
+  → `returnlog_cleanup_20261113/quarantine/`。
+  保留：T3 正式门禁、`3d/preview/data` 快照、`3d/tools/export-*.cjs` 导出链、发布链。
+  `README.md` / `AGENTS.md` / `docs/workflow.md` / `package.json` / `docs/REDLINES.md` 同步。
+- **读数变化**：`npm run ci:gate` **919 通过 / 3 失败**（3 条均属已登记时序抖动，PASS）；
+  `npm run t3:check` **13 PASS / 0 WARN / 0 FAIL**；`npm run guard` PASS；
+  `node tools/assets-check.cjs` 0 缺失；`npm run agent:contract` PASS；
+  主仓 tracked **870 → 380 文件**，tracked 体积 **194 MB → 49 MB**；
+  3D 分支 `0a22bcf` 已推送，`3d:port:check` 0 错误 / 1 旧警告，`3d:parity:check` exit 0。
+- **下一批立项依据**：美术管线（`tools/blender-*.py` / `gen-*.py` / `master-sfx.py`）、
+  `android/` 平台壳、`assets/` 二次引用审计（unreferenced/raw/portfolio）待用户逐项裁定；
+  3D 分支的 3D 资产/工具已由副分支持有，主仓只留 T3 快照与导出链。
+
 ## [未发布 · 交互锚点：监控台 / 电闸贴回家具] — 2026-11-13
 
 - **本批改动**：`js/data/map.js` 的两个静态设施锚点回到对应家具上 ——

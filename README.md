@@ -36,7 +36,7 @@
 | `form-ui-original` | 表单式长期副分支 | V1preview | 长期保留 |
 | `过渡版` | 过渡壳历史快照 | V2preview | 已归档（只读） |
 
-分支角色、版本真源，以及 `main` 里 `3d/` 构建输入快照为何暂不移除，见文末「附录：分支模型」。
+分支角色、版本真源，以及 `main` 里 `3d/` 为何只保留 T3 导出快照与导出链，见文末「附录：分支模型」。
 
 ## 快速开始
 
@@ -583,7 +583,8 @@ tools/
   ux-audit.cjs            游玩体验量测（真实 DOM 输入：点击起移延迟 / HUD 与会议 rect / 迷雾四态亮度 /
                           会议三段墙钟 / 代打墙钟占比 / 手机档几何 / FPS）；需先 npm start 起同源服务器
   ux-report.md            ux-audit 生成的读数表（工具产出，勿手改）· ux-results.json 为原始数据
-3d/                        3D 共享侧：导出数据 / 美术管线 / 素材源（客户端与文档在独立 3D 仓）
+3d/                        T3 共享侧：导出快照 preview/data/*.json + tools/export-*.cjs 导出链
+                           （3D 资产、美术工具、spec 与客户端在 3d 副分支）
 ```
 
 分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`；`game.js` 现 10,147 行。
@@ -598,8 +599,9 @@ tools/
 > 细则见 `AGENTS.md` §一.11、3D 仓 `3d/PORTING_PROTOCOL.md`。
 
 3D 客户端与全部 3D 文档在**独立仓「新返航录 3D 版」**（红线 13：2.5D 仓副分支 `3d` 为其镜像）。
-本仓 `3d/` 只保留共享侧：`3d/preview/data/*.json`（由 `npm run export:all` 从 2.5D 真源导出）、
-`3d/tools/` 美术与导出管线、`3d/assets/` 素材源。运行方式、架构、迁移批次、映射对账、
+本仓 `3d/` 只保留 T3 共享侧：`3d/preview/data/*.json`（由 `npm run export:all` 从 2.5D 真源导出）
+与 `3d/tools/export-*.cjs` 导出链；3D 资产、美术工具与 `spec` 在 `3d` 副分支/素材层。
+运行方式、架构、迁移批次、映射对账、
 门禁读数一律读 3D 仓的 `README.md` / `ARCHITECTURE.md` / `HANDOFF.md` / `CHANGELOG.md`，本文件不复述。
 
 ## 开发与测试
@@ -667,8 +669,8 @@ tools/
 | `form-ui-original` | 表单式原版，只作设计参照 | V1preview | 长期保留，不发布 |
 | `过渡版` | 过渡壳历史快照 | V2preview | 已归档，只读 |
 
-- **2.5D 改 `main`**：客户端脚本、场景、`project.godot` 不进 `main`；共享侧（`3d/tools/`、`3d/preview/data/`、`floor_spec.json`）随 `main`。
+- **2.5D 改 `main`**：客户端脚本、场景、`project.godot` 不进 `main`；共享侧（`3d/preview/data/` 快照 + `3d/tools/export-*.cjs` 导出链）随 `main`；3D 资产、美术工具与 `3d/spec` 在 `3d` 副分支。
 - **3D 改 `3d`**：独立仓 `returnlog-3d` 同步同一提交；分支增删须用户确认并记 `CHANGELOG.md`。
 - **版本真源**：2.5D `js/config/version.js`，3D `3d/version.json`，互不占号。
-- `main` 里的 `3d/` 是构建输入与美术管线快照，不是 3D 产品版本；`js/` 与 `index.html` 对它零引用。
+- `main` 里的 `3d/` 只有 T3 导出快照与导出链，不是 3D 产品版本；`js/` 与 `index.html` 对它零引用。
 - 引用分支时写完整 ref（`refs/heads/...`），避免与同名 tag 混淆。

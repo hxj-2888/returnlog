@@ -25,7 +25,9 @@ import math
 import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RAW = os.path.join(ROOT, 'tools', '_sfx')
+# 原始 CC0 包已移出主仓（2026-11-13 出清），默认指向素材层；可用 RETURNLOG_SFX_RAW 覆盖。
+RAW = os.environ.get('RETURNLOG_SFX_RAW') or os.path.join(
+    ROOT, '..', '..', 'Documents', 'returnlog_assets', 'referenced', 'audio-source')
 SR = 48000
 TARGET_RMS_DB = -13.0     # 与 sfx-gun(-15.2) / sfx-metal(-12.0) 同一档听感响度
 PEAK_DB = -3.0            # 峰值上限：Vorbis 编码有约 1.5dB 过冲，这里先留足余量
