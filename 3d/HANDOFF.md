@@ -319,6 +319,8 @@ foreach ($t in $tests) {
 
 - 新增/改 2.5D 函数后跑 `npm run map:build`，新函数默认 `unmapped`；判决写进账本再跑 `map:check`。
 - `npm run check` 现在共 **9 项**，最后一项是 `map:check`：账本与 2.5D 不一致、目标悬空、缺口超预算都会红。
+  `map:check` 同时做**反向覆盖**：`sim/` 里的函数必须要么有 2.5D 来源，要么在 `extras` 登记理由；
+  当前 102 个未登记是下一批的归因清单（`mapping-layers.json#reverse`）。
 - `audit:parity:strict` 与 `3d:parity:check` 都已改为**只读账本**；`gameplay-parity.json`（已废弃）与
   `parity-map.modules`（已移除）都不再参与判决，旧的同名自动配对与 DOM 正则猜测已删除。
 

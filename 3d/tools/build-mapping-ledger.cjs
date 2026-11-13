@@ -212,6 +212,41 @@ function serialize(l) {
   return out.join('\n') + '\n';
 }
 
+/* ---------- 反向覆盖：3D sim 里的函数要么有 2.5D 来源，要么登记为自有 ---------- */
+const AGENT_FIELDS = [
+  'alive', 'downed', 'ghost', 'ghostPts', 'knife', 'bullet', 'detained', 'redT', 'rushT',
+  'sabUsed', 'deathCause', 'deathRoom', 'bodyPos', 'bodyGone', 'downedT', 'qual', 'medkit',
+  'stunT', 'draggedBy', 'drag', 'searched', 'reported', 'sabRoom', 'sabT',
+];
+const WRITE_RE = new RegExp('\\["(' + AGENT_FIELDS.join('|') + ')"\\]\\s*=');
+const SCRIPT_ROOT = path.join(ROOT, '3d', 'preview', 'scripts');
+
+function reverseCoverage(ledger) {
+  const targets = new Set(
+    (ledger.entries || []).map((e) => e.target).filter((t) => /^[\w./-]+\.gd:[A-Za-z_]\w*$/.test(t))
+  );
+  const extras = new Set((ledger.extras || []).map((e) => e.target));
+  const gd = gdInventory();
+  const cache = new Map();
+  const linesOf = (rel) => {
+    if (!cache.has(rel)) cache.set(rel, fs.readFileSync(path.join(SCRIPT_ROOT, rel), 'utf8').split(/\r?\n/));
+    return cache.get(rel);
+  };
+  const rows = [];
+  for (const [key, rec] of gd.byKey) {
+    if (!rec.file.startsWith('sim/')) continue;
+    if (targets.has(key) || extras.has(key)) continue;
+    const src = linesOf(rec.file);
+    let end = rec.start;
+    while (end < src.length && (src[end] === '' || /^\s/.test(src[end]))) end++;
+    const body = src.slice(rec.start - 1, end).join('\n');
+    const priv = rec.name.startsWith('_');
+    if (priv && !WRITE_RE.test(body)) continue;
+    rows.push(key);
+  }
+  return rows.sort();
+}
+
 function counts(l) {
   const s = l.summary.by_status;
   return (
@@ -240,8 +275,10 @@ function diffEntries(a, b) {
 
 function main() {
   const { ledger, added, missing, gd } = build();
+  const layers = readJson(LAYERS_PATH);
   const text = serialize(ledger);
   const s = ledger.summary.by_status;
+  const unregistered = reverseCoverage(ledger);
 
   if (CHECK) {
     let ok = true;
@@ -269,6 +306,13 @@ function main() {
       console.error('[map] FAIL ' + missing.length + ' 个映射目标在 3D 里不存在：');
       for (const m of missing.slice(0, 10)) console.error('  - ' + m.src + ' → ' + m.target);
     }
+    const rbudget = (layers.reverse || {}).budget_unregistered_sim;
+    if (rbudget != null && unregistered.length > rbudget) {
+      ok = false;
+      console.error('[map] FAIL 3D sim 里新增 ' + (unregistered.length - rbudget) +
+        ' 个既无 2.5D 来源、也未在 extras 登记的函数（' + unregistered.length + ' > 预算 ' + rbudget + '）：');
+      for (const k of unregistered.slice(-10)) console.error('  - ' + k);
+    }
     if (!ok) process.exit(1);
     // 系统/分层是机械字段：判决不变时不阻断，但要对齐 port-manifest，避免账本里的定位信息变旧。
     const cm = new Map((committed.entries || []).map((e) => [e.src + (e.occ ? '#' + e.occ : ''), e]));
@@ -279,13 +323,16 @@ function main() {
     if (meta.length) {
       console.log('[map] WARN ' + meta.length + ' 条的系统/分层与当前 port-manifest 不一致（跑 npm run map:build 刷新；不影响判决）');
     }
-    console.log(counts(ledger) + ' / 目标悬空 0 / 预算 ' + JSON.stringify(b));
+    console.log(counts(ledger) + ' / 目标悬空 0 / 反向未登记 ' + unregistered.length +
+      '（预算 ' + ((layers.reverse || {}).budget_unregistered_sim ?? '-') + '）/ 预算 ' + JSON.stringify(b));
     return;
   }
 
   fs.writeFileSync(LEDGER_PATH, text, 'utf8');
   console.log(counts(ledger));
   console.log('[map] 已写入 ' + path.relative(ROOT, LEDGER_PATH));
+  console.log('[map] 反向未登记 sim 函数：' + unregistered.length + '（预算 ' +
+    ((layers.reverse || {}).budget_unregistered_sim ?? '-') + '）');
   if (missing.length) {
     console.error('[map] 警告：' + missing.length + ' 个目标在 3D 里不存在');
     for (const m of missing.slice(0, 10)) console.error('  - ' + m.src + ' → ' + m.target);

@@ -86,6 +86,10 @@
     "extras": 0,
     "hardcoded": 0
   },
+  "reverse": {
+    "note": "3D 反向覆盖：sim/ 下每个函数必须要么是账本 target，要么在 ledger.extras 登记理由；private 且不写 agent 状态的内部辅助不计。此数只许下降。",
+    "budget_unregistered_sim": 102
+  },
   "system_policy": {
     "V-RENDER": {
       "status": "not-applicable",

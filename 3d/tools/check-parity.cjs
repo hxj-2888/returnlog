@@ -38,6 +38,8 @@ const GD_FILES = [
   '3d/preview/scripts/sim/ai_alien.gd',
   '3d/preview/scripts/sim/ai_human.gd',
   '3d/preview/scripts/sim/rules_data.gd',
+  // 2026-11-13：规则层最大文件此前未纳入扫描，红线下漏；纳入后未知小数只报 WARN（不阻断）
+  '3d/preview/scripts/sim/sim_state.gd',
 ];
 
 const errors = [];
@@ -133,6 +135,9 @@ const SOURCE_LITERALS = {
   2.8: ['js/game.js', 3039],    // AI 开始做任务的到达判据（aiHuman）
   3.2: ['js/game.js', 3132],    // findHideBody 藏尸搜索半径
   6.5: ['js/game.js', 4143],    // 藏尸前"有人在看"的观众半径
+  2.4: ['js/game.js', 4903],    // tryReport 报告半径
+  16: ['js/game.js', 4298],     // 尖叫/枪声/刀声广播半径
+  0.62: ['js/game.js', 2456],   // 尸体跟随拖拽者的距离
 };
 
 const suspicious = [];

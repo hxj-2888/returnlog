@@ -1,5 +1,21 @@
 # 3D 修改记录
 
+## 2026-11-13 · 独立性审计：反向覆盖进账本，sim_state 纳入硬编码扫描
+
+- **本批改动**：
+  ① `map:check` 增加**反向覆盖**：`sim/` 下每个函数必须要么是账本 `target`，要么在 `ledger.extras`
+  登记理由；`private` 且不写 agent 状态的内部辅助不计。当前 **102** 个未登记，写入
+  `mapping-layers.json#reverse.budget_unregistered_sim = 102`，此数只许下降。
+  ② `3d:parity:check` 的硬编码扫描纳入 `sim_state.gd`（规则层最大文件此前漏扫）；
+  登记 3 个已核对真源字面量：`2.4`（tryReport 半径 `js/game.js:4903`）、`16`（广播半径 `js:4298`）、
+  `0.62`（拖尸距离 `js:2456`）。剩余 10 条 WARN 是结构性常数（数据兜底 `31/33.5`、`0.000001` epsilon、
+  `0.004/0.002` 容差、`9999` 哨兵），保留 WARN 逐条确认，不静默放行。
+- **读数变化**（本次实跑）：3D **872 函数 / 26,826 行**；账本 999 函数；被账本显式指向的 3D 函数 **248**
+  （28.4%）；sim 层反向未登记 **102**；红线允许差异 **10 条**（`parity-map#allowed_differences`）。
+  `npm run check` **9 通过 / 0 失败**；`3d:parity:check` PARITY OK（10 WARN）；`map:check` 999 / 悬空 0 / 反向 102。
+- **下一批立项依据**：102 个反向未登记 sim 函数逐条归因——是 2.5D 换名实现就补账本 target，
+  是 3D 自有就登记 `extras` 并写理由；归因完成后再下调 `reverse.budget_unregistered_sim`。
+
 ## 2026-11-13 · 真源收口第二批：parity-map 并入账本
 
 - **本批改动**：
