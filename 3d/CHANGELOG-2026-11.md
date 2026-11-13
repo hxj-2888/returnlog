@@ -1,5 +1,24 @@
 # 3D 修改记录
 
+## 2026-11-13 · 正向缺口收口：unmapped 31 → 0，只剩回放界面 32 条
+
+- **本批改动**：把账本最后 31 条 `unmapped` 逐条定性。
+  ① **11 条判允许差异**（红线 11）：DOM chip / 按钮样式 / 尸检信息行、Canvas 坐标变换、
+  DEV 覆盖层几何、2.5D WebAudio 提示音（3D 由 `audio.gd` 统一承担）。
+  ② **20 条找到 3D 承担者**：`LENS.lr → sim/ai_alien.gd:_lens_lr`；
+  `order/rankedLr → _decide`（排序内联）；`talkScore/jit/hjit → sim/speech.gd:tick`（排期内联）；
+  `heat → mind.public_heat`；`patron → mind.is_patron`；`onCancel/onDone → minigame_layer._fire_cancel/_fire_done`；
+  `keepCred/keepEmo/keepSus/keepWhy → mind.reset_night`（跨夜衰减内联）；
+  `clone/push → speech._ctx_for`；`denyReply → speech._ai_line`；`sec → ai_alien._decide`；
+  `trait → mind.init_agent`；`decision.note → sim_state._tick_meeting`。
+- **读数变化**（本次实跑）：账本 999 函数 **ported 115 / auto 112 / adapter 373 / not-applicable 367 /
+  pending 32 / unmapped 0**，目标悬空 0，反向未登记 0；预算收紧 `unmapped 31 → 0`。
+  `npm run check` **9 通过 / 0 失败**；`audit:parity:strict` 391 / 245 / 67 / 0 / 0 / 0 / 0；
+  `3d:parity:check` 70 个纯函数 55/15/0。
+- **下一批立项依据**：剩余 32 条 `pending` 全部是 `js/ui/replay.js`（回放界面）；3D 目前只有
+  `ui_panels.open_replay` 与 `_replay_text` 两个入口，需补时间轴、地图回放、事件筛选与导出。
+  这是独立特性批次，先做设计再动代码。
+
 ## 2026-11-13 · 归因批次：3D sim 反向未登记 102 → 0
 
 - **本批改动**：
