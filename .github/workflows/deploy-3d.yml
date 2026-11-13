@@ -216,7 +216,8 @@ jobs:
             echo "等待 $PAGES_URL 生效（第 $i 次，HTTP ${code:-无响应}）"; sleep 10
           done
           for p in / /index.html /index.js /index.wasm /index.pck; do
-            code=$(curl -sS -o /dev/null -I -w '%{http_code}' --max-time 60 "$PAGES_URL$p")
+            # -L：Pages 会把 /index.html 308 到 /（2026-11-13 实测），不跟随就会把正常重定向判成失败
+            code=$(curl -sS -o /dev/null -I -L -w '%{http_code}' --max-time 60 "$PAGES_URL$p")
             echo "HEAD $p → $code"
             if [ "$code" != "200" ]; then
               echo "::error::$p 返回 $code（大文件走 R2：多半是 ASSETS_R2 没绑上，或对象没上传）"
