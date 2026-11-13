@@ -6,9 +6,26 @@
 本文件记录《新返航录》试玩版的所有可见变更。版本口径：**返航录V3.7**。
 格式参考 Keep a Changelog；日期使用本地时间（Asia/Shanghai）。
 
-> **分卷（2026-11-13）**：本文件只保留**最新 5 批 + 索引**；2026-11 其余批次 → `docs/changelog-history-2026-11.md`；
+> **分卷（2026-11-13）**：本文件只保留**最新 6 批 + 索引**；2026-11 其余批次 → `docs/changelog-history-2026-11.md`；
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
+
+## [未发布 · AI 读区收口：tests/ 收容 + README/CHANGELOG 分卷] — 2026-11-13
+
+- **本批改动**：① README 缩到一页（项目结构/门禁清单拆到 `docs/README-details.md`，不默认读）；
+  ② `AGENTS.md` 新增 §零「AI 读取边界」作为读区唯一真源，默认不读 tests/reports/assets/android/历史分卷；
+  ③ `CHANGELOG.md` 只留最新 6 批 + 索引，2026-11 其余 90 批 → `docs/changelog-history-2026-11.md`，
+  2026-10 及更早 9 批 → `docs/changelog-history-2026-10.md`；`tests/check-t3.cjs` 的 C4/C5 改为同时解析三份；
+  ④ T3 可执行测试/夹具/报告/plate 收进 `tests/`（test-v3、monte-carlo、map-check、ci-gate、check-t3、
+  check-agent-contract、flaky、plate、reports、mc-results.json.gz）；`package.json`、`tools/ship.cjs`、
+  `.github/workflows/deploy.yml`、AGENTS/docs 路径同步；`tests/screenshots`/日志/默认输出加入 .gitignore。
+  ⑤ `npm run agent:contract:write` 同步 §一 路径，红线契约 PASS。
+- **读数变化**：`npm run ci:gate` **922 通过 / 0 失败**（2026-11-13 实跑）；`npm run t3:check`
+  **13 PASS / 0 WARN / 0 FAIL**；`npm run guard` PASS；`node tools/assets-check.cjs` 0 缺失；
+  `npm run agent:contract` PASS；主仓 tracked **383 文件 / 49 MB**。
+- **下一批立项依据**：美术管线（`tools/blender-*.py` / `gen-*.py` / `master-sfx.py`）、`android/` 平台壳、
+  `assets/portfolio` 与未引用 `assets/scene/{rooms,station,bg}` 外移到本地素材仓/发布层；
+  需同步 `tools/ship.cjs`、`build-apk-assets.cjs`、`android/build.cmd` 的 `.env`/APK 路径后再跑发布链。
 
 ## [未发布 · 主仓出清：3D 资产/工具 + 素材源包 + 一次性夹具] — 2026-11-13
 
