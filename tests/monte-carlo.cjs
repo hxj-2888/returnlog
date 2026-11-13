@@ -1,7 +1,7 @@
 /* 新返航录 · 蒙特卡洛对局模拟（AI 对 AI，无玩家）
  * ------------------------------------------------------------
- * 用法：node tools/monte-carlo.cjs [--games 1000] [--seed 20261030]
- *        [--dt 0.1] [--max-nights 15] [--out tools/mc-results.json]
+ * 用法：node tests/monte-carlo.cjs [--games 1000] [--seed 20261030]
+ *        [--dt 0.1] [--max-nights 15] [--out tests/mc-results.json]
  *        [--report reports/mc-1000.md] [--csv reports/mc-1000.csv]
  * 依赖：playwright-core（同 test-v3.cjs；可用 PLAYWRIGHT_CORE 指定）
  *
@@ -36,10 +36,10 @@ const GAMES = Math.max(1, parseInt(arg('games', '1000'), 10) || 1000);
 const BASE_SEED = (parseInt(arg('seed', '20261030'), 10) >>> 0);
 const DT = Math.max(0.05, Math.min(0.2, parseFloat(arg('dt', '0.1')) || 0.1));
 const MAX_NIGHTS = Math.max(1, parseInt(arg('max-nights', '15'), 10) || 15);
-const OUT = path.resolve(DIR, arg('out', 'tools/mc-results.json'));
-const REPORT = path.resolve(DIR, arg('report', 'tools/mc-report.md'));
+const OUT = path.resolve(DIR, arg('out', 'tests/mc-results.json'));
+const REPORT = path.resolve(DIR, arg('report', 'tests/reports/mc-report.md'));
 /* 逐局明细：一行一局，所有标量计数器 + tasksByPoint(JSON)。 */
-const CSV = path.resolve(DIR, arg('csv', 'reports/mc-results.csv'));
+const CSV = path.resolve(DIR, arg('csv', 'tests/reports/mc-results.csv'));
 const GAME_TIMEOUT = Math.max(1000, parseInt(arg('game-timeout', '20000'), 10) || 20000);
 const VERBOSE = process.env.MC_VERBOSE === '1' || arg('verbose', '0') === '1';
 const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
@@ -456,7 +456,7 @@ function writeOut(results, finished) {
     '',
     '## 本次实测用的配置（单一真源快照 · 便于对照调参）',
     '',
-    '> 这张表由 `tools/monte-carlo.cjs` 直接 eval `js/ai/sanity.js` 读出，**不是手写的**。',
+    '> 这张表由 `tests/monte-carlo.cjs` 直接 eval `js/ai/sanity.js` 读出，**不是手写的**。',
     '> 隔一周回头看胜率，先对这一栏：数没变才能比，数变了就是另一批。',
     '',
     '| 参数 | 值 | 位置 |',
@@ -714,8 +714,8 @@ function writeOut(results, finished) {
   writeCsv(results, finished);
 }
 
-/* 只重建报告，不重跑对局：`node tools/monte-carlo.cjs --rereport`
-   改了报告模板 / 加了新统计格的时候用，直接读 tools/mc-results.json 里那 1000 局，
+/* 只重建报告，不重跑对局：`node tests/monte-carlo.cjs --rereport`
+   改了报告模板 / 加了新统计格的时候用，直接读 tests/mc-results.json 里那 1000 局，
    **数字与跑批时完全一致**（同一批局），省掉 7 分钟的重复模拟。 */
 if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
   const raw = JSON.parse(fs.readFileSync(OUT, 'utf8'));

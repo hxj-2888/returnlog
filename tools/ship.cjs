@@ -188,7 +188,7 @@ function log(m) { console.log('\n[ship] ' + m); }
    发布前重压一次，避免仓里的压缩档比本机 json 旧——这一步不做，压缩档就会静默失真。 */
 function packSimArtifacts(dir) {
   let packed = 0;
-  for (const rel of ['tools/mc-results.json', 'tools/mc-results-E.json']) {
+  for (const rel of ['tests/mc-results.json', 'tests/mc-results-E.json']) {
     const abs = path.join(dir, rel);
     if (!fs.existsSync(abs)) continue;
     const src = fs.readFileSync(abs);
@@ -243,13 +243,13 @@ function main() {
   if (FAST) console.log('[ship] --fast：跳过门禁');
   else {
     const t0 = Date.now();
-    const { out } = shell('node tools/test-v3.cjs', ROOT, true);
+    const { out } = shell('node tests/test-v3.cjs', ROOT, true);
     const m = out.match(/结果：(\d+) 通过 \/ (\d+) 失败/);
     if (!m || +m[2] !== 0) {
       /* 没匹配到"结果："也要把输出尾巴打出来，否则失败了什么都看不到 */
       const bad = out.split('\n').filter(l => /FAIL|结果：|Error|error/.test(l));
       console.error((bad.length ? bad : out.split('\n').slice(-25)).join('\n'));
-      fail('门禁', 'node tools/test-v3.cjs');
+      fail('门禁', 'node tests/test-v3.cjs');
     }
     console.log('[ship] 门禁 ' + m[1] + ' 通过 / 0 失败');
     ok('门禁', t0);

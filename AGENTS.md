@@ -7,7 +7,7 @@
 
 > **当前版本**：返航录V3.7（2026-11-11）· `package.json` 3.7.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
-> **接手顺序**：README.md → 本文件 → CHANGELOG.md → 再动代码。
+> **接手顺序**：本文件 → README（一页）→ `CHANGELOG.md` 最新批次；历史分卷按需读。
 > **权威口径（2026-11-12 校正 · T3 验收层规范落地）**：
 > **数值 / 语料 / 地图的唯一真源在 T2 模块**（`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；
 > `CHANGELOG.md` 是 **T3 读数载体**，只记「本批改了什么 → 读数怎么变」，不是真源。
@@ -19,7 +19,27 @@
 > T3 细则 `docs/acceptance.md`；体检 `npm run t3:check`；红线契约 `npm run agent:contract`。
 > 出仓素材以 `assets/MANIFEST.json` 为准，校验：`node tools/assets-check.cjs`。
 
-> **接手顺序（2026-11-12 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `docs/acceptance.md`（改台账 / 读数 / 导出时）→ `docs/workflow.md`（跑命令 / 提交时）→ `CHANGELOG.md`。
+> **接手顺序（2026-11-13 收敛）**：读区见 §零；改台账 / 读数 / 导出时再读 `docs/acceptance.md`；
+> 跑命令 / 提交时读 `docs/workflow.md`；资产治理按任务读 `docs/ASSET_GOVERNANCE.md`。
+## 零、AI 读取边界（2026-11-13 · AI 可读性清理）
+
+> 目的：主仓只让 AI 读正式内容。**默认不读**测试/夹具/报告/二进制/历史分卷；需要时按任务读。
+> 本表是读区的**唯一真源**；README 只写指针，不复制。
+
+**默认只读**：本文件 → `ARCHITECTURE.md` → `docs/00-先导-游戏体验.md` → 任务对应的 `js/` 模块。
+
+| 任务 | 读 | 默认不读 |
+|---|---|---|
+| 玩法 / 数值 / 语料 | `js/` + `docs/00` + 相关真源 | `tests/`、`tests/reports/`、`assets/`、`android/`、`tools/` |
+| 验收 / 门禁 | `docs/acceptance.md` + `tests/` + `CHANGELOG.md` 最新批次 | `assets/`、`android/` |
+| 美术 / 资产 | `assets/MANIFEST.json` + 对应 `CREDITS` + 本地素材仓 | `js/`、`tests/` |
+| 发布 / 部署 | `tools/` 发布脚本 + `package.json` | `tests/`、`assets/` 二进制 |
+| 3D | 3D 副分支 / 独立仓 | 本仓 `3d/preview/data` 以外的 2.5D 模块 |
+
+**默认不读**：`tests/`（T3 可执行与夹具）、`tests/reports/`、`assets/` 二进制、`android/`、
+`tools/` 美术/发布、`docs/changelog-history-*.md`（历史分卷）。
+**不要全仓 grep**：先按路径读；需要跨文件证据时再用 SearchWorkspace。
+
 ## 一、红线（违反即回退）
 
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，
@@ -32,7 +52,7 @@
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
-4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tools/test-v3.cjs`，失败一律按回归处理；
+4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tests/test-v3.cjs`，失败一律按回归处理；
    报告里必须写本次实跑的「X 通过 / Y 失败」，不得沿用旧读数。
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
@@ -99,7 +119,7 @@
     - **真源唯一、跨层只引用不复制**：数值/语料/地图真源在 T1/T2 对应模块
       （`js/ai/sanity.js`、`js/data/map.js`、`js/data/lines.js` 等）；T2 业务与 3D 移植只读真源或导出，
       不得另立第二份定义。**多父允许、多份定义禁止。**
-    - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tools/test-v3.cjs` 等），不得绕过验收层自证。
+    - **验收归 T3**：改逻辑/数据必跑门禁与对应体检并留痕（`tests/test-v3.cjs` 等），不得绕过验收层自证。
     - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
@@ -122,7 +142,7 @@
 - 版本迭代：旧版本整批归档并写恢复口径 → 候选帧与正式图后缀分离 → 代码只引用正式图
 - 发版：`npm run guard` PASS → `deploy --dry-run` ≤ 50 MB → L4 缓存已清 → 超期批次已评估 → `CHANGELOG.md` 记录体积基线
 - 改智能体契约：`npm run agent:contract` 校验红线与本仓 `docs/REDLINES.md` 一致；改 §一 后先 `npm run agent:contract:write`
-- 改门禁 / CI：跑 `npm run ci:gate`（test-v3 + `tools/flaky-assertions.txt`）；未登记失败不得加白名单，只能按回归处理
+- 改门禁 / CI：跑 `npm run ci:gate`（test-v3 + `tests/flaky-assertions.txt`）；未登记失败不得加白名单，只能按回归处理
 - 改台账 / 读数 / 导出快照：`npm run t3:check`（T3 验收层体检，细则 `docs/acceptance.md`）；发版前跑 `npm run t3:check:strict`
 - **改技术方案 / 参数 / 美术资产**：先按 `docs/ASSET_GOVERNANCE.md` §14（红线 12 执行细则）检索并登记 ≥2 个公开来源（官方文档 / 开源实现 / 公开素材站），写清比对结论；无登记不得动实现，自研须写明「已检索但无适用方案 + 理由」。灯光、材质、分辨率 / 帧率、渲染缩放、部署方案一律适用。**公开素材文件的直接使用须用户逐项批准；方法论与技术指导可直接吸收**
 

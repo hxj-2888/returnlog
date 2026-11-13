@@ -3,12 +3,12 @@
  * T3 验收层体检 · docs/acceptance.md §7
  * -------------------------------------------------------------
  * 用法：
- *   node tools/check-t3.cjs              常规：WARN 不阻断（存量债）
- *   node tools/check-t3.cjs --strict     严格：WARN 也按失败退出
+ *   node tests/check-t3.cjs              常规：WARN 不阻断（存量债）
+ *   node tests/check-t3.cjs --strict     严格：WARN 也按失败退出
  *
  * 只读，绝不写文件、不跑浏览器、不改动任何真源。
  * 检查真源/读数分离、三段式、读数留痕、导出快照哈希、2.5D↔3D 对账、
- * 版本真源、台账时效与存量债登记；不接入 tools/test-v3.cjs，不影响主门禁。
+ * 版本真源、台账时效与存量债登记；不接入 tests/test-v3.cjs，不影响主门禁。
  * 检查项编号与 docs/acceptance.md §7 表格一一对应。
  * ============================================================= */
 'use strict';
@@ -38,7 +38,9 @@ const sha1 = (rel) => crypto.createHash('sha1')
   .update(fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n'))
   .digest('hex').slice(0, 12);
 
-const CL = read('CHANGELOG.md') || '';
+/* 2026-11-13：CHANGELOG 分卷；C4/C5 仍全量解析当前卷 + 两份历史分卷。 */
+const CL_FILES = ['CHANGELOG.md', 'docs/changelog-history-2026-11.md', 'docs/changelog-history-2026-10.md'];
+const CL = CL_FILES.map(f => read(f) || '').join('\n');
 const LINES = CL.split('\n');
 
 /* 现行口径文档：这里的每一句都按现行规范解读 */

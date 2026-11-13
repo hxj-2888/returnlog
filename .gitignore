@@ -74,6 +74,16 @@ assets/qwen-lib/*.png
 tools/_qwen_refs/
 tools/_sfx/
 tools/plate-demo.html
+# T3 可执行测试（tests/）的生成物与默认输出
+tests/screenshots/
+tests/_gate-ci.log
+tests/_mc-*.json
+tests/_mc-*.md
+tests/_*.log
+tests/_*.err
+tests/mc-results.json
+tests/plate-demo.html
+tests/reports/mc-results.csv
 # Python 字节码不入库
 3d/tools/__pycache__/
 # 一次性 bench / 对齐临时产物

@@ -1,5 +1,5 @@
 /* 离线地图体检：可行走网格 / 掩体审计 / 巡逻线 / 任务点可达性
- * 用法： node tools/_map-check.cjs
+ * 用法： node tests/map-check.cjs
  * 只读 js/data/map.js 与 js/engine/geo.js，不启动浏览器。
  */
 global.window = global;
