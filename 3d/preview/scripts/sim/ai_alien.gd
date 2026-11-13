@@ -165,15 +165,12 @@ func _lens_lr(key: String) -> float:
 		/ maxf(float(L.get("floor", 0.25)), float(rd.get("alien", 1.0)))
 
 
-## @src js/game.js:1098 sabSpot(rid)：该舱室任务点里均匀随机抽一台设备，每夜缓存。
-## 与 damageRoom 共用 sim.sab_spot_for，避免「计划一个点、坏的是另一个点」。
+## @src js/game.js:1098 sabSpot：均匀随机抽设备、每夜缓存；与 damageRoom 共用同一落点。
 func sab_spot(rid: String) -> Vector2:
 	return sim.sab_spot_for(rid)
 
 
-## 2.5D huntSpotFor（js/game.js:3616-3665）：无目标时去哪找人。
-## ① 本夜最后一条 saw_agent 的位置；② 本夜见过最多的舱室；
-## ③ 任务点最多且不是当前舱的舱室（确定性，便于门禁断言）。
+## 2.5D huntSpotFor（js/game.js:3616-3665）：无目标时去哪找人（最后目击 → 热门舱 → 点最多的舱）。
 func _hunt_spot(a: Dictionary) -> Vector2:
 	var why: Dictionary = a.get("why", {}) as Dictionary
 	var best_t := -1.0
@@ -348,8 +345,7 @@ func tick(dt: float) -> void:
 			a["_sabT"] = float(a.get("_sabT", 0.0)) - dt
 		if float(a.get("doing", 0.0)) > 0.0:
 			continue
-		# @src js/game.js:3773-3782：开局全员同舱，异形也必须遵守错峰延迟
-		# （掷骰率 0.35，比人类的 0.45 更早开工），否则一进夜就贴脸出刀。
+		# @src js/game.js:3773-3782：开局错峰（掷骰 0.35，比人类的 0.45 更早开工）。
 		var delay := float(a.get("_delay", 0.0))
 		if delay > 0.0:
 			a["_delay"] = delay - dt
@@ -713,7 +709,7 @@ func _plan(a: Dictionary, td: float) -> Dictionary:
 	return {"id": "sabotage", "room": sb_room, "score": sc_sb}
 
 
-## 2.5D aiAlien:3786-3848：行凶后「先离开做不在场 → 再回尸体旁报案」。
+## 2.5D aiAlien:3786-3848：行凶后先离开做不在场，再回尸体旁报案。
 ## 收益 alienReportWorth（没人看见下限 0.55；被看见过减半、直接拉铃 0.35→0.2）。
 func _report_plan(a: Dictionary) -> bool:
 	var i := int(a.get("i", -1))
@@ -835,7 +831,7 @@ func _decide(a: Dictionary) -> void:
 		elif sim.set_path(i, sp):
 			return
 
-	# 2.5D alienSupport:3538-3552：自己放倒的人 45 秒内仍带自己缺的物资 → 绕回去收。
+	# 2.5D alienSupport:3538-3552：自己放倒的人 45 秒内仍带缺的物资 → 绕回去收。
 	if int(a.get("_killBody", -1)) >= 0 and sim.elapsed - float(a.get("_killAt", 0.0)) < 45.0:
 		var kv: Dictionary = sim.agent(int(a.get("_killBody", -1)))
 		var kdb: Variant = kv.get("draggedBy", null)
@@ -924,6 +920,9 @@ func _decide(a: Dictionary) -> void:
 		if bool(v.get("alien", false)) or not bool(v.get("alive", false)):
 			continue
 		if bool(v.get("downed", false)) or bool(v.get("detained", false)):
+			continue
+		# @src js/game.js:3874 `if(isMate(a,h.i))continue;` —— 队友永不打
+		if sim.mind != null and sim.mind._is_mate(a, int(v.get("i", -1))):
 			continue
 		# B4 起玩家能还手；保安机器人 6 格 + 180° 内动手会被抓现行。
 		var vi := int(v.get("i", -1))
@@ -1024,7 +1023,9 @@ func _decide(a: Dictionary) -> void:
 	# 2.5D aiAlien 的开枪分支（js/game.js:3877）：异形有子弹也会开枪 ——
 	# 远距离/没刀时优先用枪，而不是永远只贴脸出刀。
 	# 条件：有弹 + 不是队友 + (没进刀程 或 没刀) + 枪程内 + LOS + alienFireP 概率。
-	if int(a.get("bullet", 0)) > 0 and real_d > SpaceData.num(space, "reach", "knife"):
+	# @src js/game.js:3947 `(td>REACH.knife||a.knife<=0)`：没刀时即使贴身也用枪
+	if int(a.get("bullet", 0)) > 0 \
+			and (real_d > SpaceData.num(space, "reach", "knife") or int(a.get("knife", 0)) <= 0):
 		var shoot_range: float = SpaceData.num(space, "shoot", "range")
 		var shot_cfg: Dictionary = (sim.cfg.get("rules", {}) as Dictionary).get("SHOT", {}) as Dictionary
 		if real_d <= shoot_range and sim.ai_can_see(a, bpos):
@@ -1220,8 +1221,7 @@ func _exec_plan(a: Dictionary, plan: Dictionary) -> bool:
 		var sp: Vector2 = sab_spot(room)
 		if room == "" or sp == Vector2.ZERO:
 			return false
-		# @src js/game.js:4104 `if(roomIdAt(a.x,a.y)===a._plan.room||Math.hypot(...)<SAB_RANGE)`
-		# 2026-11-01 用户裁定：进舱即下手，不要求蹲到设备前；玩家 sabTick 同口径。
+		# @src js/game.js:4104：进舱即下手（或 1.7 格内），不要求蹲到设备前；玩家 sabTick 同口径。
 		if sim.room_at(ap) == room or ap.distance_to(sp) < SpaceData.num(space, "reach", "sabotage"):
 			return sim.sabotage_room(room, i)
 		return sim.set_path(i, sp)

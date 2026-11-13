@@ -88,7 +88,7 @@ func tick(dt: float) -> void:
 		# 且别人已经在救/已经在拖的人不重复上手（busy）。
 		var path_now: PackedVector2Array = a.get("path", PackedVector2Array()) as PackedVector2Array
 		if int(a.get("medkit", 0)) > 0 and path_now.is_empty():
-			var v: Dictionary = sim.nearest_downed(ap, 7.5)
+			var v: Dictionary = sim.nearest_downed(ap, 7.5, a)
 			if not v.is_empty():
 				var busy := int(v.get("draggedBy", -1)) >= 0
 				for x: Dictionary in sim.agents:
@@ -111,7 +111,7 @@ func tick(dt: float) -> void:
 		# 于是「无人机只救医疗间内」时根本没人被送进去。
 		# 只排除"自己刚开枪打倒的人"，避免救活自己刚制服的嫌疑人。
 		if int(a.get("medkit", 0)) <= 0 and _medbot_usable():
-			var dv: Dictionary = sim.nearest_downed(ap, 8.5)
+			var dv: Dictionary = sim.nearest_downed(ap, 8.5, a)
 			if not dv.is_empty():
 				var dragged_by: Variant = dv.get("draggedBy", null)
 				var killer: Variant = dv.get("killedBy", null)
@@ -150,78 +150,52 @@ func _medbot_usable() -> bool:
 	return sim.bots.med_uses < sim.bots.MED_USES_MAX
 
 
-## 选一个"敢开枪"的目标：确证优先 → 准-确证 affordableAlmostShot → 综合嫌疑。
-## 嫌疑读**夜间折价**（sus_of_night，跨夜存量 ×0.7）；必须在枪程 + 视线内。
-## 数值全部读 space.json#shoot 与 rules.json，不写死。
-## 追猎目标：枪程外、追猎距离内，且手里有子弹。
-## 2.5D chaseKnown=14（有确证）/ chaseSus=10（只有嫌疑）—— 是"愿意走多远"，不是射程。
-func _chase_target(a: Dictionary) -> int:
-	if sim == null or sim.mind == null:
-		return -1
-	var scfg: Dictionary = space.get("shoot", {}) as Dictionary
-	var shoot_r := float(scfg.get("range", 9.0))
-	var ti := -1
-	var sure := false
-	var rec: Dictionary = sim.mind.best_known_target(a)
-	if not rec.is_empty():
-		ti = int(rec.get("i", -1))
-		sure = ti >= 0
-	if ti < 0:
-		var al: Dictionary = sim.mind.best_almost_target(a)
-		if not al.is_empty():
-			ti = int(al.get("i", -1))
-	if ti < 0:
-		return -1
-	var tgt: Dictionary = sim.agent(ti)
-	if tgt.is_empty() or not bool(tgt.get("alive", true)) or bool(tgt.get("downed", false)):
-		return -1
-	var d: float = (a.get("pos", Vector2.ZERO) as Vector2).distance_to(
-		tgt.get("pos", Vector2.ZERO) as Vector2)
-	var chase_r := float(scfg.get("chaseKnown", 14.0)) if sure \
-		else float(scfg.get("chaseSus", 10.0))
-	if d <= shoot_r or d >= chase_r:
-		return -1
-	return ti
-
-
+## 2.5D aiHuman:2864-2899 的开枪链（逐行）：
+##   ① 已有确证（a.suspect / bestKnownTarget）→ 直接打；
+##   ② 门槛 thr = SKTrait.C.shootSus(a)（激进 0.36 / 中性 0.50 / 谨慎 0.60）；
+##   ③ 场上存在「准-确证敌人」时 thr ×= ALMOST.foeShootMul（更容易开枪）；
+##   ④ bestSusTarget(thr, 夜间折价) 命中且不是 almostFriend → 选他；
+##   ⑤ 否则 affordableAlmostShot：准-确证目标 sus≥0.85×thr 也敢打。
+## 只在这里选人；射程/追猎距离由 _decide 按 space.json#shoot 判（那是意愿不是能力）。
 func _shoot_target(a: Dictionary) -> int:
-	var scfg: Dictionary = space.get("shoot", {}) as Dictionary
-	var shoot_r := float(scfg.get("range", 9.0))
-	var thr: float = sim.rules.n("ALMOST", "foeSus", 0.5)
-	# 2.5D：准-确证把开枪门槛 ×0.7（ALMOST.foeShootMul，更容易开枪）
-	thr *= sim.rules.n("ALMOST", "foeShootMul", 0.7)
-	var known: Dictionary = a.get("known", {}) as Dictionary
+	if sim.mind == null:
+		return -1
+	# ① 2.5D `si=a.suspect` 的有效目标：本文件用 known（确证表）等价承载
+	var si := int(sim.mind.best_known_target(a).get("i", -1))
+	if si >= 0:
+		return si
+	# ②③ 门槛随性格；有准-确证敌人时打折
+	var thr: float = sim.mind.trait_c("shootSus", a)
+	if not sim.mind.best_almost_target(a).is_empty():
+		thr *= sim.rules.n("ALMOST", "foeShootMul", 0.7)
+	# ④ bestSusTarget(a,thr,true)：按夜间折价读存量嫌疑
 	var best := -1
-	var bs := thr
-	var ap: Vector2 = a.get("pos", Vector2.ZERO)
-	for t: Dictionary in sim.agents:
-		var ti := int(t.get("i", -1))
-		if ti == int(a.get("i", -1)) or not bool(t.get("alive", false)):
+	var bv := thr
+	for k: Variant in (a.get("sus", {}) as Dictionary).keys():
+		var ti := int(k)
+		if not sim.mind.live_target(ti, int(a.get("i", -1))):
 			continue
-		if bool(t.get("downed", false)) or bool(t.get("detained", false)):
-			continue
-		var tp: Vector2 = t.get("pos", Vector2.ZERO)
-		if ap.distance_to(tp) > shoot_r:
-			continue
-		if not sim.ai_can_see(a, tp):
-			continue
-		var score := 0.0
-		if sim.mind != null:
-			score = sim.mind.sus_of_night(a, ti)
-		if known.has(ti):
-			score += 2.0
-		if score > bs:
-			bs = score
+		var v: float = sim.mind.sus_of_night(a, ti)
+		if v >= bv:
+			bv = v
 			best = ti
-	# 确证的人直接开枪，不走门槛
-	if best < 0 and sim.mind != null and not known.is_empty():
-		var kn: Dictionary = sim.mind.best_known_target(a)
-		if not kn.is_empty():
-			var ki := int(kn.get("i", -1))
-			var kp: Vector2 = sim.agent(ki).get("pos", Vector2.ZERO)
-			if ap.distance_to(kp) <= shoot_r and sim.los_now(ap.x, ap.y, kp.x, kp.y):
-				return ki
+	if best >= 0 and _almost_friend(a, best):
+		best = -1
+	# ⑤ affordableAlmostShot
+	if best < 0:
+		var af: Dictionary = sim.mind.best_almost_target(a)
+		if not af.is_empty():
+			var ai2 := int(af.get("i", -1))
+			if not _almost_friend(a, ai2) \
+					and sim.mind.sus_of_night(a, ai2) >= thr * 0.85:
+				best = ai2
 	return best
+
+
+## 2.5D almostFriendOf（js/t2/ai.js:513）：这人已被我归到「基本是好人」。
+func _almost_friend(a: Dictionary, i: int) -> bool:
+	var al: Dictionary = a.get("almost", {}) as Dictionary
+	return ((al.get("friend", {}) as Dictionary)).has(i)
 
 
 ## 2.5D taskThreat（js/game.js:2775-2788）逐行：已确证的异形在 7 格内、看得见，
@@ -370,22 +344,27 @@ func _decide(a: Dictionary) -> void:
 	var qual := int(a.get("qual", 0))
 
 	# 2.5D aiHuman（js/game.js:2838-2870）：有子弹 + 有确证/高置信目标 → 射程内开枪，
-	# 结算与玩家共用 fireShot。3D 此前只写了 _shoot_target() 却全文件零调用（死代码），
-	# 认知层的 best_known_target / affordable_almost_shot 结果没有消费者；第七批接通。
-	# 目标选择、门槛、射程全部复用 _shoot_target 与 space.json#shoot；节流复用 3D 已有的
-	# _aiT（对应 2.5D fireShot 后的 _rest = 2.5 + random()*2）。
+	# 结算与玩家共用 fireShot。目标选择/门槛见 _shoot_target；节流对应 fireShot 的 _rest。
 	if int(a.get("bullet", 0)) > 0:
 		var si: int = _shoot_target(a)
-		if si >= 0 and sim.shoot(i, si):
-			a["_aiT"] = 2.5 + sim._rng.randf() * 2.0
-			return
-		# 追猎（2.5D js/game.js:3877 chaseR）：枪程外、追猎距离内 → 主动靠近再开枪。
-		# 与 ai_alien 同一口径：有确证 chaseKnown(14)、只有嫌疑 chaseSus(10)。
-		var ci := _chase_target(a)
-		if ci >= 0 and (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
-			sim.set_path(i, sim.agent(ci).get("pos", Vector2.ZERO))
-			a["_aiT"] = 0.4
-			return
+		if si >= 0:
+			var scfg: Dictionary = space.get("shoot", {}) as Dictionary
+			var sp2: Vector2 = sim.agent(si).get("pos", Vector2.ZERO)
+			var d2 := ap.distance_to(sp2)
+			# 2.5D：射程只决定"现在能不能打"，愿意追多远由 chaseKnown/chaseSus 决定。
+			if d2 < float(scfg.get("range", 9.0)) and sim.ai_can_see(a, sp2) \
+					and sim.shoot(i, si):
+				a["_aiT"] = 2.5 + sim._rng.randf() * 2.0
+				return
+			var kn2: Dictionary = sim.mind.best_known_target(a) if sim.mind != null else {}
+			var sure: bool = not kn2.is_empty() and int(kn2.get("i", -1)) == si
+			var chase_r := float(scfg.get("chaseKnown", 14.0)) if sure \
+				else float(scfg.get("chaseSus", 10.0))
+			if d2 < chase_r:
+				if (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+					sim.set_path(i, sp2)
+				a["_aiT"] = 0.4
+				return
 
 	# 2.5D aiHuman:2847：全船断电时，指派 1 名人类 AI 去合闸（打断零散任务）
 	if not sim.power_on:

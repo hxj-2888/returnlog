@@ -1311,7 +1311,9 @@ func _broadcast_noise(at: Vector2, radius: float) -> void:
 
 
 ## 最近的濒死者（2.5D nearestDowned：还活着但已倒地的人，可被医疗包救起）
-func nearest_downed(pos: Vector2, radius: float) -> Dictionary:
+## 2.5D nearestDowned（js/game.js:2843）：距离 + **看得见**（aiCanSee）双条件。
+## observer 为空时只按距离（玩家交互项由 main.gd 自己再判一次可见）。
+func nearest_downed(pos: Vector2, radius: float, observer: Dictionary = {}) -> Dictionary:
 	var best: Dictionary = {}
 	var bd := radius
 	for a: Dictionary in agents:
@@ -1319,10 +1321,14 @@ func nearest_downed(pos: Vector2, radius: float) -> Dictionary:
 			continue
 		if bool(a.get("detained", false)):
 			continue
-		var d := (a.get("pos", Vector2.ZERO) as Vector2).distance_to(pos)
-		if d < bd:
-			bd = d
-			best = a
+		var ap: Vector2 = a.get("pos", Vector2.ZERO)
+		var d := ap.distance_to(pos)
+		if d >= bd:
+			continue
+		if not observer.is_empty() and not ai_can_see(observer, ap):
+			continue
+		bd = d
+		best = a
 	return best
 
 

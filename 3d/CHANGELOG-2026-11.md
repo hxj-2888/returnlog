@@ -26,6 +26,13 @@
   ⑫ `js/game.js:4104`：破坏触发是「进舱即下手」或 1.7 格内，3D 旧实现只判 1.7 格。
   ⑬ `js/game.js:7947-7960 finishFix`：故障修好瞬间，同一故障的所有人立即松手。
   ⑭ `js/game.js:2566`：正在去修故障/合闸的人不会被路边尸体拽住（`!a._fixGo && !a._lightGo`）。
+  ⑮ `js/game.js:2874-2879` 人类开枪门槛链：`thr=SKTrait.C.shootSus(a)`（激进 0.36 / 中性 0.50 / 谨慎 0.60），
+  只有存在准-确证敌人才 ×0.7；`bestSusTarget` 走夜间折价，且 `almostFriendOf` 命中就不打，
+  没有可疑目标时用 `affordableAlmostShot`（sus≥0.85×thr）。3D 旧实现是**固定 0.5×0.7=0.35**
+  且把确证直接折成 +2 分 —— 谨慎/激进性格在开枪上完全失效，也没有"基本是好人"的保护。
+  射程/追猎判定从 `_shoot_target` 挪回 `_decide`（真源里射程是"能不能打"、chase 是"愿不愿追"）。
+  ⑯ `js/game.js:3874` 异形挑目标先 `isMate` 排除队友（3D 旧实现缺）；`:3947` 没刀时贴身也用枪。
+  ⑰ `js/game.js:2843 nearestDowned`：救人目标也要 `aiCanSee`（3D 旧实现只按距离，能隔墙救人）。
 - **改动**：`sim/ai_human.gd`（新增 `_task_threat / _loot_run / _start_loot_search / _look_around`）、
   `sim/ai_alien.gd`（新增 `_report_plan / _alibi_spot / _has_body`、错峰延迟、破坏落点委托）、
   `sim/sim_state.gd`（`sab_spot_for` + 每夜缓存、`fix_damage` 全員松手、`hear` 的 conf 门、
