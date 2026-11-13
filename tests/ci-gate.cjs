@@ -16,6 +16,25 @@ const LOG = path.join(ROOT, 'tests', '_gate-ci.log');
 const ALLOW = path.join(ROOT, 'tests', 'flaky-assertions.txt');
 const MAX_ALLOWED = 6;
 
+/* 结构预算（2026-11-13 阶段 A 挂载）：纯 Node、不依赖浏览器。
+ * 失败必须在汇总里可见并 exit 1，不改变下方 test-v3 的汇总/抖动语义。 */
+const fm = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'filemap-js.cjs'), '--check'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  maxBuffer: 16 * 1024 * 1024,
+});
+if (fm.error) {
+  console.error('[file:check:js] FAIL：filemap-js 启动失败：' + fm.error.message);
+  process.exit(1);
+}
+for (const line of ((fm.stdout || '') + (fm.stderr || '')).split(/\r?\n/)) {
+  if (line.trim()) console.log('[file:check:js] ' + line.trim());
+}
+if (fm.status !== 0) {
+  console.error('[file:check:js] FAIL：结构预算检查未通过（见上）');
+  process.exit(1);
+}
+
 const r = spawnSync(process.execPath, [path.join(ROOT, 'tests', 'test-v3.cjs')], {
   cwd: ROOT,
   encoding: 'utf8',
