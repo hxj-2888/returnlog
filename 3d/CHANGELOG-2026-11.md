@@ -1,5 +1,40 @@
 # 3D 修改记录
 
+## 2026-11-13 · 逐行审核批：交互键 / UI 锁 / AI 站桩
+
+- **本批改动**（只改 3D 表现层与输入层；判定数值仍取自 2.5D 真源）：
+  ① **交互半径回真源**：任务 `nearPoint` **2.6**（原 `reach.fix` 2.0）、管道 1.6、补给 1.7、
+  监控 1.8；`R` 报告按 `tryReport` 2.4 + 只报未报告 + 先判额度/夜场。此前站在 2.0–2.6m
+  按 F「毫无反应」。
+  ② **`ui_locked` 单一重算补全**：`_tick_detained` 每帧重写时补上轮盘 / 尸检-监控面板 /
+  设置-复盘面板 / 对局结束；`_update_interaction` 同步挡这些相位与站桩中；`_tick_station`
+  在会议/面板期间不推进、濒死/拘留取消 —— 修「轮盘打开还能走 / 站桩在会议里偷偷完成」。
+  ③ **尸体交互视线**：搜尸 / 报告 / 拖拽 / 施救 / 查看记录都要求玩家到身体的几何 LOS
+  （2.5D `collectInteractions` 的 `visibleAt`）；已报告尸体不再出报告项，别人拖着的尸体
+  不再出拖拽项；轮盘按行动价值排序，≤8 项时不再把施救/搜尸排在后面丢掉。
+  ④ **F / V / C 收口**：F 只选**自己的**任务设备（先过 `can_do_task`），没有自己的任务时
+  给「不是你现在的任务」；幽灵拒绝 V/C；监控补 alive/downed/detained 守卫。
+  ⑤ **AI 站桩**：①天亮刷新点改回 `randIn` 的 rect 内随机（旧实现只采 poly 顶点，
+  顶点全在墙线上 → 200 次全失败 → 所有活人叠在 label 点）；②无目标异形补 2.5D
+  `alienSupport` 的效用表行动（拉闸/破坏/拆机器人/伪装），不再握刀站等；
+  ③跨夜清 `_fixGo`、复电清 `_lightGo`（旧实现分别只在「有故障」「断电」分支内清理）。
+  ⑥ HANDOFF §0.5 增第 ⑮ 条：交互半径不是一个数，逐项回 `js/game.js` 的 near* 查。
+- **读数变化**（本次实跑）：
+  `npm run check` **8 通过 / 0 失败**；`audit:parity:strict` **391 函数 / 映射 210 / 未映射 0 /
+  守卫 0 / 写入 0 / 漂移 0**；`3d:parity:check` PARITY OK；`baseline:check` OK **407 文件**；
+  `file:check` **52 文件 / 26,826 行 / 最大 main.gd 5,546 行**。
+  Godot 无头：`navtest 28/0`、`tasktest 26 点 0 失败`、`reachtest 26 点 0 走不到`、
+  `simtest 26/0`、`b4test 8/0`、`socialtest 6/0`、`meetingtest ok=true`、`dragtest 0 失败`、
+  `abilitytest 0 失败`（InputMap 8/8、offers=3 report[R]/drag[G]/search[E]）、
+  `taskflowtest ok=true`、`interacttest` 轮盘/管道/领取全过；
+  `aittest prog=23/45 tasks=23 nights=3`（本批前 20/45）。
+  另跑 8 局抽样（`--sim1000 --games 8`，seed 20261108 起，**样本太小不作基线**）：
+  人类 75.0% / 异形 12.5% / 超时 1，场均末进度 8.9 → 14.4，`no_target` 410 → 1011
+  （异形不再握刀站等，转去支持行动）；需要基线时按 1000 局重跑。
+- **下一批立项依据**：`file-budgets.json` 的 10 条超长函数 WARN 待拆；`docs:check` 仍因
+  本仓 AGENTS.md §一 的 3D 路径适配与上游不逐字一致（治理决定，未擅改）；
+  `3d/preview/data/cover_refs.json` 缺 `schema_version`（legacy）。
+
 ## 2026-11-13 · 上游 11-13 同步（设施/任务点锚点）+ 幽灵/搜尸链回归修正
 
 - **本批改动**：

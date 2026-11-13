@@ -15,10 +15,28 @@
 > 能在本工程内闭环，不需要跨仓猜测，也不允许借「已经独立了」的理由自造规则。
 >
 > **版本**：3D `V1P-0.2` / `0.2.0`（真源 `3d/version.json`）· 移植基线 `返航录V3.7` / `3.7.0`（只读标识见 `package.json`）。
-> **接手顺序**：根 `README.md` → 本文件 → `BASELINE.md` → `3d/README.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → `3d/CHANGELOG.md` → 再动代码。
-> **2026-11-09 分离时刻的历史事实**：当时玩家除移动外无法操作、门禁有 2 项既有失败；现状与读数见 `3d/HANDOFF.md` 与 `3d/CHANGELOG.md`，本文件不再维护 §六。
+> **接手顺序（2026-11-13 统一，只有这一套）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → 任务对应的 `3d/preview/scripts/` 模块。
+> **2026-11-09 分离时刻的历史事实**：当时玩家除移动外无法操作、门禁有 2 项既有失败；现状与读数见 `3d/HANDOFF.md` 与 `3d/CHANGELOG-2026-11.md`，本文件不再维护 §六。
 
-> **接手顺序（2026-11-12 更新）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md`。
+## 零、AI 读取边界（2026-11-13）
+
+> 目的：只让 AI 读正式内容。**默认不读**测试夹具、导出数据、二进制资产、历史台账与一次性报告；
+> 需要时按任务读。本表是 3D 仓读区的**唯一真源**；README 只写指针，不复制。
+
+**默认只读**：本文件 → `3d/ARCHITECTURE.md` → 任务对应的 `3d/preview/scripts/` 模块。
+
+| 任务 | 读 | 默认不读 |
+|---|---|---|
+| 玩法 / 判定 / 数值 / 语料 | `3d/preview/scripts/sim/` + `3d/spec/gameplay-parity.json` + 只读基线 `js/` | `3d/preview/scripts/tests/`、`3d/preview/assets/`、`3d/preview/reports/` |
+| 界面 / 输入 / 交互 | `3d/preview/scripts/main.gd`、`ui_*`、`minimap.gd` | `3d/preview/scripts/tests/`、`3d/preview/data/` 大 JSON |
+| 验收 / 门禁 | `3d/HANDOFF.md` §0.8、当月 `3d/CHANGELOG-*.md` 最新批次 | 历史台账全文、`3d/preview/screenshots/` |
+| 数据链 / 导出 | `3d/tools/export-*.cjs` + `3d/spec/*.json` | `3d/preview/data/` 生成物（只读产物，不手改） |
+| 美术 / 场景 | `3d/ASSETS.md` + 对应 `CREDITS` | `3d/preview/assets/` 二进制、贴图 |
+| 部署 / 发布 | `3d/TEMP_DEPLOY_HANDOFF.md` + `.github/workflows/` | 玩法模块与测试夹具 |
+
+**不要全仓 grep**：先按路径读；需要跨文件证据时再用检索工具。`3d/preview/assets/` 与
+`3d/preview/data/` 是生成物/二进制，默认不读、不手改。
+
 ## 一、红线（违反即回退）
 
 1. **`file://` 必须可玩。** 禁止 `fetch()`、ES Module（`<script type="module">`）、构建/打包步骤，

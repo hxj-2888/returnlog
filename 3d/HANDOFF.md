@@ -6,6 +6,9 @@
 >
 > 逐批明细在 `3d/CHANGELOG-2026-11.md`，差异登记在 `3d/docs/audit/PORT-DIFF-AUDIT.md` §C/§E/§J，
 > 数据契约在 `3d/spec/`，验收命令见 §0.8。原 `docs/handoff/HANDOFF_2026-11-11.md` 的增量已并入 §0.9（2026-11-12 清理）。
+>
+> **按需读（2026-11-13）**：接手先读 §0.1 / §0.2 / §0.5 / §0.8 / §0.10（约 300 行）；
+> 排障只查 §0.6 症状表；§0.3–§0.4 是历史批次与差异登记；§1 以后按任务回查，不必通读全文。
 
 ---
 
@@ -184,6 +187,12 @@ node 3d/tools/sync-cover-height.cjs --check
 `Godot --headless --path 3d/preview -- --speechtest`；真实窗口类（`--meetuitest` /
 `--probetest`）同理，只是去掉 `--headless`。headless 下 GUI 收不到鼠标，`--meetuitest`
 会以 `hover=null`、全部点击失败告终——这不是会议 UI 回归，必须用真实窗口跑。
+
+**⑮ 交互半径不是一个数（2026-11-13 现场回归）。** 2.5D 每个交互各用各的半径：
+任务点 `nearPoint` **2.6**、管道 `nearPipe` 1.6、补给 `nearSupply` 1.7、监控 `nearMonitor` 1.8、
+尸体 2.2、电闸 2.0、故障 `reach.fix` 2.0、破坏 1.7。3D 曾把任务/管道/补给/监控全折成
+`reach.fix(2.0)`，玩家站在 2.0–2.6m 按 F 会"毫无反应"。改交互先回
+`js/game.js` 找对应的 near* 函数，不要在 `main._collect_offers` 里统一成一个数。
 
 ### 0.6 排障索引（症状 → 先看哪）
 
