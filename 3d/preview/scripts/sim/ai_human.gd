@@ -226,7 +226,8 @@ func _decide(a: Dictionary) -> void:
 			return
 
 	# 1) 有待领申请单：回圆桌领（个人进度 3 / 5 各生成一张）。
-	if qual_pending > 0 and qual < 2:
+	# @src js/game.js:2980 `if(a.qualPending>0)`：没有 qual<2 的附加条件。
+	if qual_pending > 0:
 		var spot: Vector2 = sim.claim_spot()
 		if sim.distance_to(i, spot) <= SpaceData.num(space, "reach", "round_table"):
 			# 2.5D 2026-11-10：领申请单改成**交互即领**（grantQual），STAND.qual 归 0。
@@ -241,16 +242,21 @@ func _decide(a: Dictionary) -> void:
 			_stuck(a)
 		return
 
-	# 2) 有申请单且缺物资：去对应补给点兑换。优先补没有的那一样。
+	# 2) 有申请单且确实需要：去对应补给点兑换。
+	# @src js/game.js:1007-1012 supplyTargetFor：有人濒死才买医疗包；否则缺弹才买弹。
+	# @src js/game.js:2999 supplyPoints().find(q=>q.item===need)：补给点键是 ammo / med。
 	var item := ""
-	if int(a.get("bullet", 0)) <= 0 and int(a.get("medkit", 0)) <= 0:
-		item = "ammo"
-	elif int(a.get("bullet", 0)) <= 0:
-		item = "ammo"
-	elif int(a.get("medkit", 0)) <= 0:
+	var someone_downed := false
+	for v: Dictionary in sim.agents:
+		if v != a and bool(v.get("alive", false)) and bool(v.get("downed", false)):
+			someone_downed = true
+			break
+	if int(a.get("medkit", 0)) < 1 and someone_downed:
 		item = "medkit"
+	elif int(a.get("bullet", 0)) < 1:
+		item = "ammo"
 	if qual > 0 and item != "":
-		var sp: Vector2 = sim.supply_spot(item)
+		var sp: Vector2 = sim.supply_spot("med" if item == "medkit" else item)
 		if sim.distance_to(i, sp) <= SpaceData.num(space, "reach", "fix"):
 			var dur := SpaceData.num(space, "stand", "ammo" if item == "ammo" else "med")
 			sim.start_doing(i, "supply", dur, -1, item)
