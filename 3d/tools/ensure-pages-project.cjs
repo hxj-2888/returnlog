@@ -12,7 +12,8 @@
  * 打开就 500 的站点。
  *
  * 前置：项目本身由 CI 里的 `wrangler pages project create` 建（它会写合法的
- * compatibility_date），本工具只负责绑定；项目不存在时直接失败并说明。
+ * compatibility_date）。刚建完这一秒内 GET 会 404（读后写延迟），本工具对 404 与
+ * 绑定复核都做退避重试；重试耗尽仍不存在才失败。
  *
  * 用法：CF_API_TOKEN=… CF_ACCOUNT_ID=… node 3d/tools/ensure-pages-project.cjs \
  *         --project returnlog-3d --bucket returnlog-3d-assets --binding ASSETS_R2
@@ -55,6 +56,20 @@ async function api(method, pathname, body) {
   return { ok: res.ok, status: res.status, json };
 }
 
+// Pages 项目刚 create 完立刻 GET 会 404（2026-11-13 实跑：相隔 0.3 秒，CI 因此假红）。
+// PATCH 之后读回绑定也有同样的延迟，所以两条读路径都走这个退避重试。
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function getProject(base, { attempts, what }) {
+  let got = await api('GET', base);
+  for (let i = 0; i < attempts && !got.json.success && got.status === 404; i++) {
+    const wait = Math.min(500 * 2 ** i, 8000);
+    console.log(`PAGES ${what}尚未可见（HTTP 404），${wait}ms 后重试 ${i + 1}/${attempts}`);
+    await sleep(wait);
+    got = await api('GET', base);
+  }
+  return got;
+}
+
 function describeErrors(json) {
   const errs = (json.errors || []).map((e) => `${e.code || '?'} ${e.message}`).join(' | ');
   return errs || '未知错误';
@@ -70,7 +85,7 @@ function describeErrors(json) {
   const binding = argv('binding', 'ASSETS_R2');
 
   const base = `/accounts/${ACCOUNT}/pages/projects/${encodeURIComponent(project)}`;
-  const got = await api('GET', base);
+  const got = await getProject(base, { attempts: 8, what: `项目 ${project} ` });
   if (!got.json.success) {
     console.error(`PAGES FAIL 读取 Pages 项目 ${project} 失败（HTTP ${got.status}）：${describeErrors(got.json)}`);
     if (got.status === 401 || got.status === 403) console.error('PAGES FAIL Token 缺 Pages:Edit 权限');
@@ -101,11 +116,19 @@ function describeErrors(json) {
     process.exit(1);
   }
 
-  const verify = await api('GET', base);
-  const cfg = (verify.json.result && verify.json.result.deployment_configs) || {};
-  const miss = ['production', 'preview'].filter(
-    (env) => !((cfg[env] || {}).r2_bindings || []).some((b) => b.binding === binding && b.bucket_name === bucket)
-  );
+  let miss = ['production', 'preview'];
+  for (let i = 0; i < 6 && miss.length; i++) {
+    if (i) {
+      const wait = Math.min(500 * 2 ** (i - 1), 8000);
+      console.log(`PAGES 绑定尚未可见（${miss.join(' / ')}），${wait}ms 后重试 ${i}/5`);
+      await sleep(wait);
+    }
+    const verify = await api('GET', base);
+    const cfg = (verify.json.result && verify.json.result.deployment_configs) || {};
+    miss = ['production', 'preview'].filter(
+      (env) => !((cfg[env] || {}).r2_bindings || []).some((b) => b.binding === binding && b.bucket_name === bucket)
+    );
+  }
   if (miss.length) {
     console.error(`PAGES FAIL 复核未通过：${miss.join(' / ')} 环境仍无 ${binding} 绑定`);
     process.exit(1);
