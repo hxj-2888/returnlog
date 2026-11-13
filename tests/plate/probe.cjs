@@ -1,5 +1,5 @@
 /* 从板图里找出真实电线的中心线与走向：颜色掩膜 + 连通域 + 局部主轴。
- * 用法：node tools/plate/probe.cjs
+ * 用法：node tests/plate/probe.cjs
  * 只读，不改任何文件；输出候选断点，人工确认后写进 plate JSON。 */
 const { chromium } = require('playwright-core');
 const fs = require('fs');
@@ -7,7 +7,7 @@ const path = require('path');
 
 const repo = path.resolve(__dirname, '..', '..');
 const plate = JSON.parse(fs.readFileSync(path.join(__dirname, 'panel-fix.plate.json'), 'utf8'));
-const imgPath = path.resolve(__dirname, plate.image);
+const imgPath = path.resolve(__dirname, '..', '..', plate.image);
 const b64 = fs.readFileSync(imgPath).toString('base64');
 
 const TARGETS = [

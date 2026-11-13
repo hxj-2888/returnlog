@@ -2,14 +2,14 @@
 /* 把「图内要素板」编译成单文件原型 + JSON 快照
  * -------------------------------------------------------------
  * 真源是 js/data/plates.js（运行时也读它），本脚本用 vm 读同一份数据：
- *   · tools/plate-demo.html      单文件可双击预览（图片内联）
- *   · tools/plate/<id>.plate.json  给 3D / 外部工具消费的 JSON 快照
+ *   · tests/plate-demo.html      单文件可双击预览（图片内联）
+ *   · tests/plate/<id>.plate.json  给 3D / 外部工具消费的 JSON 快照
  *
  * 为什么内联图片：预览面板/沙箱常把 HTML 单独拿出来加载，相对路径取不到
  * （表现为裂图）。原型要能在任何地方双击就开，所以图片编成 data URI；
  * 游戏运行时不走这条路径 —— index.html 与图片同在仓库根，直接用相对 src。
  *
- * 用法：node tools/plate/build.cjs [板id]   默认 panel-fix
+ * 用法：node tests/plate/build.cjs [板id]   默认 panel-fix
  */
 'use strict';
 
@@ -64,7 +64,7 @@ for (const k of Object.keys(vars)) out = out.split(k).join(vars[k]);
 const left = out.match(/\{\{[A-Z_]+\}\}/g);
 if (left) throw new Error('模板还有未替换的占位符：' + [...new Set(left)].join(', '));
 
-const outPath = path.join(repo, 'tools', 'plate-demo.html');
+const outPath = path.join(repo, 'tests', 'plate-demo.html');
 fs.writeFileSync(outPath, out, 'utf8');
 console.log('[plate]', plate.id, '->', path.relative(repo, outPath),
   '(' + (Buffer.byteLength(out) / 1048576).toFixed(2) + ' MB, 内联 ' + mime + ')');

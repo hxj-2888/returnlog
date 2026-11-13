@@ -2,8 +2,8 @@
 /* 红线契约校验 —— 智能体指令文件改进方案 P3 / P4
  *
  * 用法：
- *   node tools/check-agent-contract.cjs
- *   node tools/check-agent-contract.cjs --compare "<另一仓 AGENTS.md 路径>"
+ *   node tests/check-agent-contract.cjs
+ *   node tests/check-agent-contract.cjs --compare "<另一仓 AGENTS.md 路径>"
  *
  * 校验：本仓 AGENTS.md §一 红线与 docs/REDLINES.md 逐字一致；
  *       传 --compare 时，再校验另一仓 §一 红线哈希与本仓一致。

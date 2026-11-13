@@ -9,10 +9,10 @@
 |---|---|
 | 直接试玩 | 双击 `index.html` |
 | 本地服务 | `npm start`（`node tools/serve.cjs`，默认 5173） |
-| 全量门禁 | `npm test`（即 `node tools/test-v3.cjs`） |
+| 全量门禁 | `npm test`（即 `node tests/test-v3.cjs`） |
 | 门禁依赖 | 本仓 devDependency `playwright-core@^1.64.1`；`npm i` 后 `npm test` 直接可跑（2026-11-04 实测） |
 | 指定 Playwright（后备） | 仅当 `node_modules` 缺失时：`PLAYWRIGHT_CORE=/path/to/playwright-core npm test` |
-| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；产出本地 `tools/mc-results.json`，未入库） |
+| 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；产出本地 `tests/mc-results.json`，未入库） |
 | 调试模式 | `index.html?test`（跳过开局会议）/ `?dev`（DEV 面板）/ `&strict` |
 
 ### PowerShell 7（强制）
@@ -97,7 +97,7 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 1. 先读 `README.md`、`AGENTS.md`、`CHANGELOG.md` 最近条目。
 2. 小步修改；涉及地图 / 寻路 / 会议 / 输入的改动，先 `npm start` 或直接 `file://` 冒烟。
-3. 跑 `npm test`，确认「X 通过 / 0 失败」，并抽查 `tools/screenshots/` 的截图（元素存在 ≠ 像素可见）。
+3. 跑 `npm test`，确认「X 通过 / 0 失败」，并抽查 `tests/screenshots/` 的截图（元素存在 ≠ 像素可见）。
 4. 更新 `CHANGELOG.md`（版本号 + 日期 + 实测读数）。
 5. 提交并推送：**分支按 `AGENTS.md` §一.13**——2.5D 主线推 `main`，3D 客户端推副分支 `3d`
    （独立仓 `returnlog-3d` 的 `master` 为其镜像），共享数据 / 美术管线随 `main`；

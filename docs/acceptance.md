@@ -29,11 +29,11 @@ T3 回答「事后看到什么」。本节把这件事写成可核对的规则�
 | 类别 | 文件 / 位置 | 层内角色 | 是否可称真源 |
 |---|---|---|---|
 | 增量台账 | `CHANGELOG.md` | 逐批「改了什么 → 读数怎么变」 | ❌ 只读数 |
-| 门禁断言 | `tools/test-v3.cjs`、`tools/map-check.cjs`、`tools/lines-audit.cjs` | 验收执行物 | ❌ |
+| 门禁断言 | `tests/test-v3.cjs`、`tests/map-check.cjs`、（已归档，不再作为 T3 执行物） | 验收执行物 | ❌ |
 | 模拟读数 | `tools/_mc-*.md`（历史，2026-11-12 已清理）；需要时 `npm run sim` 重跑 | 某配置下的胜率 / 机制读数 | ❌ |
 | 调研 / 审查 / 交接 | `docs/*报告*.md`、`docs/交接_*.md`、3D 仓 `3d/HANDOFF.md` | 结论与证据 | ❌ |
 | 导出快照 | `3d/preview/data/{map,map_v2,layout-v2,rules,space,...}.json` | T2 真源的派生镜像 | ❌（派生，非定义） |
-| 执行细则 / 体检 | 本文件、`tools/check-t3.cjs` | T3 自身规范与自检 | ❌ |
+| 执行细则 / 体检 | 本文件、`tests/check-t3.cjs` | T3 自身规范与自检 | ❌ |
 | 基线登记 | `CHANGELOG.md` 最新批次「读数变化」段 | **唯一现值声明处** | ❌（只是登记） |
 
 > **`tools/mc-report.md` 已废弃**：磁盘上不存在，且历史上被 20+ 处文档当作「数值基线唯一真源」引用。
@@ -108,7 +108,9 @@ T3 回答「事后看到什么」。本节把这件事写成可核对的规则�
 2. **必备字段**：生成时间（含时区或本地时间标注）、seed、局数、人类 / 异形 / 超时、Wilson 区间、
    门禁 `X 通过 / Y 失败`、对应批次标题。
 3. **历史读数**：只在对应批次内保留，并在文档里标「历史读数，非现行基线」；**只标注不删除**。
-4. **分册纪律**：历史分册已于 2026-11-12 清理；现行口径只以 `CHANGELOG.md` 最新批次为准。
+4. **分册纪律**：`CHANGELOG.md` 只保留最新 5 批 + 索引；2026-11 其余批次在
+   `docs/changelog-history-2026-11.md`，2026-10 及更早在 `docs/changelog-history-2026-10.md`；
+   `tests/check-t3.cjs` 同时解析三份，C4/C5 仍全量。
 5. **跨仓 / 跨台账**：主台账 `CHANGELOG.md` 与 3D 仓 `3d/HANDOFF.md`、`3d/CHANGELOG.md` 的门禁 / 胜率序列
    若来自不同测试套件或不同批次集合，**必须写明口径与交叉引用**，不得混用或互相当作基线。
 
@@ -148,9 +150,9 @@ SKSanity.STAND 等                                ──3d:export:space ──�
 |---|---|
 | `npm run t3:check` | 常规体检：只读、报告 PASS / WARN / FAIL；WARN 不阻断（存量债） |
 | `npm run t3:check:strict` | 严格模式：WARN 也按失败退出，供发版或收口时使用 |
-| `node tools/check-t3.cjs` | 直接调用，同上 |
+| `node tests/check-t3.cjs` | 直接调用，同上 |
 
-**检查项**（与 `tools/check-t3.cjs` 一一对应）：
+**检查项**（与 `tests/check-t3.cjs` 一一对应）：
 
 | 编号 | 检查 | 判定 |
 |---|---|---|
@@ -169,7 +171,7 @@ SKSanity.STAND 等                                ──3d:export:space ──�
 
 **分级原则**：能确定违反硬规矩的（C1 / C8）直接 FAIL；历史遗留、需用户裁定或涉及未提交工作区的（C2~C7 / C9）为 WARN。
 新增问题一律不得靠「加豁免」消掉；豁免只能登记在 §8 并写明处置人与期限。
-本脚本**不接入 `tools/test-v3.cjs`**，不影响主门禁全绿要求（根 `AGENTS.md` §一.4）。
+本脚本**不接入 `tests/test-v3.cjs`**，不影响主门禁全绿要求（根 `AGENTS.md` §一.4）。
 
 ---
 
@@ -215,4 +217,4 @@ SKSanity.STAND 等                                ──3d:export:space ──�
 
 | 日期 | 裁定 | 落地 |
 |---|---|---|
-| 2026-11-12 | 用户：「规范一下验收层，这些东西基本上都是验收层的问题」 | 根 `ARCHITECTURE.md` §4 三条硬规矩 + §8 禁止边；本规范；`tools/check-t3.cjs`；口径回写；CHANGELOG 登记；§8 存量债台账 |
+| 2026-11-12 | 用户：「规范一下验收层，这些东西基本上都是验收层的问题」 | 根 `ARCHITECTURE.md` §4 三条硬规矩 + §8 禁止边；本规范；`tests/check-t3.cjs`；口径回写；CHANGELOG 登记；§8 存量债台账 |

@@ -3,7 +3,7 @@
  *
  * 背景：test-v3 在 headless Edge 下存在时序抖动（docs/ASSET_CLEANUP_LOG.md:40），
  * 且失败时退出码仍可能为 0；因此必须解析输出，不能只看 exit code。
- * 只允许 tools/flaky-assertions.txt 命中的失败项；其余一律按回归处理。
+ * 只允许 tests/flaky-assertions.txt 命中的失败项；其余一律按回归处理。
  */
 'use strict';
 
@@ -12,11 +12,11 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const LOG = path.join(ROOT, 'tools', '_gate-ci.log');
-const ALLOW = path.join(ROOT, 'tools', 'flaky-assertions.txt');
+const LOG = path.join(ROOT, 'tests', '_gate-ci.log');
+const ALLOW = path.join(ROOT, 'tests', 'flaky-assertions.txt');
 const MAX_ALLOWED = 6;
 
-const r = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'test-v3.cjs')], {
+const r = spawnSync(process.execPath, [path.join(ROOT, 'tests', 'test-v3.cjs')], {
   cwd: ROOT,
   encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024,

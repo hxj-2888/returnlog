@@ -1,6 +1,6 @@
 /* 新返航录 · 返航录V1 · 浏览器断言门禁
  * ------------------------------------------------------------
- * 用法： node tools/test-v3.cjs
+ * 用法： node tests/test-v3.cjs
  * 依赖： playwright-core（优先本地 node_modules；找不到时可用
  *        PLAYWRIGHT_CORE 指定安装目录）
  * 覆盖： 2.5D 底图、搜尸、拖拽、幽灵态、DEV 无敌/全知、报告会议、
@@ -11,7 +11,7 @@
  *        暗处不可隔空开枪、暂停/退出、事件流/回放复盘、亮走廊视野、
  *        AI 领申请单/反常拖尸/藏尸避人、枪刀音效分层、59 件真实掩体审计、
  *        控制台零报错、帧率。
- * 产出： tools/screenshots/*.png（可用 SHOT_DIR 覆盖）
+ * 产出： tests/screenshots/*.png（可用 SHOT_DIR 覆盖）
  */
 const path = require('path');
 const fs = require('fs');
@@ -32,7 +32,7 @@ const { chromium } = loadPlaywright();
 
 const DIR = path.resolve(__dirname, '..');
 const URL = 'file:///' + DIR.replace(/\\/g, '/') + '/index.html?test';
-const SHOT = process.env.SHOT_DIR || path.join(DIR, 'tools', 'screenshots');
+const SHOT = process.env.SHOT_DIR || path.join(DIR, 'tests', 'screenshots');
 fs.mkdirSync(SHOT, { recursive: true });
 
 let pass = 0, fail = 0;

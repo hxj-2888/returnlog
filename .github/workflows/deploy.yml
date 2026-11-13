@@ -50,15 +50,15 @@ jobs:
 
       - name: Syntax check (js + tools)
         run: |
-          find js tools -type f \( -name '*.js' -o -name '*.cjs' \) -print0 \
+          find js tests tools -type f \( -name '*.js' -o -name '*.cjs' \) -print0 \
             | xargs -0 -n1 node --check
 
       - name: Plate schema validation
         run: |
-          if [ -f tools/plate/validate.cjs ]; then
-            node tools/plate/validate.cjs
+          if [ -f tests/plate/validate.cjs ]; then
+            node tests/plate/validate.cjs
           else
-            echo "::notice::tools/plate/validate.cjs 尚未入库，跳过 schema 校验"
+            echo "::notice::tests/plate/validate.cjs 尚未入库，跳过 schema 校验"
           fi
 
       - name: Deploy whitelist staging (dry-run)

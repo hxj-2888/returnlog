@@ -62,7 +62,7 @@
 |---|---|---|---|---|---|---|
 | L0 运行时资产 | R | 浏览器/游戏加载时读取 | `js/`、`audio/`、`assets/scene/v4/*.png`（正式图）、`facility/*.png`（无后缀）、`minigame/`、`crew/`、`bg/`、`station/`、`portfolio/` | 是 | 是 | 永久（只优化不删） |
 | L1 构建期源 | S | 生成 L0 的源素材 | `returnlog_assets/referenced/qwen-lib/*.png`、`tools/_qwen_refs/`、`returnlog_assets/referenced/scene-v4-tex/*`（除 `door-panel.png`）、`3d/assets/models/*.blend`、`3d/assets/export/*.glb` | 否（素材层 + `assets/MANIFEST.json` 兜底） | 否 | 永久或按需归档 |
-| L2 中间产物 | I | 构建管线一次性输出 | `assets/scene/v4/facility/_raw/`、`_raw_fx/`、`tools/screenshots/`、`3d/preview/screenshots/`、`tools/_fxpreview/`、`*_report.json` | 否 | 否 | 保留期 14 天，之后清 |
+| L2 中间产物 | I | 构建管线一次性输出 | `assets/scene/v4/facility/_raw/`、`_raw_fx/`、`tests/screenshots/`、`3d/preview/screenshots/`、`tools/_fxpreview/`、`*_report.json` | 否 | 否 | 保留期 14 天，之后清 |
 | L3 过期迭代 | E | 被新版本取代或退役的批次 | `_backup/YYYYMMDD_*`、`tools/_bak/<主题>-YYYYMMDDHHMMSS/`、`*_bak/`、`.blend1`、`*-c0/c1/c2.png` | 否 | 否 | 保留期 30 天（候选帧 7 天），到期清 |
 | L4 缓存 | C | 工具/引擎自动再生（**不含 `3d/preview/.godot/imported/`**） | `__pycache__/`、`*.pyc`、`node_modules/`、`.wrangler/`、`*.log`、`*.err`、`.godot/` 其余子目录 | 否 | 否 | 随时清，不计入备份 |
 | L5 文档 | D | 规范、规划、过程记录 | `docs/`、`*.md`、`tools/*-report.md`、`3d/**/reports/`、`BASELINE.sha256.json` | 分两类（见 §7） | 否 | 规范层永久；过程层保留期后归档 |
@@ -459,7 +459,7 @@
 | 2.5D 仓 `3d/preview/assets/{audio,crew,plates,import-probe}/` | — | — | — | — | — | 2026-11-12 移入素材层 `returnlog_assets/unreferenced/2.5d-preview-assets/`；`licenses/` 保留在仓内 |
 | 3D 仓 `3d/preview/assets/models/` | L1 | 是 | 否 | 永久 | — | Godot 运行时依赖；836 个模型文件，无旧版命名残留 |
 | `assets/scene/v4/facility/_raw/`、`_raw_fx/` | L2 | 否 | **否（P0 已排除）** | 14 天 | `blender-fx.py` → `fx-post.py` | 渲染中间帧 |
-| `tools/screenshots/`、`3d/preview/screenshots/`、`3d/docs/audit/player-study-*` | L2 | 否 | 否 | 14 天 | 重跑截图脚本 | 2026-11-12 已整体移入素材层 `screenshots/{2.5d-tools,3d-preview,player-study-20261112}`；测试重跑会按需重建 |
+| `tests/screenshots/`、`3d/preview/screenshots/`、`3d/docs/audit/player-study-*` | L2 | 否 | 否 | 14 天 | 重跑截图脚本 | 2026-11-12 已整体移入素材层 `screenshots/{2.5d-tools,3d-preview,player-study-20261112}`；测试重跑会按需重建 |
 | `%USERPROFILE%\Documents\returnlog_assets\unreferenced\qwen21\{2.5d,3d}`（cabin-refs / room-skins / surfaces / task-refs / crew-refs） | L2 | 否 | 否 | 按需 | `gen-art-refs.ps1` | 2026-11-12 两仓 `docs/qwen21/` 全部移入素材层；仓库内不再保留 |
 | `tools/*-report.md`、`*-results.json`、`mc-results.json` | L2 | 否 | 否 | 14 天 | `npm run sim` / 对应审计脚本 | `.json.gz` 压缩基线属 L5，保留 |
 | `_backup/YYYYMMDD_*` | L3 | 否 | 否 | 30 天 | 见 3D 仓 `3d/CHANGELOG.md` 恢复口径 | 主仓 265 MB |

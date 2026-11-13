@@ -4,9 +4,9 @@
  * · 按 plate.schema.json 校验结构（只实现本项目用得到的 draft-07 子集，
  *   不引第三方依赖 —— 项目红线：运行时零依赖，工具也不新增 npm 包）
  * · 再校验语义：crop 在 size 内、断口在 crop 内、线 id 唯一、图片落地
- * · 最后核对 tools/plate/*.plate.json 快照与真源一致（防止两份定义漂移）
+ * · 最后核对 tests/plate/*.plate.json 快照与真源一致（防止两份定义漂移）
  *
- * 用法：node tools/plate/validate.cjs
+ * 用法：node tests/plate/validate.cjs
  * 退出码：0 = 无错误；1 = 有错误
  */
 'use strict';

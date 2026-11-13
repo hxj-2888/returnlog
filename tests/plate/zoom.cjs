@@ -1,11 +1,11 @@
 /* 放大板图的一块区域，用来肉眼核对断口是否压在线上。
- * 用法：node tools/plate/zoom.cjs x y w h scale out.png */
+ * 用法：node tests/plate/zoom.cjs x y w h scale out.png */
 const { chromium } = require('playwright-core');
 const fs = require('fs');
 const path = require('path');
 const [x, y, w, h, scale, out] = process.argv.slice(2);
 const plate = JSON.parse(fs.readFileSync(path.join(__dirname, 'panel-fix.plate.json'), 'utf8'));
-const b64 = fs.readFileSync(path.resolve(__dirname, plate.image)).toString('base64');
+const b64 = fs.readFileSync(path.resolve(__dirname, '..', '..', plate.image)).toString('base64');
 (async () => {
   const browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe' });
   const page = await browser.newPage({ viewport: { width: +w * +scale, height: +h * +scale } });

@@ -8,7 +8,7 @@ const path = require('path');
 const here = __dirname;
 const platePath = path.join(here, 'panel-fix.plate.json');
 const plate = JSON.parse(fs.readFileSync(platePath, 'utf8'));
-const b64 = fs.readFileSync(path.resolve(here, plate.image)).toString('base64');
+const b64 = fs.readFileSync(path.resolve(here, '..', '..', plate.image)).toString('base64');
 
 /* 只按色相判定；饱和度和明度压得比较低，暗处的线也能捞到 */
 const HUE = {
