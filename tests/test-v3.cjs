@@ -123,6 +123,8 @@ function section(t) { console.log('\n== ' + t); }
       tip: document.getElementById('tip').textContent, meet: !document.getElementById('meet').classList.contains('hide') };
   });
   ok(A.a.base && A.a.w === 4704 && A.a.h === 4413, 'Blender 2.5D 底图已加载 ' + A.a.w + '×' + A.a.h);
+  ok(A.a.rtW > 0 && A.a.rtH > 0 && A.a.rtW <= A.a.texLimit && A.a.rtH <= A.a.texLimit,
+    '底图运行时副本 ≤ ' + A.a.texLimit + '（' + A.a.rtW + '×' + A.a.rtH + '，源 ' + A.a.w + '×' + A.a.h + '）');
   ok(A.n === 15, '15 个席位');
   ok(A.inv && A.inv.fails.length === 0 && A.inv.checks > 200, '不变量基线 ' + (A.inv && A.inv.checks) + ' 项检查全过');
   ok(A.role.indexOf('人类') >= 0 && A.role.indexOf('01') >= 0 &&

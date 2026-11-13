@@ -406,6 +406,18 @@
 | 设施视觉分区 | https://meowservers.com/en/SCP-SL/Tutorial/Map | Meow Servers 公开教程 | 公开 wiki | HCZ 金属地板暗墙 / LCZ 白砖高天花板的分区识别 | 分舱配色与亮度层级 |
 | 室内布光实践 | https://www.pkold.com/docs/godot4/18-lighting-environment/ | 强曰为道 | 公开教程 | 分层照明（基础 / 功能 / 装饰）、阴影光源 ≤3–5、室内暗室 OmniLight + VoxelGI + SSAO | 灯光重构参考 |
 | 平面背面剔除 | https://uhiyama-lab.com/en/notes/godot/standardmaterial3d-basics | ういやまラボ | 公开教程（已验证排错项） | 「For a plate seen from behind, set Cull Mode to Disabled」——单面平板从背面看会被剔除，只剩背景色 | 天花板固定黑块、贴图 / 补光 / 金属度全部无效的根因 |
+| Canvas 大图预缩放（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 「Cache various sizes of your images on an offscreen canvas when loading as opposed to constantly scaling them in drawImage()」；重复图元/文本先离屏预渲染；「Render screen differences only」 | base-lit 4704×4413 每帧整图缩放；DEV 身份/凶手标签与幽灵光晕每帧重画 |
+| Canvas 尺寸上限（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 多数浏览器上限超过 10000×10000，但 iOS 限制 4096×4096；超过上限后绘制命令会失败 | 底图 4704 宽超过 4096 的纹理上限 |
+| 大图超纹理上限的实测症状（检索 2026-11-13） | https://issues.chromium.org/41173621 | Chromium issue tracker | 公开缺陷库 | Android 设备 max texture size 4096，超出上限的 2D/WebGL 内容会触发分块与明显变慢 | 4× CPU 降速实测：整图 drawImage 后 `ctx.fill` 单帧 0.8–1.1 秒 |
+
+> **2026-11-13 采纳（DEV 全图卡顿）**：公开方案是「加载时把大图预缩放到 ≤ 纹理上限 + 重复文本/图元离屏预渲染 + 只画差异」；
+> 本项目据此做三处：① `base-lit.png` 运行时缩到 4096 宽（源文件与 `assets()` 源尺寸不动）；
+> ② DEV 身份/凶手标签预渲染成精灵、幽灵光晕预渲染、`measureText` 缓存；
+> ③ DEV 卡片原地更新 + 墙钟 500ms、HUD 只在值变化时写。
+> 未采纳「静态背景改 CSS div」：会绕过镜头裁剪/迷雾/亮度层，且 2.5D 底图与设施状态层必须同帧对齐；
+> 未引入 `OffscreenCanvas`/第三方库：保持 `file://` 与零依赖红线。
+> 实测（1920×1080 dpr2、4× CPU 降速、DEV + 8 幽灵）：6 轮中 4 次单帧 >120ms（最坏 1001ms）→ 0 次；
+> 布局次数 440 → 23 / 6s，帧均值 13.7 → 11.0ms。
 
 > **2026-11-12 用户裁定（口径收紧，取代上面的待裁定表述）**：
 > ① 公开素材**文件的直接使用须经用户逐项批准** —— 包括 CC0 贴图 / HDRI / 模型；
