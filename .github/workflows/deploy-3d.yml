@@ -142,7 +142,11 @@ jobs:
             esac
             exit 1
           fi
-          if printf '%s' "$res" | jq -e --arg b "$R2_BUCKET" '[.result[].name] | index($b)' >/dev/null; then
+          # 列桶响应的形状两种都见过（2026-11-13 现网实测 = {"result":{"buckets":[]}}，
+          # 旧文档是裸数组）。按裸数组写会把「桶已存在」误判成不存在 → 再去 create → 红，
+          # 所以这里对两种形状都取名字。
+          names='[ (.result | if type == "array" then .[] else ((.buckets // [])[]) end) | .name ]'
+          if printf '%s' "$res" | jq -e --arg b "$R2_BUCKET" "$names | index(\$b)" >/dev/null; then
             echo "R2 bucket $R2_BUCKET 已存在"
             echo "created=false" >> "$GITHUB_OUTPUT"
           else
