@@ -346,9 +346,10 @@ Godot 4.6 headless 导出 → `npm run 3d:web:stage` 拆分超限文件 → 探�
 
 | 前置 | 口径 |
 |---|---|
-| 仓库 Secrets | `CF_API_TOKEN` / `CF_ACCOUNT_ID`（与 2.5D 同一对）。**Token 还需 Account → Cloudflare R2 Storage: Edit**；只给 Pages:Edit 会在「Check R2 access」一步红字退出，不会推上半个坏版本 |
+| 账号已订阅 R2 | 后台 R2 Object Storage → Subscribe/Enable（一次性）。未订阅时 API 回 `10042 Please enable R2 through the Cloudflare Dashboard`，加 Token 权限也救不了。免费额度 10 GB-month / 1M Class A / 10M Class B，出口流量不计费。本账号 `63ebb412…c534e` 已于 2026-11-13 开通 |
+| 仓库 Secrets | `CF_API_TOKEN` / `CF_ACCOUNT_ID`（与 2.5D 同一对，作品集共用）。**Token 还需 Account → Cloudflare R2 Storage: Edit**；缺了回 `10000 Authentication error`，会在「Check R2 access」一步按错误码红字点名，不会推上半个坏版本。**这两件只能在后台点**：Cloudflare 明确「No OAuth scope covers this endpoint」，OAuth 身份（含 Qoder 的 Cloudflare 连接器）读不到也改不了 `/user/tokens`，别再试 |
 | 本机导出 | 本机 Godot **未装 Web 导出模板**（`%APPDATA%/Godot/export_templates` 空，模板约 1.2 GB），导出只在 CI 验证；本地要预演就先装模板，或直接把上线交给流水线 |
-| 首次运行 | Pages 项目 `returnlog-3d` 与 R2 bucket 都由流水线首跑自动创建，不用去后台手点 |
+| 首次运行 | Pages 项目 `returnlog-3d` 与 R2 bucket 都由流水线首跑自动创建，不用去后台手点。列桶接口现网返回 `{"result":{"buckets":[…]}}`（旧文档是裸数组），探测步对两种形状都取值 |
 
 **已知待办**
 
