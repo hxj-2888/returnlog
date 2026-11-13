@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "note": "总映射层的分层与状态政策（2026-11-13 立）。2.5D 是唯一真源；本文件不复制任何数值/语料/地图，只回答两件事：某个系统属于哪一层、整系统默认算什么状态。函数级判决只在 3d/spec/mapping-ledger.json。",
+  "denominator": {
+    "tool": "新返航录/tools/filemap-js.cjs --json",
+    "scope": "js/**/*.js",
+    "rule": "分母是 2.5D 全部函数；每个函数必须恰好出现在 mapping-ledger.json 的一条 entries 里，不许遗漏、不许重复。"
+  },
+  "status_legend": {
+    "ported": "3D 有等价实现，已逐函数对照",
+    "auto": "按同名/下划线归一机械匹配，尚未逐行复核",
+    "adapter": "3D 用不同形态承担（输入映射 / 维度 / 导出期烘焙 / 拆分），note 必须写明差异",
+    "not-applicable": "红线 11 明列的允许差异（DOM / Canvas / 入口 / 测试面），不需要 3D 对应物",
+    "pending": "确认为缺口，已登记待移植",
+    "unmapped": "尚未判决（默认值）。此数只许下降，不许上升"
+  },
+  "layers": {
+    "T1-DATA": {
+      "name": "数据与真源",
+      "desc": "地图 / 名单 / 台词 / 面板 / 版本 / 空位规则；3D 只读导出 JSON"
+    },
+    "T2-ENGINE": {
+      "name": "引擎与空间",
+      "desc": "几何 / 寻路 / 时钟 / 不变量 / 门 / 电力 / 移动"
+    },
+    "T2-ACTIONS": {
+      "name": "动作与结算",
+      "desc": "状态、交互、破坏、主循环、战斗、机器人、胜负、报告、夜间、动作、尸体"
+    },
+    "T2-COGNITION": {
+      "name": "认知与决策",
+      "desc": "理智 / 性格 / 公共认知 / 人类与异形决策"
+    },
+    "T2-SOCIAL": {
+      "name": "会议与决策",
+      "desc": "会议、投票、团队决策"
+    },
+    "T2-SPEECH": {
+      "name": "发言",
+      "desc": "发言排期、模板、解析、证言"
+    },
+    "T2-AUDIO": {
+      "name": "音频",
+      "desc": "音效与声纹（2.5D 为 WebAudio，3D 为 Godot AudioStream）"
+    },
+    "T3-VIEW": {
+      "name": "表现层",
+      "desc": "Canvas 绘制 / HUD / 场景 / 小游戏视觉"
+    },
+    "T3-UI": {
+      "name": "界面层",
+      "desc": "开始页 / 回放页 / DOM 模板"
+    },
+    "T3-ENTRY": {
+      "name": "入口与输入",
+      "desc": "页面入口 / 加载清单 / 按键绑定"
+    },
+    "T3-VERIFY": {
+      "name": "验收面",
+      "desc": "不变量 / 调试 API / 门禁脚本"
+    },
+    "T3-ASSET": {
+      "name": "资产",
+      "desc": "美术素材（红线 11 允许差异）"
+    }
+  },
+  "group_layer": {
+    "data": "T1-DATA",
+    "spatial": "T2-ENGINE",
+    "sim": "T2-ACTIONS",
+    "ai": "T2-COGNITION",
+    "social": "T2-SOCIAL",
+    "speech": "T2-SPEECH",
+    "audio": "T2-AUDIO",
+    "view": "T3-VIEW",
+    "ui": "T3-UI",
+    "entry": "T3-ENTRY",
+    "test": "T3-VERIFY",
+    "asset": "T3-ASSET"
+  },
+  "parity_budget": {
+    "note": "audit:parity:strict 的缺口预算。只许下调；抬升须在 CHANGELOG 写明理由并同步下调别处。",
+    "pending": 0,
+    "guard_gap": 0,
+    "write_gap": 0,
+    "extras": 0,
+    "hardcoded": 0
+  },
+  "system_policy": {
+    "V-RENDER": {
+      "status": "not-applicable",
+      "reason": "Canvas 2D 绘制由 Godot 场景/相机/渲染管线承担（红线 11 的维度差异）"
+    },
+    "V-SCENE": {
+      "status": "not-applicable",
+      "reason": "2.5D 场景常量/乘员壳由 .tscn 场景树承担"
+    },
+    "UI-TEMPLATES": {
+      "status": "not-applicable",
+      "reason": "DOM 模板字符串由 .tscn / Control 节点承担"
+    },
+    "X-ENTRY": {
+      "status": "not-applicable",
+      "reason": "index.html / main.js 入口由 Godot 主场景承担"
+    },
+    "X-TEST": {
+      "status": "not-applicable",
+      "reason": "2.5D 门禁脚本由 GDScript 夹具与 npm run check 承担"
+    },
+    "X-SIM": {
+      "status": "not-applicable",
+      "reason": "window.SKV3._t 调试/回放入口由 3d/preview/scripts/tests/ 与 simdump 承担"
+    },
+    "X-BIND": {
+      "status": "adapter",
+      "reason": "按键映射是红线 11 明列的允许差异（3D 输入层）"
+    },
+    "UI-HOME": {
+      "status": "adapter",
+      "reason": "开始页由 home_view.gd + home_ship_map.gd 承担（DOM → Control 换形）"
+    },
+    "UI-REPLAY": {
+      "status": "pending",
+      "reason": "3D 尚无回放界面，属真缺口"
+    },
+    "D-LINES": {
+      "status": "adapter",
+      "reason": "台词池在 export-lines 阶段烘焙成 lines.json，3D 运行时不保留同名函数"
+    },
+    "D-PLATES": {
+      "status": "adapter",
+      "reason": "面板数据导出为 plates.json，3D 运行时无同名函数"
+    },
+    "E-CLOCK": {
+      "status": "adapter",
+      "reason": "自建时钟由 Godot 引擎时间与 sim 计时字段承担"
+    },
+    "E-INVARIANTS": {
+      "status": "ported",
+      "reason": "sim/invariants.gd 承担不变量校验"
+    }
+  }
+}

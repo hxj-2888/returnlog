@@ -5,11 +5,13 @@
  * 玩法主链（刀、枪、死亡、幽灵、天亮、会议、拖拽、任务）没有自动对账，
  * 于是出现了「12 秒失血」「第二刀必死」「死亡不转幽灵」这类 3D 自造规则。
  *
+ * 2026-11-13 起：**函数映射只读 3d/spec/mapping-ledger.json**，本工具不再按同名
+ * 自动配对、也不再按 DOM 正则猜 not-applicable —— 那些隐式分支已删除，判决由账本唯一提供。
+ *
  * 本工具做四件事：
- *   ① 函数映射：把 js/game.js + js/ai 下 .js + js/t2/space.js 的每个函数，与
- *      3d/preview/scripts 下全部 .gd 的实现建立映射（显式表 → 同名归一化）。
+ *   ① 函数映射：按账本取每条 2.5D 函数的状态与目标（账本由 build-mapping-ledger 生成）。
  *   ② 守卫/状态对账：对已映射的函数抽「2.5D 的 if(...)return 守卫」与
- *      「对 agent 字段的写入」，逐条检查 3D 实现里有没有对应物。
+ *      「对 agent 字段的写入」，逐条检查 3D 实现里有没有对应物（这是内容校验，不是映射判决）。
  *   ③ 自造规则扫描：3D 里状态写入但没有任何 2.5D 来源的函数，列为可疑。
  *   ④ 数值真源漂移：space.json / rules.json 的 sources 指纹必须与当前 2.5D 一致。
  *
@@ -17,7 +19,6 @@
  *   node tools/check-gameplay-parity.cjs              # 报告，非 0 只在真源漂移时
  *   node tools/check-gameplay-parity.cjs --strict     # 有 pending / 守卫缺口也退出 1
  *   node tools/check-gameplay-parity.cjs --src <path> # 指定 2.5D 仓路径
- *   node tools/check-gameplay-parity.cjs --init       # 生成/补全 spec/gameplay-parity.json
  */
 const fs = require('fs');
 const path = require('path');
@@ -28,11 +29,11 @@ const args = process.argv.slice(2);
 const SRC = path.resolve(
   argValue('--src') || path.join(ROOT, '..', '新返航录')
 );
-const SPEC = path.join(ROOT, '3d', 'spec', 'gameplay-parity.json');
+const LEDGER = path.join(ROOT, '3d', 'spec', 'mapping-ledger.json');
+const LAYERS = path.join(ROOT, '3d', 'spec', 'mapping-layers.json');
 const OUT_MD = path.join(ROOT, '3d', 'reports', 'parity-report.md');
 const OUT_CSV = path.join(ROOT, '3d', 'reports', 'parity-report.csv');
 const STRICT = args.includes('--strict');
-const INIT = args.includes('--init');
 const UPDATE_BUDGET = args.includes('--update-baseline');
 
 function argValue(flag) {
@@ -172,24 +173,19 @@ for (const f of walk(path.join(ROOT, '3d', 'preview', 'scripts'))) {
   for (const fn of indexGd(f)) gdFns.push(fn);
 }
 
-const spec = fs.existsSync(SPEC)
-  ? readJson(SPEC)
-  : { version: 1, note: '', entries: [], ignore: [] };
-const entryByKey = new Map((spec.entries || []).map((e) => [e.src, e]));
-const ignore = new Set(spec.ignore || []);
+if (!fs.existsSync(LEDGER)) {
+  console.error('PARITY FAIL 缺少 3d/spec/mapping-ledger.json；先跑 npm run map:build');
+  process.exit(1);
+}
+const ledger = readJson(LEDGER);
+const layers = readJson(LAYERS);
+const entryByKey = new Map();
+for (const e of ledger.entries || []) if (!entryByKey.has(e.src)) entryByKey.set(e.src, e);
 
 function gdLookup(target) {
   // target: "sim/sim_state.gd:knife"
   const [rel, name] = target.split(':');
   return gdFns.find((f) => f.file.endsWith(rel) && f.name === name) || null;
-}
-
-function autoTarget(jsFn) {
-  const snake = toSnake(jsFn.name);
-  const candidates = gdFns.filter((g) => g.name === snake || g.name === '_' + snake);
-  if (candidates.length === 0) return null;
-  // 多候选时优先 sim/ 目录
-  return candidates.find((g) => g.file.startsWith('sim/')) || candidates[0];
 }
 
 const rows = [];
@@ -205,23 +201,19 @@ for (const fn of jsFns) {
 }
 for (const fn of jsFns) {
   const key = fn.file + ':' + fn.name;
-  if (ignore.has(key) || ignore.has(fn.name)) continue;
   const entry = entryByKey.get(key);
   let gd = null;
-  let status = 'pending';
-  if (entry && !entry.target && entry.status === 'not-applicable') {
+  let status = 'unmapped';
+  if (!entry) {
+    status = 'unmapped';
+  } else if (entry.status === 'not-applicable') {
     status = 'not-applicable';
-  } else if (entry && entry.target) {
+  } else if (entry.target) {
     gd = gdLookup(entry.target);
     status = gd ? entry.status || 'mapped' : 'broken-target';
   } else {
-    gd = autoTarget(fn);
-    if (gd) {
-      status = 'auto';
-    } else if (/document\.|getElementById|querySelector|ctx\.|innerHTML|classList|\.fillRect|\.drawImage|\.beginPath/.test(fn.body)) {
-      // 2.5D 的 DOM / Canvas 绘制函数：3D 由 Godot 场景与渲染管线承担，无 1:1 对应。
-      status = 'not-applicable';
-    }
+    // adapter 允许没有 .gd 目标（如按键映射）；其余无目标一律按缺口计。
+    status = entry.status === 'adapter' ? 'adapter' : entry.status === 'unmapped' ? 'pending' : entry.status;
   }
   const row = {
     src: key,
@@ -275,8 +267,8 @@ for (const fn of jsFns) {
 const jsNames = new Set(jsFns.map((f) => f.name));
 const jsSnakes = new Set(jsFns.map((f) => toSnake(f.name)));
 const extras = [];
-const extrasAllow = spec.extras_allow || {};
-const explicitTargets = new Set((spec.entries || []).map((e) => e.target).filter(Boolean));
+const extrasAllow = Object.fromEntries((ledger.extras || []).map((e) => [e.target, e.reason]));
+const explicitTargets = new Set((ledger.entries || []).map((e) => e.target).filter(Boolean));
 for (const g of gdFns) {
   if (!g.file.startsWith('sim/')) continue;
   if (explicitTargets.has(g.file + ':' + g.name)) continue;
@@ -405,26 +397,6 @@ fs.mkdirSync(path.dirname(OUT_MD), { recursive: true });
 fs.writeFileSync(OUT_MD, md.join('\n'), 'utf8');
 fs.writeFileSync(OUT_CSV, csv, 'utf8');
 
-if (INIT) {
-  const merged = new Map(entryByKey);
-  for (const r of rows) {
-    if (merged.has(r.src)) continue;
-    merged.set(r.src, {
-      src: r.src,
-      target: r.target,
-      status: r.status === 'auto' ? 'auto' : 'pending',
-      note: '',
-    });
-  }
-  fs.writeFileSync(SPEC, JSON.stringify({
-    version: 1,
-    note: '2.5D → 3D 玩法函数映射。status: ported / adapter / auto / pending / not-applicable。' +
-      '凡标 adapter 必须在 note 写清差异（只允许输入映射与表现层）。',
-    entries: [...merged.values()].sort((a, b) => a.src.localeCompare(b.src)),
-    ignore: spec.ignore || [],
-  }, null, 2) + '\n', 'utf8');
-}
-
 console.log('PARITY_GAMEPLAY 总函数=' + counts.total + ' 映射=' + ((counts.mapped || 0) + (counts.ported || 0) + (counts.adapter || 0)) +
   ' 自动=' + (counts.auto || 0) + ' 未映射=' + (counts.pending || 0) +
   ' 守卫缺口=' + counts.guard_gap + ' 写入缺口=' + counts.write_gap +
@@ -437,7 +409,7 @@ if (drift.length) {
 }
 /* 预算制：当前积压允许存在，但不许变差（类似 lint baseline）。
  * --update-baseline 只在缺口**下降**后手动收紧，防止一次提交把债还回去。 */
-const budget = spec.budget || { pending: 292, guard_gap: 11, write_gap: 8, extras: 8, hardcoded: 0 };
+const budget = layers.parity_budget || { pending: 0, guard_gap: 0, write_gap: 0, extras: 0, hardcoded: 0 };
 const now = {
   pending: counts.pending || 0,
   guard_gap: counts.guard_gap,
@@ -446,8 +418,8 @@ const now = {
   hardcoded: hardcoded.length,
 };
 if (UPDATE_BUDGET) {
-  spec.budget = now;
-  fs.writeFileSync(SPEC, JSON.stringify(spec, null, 2) + '\n', 'utf8');
+  layers.parity_budget = Object.assign({ note: (layers.parity_budget || {}).note || '' }, now);
+  fs.writeFileSync(LAYERS, JSON.stringify(layers, null, 2) + '\n', 'utf8');
   console.log('PARITY_BUDGET 已更新：' + JSON.stringify(now));
 }
 if (STRICT) {

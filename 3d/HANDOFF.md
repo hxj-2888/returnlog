@@ -305,6 +305,21 @@ foreach ($t in $tests) {
 8. **截图 / 机位严禁捕获鼠标**：所有 `--shot` / `--crewshot` / `--meetshot` 等必须走 `_screenshot_mode`，
    禁止 `CAPTURED` / `warp_mouse`；详细约束见 §0.5 ⑬。
 
+### 0.11 映射层（2026-11-13）
+
+> 目的：把「这条 2.5D 代码在 3D 里对应哪」从四处手写表 + 门禁猜，收缩成一张账本。
+
+| 文件 | 角色 |
+|---|---|
+| `3d/spec/mapping-layers.json` | 分层与政策：系统 → 层、整系统默认状态、`parity_budget`。**手写**。 |
+| `3d/spec/mapping-ledger.json` | 999 个 2.5D 函数逐条判决（`ported/auto/adapter/not-applicable/pending/unmapped`）。**唯一真源**。 |
+| `3d/tools/build-mapping-ledger.cjs` | 只做机械归位：算系统/层、校验目标、算汇总。**不猜状态**。 |
+| `3d/tools/map-diff.cjs` | `--section` 并排原文、`--pending` 缺口清单、`--layer/--status` 过滤。 |
+
+- 新增/改 2.5D 函数后跑 `npm run map:build`，新函数默认 `unmapped`；判决写进账本再跑 `map:check`。
+- `npm run check` 现在共 **9 项**，最后一项是 `map:check`：账本与 2.5D 不一致、目标悬空、缺口超预算都会红。
+- `audit:parity:strict` 已改为**只读账本**，`gameplay-parity.json` 不再参与判决；旧的同名自动配对与 DOM 正则猜测已删除。
+
 ---
 
 ## 1. 分支与边界（先读这一段，方向错了后面全白做）

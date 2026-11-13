@@ -1,5 +1,30 @@
 # 3D 修改记录
 
+## 2026-11-13 · 总映射层：一张账本替掉四处映射源与门禁里的猜测
+
+- **本批改动**：
+  ① 新增 `3d/spec/mapping-layers.json`：12 层分层、系统 → 层映射、整系统状态政策（DOM/Canvas/入口/测试面
+  判 `not-applicable`、按键映射判 `adapter`、回放判 `pending`）、`parity_budget`。
+  ② 新增 `3d/spec/mapping-ledger.json`：**999 个 2.5D 函数逐条判决**，同名嵌套定义用 `occ` 序号区分；
+  这是函数映射的唯一真源。
+  ③ 新增 `3d/tools/build-mapping-ledger.cjs`：只做机械归位（算系统/层、校验目标存在、算汇总、对预算），
+  **不再按函数名自动配对、不再按 DOM 正则猜状态**；新增函数默认 `unmapped`，缺口只许收敛。
+  ④ 新增 `3d/tools/map-diff.cjs`：`--section` 并排打印 2.5D 原文与 3D 目标原文（带行号）、
+  `--pending` 缺口清单、`--layer/--status/--stats/--json`。
+  ⑤ `3d/tools/check-gameplay-parity.cjs` 改为只读账本：删除 `autoTarget()`、DOM/Canvas 正则推断、
+  `ignore` 与 `--init`；预算迁到 `mapping-layers.json#parity_budget`。
+  ⑥ `tools/check-all.cjs` 增加第 9 项 `map:check`。
+  ⑦ 逐条判决了旧门禁里被「同名自动匹配」掩盖的 **66 条 pending**（Canvas/DOM 判 `not-applicable`，
+  交互/会议/发言找到 3D 换名实现判 `ported`/`adapter`），另有 6 条 UI 换形守卫差异改判 `adapter`；
+  再把判据明确的三个簇落账（性格公式 17 条 → `rules.json#tables.SKTrait` 导出期烘焙、几何 5 条 → `grid_nav`、
+  小游戏 21 条 → `minigame/mg_*.gd`），`unmapped` 74 → **31**。
+- **读数变化**（本次实跑）：账本 **999 函数**：ported 114 / auto 112 / adapter 352 / not-applicable 358 /
+  pending 32 / unmapped 31，目标悬空 **0**；预算收紧 `pending 104 → 32`、`unmapped 74 → 31`。
+  `npm run check` **9 通过 / 0 失败**；`npm run audit:parity:strict` 总函数 391 / 映射 243 / 自动 67 /
+  未映射 0 / 守卫缺口 0 / 写入缺口 0 / 3D 独有 0 / 漂移 0。
+- **下一批立项依据**：剩余 74 条 `unmapped` 集中在 `js/t2/ai.js`（认知辅助）与 `T3-VIEW`；
+  逐条判决后再用 2.5D `_t` 导出行为夹具，把 `auto` 逐步升级为 `ported`。
+
 ## 2026-11-13 · 逐行审核批：交互键 / UI 锁 / AI 站桩
 
 - **本批改动**（只改 3D 表现层与输入层；判定数值仍取自 2.5D 真源）：

@@ -55,7 +55,10 @@
     "audit:parity": "node 3d/tools/check-gameplay-parity.cjs",
     "audit:parity:strict": "node 3d/tools/check-gameplay-parity.cjs --strict",
     "port:stub": "node 3d/tools/gen-port-stubs.cjs",
-    "audit:parity:baseline": "node 3d/tools/check-gameplay-parity.cjs --update-baseline"
+    "audit:parity:baseline": "node 3d/tools/check-gameplay-parity.cjs --update-baseline",
+    "map:build": "node 3d/tools/build-mapping-ledger.cjs",
+    "map:diff": "node 3d/tools/map-diff.cjs",
+    "map:check": "node 3d/tools/build-mapping-ledger.cjs --check"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

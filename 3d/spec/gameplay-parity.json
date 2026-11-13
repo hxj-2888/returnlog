@@ -1,6 +1,8 @@
 {
   "version": 1,
-  "note": "2.5D → 3D 玩法函数映射。status: ported / adapter / auto / pending / not-applicable。凡标 adapter 必须在 note 写清差异（只允许输入映射与表现层）。",
+  "deprecated": true,
+  "superseded_by": "3d/spec/mapping-ledger.json",
+  "note": "【2026-11-13 起已被 mapping-ledger.json 取代，本文件不再参与任何门禁】原 2.5D → 3D 玩法函数映射表。判决请改 mapping-ledger.json 并跑 npm run map:build。",
   "entries": [
     {
       "src": "js/ai/sanity.js:alibiReach",

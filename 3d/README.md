@@ -199,6 +199,12 @@ npm run 3d:simdump           # 导出 2.5D 同 seed 事件流（可加 -- --seed
 npm run file:map                                  # 全仓结构总览（行数/函数数/夹具占比）
 npm run file:map -- --section dragtest            # 按名取函数原文（带行号）
 npm run file:check                                # 预算棘轮：单文件/单函数上限 + tests/ 外禁夹具
+# 映射层（2026-11-13）：2.5D 全部函数一张账本，门禁不再按函数名或正则猜
+npm run map:diff                                  # 分层/状态汇总（999 个函数）
+npm run map:diff -- --section nearPoint           # 并排看 2.5D 原文与 3D 目标原文（带行号）
+npm run map:diff -- --pending                     # 还剩哪些缺口（unmapped + pending，只许收敛）
+npm run map:check                                 # 门禁：账本与 2.5D 一致 / 目标存在 / 缺口预算
+npm run map:build                                 # 重建账本（保留已有判决；新增函数默认 unmapped）
 # 调试夹具住在 3d/preview/scripts/tests/（6 个模块），main.gd 只保留分发，不放实现
 
 "$GODOT" --headless --path 3d/preview -- --sim1000 --games 200  # 3D 批量基线（含败因/驱逐/异形决策遥测）

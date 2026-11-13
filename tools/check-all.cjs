@@ -24,6 +24,8 @@ const CHECKS = [
   ['3d:ui:check', '3d/tools/check-ui-spec.cjs'],
   // 大文件棘轮：单文件/单函数行数上限 + tests/ 外不得出现调试夹具（2026-11-12）
   ['file:check', '3d/tools/filemap.cjs', ['--check']],
+  // 映射账本：2.5D 全部函数必须逐条有判决，缺口只许收敛（2026-11-13）
+  ['map:check', '3d/tools/build-mapping-ledger.cjs', ['--check']],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;
