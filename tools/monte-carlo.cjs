@@ -2,6 +2,7 @@
  * ------------------------------------------------------------
  * 用法：node tools/monte-carlo.cjs [--games 1000] [--seed 20261030]
  *        [--dt 0.1] [--max-nights 15] [--out tools/mc-results.json]
+ *        [--report reports/mc-1000.md] [--csv reports/mc-1000.csv]
  * 依赖：playwright-core（同 test-v3.cjs；可用 PLAYWRIGHT_CORE 指定）
  *
  * 方法：
@@ -37,6 +38,8 @@ const DT = Math.max(0.05, Math.min(0.2, parseFloat(arg('dt', '0.1')) || 0.1));
 const MAX_NIGHTS = Math.max(1, parseInt(arg('max-nights', '15'), 10) || 15);
 const OUT = path.resolve(DIR, arg('out', 'tools/mc-results.json'));
 const REPORT = path.resolve(DIR, arg('report', 'tools/mc-report.md'));
+/* 逐局明细：一行一局，所有标量计数器 + tasksByPoint(JSON)。 */
+const CSV = path.resolve(DIR, arg('csv', 'reports/mc-results.csv'));
 const GAME_TIMEOUT = Math.max(1000, parseInt(arg('game-timeout', '20000'), 10) || 20000);
 const VERBOSE = process.env.MC_VERBOSE === '1' || arg('verbose', '0') === '1';
 const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
@@ -325,8 +328,12 @@ function summarize(results) {
   for (const k of ['nights', 'prog', 'knives', 'meetings', 'exiles', 'humans', 'aliens',
     'sabotages', 'shots', 'searches', 'fakeRepairs', 'fakeTasks', 'knownWrites', 'contradictions']) {
     const xs = results.map(r => +r[k]).filter(Number.isFinite);
-    dist[k] = { p10: quantile(xs, 0.1), p50: quantile(xs, 0.5), p90: quantile(xs, 0.9),
-      mean: +mean(results, k).toFixed(3) };
+    dist[k] = {
+      p1: quantile(xs, 0.01), p5: quantile(xs, 0.05), p10: quantile(xs, 0.1),
+      p25: quantile(xs, 0.25), p50: quantile(xs, 0.5), p75: quantile(xs, 0.75),
+      p90: quantile(xs, 0.9), p95: quantile(xs, 0.95), p99: quantile(xs, 0.99),
+      mean: +mean(results, k).toFixed(3)
+    };
   }
   /* 结束原因 × 胜者交叉表 */
   const cross = {};
@@ -366,6 +373,22 @@ function summarize(results) {
   };
 }
 
+function writeCsv(results, finished) {
+  if (!results || !results.length) return;
+  fs.mkdirSync(path.dirname(CSV), { recursive: true });
+  const cols = [];
+  for (const r of results) for (const k of Object.keys(r)) if (cols.indexOf(k) < 0) cols.push(k);
+  const esc = v => {
+    if (v == null) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [cols.join(',')];
+  for (const r of results) lines.push(cols.map(k => esc(r[k])).join(','));
+  fs.writeFileSync(CSV, lines.join('\n') + '\n');
+  if (finished === GAMES) console.log('逐局 CSV → ' + path.relative(DIR, CSV));
+}
+
 function writeOut(results, finished) {
   const missZh = Object.keys(summarize(results).avg).filter(k => !LABELS[k]);
   if (missZh.length) console.log('[中文别名] 缺少中文名的指标：' + missZh.join(', '));
@@ -375,6 +398,7 @@ function writeOut(results, finished) {
       generatedAt: new Date().toISOString(),
       games: GAMES, finished, seed: BASE_SEED, dt: DT, maxNights: MAX_NIGHTS,
       mode: 'AI vs AI（旁观者局，无玩家操作）',
+      report: path.relative(DIR, REPORT).replace(/\\/g, '/'), csv: path.relative(DIR, CSV).replace(/\\/g, '/'),
       config: cfg,
       notes: [
         '会议期间夜晚时钟暂停（SKSanity.MEET.pauseClock），白天会议不占夜；旧口径「夜会议按 30 秒扣夜」已作废。',
@@ -415,6 +439,10 @@ function writeOut(results, finished) {
     '',
     '> 生成：' + payload.meta.generatedAt + ' · 局数：' + finished + ' / ' + GAMES +
       ' · seed：' + BASE_SEED + ' · dt：' + DT + ' · 上限：' + MAX_NIGHTS + ' 夜',
+    '',
+    '> **读数快照**：本报告是 T3 验收层的批次读数，不是现行基线；现值指针见 `CHANGELOG.md` 最新批次。',
+    '',
+    '> 逐局明细：`' + path.relative(DIR, CSV).replace(/\\/g, '/') + '`（一局一行，含全部计数器与 `tasksByPoint`）。',
     '',
     '## 胜率',
     '',
@@ -626,12 +654,14 @@ function writeOut(results, finished) {
     ...(s.buckets.humansAlive || []).map(b => '| 人类存活 | ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' + b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' |'),
     ...(s.buckets.aliensAlive || []).map(b => '| 异形存活 | ' + b.label + ' | ' + b.games + ' | ' + b.share + '% | ' + b.humanWin + '% | ' + b.ci[0] + '~' + b.ci[1] + ' |'),
     '',
-    '## 关键变量分布（P10 / P50 / P90 · 均值会抹平长尾）',
+    '## 关键变量分布（P1 / P5 / P10 / P25 / P50 / P75 / P90 / P95 / P99 · 均值会抹平长尾）',
     '',
-    '| 指标（中文 / 代码键） | P10 | P50 | P90 | 均值 |',
-    '|---|---:|---:|---:|---:|',
-    ...Object.keys(s.dist || {}).map(k => '| ' + L(k) + ' | ' + s.dist[k].p10 + ' | ' + s.dist[k].p50 +
-      ' | ' + s.dist[k].p90 + ' | ' + s.dist[k].mean + ' |'),
+    '| 指标（中文 / 代码键） | P1 | P5 | P10 | P25 | P50 | P75 | P90 | P95 | P99 | 均值 |',
+    '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|',
+    ...Object.keys(s.dist || {}).map(k => '| ' + L(k) + ' | ' + s.dist[k].p1 + ' | ' + s.dist[k].p5 +
+      ' | ' + s.dist[k].p10 + ' | ' + s.dist[k].p25 + ' | ' + s.dist[k].p50 + ' | ' + s.dist[k].p75 +
+      ' | ' + s.dist[k].p90 + ' | ' + s.dist[k].p95 + ' | ' + s.dist[k].p99 +
+      ' | ' + s.dist[k].mean + ' |'),
     '',
     '## 每夜速率（调 NIGHT / WIN_PTS 之前先看这两条）',
     '',
@@ -679,7 +709,9 @@ function writeOut(results, finished) {
     ...payload.meta.notes.map(x => '- ' + x),
     ''
   ];
+  fs.mkdirSync(path.dirname(REPORT), { recursive: true });
   fs.writeFileSync(REPORT, md.join('\n'));
+  writeCsv(results, finished);
 }
 
 /* 只重建报告，不重跑对局：`node tools/monte-carlo.cjs --rereport`

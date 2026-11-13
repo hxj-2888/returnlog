@@ -9128,12 +9128,13 @@
             ctx.fillStyle=g0;ctx.beginPath();ctx.arc(0,0,1.05*s,0,7);ctx.fill();
           }
           const blink=off?(0.50+0.35*Math.sin(T*6)):(0.60+0.30*Math.sin(T*2.2));
+          /* 状态层落在闸组台面上：锚点是闸组前缘（贴家具），柜体在锚点 +y 方向 */
           ctx.fillStyle=(off?'rgba(127,211,240,':'rgba(127,227,180,')+blink.toFixed(2)+')';
-          ctx.beginPath();ctx.arc(-0.46*s,-0.62*s,0.085*s,0,7);ctx.fill();
+          ctx.beginPath();ctx.arc(-0.46*s,0.55*s,0.085*s,0,7);ctx.fill();
           ctx.fillStyle='rgba(205,216,230,.90)';
           ctx.font='600 '+Math.max(8,0.17*s).toFixed(1)+'px system-ui';
           ctx.textAlign='left';ctx.textBaseline='middle';
-          ctx.fillText(off?'断电':'供电',-0.32*s,-0.62*s);
+          ctx.fillText(off?'断电':'供电',-0.32*s,0.55*s);
           /* 拉闸进度环 */
           if(pull&&pull.p>0){
             const hot=pull.heavy;
@@ -9153,7 +9154,7 @@
               }
             }
           }
-          drawIcon('bolt',off?'#7FD3F0':'#F0C674',0.40*s,-0.50*s,0.30*s,0);
+          drawIcon('bolt',off?'#7FD3F0':'#F0C674',0.40*s,0.60*s,0.30*s,0);
           ctx.restore();
         }else if(f.kind==='monitor'){
           const cut=G.lightState===2;

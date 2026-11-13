@@ -179,6 +179,21 @@ function section(t) { console.log('\n== ' + t); }
     '仓库管道位于新舱室（' + (whPipe ? whPipe.x + ',' + whPipe.y : '缺') + '）');
   ok(MAPA.pts.length === 26 && MAPA.pts.every(p => p.d <= 2.6),
     '26 个任务点全部能被 nearPoint 命中（高难 8 / 普通 18）');
+  const ANCH = await T(() => {
+    const M = window.SKMapData;
+    const gap = (x, y, c) => Math.hypot(Math.max(c.x - x, 0, x - (c.x + c.w)),
+      Math.max(c.y - y, 0, y - (c.y + c.h)));
+    const props = M.cover.concat(M.decor || []);
+    const loose = M.points.filter(p => !props.some(c => c.room === p.room && gap(p.x, p.y, c) <= 0.6));
+    const onKind = (f, kinds) => !!f && M.cover.some(c => c.room === f.room &&
+      kinds.indexOf(c.kind) >= 0 && gap(f.x, f.y, c) <= 0.6);
+    return { loose: loose.map(p => p.label),
+      mon: onKind(M.facility.find(f => f.kind === 'monitor'), ['cam_opsdesk']),
+      brk: onKind(M.facility.find(f => f.kind === 'breaker'), ['power_breakerbank']) };
+  });
+  ok(ANCH.loose.length === 0, '26 个任务点都贴在家具/道具上（≤0.6 格）' +
+    (ANCH.loose.length ? ' :: ' + ANCH.loose.join(',') : ''));
+  ok(ANCH.mon && ANCH.brk, '静态设施锚点贴对应家具：监控台→主控台台面 / 电闸→电闸组前缘');
   const whRoom = MAPA.rs.find(r => r.id === 'warehouse');
   ok(whRoom && whRoom.area === 504 && whRoom.cls === '大' && whRoom.doors.length === 1,
     '仓库是 42×12 大型单门舱室（504 格）');
@@ -1887,13 +1902,13 @@ function section(t) { console.log('\n== ' + t); }
       if (x.mind) { x.mind.mem = []; x.mind.sus = {}; x.mind.why = {};
         x.mind.known = {}; x.mind.cred = {}; x.mind.humanT = {}; }
     }
-    /* 配电室是暗房，电闸又贴着墙：只有紧挨着闸杆的那一小条站位有视线
-       （实测 x=51 / y=53~55 才 `aiCanSee` 得到），这本身就是设计上的代价 ——
+    /* 配电室是暗房，电闸组贴着后墙：只有站在闸组正前方那一小条站位有视线
+       （实测 x≈48.6~50.8 / y≈57.0~57.2 才 `aiCanSee` 得到），这本身就是设计上的代价 ——
        「守闸」才看得到，隔着半个舱室拉闸没人能确证。 */
     t.tp(k.i, br[0], br[1]);
-    t.tp(h.i, 51, 54);
-    t.tp(h2.i, 51, 53.5);
-    t.tp(ha.i, 51, 53.7);
+    t.tp(h.i, 49.6, 57.2);
+    t.tp(h2.i, 48.6, 57.2);
+    t.tp(ha.i, 50.8, 57.2);
     const off = t.breakerBy(k.i);                      /* 拉闸断电 */
     const offRead = { state: off.state, known: t.knownOf(h.i),
       sus: (t.mind(h.i).sus || {})[k.i] || 0,
@@ -2702,10 +2717,10 @@ function section(t) { console.log('\n== ' + t); }
   const WH2 = await T(() => {
     const t = SKV3._t, g = t.G();
     g.me.doing = 0; g.me._doing = null; g.me.path = null;
-    g.dmg = [{ room: 'power', x: 49, y: 55.4, label: '测试故障', left: 60, dur: 60, by: 0 }];
+    g.dmg = [{ room: 'power', x: 49.6, y: 56.4, label: '测试故障', left: 60, dur: 60, by: 0 }];
     const pi = t.points().findIndex(p => p.label === '电路维修');
     g.me.tasks = [pi, 0, 1, 2]; g.me.tIdx = 0;
-    t.tp(0, 49, 55.4);
+    t.tp(0, 49.6, 56.4);
     t.openWheel();
     const w = t.wheel();
     const i = w.items.findIndex(x => x.id === 'breaker');
@@ -2998,12 +3013,16 @@ function section(t) { console.log('\n== ' + t); }
   const C0 = await T(() => {
     const t = SKV3._t, g = t.G();
     g.noReport = true;
-    /* 监控台锚点 2026-10-31 从 (84,29) → (81,28.8) → (79.35,36.0)：
-       最终贴在主控台上（屏幕斜躺在台面），玩家站主控台北侧 y34.7 调画面。 */
+    /* 监控台锚点贴主控台台面中心 (80.4,36.0)：2026-11-13 修复分支同步把旧值
+       (80.6,33) 带回房间中央的回归。玩家站主控台北侧 y34.7 调画面。 */
     t.tp(0, 80.1,34.7);
     const pts0 = t.points();
-    const far0 = pts0.findIndex(p => p.room !== 'cam');
-    g.me.tasks = g.me.tasks.map(idx => pts0[idx].room === 'cam' ? far0 : idx);  /* 监控台旁不留任务点，避免多项轮盘 */
+    /* 监控台旁不留任务点，避免多项轮盘；替换位必须去重（否则多个 cam 任务映射到
+       同一个 far0，随机任务表已含 far0 时会触发 A6「任务点重复」）。 */
+    const keep0 = new Set(g.me.tasks.filter(idx => pts0[idx].room !== 'cam'));
+    const spare0 = pts0.map((p, i) => i).filter(i => pts0[i].room !== 'cam' && !keep0.has(i));
+    let sp0 = 0;
+    g.me.tasks = g.me.tasks.map(idx => pts0[idx].room === 'cam' ? spare0[sp0++] : idx);
     return { room: t.state()[0].room, near: t.cams().near, inv: t.inv() };
   });
   await page.keyboard.press('w');
@@ -6541,7 +6560,7 @@ function section(t) { console.log('\n== ' + t); }
       }
       t.tp(k.i, br[0], br[1]);
       /* far 不传送到 (5,5)：那里是墙，会把 A17「站在不可走位置」点着（不是本用例要测的东西） */
-      t.tp(w.i, 51, 54); t.tp(n1.i, 51, 53.5); t.tp(n2.i, 51, 53.7);
+      t.tp(w.i, 49.6, 57.2); t.tp(n1.i, 48.6, 57.2); t.tp(n2.i, 50.8, 57.2);
       t.setMisId(chance);
       t.breakerBy(k.i);
       const known = t.knownOf(w.i) || {};
@@ -6556,7 +6575,7 @@ function section(t) { console.log('\n== ' + t); }
     const hs0 = g.agents.filter(x => !x.alien && x.i !== 0 && x.alive);
     const w0 = hs0[0], a1 = hs0[1], a2 = hs0[2], far0 = hs0[3];
     t.tp(k0.i, br[0], br[1]);
-    t.tp(w0.i, 51, 54); t.tp(a1.i, 51, 53.5); t.tp(a2.i, 51, 53.7); t.tp(far0.i, 5, 5);
+    t.tp(w0.i, 49.6, 57.2); t.tp(a1.i, 48.6, 57.2); t.tp(a2.i, 50.8, 57.2); t.tp(far0.i, 5, 5);
     const oldR = Math.random;
     Math.random = () => 0;                    /* 必然触发，且取候选池第 0 个 */
     t.setMisId(0);
