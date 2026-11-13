@@ -4174,11 +4174,15 @@ function section(t) { console.log('\n== ' + t); }
     t.aiTick(h.i, 4500, 0.05);
     const evs = t.events().filter(e => e.kind === 'qual' && e.actor === h.i);
     return { progress: h.progress, qp: h.qualPending, qual: h.qual, do: h._doing,
-      spot, claims: evs.length, inv: t.inv() };
+      bullet: h.bullet, medkit: h.medkit, spot, claims: evs.length, inv: t.inv() };
   });
-  ok(AIQN.progress >= 3 && AIQN.qp === 0 && AIQN.qual >= 1 && AIQN.claims >= 1,
+  /* 只校验「回圆桌领过」这一行为：claim 事件由 grantQual 记账，是本用例的真正靶点。
+     末值 qual 不可断言 —— 领到后 AI 站在补给点会按既有玩法用申请单换弹药/医疗包
+     （js/game.js:4397/4408），花掉几张取决于随机分到的任务点落在哪个补给点附近。 */
+  ok(AIQN.progress >= 3 && AIQN.qp === 0 && AIQN.claims >= 1,
     'AI 人类完成 3 分后会自己回圆桌领取申请单（progress=' + AIQN.progress +
-    ' / 待领 ' + AIQN.qp + ' / 申请单 ' + AIQN.qual + '）');
+    ' / 待领 ' + AIQN.qp + ' / 领取 ' + AIQN.claims + ' 次 · 现存 ' + AIQN.qual +
+    ' 张（已在补给点换弹' + AIQN.bullet + '/包' + AIQN.medkit + '））');
   ok(AIQN.inv && AIQN.inv.fails.length === 0, 'AI 自然领取申请单后不变量全过');
 
   section('AI 拖拽 · 濒死者送医疗间复活');
