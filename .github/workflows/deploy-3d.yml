@@ -16,12 +16,13 @@
 #
 # 前置（2026-11-13 实测，两件缺一不可，且都只能在 Cloudflare 后台办）：
 #   ① 账号已订阅 R2 —— 否则 API 回 10042「Please enable R2 through the Cloudflare Dashboard」；
-#      免费额度 10 GB-month 存储 / 1M Class A / 10M Class B 操作、出口流量不计费。
-#   ② 仓库 Secrets 的 CF_API_TOKEN / CF_ACCOUNT_ID 除 Pages:Edit 外，还需要
-#      Account → Cloudflare R2 Storage: Edit —— 否则回 10000「Authentication error」。
-#      该 Token 与 2.5D deploy.yml、作品集共用，加权限会同时放大三个项目的权限面。
+#      免费额度 10 GB-month 存储 / 1M Class A / 10M Class B 操作、出口流量不计费。本账号已开通。
+#   ② 仓库 Secret `CF_API_TOKEN_3D`：**只带 R2 权限、不带 Pages** 的专用 Token。
+#      R2 三步（探测/建桶/上传）用它；Pages 相关步骤仍用共用的 `CF_API_TOKEN`（Pages:Edit）。
+#      两条凭据分开是为了不为了传大文件把 2.5D 主站与作品集的 Token 权限面一起放大。
+#      实测：R2 专用 Token 读 `/pages/projects` 回 10000，读 `/r2/buckets` 200。
 # 缺任一件都会在「Check R2 access」这步按错误码红字点名，不会推上半个坏版本。
-# API 侧补不了 ②：Cloudflare 明确「No OAuth scope covers this endpoint」，
+# API 侧补不了权限：Cloudflare 明确「No OAuth scope covers this endpoint」，
 # OAuth 身份（含 Qoder 的 Cloudflare 连接器）读不到也改不了 /user/tokens。
 #
 # R2 存储：键是内容哈希，资源没变的两次部署复用同一批对象；每次改图会留下一份
@@ -128,6 +129,8 @@ jobs:
 
       - name: Check R2 access and ensure bucket
         id: r2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN_3D }}
         run: |
           set -euo pipefail
           res=$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$CF_API/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets")
@@ -138,7 +141,7 @@ jobs:
             #   10000/9109 = R2 服务本身没到这个 Token 面前，是 Token 缺权限。
             case "$(printf '%s' "$res" | jq -r '.errors[0].code // "?"')" in
               10042) echo "::error::账号还没开通 R2（10042）—— 后台 R2 Object Storage → Subscribe/Enable，这一步不用改 Token" ;;
-              *) echo "::error::CF_API_TOKEN 读不到 R2 —— 要给这个 Token 加上 Account → Cloudflare R2 Storage: Edit" ;;
+              *) echo "::error::CF_API_TOKEN_3D 读不到 R2 —— 检查这个 3D 专用 Token 是否带 Account → Cloudflare R2 Storage: Edit（共用的 CF_API_TOKEN 不需要加）" ;;
             esac
             exit 1
           fi
@@ -156,9 +159,13 @@ jobs:
 
       - name: Create R2 bucket
         if: steps.r2.outputs.created == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN_3D }}
         run: wrangler r2 bucket create "$R2_BUCKET"
 
       - name: Upload oversized files to R2
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN_3D }}
         run: |
           set -euo pipefail
           total=$(jq '.files | length' build/r2-manifest.json)
