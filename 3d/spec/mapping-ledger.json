@@ -865,7 +865,7 @@
     {"src":"js/t2/ai.js:susCut","system":"A-COGNITION","layer":"T2-COGNITION","status":"ported","target":"","note":"parity-map: mind.gd#sus_cut（known 不可削减；削减记入 alibi 备忘）"},
     {"src":"js/t2/ai.js:susOf","system":"A-COGNITION","layer":"T2-COGNITION","status":"ported","target":"","note":"parity-map: mind.gd#sus_of"},
     {"src":"js/t2/ai.js:topSus","system":"A-COGNITION","layer":"T2-COGNITION","status":"ported","target":"","note":"parity-map: mind.gd#top_sus"},
-    {"src":"js/t2/decision.js:bodyReported","system":"S-DECISION","layer":"T2-SOCIAL","status":"not-applicable","target":"","note":"3D 用 bodyReported 字段"},
+    {"src":"js/t2/decision.js:bodyReported","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"","note":"3D 直接用 bodyReported 字段，无同名判定函数"},
     {"src":"js/t2/decision.js:free","system":"S-DECISION","layer":"T2-SOCIAL","status":"auto","target":"sim/bots.gd:_free","note":""},
     {"src":"js/t2/decision.js:markBodyReported","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/sim_state.gd:open_meeting_kind","note":"报告时内联写 bodyReported=true"},
     {"src":"js/t2/decision.js:meetLater","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/speech.gd:tick","note":"js/t2/decision.js:169：setTimeout 式发言排队；3D speech.tick(dt) 返回待发言条数，用 dt 推进而非定时器"},
@@ -875,7 +875,7 @@
     {"src":"js/t2/decision.js:parseSpeech","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/lines_data.gd:parse_speech","note":"3D 只截断 raw，解析用全文；人名/舱室按自己的词表，不排除死者席位"},
     {"src":"js/t2/decision.js:sayStreakOK","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/speech.gd:tick","note":"js/t2/decision.js:180：发言连发节流；3D _emit/防复读（SPEECHTEST 复读=0）同一约束"},
     {"src":"js/t2/decision.js:seatIndex","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/sim_state.gd:agent","note":"js/t2/decision.js:56：席位号→索引；3D 同为 i-1 直算，调用侧组合"},
-    {"src":"js/t2/decision.js:seatNo","system":"S-DECISION","layer":"T2-SOCIAL","status":"not-applicable","target":"","note":"js/t2/decision.js:40：席位两位编号文案；3D 会议 UI 直接渲染 i+1"},
+    {"src":"js/t2/decision.js:seatNo","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"","note":"席位编号文案由 3D 会议 UI 直接渲染 i+1"},
     {"src":"js/t2/decision.js:stopChatter","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/speech.gd:tick","note":"js/t2/decision.js:164：会议开始清空闲聊调度；3D speech.tick 的调度在会议期由 _tick_meeting 接管（on_meeting_open 清队列）"},
     {"src":"js/t2/decision.js:tagByName","system":"S-DECISION","layer":"T2-SOCIAL","status":"adapter","target":"sim/sim_state.gd:agent","note":"js/t2/decision.js:42：名字→agent；3D agents 数组按索引/名字由 UI 层直接查（无独立反查函数的必要）"},
     {"src":"js/t2/decision.js:tagName","system":"S-DECISION","layer":"T2-SOCIAL","status":"auto","target":"main.gd:_tag_name","note":""},
@@ -1015,10 +1015,10 @@
    "total": 999,
    "by_status": {
     "auto": 112,
-    "adapter": 352,
+    "adapter": 354,
     "unmapped": 31,
     "ported": 114,
-    "not-applicable": 358,
+    "not-applicable": 356,
     "pending": 32
    },
    "by_layer": {
@@ -1053,9 +1053,9 @@
     },
     "T2-SOCIAL": {
      "total": 89,
-     "adapter": 50,
+     "adapter": 52,
      "ported": 11,
-     "not-applicable": 4,
+     "not-applicable": 2,
      "unmapped": 8,
      "auto": 16
     },

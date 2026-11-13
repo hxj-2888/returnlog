@@ -315,10 +315,12 @@ foreach ($t in $tests) {
 | `3d/spec/mapping-ledger.json` | 999 个 2.5D 函数逐条判决（`ported/auto/adapter/not-applicable/pending/unmapped`）。**唯一真源**。 |
 | `3d/tools/build-mapping-ledger.cjs` | 只做机械归位：算系统/层、校验目标、算汇总。**不猜状态**。 |
 | `3d/tools/map-diff.cjs` | `--section` 并排原文、`--pending` 缺口清单、`--layer/--status` 过滤。 |
+| `3d/spec/parity-map.json` | 只剩红线 11 引用的 `allowed_differences` + `truth_sources`；函数判决已并入账本。 |
 
 - 新增/改 2.5D 函数后跑 `npm run map:build`，新函数默认 `unmapped`；判决写进账本再跑 `map:check`。
 - `npm run check` 现在共 **9 项**，最后一项是 `map:check`：账本与 2.5D 不一致、目标悬空、缺口超预算都会红。
-- `audit:parity:strict` 已改为**只读账本**，`gameplay-parity.json` 不再参与判决；旧的同名自动配对与 DOM 正则猜测已删除。
+- `audit:parity:strict` 与 `3d:parity:check` 都已改为**只读账本**；`gameplay-parity.json`（已废弃）与
+  `parity-map.modules`（已移除）都不再参与判决，旧的同名自动配对与 DOM 正则猜测已删除。
 
 ---
 
@@ -330,7 +332,7 @@ foreach ($t in $tests) {
 | 3D 产品 | **2.5D 的延伸**（Godot 4.6）；**只有按键操作 / 维度 / 部分美术素材**可以不同，其余全部移植，见 `AGENTS.md` §一.11 与 ADR-0011 |
 | 本仓分支 | **分离后的 3D 独立仓**，当前分支 `master`（对应上游 `3d` 分支；不是上游的 `main`）。上游的「2.5D 推 main、3D 推副分支」规则在上游仓执行；本仓不得把 3D 客户端合回上游 `main` |
 | 仓库状态（2026-11-10） | 最后一次提交 `33cd6a4`（2026-11-09 清理 docs/SDXL 舱室图）；**第 1–16 批与现场修复共 77 个文件未提交**（`js/ assets/` 只读基线未动）。交接/发布前按 §0.10 审阅并提交 |
-| 共享的东西 | 地图 / 规则 / 语料 / 空间 / 任务 / 机器人数值**全部**从 `js/` 导出（`3d/tools/export-*.cjs`），推理与发言按 `spec/parity-map.json` 逐函数对账 |
+| 共享的东西 | 地图 / 规则 / 语料 / 空间 / 任务 / 机器人数值**全部**从 `js/` 导出（`3d/tools/export-*.cjs`），推理与发言按 `spec/mapping-ledger.json` 逐函数对账 |
 | 不共享的东西 | 只有运行时宿主与呈现：DOM/Canvas vs Godot 场景、输入映射、渲染与 LOD —— 都属"维度"这一条允许差异 |
 
 > ⚠ **不要再把 3D 当"另一个游戏"来写**（2026-11-09 用户裁定）。

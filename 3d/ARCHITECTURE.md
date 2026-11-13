@@ -150,7 +150,7 @@ SDXL / Qwen-Image ── 贴图/概念图 ──┼─→ assets/ ──→ Godo
 |---|---|---|
 | `3d/preview/` | **唯一运行时**：Godot 4.6 工程（`project.godot` / `scenes/` / `scripts/` / `data/` / `assets/`） | 可改（走 HANDOFF §0.10） |
 | `3d/tools/` | 数据导出、资产同步、契约校验（Node / Python / PowerShell，不参与运行时） | 可改（走流程） |
-| `3d/spec/` | 契约唯一口径：`parity-map.json` / `port-manifest.json` / `assets.manifest.json` / schema / `conventions.md` | 可改（走流程） |
+| `3d/spec/` | 契约唯一口径：`mapping-ledger.json`（函数判决）/ `mapping-layers.json`（分层与政策）/ `port-manifest.json` / `assets.manifest.json` / schema / `conventions.md` | 可改（走流程） |
 | `3d/assets/` | 仓库级资产库（模型 / 贴图 / 渲染 / 参照） | 可改，须登记 `3d/ASSETS.md` 与 CREDITS |
 | `3d/*.md`、`3d/docs/`、`3d/version.json` | 3D 核心文档 / 专题归档（art · audit）/ 版本真源 | 可改（走流程） |
 | `js/` | **2.5D 只读基线**：规则 / 数值 / 语料 / AI / 地图的唯一真源镜像，供导出与对账 | **禁止修改** |

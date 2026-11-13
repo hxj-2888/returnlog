@@ -10,7 +10,7 @@
  *
  * ⚠ 规则与推理/发言已同源（见 PORTING_PROTOCOL.md §2）；夹具验「信封字段 / kind 词表 /
  * 夜数 / 胜负原因」这些契约，并把首个分歧点列出来。逐条差异目前来自维度、
- * 随机流与 parity-map.json#pending 模块，pending 补完后应逐步收敛。
+ * 随机流与 mapping-ledger.json 的 pending 条目，pending 补完后应逐步收敛。
  */
 const fs = require('fs');
 const path = require('path');

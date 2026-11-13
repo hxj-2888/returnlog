@@ -14,7 +14,7 @@
  *   ① tables           —— 所有纯数据对象，GDScript 直接读值
  *   ② fn_fingerprints  —— 每个纯函数的源码 SHA + 数值字面量清单
  *                          （2.5D 改任何一个阈值，SHA 就变，check-parity 立刻 FAIL）
- *   ③ functions        —— 函数清单，供 3d/spec/parity-map.json 逐项对账
+ *   ③ functions        —— 函数清单，供 3d/spec/mapping-ledger.json 逐项对账
  *
  * 用法：node 3d/tools/export-rules.cjs
  * 也可被 check-parity.cjs require：const { buildRules } = require('./export-rules.cjs')

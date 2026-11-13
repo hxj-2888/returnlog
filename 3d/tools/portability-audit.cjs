@@ -181,7 +181,7 @@ md.push('- 先做会议面板（本批模板刚改过，状态机最清楚），
 md.push('');
 md.push('### E. 当前不能宣称“已自动对齐”');
 md.push('');
-md.push('- `port-manifest` 只保证 `js/` 行段 100% 认领；`parity-map` 只覆盖纯函数清单；');
+md.push('- `port-manifest` 只保证 `js/` 行段 100% 认领；`mapping-ledger` 覆盖全部 2.5D 函数（含纯函数清单）；');
 md.push('- `simdiff` 是诊断工具，历史报告首条事件就分歧；');
 md.push('- 因此“行为/UI 自动移植”仍是目标，不是现状。');
 md.push('');

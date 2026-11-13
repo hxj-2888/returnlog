@@ -8,8 +8,8 @@
  *      改了 js/ 没重跑 3d:export:rules → 直接 FAIL。
  *   ② 双份规则表：lines.json#rules 是语料附带快照，必须与 rules.json 的
  *      SKSanity 表逐项一致，不许出现第二套数值。
- *   ③ 函数对账：3d/spec/parity-map.json 必须覆盖 rules.json 的每个纯函数，
- *      状态只能是 synced / adapter / pending。
+ *   ③ 函数对账：3d/spec/mapping-ledger.json 必须覆盖 rules.json 的每个纯函数，
+ *      状态只能是 ported / auto / adapter / pending（纯函数不许 not-applicable）。
  *   ④ 3D 硬编码：扫描推理/发言 GDScript 里的数字字面量，凡是不在
  *      「rules.json 数值集合 + 结构性白名单」里的，列为可疑自造阈值。
  *
@@ -23,7 +23,15 @@ const { buildRules } = require('./export-rules.cjs');
 const ROOT = path.resolve(__dirname, '..', '..');
 const RULES = path.join(ROOT, '3d', 'preview', 'data', 'rules.json');
 const LINES = path.join(ROOT, '3d', 'preview', 'data', 'lines.json');
-const MAP = path.join(ROOT, '3d', 'spec', 'parity-map.json');
+const LEDGER = path.join(ROOT, '3d', 'spec', 'mapping-ledger.json');
+const MODULE_FILE = {
+  SKSanity: 'js/ai/sanity.js',
+  SKTrait: 'js/ai/traits.js',
+  SKTeam: 'js/ai/traits.js',
+  SKT2AI: 'js/t2/ai.js',
+  SKT2Decision: 'js/t2/decision.js',
+};
+const PURE_OK = ['ported', 'auto', 'adapter', 'pending'];
 const GD_FILES = [
   '3d/preview/scripts/sim/mind.gd',
   '3d/preview/scripts/sim/speech.gd',
@@ -65,26 +73,31 @@ for (const [sec, tbl] of Object.entries(lines.rules || {})) {
   cross++;
 }
 
-/* ---------- ③ 函数对账覆盖 ---------- */
-const map = JSON.parse(fs.readFileSync(MAP, 'utf8'));
+/* ---------- ③ 函数对账覆盖（唯一真源：mapping-ledger.json） ---------- */
+const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
+const entryBySrc = new Map();
+for (const e of ledger.entries || []) if (!entryBySrc.has(e.src)) entryBySrc.set(e.src, e);
+
 const allFns = [];
+const stat = { synced: 0, adapter: 0, pending: 0 };
 for (const [mod, fns] of Object.entries(saved.functions)) {
-  const rows = (map.modules || {})[mod] || [];
-  const byFn = new Map(rows.map((r) => [r.fn, r]));
+  const file = MODULE_FILE[mod];
   for (const fn of fns) {
     allFns.push(mod + '.' + fn);
-    const row = byFn.get(fn);
-    if (!row) errors.push('parity-map 缺条目：' + mod + '.' + fn);
-    else if (!['synced', 'adapter', 'pending'].includes(row.status)) {
-      errors.push('parity-map 状态非法：' + mod + '.' + fn + ' = ' + row.status);
-    } else if (!row.target) {
-      errors.push('parity-map 缺 target 说明：' + mod + '.' + fn);
+    const e = file ? entryBySrc.get(file + ':' + fn) : null;
+    if (!e) {
+      errors.push('账本缺条目：' + mod + '.' + fn + '（先跑 npm run map:build 再补判决）');
+      continue;
     }
+    if (!PURE_OK.includes(e.status)) {
+      errors.push('账本状态非法（纯函数必须可实现）：' + mod + '.' + fn + ' = ' + e.status);
+      continue;
+    }
+    if (!e.target && !e.note) errors.push('账本缺 target/note：' + mod + '.' + fn);
+    if (e.status === 'adapter') stat.adapter++;
+    else if (e.status === 'pending') stat.pending++;
+    else stat.synced++;
   }
-}
-const stat = { synced: 0, adapter: 0, pending: 0 };
-for (const rows of Object.values(map.modules || {})) {
-  for (const r of rows) if (stat[r.status] !== undefined) stat[r.status]++;
 }
 
 /* ---------- ④ 3D 硬编码扫描 ---------- */

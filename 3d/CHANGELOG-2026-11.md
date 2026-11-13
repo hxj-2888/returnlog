@@ -1,5 +1,19 @@
 # 3D 修改记录
 
+## 2026-11-13 · 真源收口第二批：parity-map 并入账本
+
+- **本批改动**：
+  ① `check-parity.cjs` 改读 `mapping-ledger.json`：70 个纯函数按「模块 → 2.5D 文件」查账本条目，
+  状态白名单 `ported/auto/adapter/pending`，`not-applicable`/`unmapped` 直接 FAIL；不再读 `parity-map.modules`。
+  ② `parity-map.json` 收缩为**政策文件**：只保留红线 11 引用的 `allowed_differences`（10 条）与 `truth_sources`，
+  `modules` 移除（判决已并入账本）；`export-rules.cjs` / `simdump.cjs` / `portability-audit.cjs` 的引用文字同步。
+  ③ 两条纯函数 `seatNo` / `bodyReported` 从 `not-applicable` 改判 `adapter`（UI 直渲染 `i+1` / 字段直取）。
+- **读数变化**（本次实跑）：`3d:parity:check` 70 个纯函数 **synced 55 / adapter 15 / pending 0**
+  （旧读数 63/7 是 parity-map 口径；其中 9 条经 gameplay-parity 复核后判 `adapter`，理由在账本 note）；
+  `npm run check` **9 通过 / 0 失败**；`audit:parity:strict` 391 / 映射 245 / 自动 67 / 未映射 0 /
+  守卫缺口 0 / 写入缺口 0 / 3D 独有 0 / 漂移 0；`map:check` 999 函数 / 目标悬空 0。
+- **下一批立项依据**：账本剩 63 条缺口（pending 32 + unmapped 31），并开始用行为夹具把 112 条 `auto` 升级为 `ported`。
+
 ## 2026-11-13 · 总映射层：一张账本替掉四处映射源与门禁里的猜测
 
 - **本批改动**：

@@ -36,9 +36,9 @@
   `js/t2/decision.js` / `js/game.js` 导出的 **48 张规则表 + 70 个纯函数源码指纹 +
   pickLine/startChatter/sayStreakOK 调度系数**；GDScript 里不再写死推理/发言阈值。
 - `data/lines.json`：62 类台词、词表、parseSpeech 正则（逐字校验，见 `npm run 3d:lines:check`）。
-- `spec/parity-map.json`：70 个 2.5D 纯函数逐项对账，**63 synced / 7 adapter / 0 pending**，
-  覆盖 100%；剩余"未同源"只有白天改票/早投、`MISLEAD.bus` 细节、`COFRAME` 名额
-  （见 `summary.pending_next_batch`），不伪装成完成。
+- `spec/mapping-ledger.json`：**999 个 2.5D 函数逐条判决**（唯一真源）；其中 70 个纯函数
+  **55 synced / 15 adapter / 0 pending**。`spec/parity-map.json` 只剩红线 11 的
+  `allowed_differences` 与 `truth_sources`，不再承载函数映射。
 - `npm run 3d:parity:check`：改了任一 `js/` 真源没重导 → FAIL；`lines.json#rules` 与
   `rules.json` 出现第二套数值 → FAIL；3D 脚本出现自造阈值 → WARN。
 - `npm run 3d:audit:port`：只读审计 22 个 JS 文件，按「数据表 / 纯逻辑 / 适配 / DOM-UI /
