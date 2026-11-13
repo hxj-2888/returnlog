@@ -18,6 +18,7 @@
 |---|---|---|---:|---:|---|---|---|---|---|
 | 2026-11-11 | L4 缓存 + L3 退役/时间戳备份 + 过期调试输出（✅ 全批次） | 新返航录 | 2037 | 857.83 MB | 见 RESTORE_MAP.csv | backups/2026-11-11/cleanup-full/ + quarantine/2026-11-11/ | RESTORE.md 一键还原 / tracked 用 git restore | WorkBuddy | 339 批全通过 · 体积一致 |
 | 2026-11-12 | A 档死音效 + L2/L4 可再生成输出（tools 截图/原始帧/日志 + APK 解包副本） | 新返航录 | 794 | 116.61 MB | — | `C:\Users\ASUS\Documents\returnlog_cleanup_20261112\backup\新返航录\` | 隔离区原样移回 / `git checkout HEAD -- <路径>` | ZCode | 80 批全通过 · 备份全量哈希校验一致 |
+| 2026-11-13 | 主仓出清：3D 资产/工具/spec + 素材源包 + 一次性夹具（✅ 全批） | 新返航录 | 610 | 202.7 MB | — | `C:\Users\ASUS\Documents\returnlog_cleanup_20261113\backup\新返航录\` | 素材层/隔离区原样移回；tracked 用 `git checkout HEAD -- <路径>` | Qoder | 616/616 备份哈希一致（+5 MC 补遗） |
 
 ### 2026-11-12 · A 档死音效 + B 档可再生成输出/缓存（主仓）
 
@@ -39,6 +40,37 @@
 - 附带代码改动（A 档接线，用户批准）：`js/game.js` SND 表接线 `click`（FILE / TONE / 导出三项，+5 行，11917 → 11922）；`tools/test-v3.cjs` 音频池断言 12 → 13 类同步。门禁实跑：**916 PASS**，与改动相关的断言全过
 - 门禁抖动记录（非回归）：test-v3 在本机 headless Edge 下每轮随机失败 3~4 条时序敏感断言；HEAD 与改后各跑一轮，失败集完全不同（HEAD：反常拖尸×2 / 保安拘留 2.6 格；改后：拖尸 0.00 / 藏尸×2），二分证明与本次改动无关，与 `AGENTS.md` §一.5 记录的夹具抖动史同源
 - 下游待办 → **2026-11-12 已办结（WorkBuddy 续办）**：3D 仓 `npm run baseline:sync` 实跑「文件 2 个已更新 / 437 个内容相同跳过；清单 443 个文件；上游标识 返航录V3.7 / 3.7.0」，拉入 `js/game.js`（11917 → 11922 行）与 `tools/test-v3.cjs`；`3d/spec/port-manifest.json` 的 X-BIND 行段末值 **11917 → 11922**（只改末值，notes 追加本次同步记录，认领语义不变，沿用 11-10/11-11 两次先例）。复跑门禁：`3d:port:check` 0 错 / 1 条既有 legacy WARN（js 22 文件 19936 行）、`baseline:check` OK 443（快照 2026-11-12）、`agent:contract` PASS、`guard` PASS。音频 4 个死文件 sync 未从 3D 仓删除（sync 设计为不删除），是否同步移除仍待 3D 仓另行裁定
+
+### 2026-11-13 · 主仓出清（3D 资产/工具/spec + 素材源包 + 一次性夹具）
+
+- 层级 / 保留期到期：3D L1/L2 资产与工具、L2 测试夹具、L1 源包；按 §9 保留期登记，未到期前只移不删。
+- 冻结确认：`freeze-20261113.tsv` 616 文件 / 196.7 MB（含 11 个保留的 T3 导出链脚本）；
+  `freeze-20261113-supplement.tsv` 补遗 5 个 `tools/_mc-*.json` / 6.1 MB；共 610 文件移出主仓。
+- 完整备份：`C:\Users\ASUS\Documents\returnlog_cleanup_20261113\backup\新返航录\`
+  （616 文件逐一 SHA256 校验一致；5 个 MC 补遗另复制到 `backup/新返航录/tools/`）。
+- 处理方式：只移不删（系统回收站 API 受环境策略限制，沿用 2026-11-11/11-12 的「同卷原样移动」口径）：
+  - 3D：`3d/assets` 231 文件 / 99.9 MB → `returnlog_assets/3d/assets/`；
+    `3d/tools` 65 文件 → `returnlog_assets/3d/tools-archive-20261113/`，主仓保留 11 个
+    `export-*.cjs` / `build-map-v2.cjs` / `check-floor-spec.cjs`；
+    `3d/spec` 8 文件 + `3d/WORKFLOW_SDXL_BLENDER.md` → `returnlog_assets/3d/spec-archive-20261113/`。
+  - 源包：`tools/_qwen_refs` 20 文件 / 62.1 MB → `returnlog_assets/unreferenced/qwen-refs/`；
+    `tools/_sfx` 184 文件 / 9.9 MB → `returnlog_assets/referenced/audio-source/`；
+    `tools/master-sfx.py` 的 `RAW` 改指素材层（可用 `RETURNLOG_SFX_RAW` 覆盖）。
+  - 夹具/产物：15 个 tracked 实验/演示 → `quarantine/tools-lab/`；
+    93 个 local 截图/探针/日志/bench + 5 个 `_mc-*.json` → `quarantine/tools-local/`。
+- 批次：A（3D）3 组；B（源包）2 组；C（夹具/产物）2 组；共 7 组，逐组核对存在性/体积/抽样哈希，错误 0。
+- 逐批校验：616/616 备份哈希一致；空目录壳自底向上 `rmdir`（仅空目录，无文件删除）。
+- 恢复口径：素材层/隔离区原样移回 → 仓外备份副本 → Git 历史（tracked 用 `git checkout HEAD -- <路径>`）。
+- 清理后门禁：`npm run ci:gate` **919 通过 / 3 失败**（3 条均属已登记抖动，PASS）；
+  `npm run t3:check` **13 PASS / 0 WARN / 0 FAIL**；`npm run guard` PASS；
+  `node tools/assets-check.cjs` 0 缺失；`npm run agent:contract` PASS。
+  主仓 tracked 870 → 380 文件，tracked 体积 194 MB → 49 MB。
+- 3D 分支：`origin/3d` 已推送 `0a22bcf`（同步 `js/data/map.js`、`js/game.js`、12 个
+  `3d/preview/data` 快照、`3d/spec/port-manifest.json` X-BIND 到 11947、`BASELINE.sha256.json`）；
+  `3d:port:check` 0 错误 / 1 旧警告，`3d:parity:check` exit 0（13 条既有硬编码 WARN）。
+- **有意未动**（下一批待用户裁定）：`tools/blender-*.py` / `gen-*.py` / `master-sfx.py` 等美术管线、
+  `android/` 平台壳、`assets/` 二次引用审计（unreferenced/raw/portfolio）；
+  T3 正式门禁、`3d/preview/data` 快照、`3d/tools/export-*.cjs` 导出链保留。
 
 ## 单次执行明细模板
 
