@@ -29,6 +29,8 @@
     "ship:web": "node tools/ship.cjs --only=web,portfolio",
     "plate:build": "node tests/plate/build.cjs",
     "plate:check": "node tests/plate/validate.cjs",
+    "file:map": "node tools/filemap-js.cjs",
+    "file:check:js": "node tools/filemap-js.cjs --check",
     "3d:export:map": "node 3d/tools/export-map.cjs",
     "3d:export:minigames": "node 3d/tools/export-minigames.cjs",
     "3d:export:space": "node 3d/tools/export-space.cjs",

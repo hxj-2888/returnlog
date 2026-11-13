@@ -1,0 +1,30 @@
+{
+  "note": "2.5D 真源大文件预算棘轮（2026-11-13 立，阶段 A）。额度只许下调；上调须在 CHANGELOG.md 写明理由并同时下调别处。检查：node tools/filemap-js.cjs --check。",
+  "default_max_lines": 1200,
+  "max_func_lines": 200,
+  "files": {
+    "js/game.js": {
+      "max_lines": 12100,
+      "role": "T2 跨域规则闭包：boot() 内含主循环 / 判定 / 动作结算；当前 12,065 行，留 35 行余量"
+    },
+    "js/data/lines.js": {
+      "max_lines": 2100,
+      "role": "台词语料库（纯数据，不拆；阶段 B 不动它）"
+    }
+  },
+  "rules": {
+    "max_func_lines_allow": {
+      "js/game.js:boot": "起始 108 / 11943 行：IIFE 主闭包：状态、主循环与 347 个嵌套函数都在这里；阶段 B 按族外提，boot 只留装配",
+      "js/game.js:aiAlien": "起始 3745 / 457 行：异形 AI 决策：挑目标 / 出刀 / 开枪 / 管道 / 藏尸；阶段 B 拆 plan 与 execute 两段",
+      "js/game.js:startChatter": "起始 6137 / 436 行：会议发言排期：talkScore / 组合槽 / 同场去重；阶段 B 拆排期与出句两段",
+      "js/game.js:buildMeetCtx": "起始 5043 / 408 行：会议上下文：受害者 / 证言 / 背书 / lead；阶段 B 拆 ctx 组装与时间线对质两段",
+      "js/game.js:draw": "起始 10326 / 349 行：Canvas 主绘制：地图 / 角色 / 特效叠加；表现层，阶段 C 按 scene 拆",
+      "js/ui/home.js:esc": "起始 65 / 307 行：开始页 HTML 模板字符串（单函数内联大段 DOM）；表现层，阶段 C 迁模板",
+      "js/game.js:playerTalk": "起始 6580 / 259 行：玩家发言解析 / 模板 / 校验；阶段 B 拆解析与渲染两段",
+      "js/game.js:drawFacilities": "起始 9168 / 241 行：设施与机器人的 Canvas 绘制；表现层，不碰判定",
+      "js/game.js:aiHuman": "起始 2807 / 239 行：人类 AI 决策：任务 / 补给 / 救人 / 报告；阶段 B 拆决策与执行两段",
+      "js/game.js:drawFx": "起始 9909 / 220 行：特效调度与绘制；表现层，不碰判定",
+      "js/game.js:startVote": "起始 7511 / 202 行：投票阶段：票权 / 门槛 / 改票 / 终结者；阶段 B 拆计票与状态机两段"
+    }
+  }
+}
