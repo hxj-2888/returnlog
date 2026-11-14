@@ -20,8 +20,9 @@
 > **接手顺序（2026-11-14 统一，只有这一套）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` →
 > `3d/ARCHITECTURE.md` → **`3d/CORE_RULES.md`（自然语言规则释义，改玩法前先在这里对语义）** →
 > `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → 任务对应的 `3d/preview/scripts/` 模块。
-> `3d/CORE_RULES.md` 是 2.5D `docs/CORE_RULES.md` 的**只读镜像**（`npm run docs:sync` 生成），
-> 只服务「先读懂规则、再找行号」，**不是第二真源**：数值/判定仍以 `js/` 与 `data/rules.json` 为准。
+> `3d/CORE_RULES.md` 是 2.5D `docs/CORE_RULES.md` 的**只读镜像**（`npm run docs:sync` 生成）。
+> **规则语义以它为准（设计者口径，2026-11-14 用户裁定）**：`js/` 与 `data/rules.json` 是实现参照，
+> 实现与本文不一致时按本文修正实现；**该文档只在设计者明确指示下修改**，任何人不得擅自动文字。
 > **2026-11-09 分离时刻的历史事实**：当时玩家除移动外无法操作、门禁有 2 项既有失败；现状与读数见 `3d/HANDOFF.md` 与 `3d/CHANGELOG-2026-11.md`，本文件不再维护 §六。
 
 ## 零、AI 读取边界（2026-11-13）
