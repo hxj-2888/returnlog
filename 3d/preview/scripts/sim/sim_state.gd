@@ -1441,7 +1441,7 @@ func player_revive(body_i: int) -> bool:
 	return true
 
 
-## @src js/game.js:1131 pickSabRoom（选目标）+ :1297 sabTick（抵达自动引爆）
+## @src js/game.js:1150 pickSabRoom（选目标）+ :1320 sabTick（抵达自动引爆）
 ## 3D 输入层适配（PORTING_PROTOCOL §2 允许「输入映射」差异）：
 ##   2.5D 是「轮盘选舱 → 走进去自动下手」两阶段；3D 是「靠近设备的交互项」单阶段。
 ##   这里保留 3D 的交互手感，但把两阶段语义接回来：已在目标房间 / 交互半径内 → 立即结算；
@@ -2301,7 +2301,7 @@ func dawn() -> void:
 			die(a)
 	# 天亮：没修完的故障随夜结束一起消失，不扣分。
 	dmg = []
-	# @src js/game.js:4509 dawn：`G.sabTarget=null` —— 未引爆的目标随夜结束作废。
+	# @src js/game.js:4526 dawn：`G.sabTarget=null` —— 未引爆的目标随夜结束作废。
 	sab_target = {}
 	# 白天会议要回会议室：全员刷新到中央会议室，打断此前的一切任务流程。
 	var bridge: Dictionary = rooms_by_id.get("bridge", {}) as Dictionary
@@ -2863,7 +2863,7 @@ func _close_meeting() -> void:
 
 ## ---- 玩家能力判定单一真源（2.5D 没有 canAct：动作键直达动作函数）----
 ## 只判定、不写状态，返回精确 reason；执行仍走 knife / shoot / start_drag 等原入口。
-## @src js/game.js:8266 attack / 8280 stab / 8552 toggleDrag / 2458 startDrag
+## @src js/game.js:8289 attack / 8303 stab / 8575 toggleDrag / 2481 startDrag
 ##      / 8228 sabotage / 894 openPipePick / 8072 collectInteractions / 7961 keydown
 func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 	var ai := int(ctx.get("actor", me_idx))
@@ -3395,7 +3395,7 @@ func sabotage_bot(kind: String, by: int) -> bool:
 	_witness_action(a, "saw_bot", bp)
 	# 2.5D sabPick 结算：aiHear('robot_down',me,18,{actor})
 	hear("robot_down", bp, 18.0, {"actor": by})
-	# @src js/game.js:8221 sabotageBot：`envNotice('robot',tp.x,tp.y,0.5)`
+	# @src js/game.js:8231 sabotageBot：`envNotice('robot',tp.x,tp.y,0.5)`
 	env_notice("robot", bp, 0.5)
 	bots.on_crime(by, a.get("pos", Vector2.ZERO))
 	return true
@@ -3437,7 +3437,7 @@ func _end(win: bool, why: String) -> void:
 ## 故按 PORTING_PROTOCOL §3 登记为 adapter；判定、守卫、顺序逐条照真源。
 
 
-## @src js/game.js:1848 envNotice(kind,x,y,conf)
+## @src js/game.js:1871 envNotice(kind,x,y,conf)
 ## @src js/t2/ai.js:325-338 evPush（内联：3D 无 a.mind 对象，等价容器是 a.ev_mem）
 ## 原文守卫：`if(!G||G.over)return;` / `if(!a.alive||a.downed||a.detained)continue;`
 ## 注意：全船广播、无距离衰减、无注意力过滤 —— 不许加 3D 自造的筛子。
@@ -3471,7 +3471,7 @@ func env_notice(kind: String, at: Vector2, conf: float = 0.5) -> void:
 				"t": snappedf(elapsed, 0.01), "kind": ev_kind}
 
 
-## @src js/game.js:1410 recordFrame()
+## @src js/game.js:1433 recordFrame()
 ## 原文守卫：`if(!G||G.simMode||G.over)return;`
 ## 死者过滤：`if(a.bodyGone||a.deathCause==='vote'||a.bodyX==null)continue;`
 ## 3D 的 bodyX/bodyY 合为 Vector2 bodyPos；drag 空值是 -1（含历史 null），
@@ -3511,7 +3511,7 @@ func record_frame() -> void:
 		frames.append({"pt": snappedf(elapsed, 0.1), "n": night, "p": p})
 
 
-## @src js/game.js:1426 replayData()
+## @src js/game.js:1449 replayData()
 ## 纯构造、无守卫、只读；8 个字段逐字对齐（v/game/savedAt/map/result/roster/events/frames）。
 ## game 取 version.json#base.version（2.5D SKConfig.version 的同一份语义），
 ## winPts 取 sim.json#win.pts（2.5D SKSanity.WIN.pts=45），均不写死。
@@ -3570,7 +3570,7 @@ func replay_data() -> Dictionary:
 	}
 
 
-## @src js/game.js:1297 sabTick()
+## @src js/game.js:1320 sabTick()
 ## 原文守卫逐条照搬：t<=0 / 非异形且非 designMode / 死 / 濒死 / 拘留 / 本夜已用。
 ## 命中条件：`roomIdAt(me.x,me.y)===t.room || hypot(me-t)<SAB_RANGE`；
 ## SAB_RANGE 读 space.json#reach.sabotage（真源 SKSanity.REACH.sabotage=1.7），不写死。
@@ -3627,7 +3627,7 @@ func _log(kind: String, data: Dictionary) -> void:
 	}
 	for k: String in data.keys():
 		e[k] = data[k]
-	# @src js/game.js:1407 logEvent：`if(arr.length<EV_CAP)arr.push(e)`。
+	# @src js/game.js:1424 logEvent：`if(arr.length<EV_CAP)arr.push(e)`。
 	# 3D 之前无上限，长局事件流会与 2.5D 对账漂移。
 	if events.size() < EV_CAP:
 		events.append(e)

@@ -18,7 +18,7 @@
   "search(seat)"
  ],
  "budget": {
-  "covered": 17
+  "covered": 21
  },
  "cases": [
   {
@@ -47,8 +47,11 @@
   },
   {
    "rule": "R2.10",
-   "status": "todo",
-   "why": "需要连跑两夜，逐字段比对重置项"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r2_10"
+   ],
+   "note": "_start_night 后 knife=1 / sabUsed / 拖拽 / 红身 / 眩晕 / 站桩 / 押送全清，医疗无人机电量复位"
   },
   {
    "rule": "R4.1",
@@ -153,8 +156,11 @@
   },
   {
    "rule": "R8.6",
-   "status": "todo",
-   "why": "需要死亡后 place 幽灵穿墙 + 驱逐者无尸体两个分支"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r8_6"
+   ],
+   "note": "die() 后 bodyPos 固定、ghost=true；幽灵移动 60 格 bodyPos 不漂；驱逐者不进举报候选"
   },
   {
    "rule": "R8.7",
@@ -182,8 +188,11 @@
   },
   {
    "rule": "R9.2",
-   "status": "todo",
-   "why": "需要同夜同舱两次破坏落点一致"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r9_2"
+   ],
+   "note": "同夜同舱两次取落点一致；startNight 清 _sab_spots 缓存"
   },
   {
    "rule": "R9.3",
@@ -197,13 +206,20 @@
   },
   {
    "rule": "R10.3",
-   "status": "todo",
-   "why": "需要同一尸体同夜两次报告"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r10_3"
+   ],
+   "note": "can_act(\"report\") 跳过 bodyReported / bodyGone / deathCause=vote；濒死者按 pos 判定"
   },
   {
    "rule": "R10.4",
-   "status": "todo",
-   "why": "需要会议前设置拖拽/监控/管道选择，开会后断言全清"
+   "status": "partial",
+   "why": "需在 main 层驱动或把 release_drag 下沉进 open_meeting_kind",
+   "evidence": [
+    "tests/test_social.gd:_run_meetingtest"
+   ],
+   "note": "sim.open_meeting_kind 清路径/移动；松手拖拽在 main.gd:4489（视图层），headless 到不了"
   },
   {
    "rule": "R10.5",

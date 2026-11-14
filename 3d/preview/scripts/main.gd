@@ -4309,7 +4309,7 @@ func _on_sabotage_bot(kind: String) -> void:
 
 func _on_sabotage(room_id: String) -> void:
 	if sim != null and sim.player_sabotage(room_id):
-		# @src js/game.js:1134 pickSabRoom：选目标时提示「进入舱室自动下手」，
+		# @src js/game.js:1150 pickSabRoom：选目标时提示「进入舱室自动下手」，
 		# 由 sim.sab_tick() 抵达引爆；已在房间内则当场结算，保持 3D 交互手感。
 		if sim.sab_target.is_empty():
 			_toast("已破坏 " + sim.room_name(room_id) + " · 30 秒内未修复将倒扣维修进度")

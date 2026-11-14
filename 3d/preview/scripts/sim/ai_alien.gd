@@ -82,7 +82,7 @@ func _exposure_at(a: Dictionary, at: Vector2, except_v: Dictionary) -> float:
 	return sim.mind.exposure(ws, sim.mind.escape_cost(_exit_dist(at)))
 
 
-## @src js/game.js:3244 audienceHotRooms(a)
+## @src js/game.js:3267 audienceHotRooms(a)
 ## 2.5D 读 `a.mind.mem` 的 `saw_agent` 同夜记录；3D 没有 mem 时间线，
 ## 等价来源是 `a.why[]`（对某个人的证据数组，见 parity-map#allowed_differences 第 5 条）。
 ## 返回 room → 次数，供演出点排序（常客舱室优先）。
@@ -103,7 +103,7 @@ func audience_hot_rooms(a: Dictionary) -> Dictionary:
 	return hot
 
 
-## @src js/game.js:3189 alienAudienceInfo(a,rad)
+## @src js/game.js:3241 alienAudienceInfo(a,rad)
 ## 返回 {n, weight, idle, sus, inf}：权重 = 1 + audSus（他估对方怀疑 ≥ susMin）
 ## + audInf（本局领袖 / 公开影响力 ≥ 0.34）。不读对方私有 mind（读心清零）。
 ## 注意：判断的是「**他看得见我**」，不是「我看得见他」——用 ai_can_see(w, a.pos)。
@@ -148,7 +148,7 @@ func _is_leader(w: Dictionary) -> bool:
 	return int(sim.speech.leader_i) == int(w.get("i", -1))
 
 
-## @src js/ai/sanity.js:490 LENS.lr(key)：human / max(floor, alien)；knownOnly → INF。
+## @src js/ai/sanity.js:458 LENS.lr(key)：human / max(floor, alien)；knownOnly → INF。
 ## 只用于候选**排序**，不参与任何权重（用户裁定 order only, no w=f(lr)）。
 func _lens_lr(key: String) -> float:
 	var L: Dictionary = sim.rules.t("LENS")
@@ -381,7 +381,7 @@ func tick(dt: float) -> void:
 		_decide(a)
 
 
-## @src js/game.js:3266 disguiseOptions：一次返回全部候选，由 `_plan` 统一算分。
+## @src js/game.js:3289 disguiseOptions：一次返回全部候选，由 `_plan` 统一算分。
 ## ① realFix 真修（没刀/本夜未真修/非自炸） ② realRevive 真救非队友 ③ breakerOn 当众合闸
 ## ④ fake 假装修理 ⑤ fakeTask 假装做事；排序：常客舱优先 → LENS.lr 降序。
 func disguise_options(a: Dictionary, aud: Dictionary) -> Array:
@@ -534,7 +534,7 @@ func disguise_options(a: Dictionary, aud: Dictionary) -> Array:
 	return out
 
 
-## @src js/game.js:3361 disguiseRiskParts(a,aud,spot)
+## @src js/game.js:3379 disguiseRiskParts(a,aud,spot)
 ## 把"这一下会不会被识破 / 会不会真亏"翻译成 disguise_risk 的输入。
 func disguise_risk_parts(a: Dictionary, aud: Dictionary, spot: Dictionary) -> Dictionary:
 	var D: Dictionary = sim.rules.t("DISGUISE")
@@ -558,7 +558,7 @@ func disguise_risk_parts(a: Dictionary, aud: Dictionary, spot: Dictionary) -> Di
 	}
 
 
-## @src js/game.js:782 moveSpeed(a)：拖尸 → drag_speed；击杀加速 → speed*RUSH.mul；否则 speed。
+## @src js/game.js:804 moveSpeed(a)：拖尸 → drag_speed；击杀加速 → speed*RUSH.mul；否则 speed。
 ## 3D 之前没有这个函数，`_plan` 的 walk 估算需要它；数值全部来自 space.json / rules.json。
 func _move_speed(a: Dictionary) -> float:
 	if int(a.get("drag", -1)) >= 0:
@@ -569,7 +569,7 @@ func _move_speed(a: Dictionary) -> float:
 	return SpaceData.num(space, "move", "speed")
 
 
-## @src js/game.js:3382 alienPlan：拉闸/破坏/拆机器人/狩猎/伪装同台比分取 max。
+## @src js/game.js:3405 alienPlan：拉闸/破坏/拆机器人/狩猎/伪装同台比分取 max。
 ## td=到猎杀目标距离（无目标 1e9）；数值只读 rules.json / space.json，不另立常量。
 func _plan(a: Dictionary, td: float) -> Dictionary:
 	# 合闸目标锁：`if(a._breakerGoal)` 未过期且不贴脸就沿用（真源 :3385-3391）

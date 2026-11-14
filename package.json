@@ -62,7 +62,8 @@
     "map:diff": "node 3d/tools/map-diff.cjs",
     "map:check": "node 3d/tools/build-mapping-ledger.cjs --check",
     "3d:rules:test": "node 3d/tools/run-rule-fixtures.cjs",
-    "audit:next": "node 3d/tools/next-work.cjs"
+    "audit:next": "node 3d/tools/next-work.cjs",
+    "src:check": "node 3d/tools/check-src-anchors.cjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

@@ -1,9 +1,11 @@
 extends SceneTree
 ## 场景夹具执行器（2026-11-14）
 ##
-## 为什么独立于 main.gd：main.gd 已到 5,550 行预算上限（棘轮只许下调），
-## 新增 --rulestest 参数与分发必然破门禁。这里走 `--script` 直接拉起 sim，
-## 不依赖任何场景节点 —— sim 是纯模拟层（3d/ARCHITECTURE.md §3 硬规则 1）。
+## 为什么独立于 main.gd：这些规则的判据都在 sim 层，走 `--script` 直接拉起 sim
+## 不依赖任何场景节点，跑得比加载主场景快、也不受视图层状态影响
+## （sim 是纯模拟层，3d/ARCHITECTURE.md §3 硬规则 1）。
+## 注：`file-budgets.json` 是收紧用的棘轮，不是硬上限——确有必要时可以上调并登记理由，
+## 所以「main.gd 行数」不构成把夹具放这里的理由；这里放的唯一理由是判定归属在 sim。
 ##
 ## 用法：
 ##   godot --headless --path 3d/preview --script res://scripts/tests/run_rule_fixtures.gd
@@ -246,6 +248,166 @@ func _case_r10_5(sim: Variant) -> void:
 		return
 	_ok("R10.5")
 
+## 关掉开局自带的那场公开讨论：否则 night_meet_left() 恒为 0，
+## 举报判定会先撞「额度不足」，测不到「同一具尸体只报一次」这一层。
+func _close_pre_meeting(sim: Variant) -> void:
+	sim.meeting = {}
+
+
+## R10.3 同一具尸体同一夜只能报一次；活着的濒死者按本次倒下算一次。
+## 判据在 can_act("report")：跳过 bodyReported / bodyGone / deathCause=vote 的目标。
+func _case_r10_3(sim: Variant) -> void:
+	if sim.agents.size() < 3:
+		_bad("R10.3", "席位不足")
+		return
+	_close_pre_meeting(sim)
+	var me: Dictionary = sim.agent(sim.me_idx)
+	var body: Dictionary = sim.agent(1)
+	body["alive"] = false
+	body["downed"] = false
+	body["deathCause"] = "knife"
+	body["pos"] = (me["pos"] as Vector2) + Vector2(1.0, 0.0)
+	body["bodyPos"] = body["pos"]
+	body["bodyGone"] = false
+	body["bodyReported"] = false
+	var r1: Dictionary = sim.can_act("report")
+	if not bool(r1.get("ok", false)) or int(r1.get("target", -1)) != 1:
+		_bad("R10.3", "未报过的尸体应可报，实际 %s" % JSON.stringify(r1))
+		return
+	# 这一夜已经报过 → 同一具尸体不再进候选
+	body["bodyReported"] = true
+	var r2: Dictionary = sim.can_act("report")
+	if bool(r2.get("ok", false)):
+		_bad("R10.3", "已报过的尸体仍被选中（target=%d）" % int(r2.get("target", -1)))
+		return
+	# 濒死者（还活着）按「当前身体位置 pos」算，而不是 bodyPos
+	body["bodyReported"] = true
+	body["bodyGone"] = true
+	var downed: Dictionary = sim.agent(2)
+	downed["alive"] = true
+	downed["downed"] = true
+	downed["pos"] = (me["pos"] as Vector2) + Vector2(1.2, 0.0)
+	downed["bodyPos"] = (me["pos"] as Vector2) + Vector2(40.0, 40.0)
+	downed["bodyReported"] = false
+	downed["bodyGone"] = false
+	var r3: Dictionary = sim.can_act("report")
+	if not bool(r3.get("ok", false)) or int(r3.get("target", -1)) != 2:
+		_bad("R10.3", "濒死者应按 pos 判定可报，实际 %s" % JSON.stringify(r3))
+		return
+	_ok("R10.3")
+
+
+## R8.6 死亡后尸体留在原地、幽灵可穿墙；被驱逐者没有尸体。
+func _case_r8_6(sim: Variant) -> void:
+	if sim.agents.size() < 3:
+		_bad("R8.6", "席位不足")
+		return
+	var v: Dictionary = sim.agent(1)
+	var p0: Vector2 = v["pos"]
+	v["deathCause"] = ""
+	sim.die(v)
+	if bool(v.get("alive", true)):
+		_bad("R8.6", "die() 后仍 alive")
+		return
+	if not bool(v.get("ghost", false)):
+		_bad("R8.6", "死亡后未进入幽灵态（穿墙/全视依赖此标记）")
+		return
+	if (v["bodyPos"] as Vector2).distance_to(p0) > 0.01:
+		_bad("R8.6", "bodyPos 未固定在死亡点：%s vs %s" % [v["bodyPos"], p0])
+		return
+	# 幽灵穿墙移动后，尸体位置不能跟着漂
+	v["pos"] = p0 + Vector2(60.0, 60.0)
+	if (v["bodyPos"] as Vector2).distance_to(p0) > 0.01:
+		_bad("R8.6", "幽灵移动后 bodyPos 被带动：%s" % v["bodyPos"])
+		return
+	# 被驱逐者没有尸体：举报候选里必须跳过 deathCause=vote
+	_close_pre_meeting(sim)
+	var me: Dictionary = sim.agent(sim.me_idx)
+	var w: Dictionary = sim.agent(2)
+	w["deathCause"] = "vote"
+	sim.die(w)
+	w["bodyPos"] = (me["pos"] as Vector2) + Vector2(0.8, 0.0)
+	w["bodyGone"] = false
+	w["bodyReported"] = false
+	var r: Dictionary = sim.can_act("report")
+	if bool(r.get("ok", false)) and int(r.get("target", -1)) == 2:
+		_bad("R8.6", "被驱逐者仍可作为尸体被举报")
+		return
+	_ok("R8.6")
+
+
+## R2.10 每夜开始重置当夜状态：刀数、破坏、拖拽、红身、眩晕、站桩、押送、机器人电量。
+func _case_r2_10(sim: Variant) -> void:
+	if sim.agents.size() < 2:
+		_bad("R2.10", "席位不足")
+		return
+	var a: Dictionary = sim.agent(1)
+	a["knife"] = 0
+	a["sabUsed"] = true
+	a["drag"] = 2
+	a["draggedBy"] = 3
+	a["redT"] = 1.5
+	a["rushT"] = 1.0
+	a["stunT"] = 2.0
+	a["doing"] = 2.5
+	a["_doing"] = "fix"
+	a["detained"] = true
+	sim.bot_hp["medbot"] = 0
+	var med_expect: int = int((_space.get("bot", {}) as Dictionary).get("hp_medbot", 1))
+	sim._start_night(false)
+	var bad := []
+	if int(a.get("knife", -1)) != 1:
+		bad.append("knife=%d" % int(a.get("knife", -1)))
+	if bool(a.get("sabUsed", true)):
+		bad.append("sabUsed 未清")
+	if int(a.get("drag", 0)) != -1 or int(a.get("draggedBy", 0)) != -1:
+		bad.append("拖拽关系未解")
+	if float(a.get("redT", 1.0)) != 0.0 or float(a.get("rushT", 1.0)) != 0.0:
+		bad.append("红身/击杀加速未清")
+	if float(a.get("stunT", 1.0)) != 0.0:
+		bad.append("眩晕未清")
+	if float(a.get("doing", 1.0)) != 0.0 or String(a.get("_doing", "x")) != "":
+		bad.append("站桩未清")
+	if bool(a.get("detained", true)):
+		bad.append("押送未解")
+	if int(sim.bot_hp.get("medbot", -1)) != med_expect:
+		bad.append("医疗无人机电量未复位（%d≠%d）" % [int(sim.bot_hp.get("medbot", -1)), med_expect])
+	if not bad.is_empty():
+		_bad("R2.10", "、".join(bad))
+		return
+	_ok("R2.10")
+
+
+## R9.2 破坏落点：该舱室任务点里均匀随机抽一个，同一夜同舱室缓存同一个落点。
+func _case_r9_2(sim: Variant) -> void:
+	var rooms: Array = _map.get("rooms", []) as Array
+	var rid := ""
+	for r: Dictionary in rooms:
+		var id := String(r.get("id", ""))
+		if id == "bridge" or id == "":
+			continue
+		for p: Dictionary in (sim.points as Array):
+			if String(p.get("room", "")) == id:
+				rid = id
+				break
+		if rid != "":
+			break
+	if rid == "":
+		_bad("R9.2", "找不到带任务点的舱室")
+		return
+	var p1: Vector2 = sim.sab_spot_for(rid)
+	var p2: Vector2 = sim.sab_spot_for(rid)
+	if p1.distance_to(p2) > 0.001:
+		_bad("R9.2", "同夜同舱室两次取落点不一致：%s vs %s" % [p1, p2])
+		return
+	# 缓存只属于这一夜：startNight 必须清掉（2.5D delete SAB_SPOT_CACHE）
+	sim._start_night(false)
+	if not (sim._sab_spots as Dictionary).is_empty():
+		_bad("R9.2", "跨夜未清落点缓存（_sab_spots=%s）" % JSON.stringify(sim._sab_spots))
+		return
+	_ok("R9.2")
+
+
 func _initialize() -> void:
 	_map = _load_json(MAP_PATH)
 	_space = _load_json(SPACE_PATH)
@@ -261,6 +423,10 @@ func _initialize() -> void:
 		["R4.4", Callable(self, "_case_r4_4")],
 		["R2.8", Callable(self, "_case_r2_8")],
 		["R10.5", Callable(self, "_case_r10_5")],
+		["R10.3", Callable(self, "_case_r10_3")],
+		["R8.6", Callable(self, "_case_r8_6")],
+		["R2.10", Callable(self, "_case_r2_10")],
+		["R9.2", Callable(self, "_case_r9_2")],
 	]
 	print("RULETEST 开始：", cases.size(), " 个 case")
 	for row: Array in cases:
