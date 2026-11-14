@@ -138,8 +138,8 @@ static func _run_simtest(__h) -> bool:
 			pile += 1
 	__h._sim_check(r, pile == 0, "无证据时人类 AI 不把票投给玩家（实际 %d 票）" % pile)
 
-	# 报告后尸体必须留在地上，仍可拖拽（2.5D markBodyReported 只记夜号，不抹尸体）
-	__h._sim_check(r, s.new_game(12, 0, __h.map_data, __h.space), "重开用于尸体保留测试")
+	# 报告一个**濒死者**（刀只放倒）：会议不应把他抹掉，会后仍可拖拽
+	__h._sim_check(r, s.new_game(12, 0, __h.map_data, __h.space), "重开用于濒死者保留测试")
 	s.ai_enabled = false
 	__h._finish_meeting(s)
 	var vic2: Dictionary = {}
@@ -147,15 +147,26 @@ static func _run_simtest(__h) -> bool:
 		if int(a2.get("i", -1)) != int(s.me_idx):
 			vic2 = a2
 			break
-	s.kill(int(vic2.get("i", -1)), "test")
+	s.knife(int(s.me_idx), int(vic2.get("i", -1)))
 	s.open_meeting_kind("night", int(s.me_idx), int(vic2.get("i", -1)))
 	__h._sim_check(r, not bool(vic2.get("bodyGone", false)) \
-		and bool(vic2.get("bodyReported", false)), "报告后尸体仍在地上（只记已报告）")
-	__h._finish_meeting(s)
+		and bool(vic2.get("bodyReported", false)), "报告后濒死者仍在地上（只记已报告）")
+	# 会后（不跑投票，避免被驱逐改变状态）仍能在其身边按拖拽
+	s.meeting = {}
 	var pme: Dictionary = s.me()
-	pme["pos"] = vic2.get("bodyPos", Vector2.ZERO)
+	pme["pos"] = vic2.get("pos", Vector2.ZERO)
 	var drag_ok: Dictionary = s.can_act("drag", {"actor": int(s.me_idx)})
-	__h._sim_check(r, bool(drag_ok.get("ok", false)), "报告后尸体仍可拖拽")
+	__h._sim_check(r, bool(drag_ok.get("ok", false)), "报告后濒死者仍可拖拽")
+	# 死者尸体则在会议开始时清场（2.5D js/game.js:6984）
+	var dead2: Dictionary = {}
+	for a3: Dictionary in s.agents:
+		if int(a3.get("i", -1)) != int(s.me_idx) and a3 != vic2:
+			dead2 = a3
+			break
+	s.kill(int(dead2.get("i", -1)), "test")
+	if s.meeting.is_empty():
+		s.open_meeting_kind("day", -1, -1)
+	__h._sim_check(r, bool(dead2.get("bodyGone", false)), "死者尸体在会议开始时清场")
 
 	# 异形补给链：申请单必须能真的领到、且在军械点真的开始兑换
 	# （STAND.qual=0 → 必须走 claim_qual；旧实现 start_doing(dur=0) 空转 + 补给缺 return）

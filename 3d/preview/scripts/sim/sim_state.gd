@@ -2190,9 +2190,15 @@ func open_meeting_kind(kind: String, reporter_i: int, victim_i: int) -> bool:
 		if meet_room == "" and nav != null and nav.corridor_at(bp) != null:
 			meet_in_corr = true
 	if kind == MEET_NIGHT and not v.is_empty():
-		# 2.5D markBodyReported（js/t2/decision.js:149）：只记「这一夜这具尸体报过了」，
-		# **尸体留在原地**，仍可拖拽/搜尸。3D 旧实现顺手 bodyGone=true，报告后尸体直接消失。
+		# 2.5D markBodyReported（js/t2/decision.js:149）：只记「这一夜这具尸体报过了」。
+		# **濒死者（还活着）留在原地**，会后仍可拖拽/施救 —— 3D 旧实现顺手 bodyGone=true，
+		# 把被刀倒的人整个抹掉了。
 		v["bodyReported"] = true
+	# @src js/game.js:6984：会议开始时清掉的是**死者尸体**（`!a.alive`），
+	# 濒死者还活着、继续躺着（与上一条不矛盾：刀/枪都只把人打成濒死）。
+	for a2: Dictionary in agents:
+		if not bool(a2.get("alive", false)) and not bool(a2.get("bodyGone", false)):
+			a2["bodyGone"] = true
 	var discuss_sec := 0.0
 	var vote_sec := 0.0
 	match kind:

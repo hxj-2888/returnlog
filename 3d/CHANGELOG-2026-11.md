@@ -1,12 +1,27 @@
 # 3D 修改记录
 
+## 2026-11-14 · 规则释义镜像与首读顺序
+
+- **本批改动**：① `npm run docs:sync` 新增生成 `3d/CORE_RULES.md` —— 2.5D `docs/CORE_RULES.md` 的
+  只读镜像（带 `source_sha256` 生成头），`docs:check` 会校验哈希与正文一致；
+  ② 读区顺序调整：`AGENTS.md` 头部「接手顺序」与 §零「默认只读」把 `3d/CORE_RULES.md`
+  放在**规范文件之后、任务模块之前**，「玩法 / 判定 / 数值 / 语料」一行标为**先读**；
+  ③ `3d/README.md`、`3d/HANDOFF.md`、`3d/PORTING_PROTOCOL.md` 各加一行指针。
+- **口径**：该文档是**自然语言释义**，用于「先读懂规则、再找 `js/` 行号」，**不是第二真源**；
+  数值/判定仍以 `js/` 与 `data/rules.json` 为准，冲突时以代码为准并回改 2.5D 源文档。
+- **依赖顺序**：2.5D `docs/CORE_RULES.md` 必须先落地并推送，3D 的 `docs:check` 才能通过
+  （CI 以 `../新返航录` 的 main 为准）。
+- **T3 记录（只作事后观测）**：`docs:check` PASS；`agent:contract` PASS（§一 14 条哈希一致）；
+  `npm run check` 9 通过 / 0 失败；`file:check` 52 文件 / 27,308 行。
+
 ## 2026-11-14 · 实玩三问题：报告后尸体消失 / 全场跟票 / AI 叠在一起
 
-- **① 报告后尸体消失**：3D 在开夜会时顺手写了 `v["bodyGone"] = true`，报告过的尸体从
-  模拟里被抹掉；2.5D `markBodyReported`（js/t2/decision.js:149）只记 `reported/reportNight`，
-  **尸体留在原地**，仍可拖拽/搜尸（startDrag:2481 只排除 `bodyPos` 为空与已被拖）。
-  改动：`open_meeting_kind` 不再写 `bodyGone`；`can_act("drag")` 与 `main.gd` 的拖尸候选
-  不再排除 `bodyReported`（报告选项本身仍然排除，符合真源）。
+- **① 报告后尸体消失**：3D 在开夜会时顺手写了 `v["bodyGone"] = true`，把**被刀倒的濒死者**
+  也从模拟里抹掉了；2.5D `markBodyReported`（js/t2/decision.js:149）只记 `reported/reportNight`，
+  **濒死者（还活着）留在原地**，仍可拖拽/施救（startDrag:2481 只排除 `bodyPos` 为空与已被拖）。
+  另据 js/game.js:6984，会议开始时清掉的是**死者尸体**（`!a.alive`），这一点 3D 原先也漏了；
+  改动：`open_meeting_kind` 不再对被报告者写 `bodyGone`，但按真源清掉所有死者尸体；
+  `can_act("drag")` 与 `main.gd` 的拖尸候选不再排除 `bodyReported`（报告选项本身仍然排除，符合真源）。
 - **② 一个人被刀，全场都把票投给他**：3D `_cast_ai_votes` 自造了「无主张者按 0.45 概率
   跟领先者」这一层；2.5D（js/game.js:7614-7650）**没有**这层，跟票必须自己也有依据：
   `sus≥0.18`，或"≥2 人公开咬他"时 `0.10` 且手里有真实证（沉默/空口/听说/领袖点名/
@@ -17,8 +32,8 @@
   所有人被送到同一个坐标；2.5D `randIn(r)`（js/game.js:340）取**舱内随机可走点**。
   改动：新增 `sim.rand_in_room(rid)`（复用原 `_rand_in_bridge` 的逻辑并参数化），
   替换开局错峰（人/异形）、人类 idle 巡舱、异形无目标游荡、行凶后不在场点、幽灵游荡。
-- **测试**：`--simtest` 新增 3 条断言 —— 无证据时人类 AI 不把票投给玩家、
-  报告后尸体仍在地上、报告后尸体仍可拖拽；**34 通过 / 0 失败**。
+- **测试**：`--simtest` 新增 4 条断言 —— 无证据时人类 AI 不把票投给玩家、
+  报告后濒死者仍在地上、报告后濒死者仍可拖拽、死者尸体在会议开始时清场；**35 通过 / 0 失败**。
 - **T3 记录（只作事后观测，不作改动依据）**：12 局批量驱逐 67→47、人类被误逐 36→16；
   `npm run check` 9 通过 / 0 失败；`audit:parity:strict` 缺口 0；`map:check` 0。
 
