@@ -123,6 +123,40 @@ static func _run_simtest(__h) -> bool:
 	__h._sim_check(r, bool(s.over) and bool(s.over_win) and String(s.over_why) == "异形全部出局",
 		"异形全部出局 → 人类胜利（%s）" % s.over_why)
 
+	# 无证据时人类 AI 不该把票堆给玩家（旧实现"无主张就跟领先者"会全场跟票）
+	__h._sim_check(r, s.new_game(11, 0, __h.map_data, __h.space), "重开用于投票测试")
+	s.ai_enabled = false
+	__h._finish_meeting(s)
+	s.open_meeting_kind("day", -1, -1)
+	s._cast_ai_votes()
+	var votes0: Dictionary = s.meeting.get("votes", {}) as Dictionary
+	var pile := 0
+	for k: int in votes0.keys():
+		if bool(s.agent(k).get("alien", false)):
+			continue
+		if int(votes0[k]) == int(s.me_idx):
+			pile += 1
+	__h._sim_check(r, pile == 0, "无证据时人类 AI 不把票投给玩家（实际 %d 票）" % pile)
+
+	# 报告后尸体必须留在地上，仍可拖拽（2.5D markBodyReported 只记夜号，不抹尸体）
+	__h._sim_check(r, s.new_game(12, 0, __h.map_data, __h.space), "重开用于尸体保留测试")
+	s.ai_enabled = false
+	__h._finish_meeting(s)
+	var vic2: Dictionary = {}
+	for a2: Dictionary in s.agents:
+		if int(a2.get("i", -1)) != int(s.me_idx):
+			vic2 = a2
+			break
+	s.kill(int(vic2.get("i", -1)), "test")
+	s.open_meeting_kind("night", int(s.me_idx), int(vic2.get("i", -1)))
+	__h._sim_check(r, not bool(vic2.get("bodyGone", false)) \
+		and bool(vic2.get("bodyReported", false)), "报告后尸体仍在地上（只记已报告）")
+	__h._finish_meeting(s)
+	var pme: Dictionary = s.me()
+	pme["pos"] = vic2.get("bodyPos", Vector2.ZERO)
+	var drag_ok: Dictionary = s.can_act("drag", {"actor": int(s.me_idx)})
+	__h._sim_check(r, bool(drag_ok.get("ok", false)), "报告后尸体仍可拖拽")
+
 	# 异形补给链：申请单必须能真的领到、且在军械点真的开始兑换
 	# （STAND.qual=0 → 必须走 claim_qual；旧实现 start_doing(dur=0) 空转 + 补给缺 return）
 	__h._sim_check(r, s.new_game(10, 0, __h.map_data, __h.space), "重开用于异形补给链测试")

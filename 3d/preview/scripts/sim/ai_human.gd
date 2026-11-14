@@ -60,7 +60,7 @@ func tick(dt: float) -> void:
 				var rooms: Array = sim.map.get("rooms", []) as Array
 				if not rooms.is_empty():
 					var rr: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
-					sim.set_path(int(a.get("i", -1)), sim.room_center(String(rr.get("id", ""))))
+					sim.set_path(int(a.get("i", -1)), sim.rand_in_room(String(rr.get("id", ""))))
 			continue
 		# 2.5D aiHuman:2836-2850：拖尸途中——尸体失效 / 无人机不可用 / 人已进医疗间就松手，
 		# 否则继续把人拖到无人机坞位（medDropSpot）再放。3D 旧实现只在「已到医疗间」松手，
@@ -664,7 +664,7 @@ func _idle_roam(a: Dictionary) -> void:
 		if rooms.is_empty():
 			return
 		var r2: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
-		var rc: Vector2 = sim.room_center(String(r2.get("id", "")))
+		var rc: Vector2 = sim.rand_in_room(String(r2.get("id", "")))
 		tg = rc
 	if not sim.set_path(i, tg):
 		_stuck(a)

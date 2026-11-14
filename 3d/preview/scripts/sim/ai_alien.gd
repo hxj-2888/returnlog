@@ -350,7 +350,7 @@ func tick(dt: float) -> void:
 				var rooms0: Array = sim.map.get("rooms", []) as Array
 				if not rooms0.is_empty():
 					var r0: Dictionary = rooms0[sim._rng.randi_range(0, rooms0.size() - 1)]
-					sim.set_path(int(a.get("i", -1)), sim.room_center(String(r0.get("id", ""))))
+					sim.set_path(int(a.get("i", -1)), sim.rand_in_room(String(r0.get("id", ""))))
 			continue
 		# @src js/game.js:3604-3612：真做任务只为换申请单（每只异形整局最多 1 次），
 		# 2.5D 是**每帧**掷骰 0.02×dt；3D 的 _decide 有 _aiT 节流，放那里会少采样一个量级。
@@ -791,13 +791,13 @@ func _alibi_spot(a: Dictionary) -> Vector2:
 		var rid := String(r.get("id", ""))
 		if rid == "bridge":
 			continue
-		var c: Vector2 = sim.room_center(rid)
-		var d := ap.distance_to(c)
+		var d := ap.distance_to(sim.room_center(rid))
 		if d > 6.0 and d < 24.0:
-			cands.append(c)
+			cands.append(rid)
 	if cands.is_empty():
 		return Vector2.INF
-	return cands[sim._rng.randi_range(0, cands.size() - 1)]
+	# 2.5D `randIn(cands[...])`：落到舱内随机点，而不是所有人挤在舱心。
+	return sim.rand_in_room(String(cands[sim._rng.randi_range(0, cands.size() - 1)]))
 
 
 ## 2.5D bodyPos(v) 非空 = 死者或有倒地标记的活人。
@@ -1025,7 +1025,7 @@ func _decide(a: Dictionary) -> void:
 			var rooms: Array = sim.map.get("rooms", []) as Array
 			if not rooms.is_empty():
 				var rr: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
-				var rc: Vector2 = sim.room_center(String(rr.get("id", "")))
+				var rc: Vector2 = sim.rand_in_room(String(rr.get("id", "")))
 				sim.set_path(i, rc)
 		a["_aiT"] = 1.0
 		a["target"] = -1

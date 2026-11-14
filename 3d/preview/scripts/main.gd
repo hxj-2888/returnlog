@@ -4036,8 +4036,8 @@ func _collect_offers() -> Array:
 				var is_downed: bool = bool(dead2.get("alive", false)) \
 					and bool(dead2.get("downed", false))
 				if not is_downed:
-					if bool(dead2.get("alive", false)) or bool(dead2.get("bodyGone", false)) \
-							or bool(dead2.get("bodyReported", false)):
+					# 2.5D startDrag：报告过的尸体照样能拖，只有「被驱逐带走的」不能拖。
+					if bool(dead2.get("alive", false)) or bool(dead2.get("bodyGone", false)):
 						continue
 				var bp2: Vector2 = dead2.get("pos", Vector2.ZERO) if is_downed \
 					else dead2.get("bodyPos", Vector2.ZERO)

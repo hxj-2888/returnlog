@@ -2,18 +2,9 @@ extends RefCounted
 
 ## 3D 模拟核心 · B1（无发言 / 无美术）
 ## ------------------------------------------------------------------
-## 口径：把 2.5D 的**非发言**规则搬进 3D，先只搬“开局 → 做任务 → 天亮 → 胜负”
-## 这条主回路。台词、口供、证言、说服、会议发言一律不在这里；会议的**结构**
-## （报告 → 投票 → 驱逐）留到 B5，且投票只用“亲眼看见”的证据。
-##
-## 分层硬规则（照 3d/ARCHITECTURE.md §3）：
-##   · 本文件不读节点、不读输入、不读鼠标；
-##   · 所有数值只从 data/sim.json 与 data/map_v2.json 进，不在这里写魔法数；
-##   · 事件流只追加，不参与判定；
-##   · 随机只用本文件的 rng，调用方给显式 seed。
-##
-## 与 2.5D 的字段命名刻意保持一致（tIdx / qual / qualPending / pointDone），
-## 方便下一步逐函数对照移植，而不是“看起来像”的重写。
+## 分层硬规则（3d/ARCHITECTURE.md §3）：不读节点/输入/鼠标；数值只从 sim.json /
+## map_v2.json / rules.json 进；事件流只追加不参与判定；随机只用本文件 rng。
+## 字段命名与 2.5D 一致（tIdx / qual / qualPending / pointDone），便于逐函数对照。
 
 const SIM_PATH := "res://data/sim.json"
 const MAP_PATH := "res://data/map_v2.json"
@@ -965,15 +956,8 @@ func knife(killer_i: int, victim_i: int) -> bool:
 		return false
 	if not bool(v.get("alive", false)):
 		return false
-	# 2026-11-11 用户纠正：2.5D knife()（js/game.js:4226）只判目标存活且未倒地，
-	# **没有任何阵营限制** —— 异形可以互刀。此前这里多写的 `or v.alien` 是移植时
-	# 凭空加的规则，已删。同阵营命中照常记危险行为 / 红身 / 目击。
-	# 2.5D knife()（js/game.js:4225 `if(killer.knife<1)return` / :4232 `killer.knife--`）：
-	# 每夜 1 把刀是硬 gate，先扣刀再结算；额度由 startNight(:7801 `a.knife=1`) 每夜补发。
-	# 第七批拨乱反正：此前 3D 以「进攻链未齐、只搬限制会 0 胜」为由人为不启用该 gate，
-	# 但逐条核实 RUSH 逃逸(sim_state.gd:500/_kill_rush_start)、目标承诺(ai_alien.gd:290)、
-	# 管道突袭(ai_alien.gd:60)、异形开枪(ai_alien.gd:338) 均已接入 —— 该理由已不成立，
-	# 按真源恢复额度。改动依据是 js/game.js 行号，不是任何平衡读数。
+	# 2.5D knife()（js:4226）只判目标存活且未倒地，**无阵营限制**（异形可互刀）；
+	# js:4225/:4232 每夜 1 把刀是硬 gate，先扣刀再结算（startNight:7801 补发）。
 	if int(k.get("knife", 0)) < 1:
 		return false
 	k["knife"] = int(k.get("knife", 0)) - 1
@@ -2078,7 +2062,7 @@ func _ghost_roam(a: Dictionary, dt: float, sp: float) -> void:
 		if rooms.is_empty():
 			return
 		var rr: Dictionary = rooms[_rng.randi_range(0, rooms.size() - 1)]
-		if not set_path(int(a.get("i", -1)), room_center(String(rr.get("id", "")))):
+		if not set_path(int(a.get("i", -1)), rand_in_room(String(rr.get("id", "")))):
 			a["_pathCD"] = 1.2
 	_ghost_move(a, dt, sp)
 
@@ -2206,8 +2190,9 @@ func open_meeting_kind(kind: String, reporter_i: int, victim_i: int) -> bool:
 		if meet_room == "" and nav != null and nav.corridor_at(bp) != null:
 			meet_in_corr = true
 	if kind == MEET_NIGHT and not v.is_empty():
+		# 2.5D markBodyReported（js/t2/decision.js:149）：只记「这一夜这具尸体报过了」，
+		# **尸体留在原地**，仍可拖拽/搜尸。3D 旧实现顺手 bodyGone=true，报告后尸体直接消失。
 		v["bodyReported"] = true
-		v["bodyGone"] = true
 	var discuss_sec := 0.0
 	var vote_sec := 0.0
 	match kind:
@@ -2330,26 +2315,9 @@ func dawn() -> void:
 	open_meeting_kind(MEET_DAY, -1, -1)
 
 
-## 在 bridge 房间里随机取一个可行走点（2.5D randIn(br) 的等价物）。
-## 2.5D 采样的是 **rect 内的随机点**（js/game.js:340-347），旧实现只采 poly 顶点：
-## 顶点全在墙线上、is_free 永假，200 次后必然落到同一个 label 点 ——
-## 天亮时所有活人叠在一格上，看起来就是「AI 全卡住了」。
+## 天亮散场：绕场的人随机落到 bridge 的可走点（2.5D randIn(br)），不是所有人叠在舱心。
 func _rand_in_bridge() -> Vector2:
-	var bridge: Dictionary = rooms_by_id.get("bridge", {}) as Dictionary
-	var rect: Array = bridge.get("rect", []) as Array
-	if rect.size() < 4:
-		var lab: Array = bridge.get("label", [31.0, 33.5]) as Array
-		return Vector2(float(lab[0]), float(lab[1]))
-	var x0 := float(rect[0])
-	var y0 := float(rect[1])
-	var w := float(rect[2])
-	var h := float(rect[3])
-	for _k in 200:
-		var pos := Vector2(x0 + _rng.randf() * w, y0 + _rng.randf() * h)
-		if nav != null and nav.is_free(pos):
-			return pos
-	var center := Vector2(x0 + w * 0.5, y0 + h * 0.5)
-	return nav.nearest_free(center) if nav != null else center
+	return rand_in_room("bridge")
 
 
 ## 玩家（或旁观快进）可以提前结束讨论，讨论秒数仍取自真源，不写死。
@@ -2434,6 +2402,41 @@ func _public_accuse_target(a: Dictionary) -> int:
 	return -1
 
 
+## 2.5D leadingAccused（js/game.js:7714）：被公开指控最多的那个人，且至少 2 人咬；
+## 只有这种"声势"才值得考虑跟票。不读任何人的私有 mind，只看说出口的 accuse。
+func _leading_accused(a: Dictionary) -> int:
+	var tally: Dictionary = {}
+	var self_i := int(a.get("i", -1))
+	for w: Dictionary in agents:
+		if not bool(w.get("alive", false)) or int(w.get("i", -1)) == self_i:
+			continue
+		var k := int(w.get("accuse", -1))
+		if k < 0 or k == self_i:
+			continue
+		var t: Dictionary = agent(k)
+		if t.is_empty() or not bool(t.get("alive", false)):
+			continue
+		tally[k] = int(tally.get(k, 0)) + 1
+	var best := -1
+	var bn := 0
+	for k2: int in tally.keys():
+		if int(tally[k2]) > bn:
+			bn = int(tally[k2])
+			best = k2
+	return best if bn >= 2 else -1
+
+
+## 2.5D WEAK_FOLLOW（js/game.js:7644）：沉默/空口/听说/领袖点名/抢先报案都不算"自己的依据"。
+func _has_real_evidence(a: Dictionary, tgt: int) -> bool:
+	var weak := {"silent": true, "empty_accuse": true, "heard_accuse": true,
+		"heard_frame": true, "leader_order": true, "quick_report": true}
+	var arr: Array = ((a.get("why", {}) as Dictionary).get(tgt, []) as Array)
+	for r: Variant in arr:
+		if r is Dictionary and not weak.has(String((r as Dictionary).get("kind", ""))):
+			return true
+	return false
+
+
 func _ai_vote_target(a: Dictionary) -> int:
 	var pool: Array = []
 	for t: Dictionary in agents:
@@ -2500,23 +2503,34 @@ func _ai_vote_target(a: Dictionary) -> int:
 		if not bs.is_empty() and pool.has(int(bs.get("i", -1))) \
 				and not mind.is_patron(a, int(bs.get("i", -1))):
 			return int(bs.get("i", -1))
-		var scores: Array = []
-		for i: int in pool:
-			if mind.is_patron(a, i):
-				continue
-			scores.append({"i": i, "s": mind.vote_score(a, i)})
-		scores.sort_custom(func(x, y): return float(x["s"]) > float(y["s"]))
-		if scores.is_empty():
-			return -1
-		var top_s := float(scores[0]["s"])
-		var second_s := -1.0e9
-		if scores.size() > 1:
-			second_s = float(scores[1]["s"])
 		# 2.5D SKT2AI.hypothesisSpread：两条假说权重接近 + 双方都有独立实证 → 弃权
 		var spread: Dictionary = mind.hypothesis_spread(a)
 		if bool(spread.get("competing", false)):
 			return -1
-		return int(scores[0]["i"])
+		# @src js/game.js:7614-7650：普通人先按性格决定弃不弃权（谨慎的人几乎必弃权）；
+		# 要跟票**自己手里也得有依据** —— sus≥0.18，或"已有 ≥2 人公开咬他"时 0.10 且手里
+		# 有真实证（沉默/空口/听说的都不算）。3D 旧实现是「无主张就按 0.45 概率跟领先者」，
+		# 等于凭空跟风，一个人被刀后全场都能把票堆到他身上。
+		if _rng.randf() < mind.trait_c("voteAbstain", a):
+			return -1
+		var lead := _leading_accused(a)
+		if lead >= 0 and lead != int(a.get("i", -1)) and pool.has(lead):
+			var pack := 0
+			for x: Dictionary in agents:
+				if bool(x.get("alive", false)) and int(x.get("accuse", -1)) == lead:
+					pack += 1
+			var need := 0.10 if pack >= 2 else 0.18
+			var own: float = mind.sus_of(a, lead)
+			var grudge := float((a.get("grudge", {}) as Dictionary).get(lead, 0.0))
+			var sus_ok: bool = own >= need and (need >= 0.18 or _has_real_evidence(a, lead))
+			if sus_ok or grudge >= 0.4:
+				return lead
+		var thr: float = mind.trait_c("shootSus", a) * 0.9
+		var bs2: Dictionary = mind.best_sus_target(a, thr)
+		if not bs2.is_empty() and pool.has(int(bs2.get("i", -1))) \
+				and not mind.is_patron(a, int(bs2.get("i", -1))):
+			return int(bs2.get("i", -1))
+		return -1
 	var sus: Dictionary = a.get("suspect", {})
 	var best2 := -1
 	var bs2 := 0
@@ -2663,13 +2677,11 @@ func reconsider_votes(by_id: int) -> int:
 	return changed
 
 
-## 2.5D 投票是"讨论期陆续投 + 跟票"，3D 原先只在进 vote 相位时一次结算。
-## 分两轮：先各自独立形成意向，再让无主张者按 WARM.followChance 跟领先者、
-## 异形按 SOCIAL.pileOn 顺势踩一脚，最后才真正落票。这样票能形成 4 票集中，
-## 同时保留"跟错票"造成的误逐（2.5D 误逐率约 20%，是平衡阀之一）。
+## 2.5D 投票（js/game.js:7551-7665）：每人**独立**形成意向，再落票。
+## 异形的顺势踩人在 _ai_vote_target 内按 SOCIAL.pileOn 结算；人类跟票必须自己也有依据
+## （sus/grudge + 公开指控声势），没有"无主张就跟领先者"这一层。
 func _cast_ai_votes() -> void:
 	var intents: Dictionary = {}
-	var tally: Dictionary = {}
 	var meta0: Dictionary = (meeting.get("voteMeta", {}) as Dictionary)
 	for a: Dictionary in agents:
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
@@ -2683,25 +2695,11 @@ func _cast_ai_votes() -> void:
 				and int(mm0.get("rev", 0)) == int(a.get("rev", 0)):
 			_stat("earlyKept", 1)
 			continue
-		var v := _ai_vote_target(a)
-		intents[int(a.get("i", -1))] = v
-		if v >= 0 and not bool(a.get("alien", false)):
-			tally[v] = int(tally.get(v, 0)) + 1
-	var lead := -1
-	var lead_n := 0
-	for k: int in tally.keys():
-		if int(tally[k]) > lead_n:
-			lead_n = int(tally[k])
-			lead = int(k)
-	var wc: Dictionary = (lines_data.data.get("rules", {}) as Dictionary).get("WARM", {}) as Dictionary
-	var follow_p := float(wc.get("followChance", 0.45))
+		intents[int(a.get("i", -1))] = _ai_vote_target(a)
 	for k2: int in intents.keys():
 		var v2 := int(intents[k2])
-		var voter := agent(k2)
-		# 异形的顺势踩人已在 _ai_vote_target 内按 SOCIAL.pileOn 结算，这里不再覆盖
-		if not bool(voter.get("alien", false)) and v2 < 0 and lead >= 0 \
-				and lead_n >= 1 and _rng.randf() < follow_p:
-			v2 = lead
+		# 2.5D 没有"无主张就跟领先者"这一层：跟票必须自己也有依据，
+		# 已在 _ai_vote_target 里按 sus/grudge 判定；这里不再用掷骰把人堆到同一票上。
 		cast_vote(k2, v2)
 
 
@@ -2857,16 +2855,10 @@ func _close_meeting() -> void:
 		meeting = {}
 
 
-## ---- 玩家能力判定单一真源（2026-11-11 机制对齐）----
-## 2.5D 没有 canAct 这个名字：它的动作键（W/A/S/D/F/R/B/H/V）**无条件直达**
-## attack()/toggleDrag()/sabotage()/tryReport()，前置判定写在动作函数内部。
-## 3D 之前把这些动作做成「靠近才生成的交互项」，offers 为空时按键被静默吞掉 ——
-## 用户现场即「按键全合法，能力一点都没有，拖拽完全拖不了」。
-## 这里把散在 UI 层的前置条件收回 sim：只判定、不写状态，返回精确 reason；
-## 执行仍走原有单一入口（knife / shoot / start_drag / player_sabotage / ...），
-## 玩家与 AI 共用同一份口径，不新增规则、不新增数值。
-## @src: js/game.js:8266 attack / 8280 stab / 8552 toggleDrag / 2458 startDrag
-##       / 8228 sabotage / 894 openPipePick / 8072 collectInteractions / 7961 keydown
+## ---- 玩家能力判定单一真源（2.5D 没有 canAct：动作键直达动作函数）----
+## 只判定、不写状态，返回精确 reason；执行仍走 knife / shoot / start_drag 等原入口。
+## @src js/game.js:8266 attack / 8280 stab / 8552 toggleDrag / 2458 startDrag
+##      / 8228 sabotage / 894 openPipePick / 8072 collectInteractions / 7961 keydown
 func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 	var ai := int(ctx.get("actor", me_idx))
 	var a: Dictionary = agent(ai)
@@ -2955,7 +2947,9 @@ func can_act(kind: String, ctx: Dictionary = {}) -> Dictionary:
 				var downed := bool(x.get("alive", false)) and bool(x.get("downed", false))
 				if bool(x.get("alive", false)) and not downed:
 					continue
-				if bool(x.get("bodyGone", false)) or bool(x.get("bodyReported", false)):
+				# 2.5D startDrag 只排除 bodyGone；**报告过的尸体照样能拖**
+				# （旧实现多排了一个 bodyReported，报告后玩家就拖不动了）。
+				if bool(x.get("bodyGone", false)):
 					continue
 				## 2.5D 真源 js/game.js:217 / :2487 —— draggedBy 的空值只有 null。
 				## 3D 移植时自造了 -1 作空值（本文件 :805 跨夜、:1082 死亡、:2210），
@@ -3298,6 +3292,23 @@ func breaker_on_time() -> float:
 
 
 ## 舱室中心（2.5D 舱室 rect 中心；拖尸目的地 / 领袖指令目的地用）
+## 2.5D randIn(r)（js/game.js:2159）：舱内随机**可走点**，不是舱心。
+## 3D 之前所有"散开/巡舱"都往 room_center 走，几个人会叠在同一个坐标上。
+func rand_in_room(room_id: String) -> Vector2:
+	var r: Dictionary = rooms_by_id.get(room_id, {}) as Dictionary
+	if r.is_empty() or nav == null:
+		return room_center(room_id)
+	var rect: Array = r.get("rect", []) as Array
+	if rect.size() < 4:
+		return room_center(room_id)
+	for k in 200:
+		var p := Vector2(float(rect[0]) + _rng.randf() * float(rect[2]),
+			float(rect[1]) + _rng.randf() * float(rect[3]))
+		if nav.is_free(p):
+			return p
+	return room_center(room_id)
+
+
 func room_center(room_id: String) -> Vector2:
 	var r: Dictionary = rooms_by_id.get(room_id, {}) as Dictionary
 	var rect: Array = r.get("rect", []) as Array
