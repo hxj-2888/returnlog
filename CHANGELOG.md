@@ -5,6 +5,16 @@
 > 中文记录与提交格式 `type(scope): 摘要` 见 `AGENTS.md` §一.10；
 > 门禁报告必须写本次实跑的「X 通过 / Y 失败」（§一.4）。
 
+## 2026-11-14 · 版本号 V1P-0.2 → V1P-0.3，新增版本级发布说明
+
+- **本批改动**：`3d/version.json` 升 `V1P-0.3` / `0.3.0`（`channel=preview`，`build=2026-11-14`），
+  由 `node 3d/tools/export-version.cjs` 重生成 `3d/preview/data/version.json`；
+  新增 `3d/RELEASE-NOTES.md`（版本级说明，只做汇总，明细仍以 `3d/CHANGELOG-2026-11.md` 为准）。
+- **不含**：未改 `js/**`、未改判定/数值/美术/音频，未动 `docs/CORE_RULES.md` 及其镜像。
+- **T3 记录（本次实跑）**：`npm run check` **11 通过 / 0 失败**；`npm run 3d:rules:test` **7 通过 / 0 失败**；
+  `audit:rules` 已连目标 66 · 断言 56 · PASS 56 / FAIL 0 / ERR 0；
+  `fixtures:check` 35 条 · covered **17**（预算 17）；`audit:next` 剩余缺口 22 条。
+
 ## 2026-11-11 · 第 23 批：game.js core/UI 审计 + 会议面板 UI spec POC
 
 - **触发**：继续推进“行为逻辑和 UI 也自动移植”；本轮做函数级解耦审计和会议面板 UI 契约。
