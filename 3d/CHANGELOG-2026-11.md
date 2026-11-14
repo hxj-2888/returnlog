@@ -1,5 +1,17 @@
 # 3D 修改记录
 
+## 2026-11-14 · 夹具 14 → 17（R4.4 / R2.8 / R10.5）
+
+- **本批改动**：`run_rule_fixtures.gd` 增 3 个 case，`covered 14 → 17`，`partial 5 → 3`，`todo 17 → 15`：
+  - `R4.4` 站桩在移动时被打断并清零：`start_doing(1,"fix",5)` → `set_path()` → `doing == 0`。
+    与既有 `test_ui._run_mgtest`（小游戏本身）合起来，这条规则的两半都有证据，故由 `partial` 升 `covered`。
+  - `R2.8` 夜会清路径但**保留 doing**，白天会议把 doing 归零（`open_meeting` → `dawn` 两段对照）。
+  - `R10.5` 夜会保持远程不动位，白天会议全员刷新到 `bridge`（同一 case 内两段断言）。
+- **T3 记录（本次实跑）**：`npm run 3d:rules:test` **7 通过 / 0 失败**；`npm run check` **11 通过 / 0 失败**；
+  `fixtures:check` 场景规则 35 · covered **17** / partial 3 / todo 15（预算 17）；manifest 已刷新。
+- **队列（`npm run audit:next`）**：剩余 23 条，前三为 `R14.3`（投票 10 步顺序）、`R4.1`（1 项直执 / 多项轮盘）、
+  `R7.1.3`（断电后门与监控联动）——三者都需要 main 层或更长的流程构造，不是 sim 单点能验的。
+
 ## 2026-11-14 · 选题器 audit:next（缺口清单可重算）
 
 - **本批改动**：新增 `3d/tools/next-work.cjs` + `npm run audit:next`——读账本与夹具账本，

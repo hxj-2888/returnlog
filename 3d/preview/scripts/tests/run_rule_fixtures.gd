@@ -171,6 +171,81 @@ func _case_r9_1(sim: Variant) -> void:
 		return
 	_ok("R9.1")
 
+## R4.4 站桩动作在移动时被打断并清零。
+func _case_r4_4(sim: Variant) -> void:
+	var a: Dictionary = sim.agents[1]
+	a["alive"] = true
+	a["downed"] = false
+	sim.start_doing(1, "fix", 5.0)
+	if absf(float(a.get("doing", 0.0)) - 5.0) > 0.001:
+		_bad("R4.4", "start_doing 后 doing=%s，应为 5" % str(a.get("doing", 0.0)))
+		return
+	var target: Vector2 = a.get("pos", Vector2.ZERO) + Vector2(2.0, 0.0)
+	sim.set_path(1, target)
+	if float(a.get("doing", 0.0)) != 0.0:
+		_bad("R4.4", "移动后站桩未清零：doing=%s" % str(a.get("doing", 0.0)))
+		return
+	_ok("R4.4")
+
+## R2.8 夜晚会议不打断站桩任务（清路径、保留 doing）；白天会议打断一切。
+func _case_r2_8(sim: Variant) -> void:
+	if sim.agents.size() < 3:
+		_bad("R2.8", "席位不足")
+		return
+	var dead: Dictionary = sim.agents[1]
+	dead["alive"] = false
+	dead["downed"] = false
+	dead["bodyPos"] = dead.get("pos", Vector2.ZERO)
+	var a: Dictionary = sim.agents[2]
+	a["alive"] = true
+	a["downed"] = false
+	sim.start_doing(2, "fix", 6.0)
+	a["path"] = PackedVector2Array([a.get("pos", Vector2.ZERO), a.get("pos", Vector2.ZERO) + Vector2(3.0, 0.0)])
+	sim.meeting = {}
+	sim.night_meets = 0
+	if not sim.open_meeting(0, 1):
+		_bad("R2.8", "夜会开不起来")
+		return
+	if absf(float(a.get("doing", 0.0)) - 6.0) > 0.001:
+		_bad("R2.8", "夜会打断了站桩：doing=%s，应保留 6" % str(a.get("doing", 0.0)))
+		return
+	if not (a.get("path", PackedVector2Array()) as PackedVector2Array).is_empty():
+		_bad("R2.8", "夜会未清路径")
+		return
+	sim.dawn()
+	if float(a.get("doing", 0.0)) != 0.0:
+		_bad("R2.8", "白天会议未打断站桩：doing=%s" % str(a.get("doing", 0.0)))
+		return
+	_ok("R2.8")
+
+## R10.5 白天会议全员被刷新到会议室；夜里会议是「远程」，人不移动。
+func _case_r10_5(sim: Variant) -> void:
+	if sim.agents.size() < 6:
+		_bad("R10.5", "席位不足")
+		return
+	var dead: Dictionary = sim.agents[1]
+	dead["alive"] = false
+	dead["downed"] = false
+	dead["bodyPos"] = dead.get("pos", Vector2.ZERO)
+	var a: Dictionary = sim.agents[5]
+	a["alive"] = true
+	a["downed"] = false
+	var before: Vector2 = a.get("pos", Vector2.ZERO)
+	sim.meeting = {}
+	sim.night_meets = 0
+	if not sim.open_meeting(0, 1):
+		_bad("R10.5", "夜会开不起来")
+		return
+	if (a.get("pos", Vector2.ZERO) as Vector2).distance_to(before) > 0.01:
+		_bad("R10.5", "夜会把人挪动了（应保持远程）")
+		return
+	sim.dawn()
+	var after: Vector2 = a.get("pos", Vector2.ZERO)
+	if sim.room_at(after) != "bridge":
+		_bad("R10.5", "白天会议后不在会议室：%s" % sim.room_at(after))
+		return
+	_ok("R10.5")
+
 func _initialize() -> void:
 	_map = _load_json(MAP_PATH)
 	_space = _load_json(SPACE_PATH)
@@ -178,13 +253,16 @@ func _initialize() -> void:
 		print("RULETEST FAIL 数据缺失")
 		quit(1)
 		return
-	print("RULETEST 开始：", 4, " 个 case")
 	var cases: Array = [
 		["R5.4", Callable(self, "_case_r5_4")],
 		["R2.7", Callable(self, "_case_r2_7")],
 		["R8.5", Callable(self, "_case_r8_5")],
 		["R9.1", Callable(self, "_case_r9_1")],
+		["R4.4", Callable(self, "_case_r4_4")],
+		["R2.8", Callable(self, "_case_r2_8")],
+		["R10.5", Callable(self, "_case_r10_5")],
 	]
+	print("RULETEST 开始：", cases.size(), " 个 case")
 	for row: Array in cases:
 		var cid: String = String(row[0])
 		var fn: Callable = row[1] as Callable

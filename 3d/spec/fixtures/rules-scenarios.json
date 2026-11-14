@@ -18,7 +18,7 @@
   "search(seat)"
  ],
  "budget": {
-  "covered": 14
+  "covered": 17
  },
  "cases": [
   {
@@ -39,8 +39,11 @@
   },
   {
    "rule": "R2.8",
-   "status": "todo",
-   "why": "需要夜会中途保留 doing 的对照"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r2_8"
+   ],
+   "note": "夜会清路径但保留 doing；白天会议 doing 归零"
   },
   {
    "rule": "R2.10",
@@ -58,12 +61,12 @@
   },
   {
    "rule": "R4.4",
-   "status": "partial",
+   "status": "covered",
    "evidence": [
-    "tests/test_ui.gd:_run_mgtest"
+    "tests/test_ui.gd:_run_mgtest",
+    "tests/run_rule_fixtures.gd:_case_r4_4"
    ],
-   "note": "验小游戏本身，未验「移动打断站桩」",
-   "why": "需补：验小游戏本身，未验「移动打断站桩」"
+   "note": "小游戏本身（mgtest）+ 移动打断站桩并清零（新夹具）"
   },
   {
    "rule": "R5.4",
@@ -204,8 +207,11 @@
   },
   {
    "rule": "R10.5",
-   "status": "todo",
-   "why": "需要白天与夜里两场会议的位置对照"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r10_5"
+   ],
+   "note": "夜会保持远程不移动；白天会议全员刷新到 bridge"
   },
   {
    "rule": "R11.1",
