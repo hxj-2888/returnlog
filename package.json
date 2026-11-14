@@ -60,7 +60,8 @@
     "audit:parity:baseline": "node 3d/tools/check-gameplay-parity.cjs --update-baseline",
     "map:build": "node 3d/tools/build-mapping-ledger.cjs",
     "map:diff": "node 3d/tools/map-diff.cjs",
-    "map:check": "node 3d/tools/build-mapping-ledger.cjs --check"
+    "map:check": "node 3d/tools/build-mapping-ledger.cjs --check",
+    "3d:rules:test": "node 3d/tools/run-rule-fixtures.cjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

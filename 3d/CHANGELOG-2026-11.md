@@ -1,5 +1,32 @@
 # 3D 修改记录
 
+## 2026-11-14 · 场景夹具执行器跑通（covered 10 → 14）
+
+- **本批改动**：
+  ① 新增 `3d/preview/scripts/tests/run_rule_fixtures.gd`——`extends SceneTree`，用
+  `godot --headless --script` 直接拉起 sim，**不经过 main.gd**（main.gd 5,549/5,550 仅剩 1 行，
+  加参数必破预算棘轮）；
+  ② 新增 `3d/tools/run-rule-fixtures.cjs` + `npm run 3d:rules:test`：按
+  `GODOT_BIN` → 常见路径 → PATH 找引擎，找不到就 **exit 2 报错**（不静默跳过，
+  否则「没跑」会被当成「通过」）；
+  ③ 夹具账本 `covered 10 → 14`，预算同步抬到 14。
+- **首批 4 个 case 全过**：
+  `R5.4` 断电后会议室仍亮、走廊采样点为暗；
+  `R2.7` 夜会清死者尸体、**濒死者保留**；
+  `R8.5` 濒死 30 秒不倒计时、天亮才失血死；
+  `R9.1` 同一夜第二次破坏被拒。
+- **过程中撞到两个真问题（已写进 case 注释）**：
+  ① **走廊端点被舱室矩形覆盖**：拿 `corridors[0].pts[0]` 直接采样，`room_at` 会先命中房间，
+  于是「断电后走廊仍亮」其实是拿会议室当走廊做的假阳性。改成沿折线取中点、只接受
+  `room_at == ""` 的采样点。
+  ② **`new_game` 之后 `meeting` 非空**（开局公开讨论），夜会 `open_meeting` 直接返回 false。
+  夹具里显式置空并说明「验的是清尸，不是会议生命周期」，避免引入计时依赖。
+- **T3 记录（本次实跑）**：`npm run check` **11 通过 / 0 失败**；`npm run 3d:rules:test`
+  **4 通过 / 0 失败**；`fixtures:check` 场景规则 35 · covered 14 / partial 4 / todo 17（预算 14）；
+  `audit:rules` 断言 56 全 PASS。
+- **剩余**：`partial 4`（R4.1 R4.3 R4.4 R14.3）与 `todo 17`。下一批优先 `R5.3`（视野）与
+  `R10.3`（报告一次性）——两者都能复用本执行器的摆位与 tick 原语。
+
 ## 2026-11-14 · 场景夹具账本（35 条 scenario 逐条有账，进第 11 项门禁）
 
 - **本批改动**：

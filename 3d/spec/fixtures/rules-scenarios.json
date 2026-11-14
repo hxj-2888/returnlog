@@ -1,6 +1,6 @@
 {
  "schema_version": 1,
- "note": "场景夹具账本（2026-11-14）：35 条 scenario 规则逐条登记覆盖状态。covered 必须指向真实存在的测试函数；partial 写清缺哪一段；todo 写清为什么现在建不了。覆盖数只许升不许降。",
+ "note": "场景夹具账本（2026-11-14）：35 条 scenario 规则逐条登记覆盖状态。covered 必须指向真实存在的测试函数（check-fixtures.cjs 会读文件确认）；partial 写清缺哪一段；todo 写清为什么现在建不了。覆盖数只许升不许降。执行：npm run 3d:rules:test（Godot 无头）。",
  "status_legend": {
   "covered": "已有可执行测试明确断言该规则",
   "partial": "有相关测试但未覆盖该条全部断点",
@@ -18,7 +18,7 @@
   "search(seat)"
  ],
  "budget": {
-  "covered": 10
+  "covered": 14
  },
  "cases": [
   {
@@ -31,8 +31,11 @@
   },
   {
    "rule": "R2.7",
-   "status": "todo",
-   "why": "需要「先死人再开会」的场景，断言尸体 bodyGone 而濒死者保留"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r2_7"
+   ],
+   "note": "夜会清死者尸体、濒死者保留"
   },
   {
    "rule": "R2.8",
@@ -64,12 +67,11 @@
   },
   {
    "rule": "R5.4",
-   "status": "partial",
+   "status": "covered",
    "evidence": [
-    "tests/test_world.gd:_run_powertest"
+    "tests/run_rule_fixtures.gd:_case_r5_4"
    ],
-   "note": "验供电状态，未验「舱室全暗 / 走廊全熄」的可见性",
-   "why": "需补：验供电状态，未验「舱室全暗 / 走廊全熄」的可见性"
+   "note": "断电后会议室仍亮、走廊采样点为暗"
   },
   {
    "rule": "R6.2",
@@ -140,8 +142,11 @@
   },
   {
    "rule": "R8.5",
-   "status": "todo",
-   "why": "需要跨夜观察濒死不断气"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r8_5"
+   ],
+   "note": "濒死 30 秒不倒计时，天亮失血死"
   },
   {
    "rule": "R8.6",
@@ -166,8 +171,11 @@
   },
   {
    "rule": "R9.1",
-   "status": "todo",
-   "why": "需要异形连续两次破坏，验第二次被拒"
+   "status": "covered",
+   "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r9_1"
+   ],
+   "note": "同一夜第二次破坏被拒"
   },
   {
    "rule": "R9.2",
