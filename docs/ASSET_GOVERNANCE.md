@@ -1,4 +1,4 @@
-<!-- GENERATED from 新返航录/docs/ASSET_GOVERNANCE.md @ sha256:fd10d921d6a50be31b6bf5dcafca202bf1ceef8052ce00c86ac69137ae5d867d; do not edit; run npm run docs:sync -->
+<!-- GENERATED from 新返航录/docs/ASSET_GOVERNANCE.md @ sha256:2d60dfa8ea3384db33a0539c435370076d10634b87798d6f02ef28ade6d6c3aa; do not edit; run npm run docs:sync -->
 
 # 新返航录 2.5D / 3D 双仓 · 存储空间与过期资产治理规范 v1.0
 
@@ -411,6 +411,19 @@
 | Canvas 大图预缩放（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 「Cache various sizes of your images on an offscreen canvas when loading as opposed to constantly scaling them in drawImage()」；重复图元/文本先离屏预渲染；「Render screen differences only」 | base-lit 4704×4413 每帧整图缩放；DEV 身份/凶手标签与幽灵光晕每帧重画 |
 | Canvas 尺寸上限（检索 2026-11-13） | https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 多数浏览器上限超过 10000×10000，但 iOS 限制 4096×4096；超过上限后绘制命令会失败 | 底图 4704 宽超过 4096 的纹理上限 |
 | 大图超纹理上限的实测症状（检索 2026-11-13） | https://issues.chromium.org/41173621 | Chromium issue tracker | 公开缺陷库 | Android 设备 max texture size 4096，超出上限的 2D/WebGL 内容会触发分块与明显变慢 | 4× CPU 降速实测：整图 drawImage 后 `ctx.fill` 单帧 0.8–1.1 秒 |
+| 规则 → 任务 → 收敛的流程分层（检索 2026-11-14） | https://github.com/github/spec-kit | GitHub（开源项目） | MIT | constitution → specify → plan → tasks → implement → converge 的产物分层；原话「Repeat implement and converge until convergence reports `Converged`」；bug 流程输出 `verified` / `partial` / `failed` 三态，仅 `verified` 记为修好 | 规则条目到可执行断言的产物分层、终止判据与三态裁定 |
+| 技能库结构（检索 2026-11-14） | https://github.com/MineDojo/Voyager | MineDojo | MIT | 技能库存放**可执行代码**，技能被描述为 interpretable / compositional；迭代提示同时使用环境反馈、执行错误、自我验证三路输入 | 夹具作为可执行回归资产的三要素、入库条件与组合方式 |
+| 课程式选题与执行分离（检索 2026-11-14） | https://github.com/aiming-lab/Agent0 | aiming-lab | Apache-2.0 | curriculum agent 在能力前沿内自生成下一任务，与 executor 职责分离 | 选题器只排序不自决；执行器只改实现、不改判据 |
+| 轨迹录制与校验分离（检索 2026-11-14） | https://github.com/phalanxduel/phalanxduel | phalanxduel | **AGPL-3.0（只读文档，不引代码）** | `docs/reference/qa-runners.md`：固定 seed、纯引擎批处理、trajectory record / verify 分离、state-hash 与 schema 漂移校验 | 每轮产物 manifest + artifacts，复验只读不重跑 |
+| 确定性输入回放（检索 2026-11-14） | https://github.com/luppichristian/GameTest | luppichristian | MIT | 游戏输入可确定性录制，并按帧回放注入 | 玩家操作序列化后无头重放，替代人工重复试玩 |
+| 失败反思记忆（检索 2026-11-14） | https://github.com/noahshinn/reflexion | Noah Shinn 等 | MIT | Actor → Evaluator → Reflector → Memory：失败轨迹写入情节记忆，后续同类任务先检索再行动 | 同一规则二次尝试前必须读上次失败原因，禁止重复同一条错路 |
+| 事件流作为唯一状态载体（检索 2026-11-14） | https://github.com/OpenHands/OpenHands | All Hands AI | MIT | Plan → Act → Observe 循环；observation 由运行时返回，不由模型自述 | 报告由事件流生成，不接受「我觉得修好了」式自述 |
+| 判定器灵敏度度量（检索 2026-11-14） | https://github.com/stryker-mutator/stryker-js | Stryker Mutator | Apache-2.0 | 以「注入变异后测试能否杀死」度量测试有效性（mutation score），而非只看用例是否通过 | 审计器自身质量指标；**阈值属项目自有契约，不以本条为依据** |
+| 固定预算实验记录（检索 2026-11-14） | https://github.com/karpathy/autoresearch | Andrej Karpathy | **仓库未声明许可（只取方法，不引代码）** | 固定预算下逐次记录实验与结论，保留可验证轨迹，避免无限试错 | 单轮闭环的预算与留痕口径 |
+
+> **2026-11-14 登记（自动化审阅与修复闭环）**：上 9 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
+> 未下载、未采用其代码或素材文件；`phalanxduel` 为 AGPL-3.0、`autoresearch` 未声明许可，两者**只读文档、不引任何代码**。
+> 其中 mutation score 的阈值属项目自有契约（§14.3 自研豁免），不以公开来源为依据。
 
 > **2026-11-13 采纳（DEV 全图卡顿）**：公开方案是「加载时把大图预缩放到 ≤ 纹理上限 + 重复文本/图元离屏预渲染 + 只画差异」；
 > 本项目据此做三处：① `base-lit.png` 运行时缩到 4096 宽（源文件与 `assets()` 源尺寸不动）；

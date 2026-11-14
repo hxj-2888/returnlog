@@ -26,6 +26,8 @@ const CHECKS = [
   ['file:check', '3d/tools/filemap.cjs', ['--check']],
   // 映射账本：2.5D 全部函数必须逐条有判决，缺口只许收敛（2026-11-13）
   ['map:check', '3d/tools/build-mapping-ledger.cjs', ['--check']],
+  // 规则判定：按 3d/CORE_RULES.md 正文核对导出数值，不等即 FAIL（2026-11-14）
+  ['audit:rules', '3d/tools/audit-rules.cjs', ['--check']],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;

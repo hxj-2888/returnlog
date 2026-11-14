@@ -1,5 +1,141 @@
 # 3D 修改记录
 
+## 2026-11-14 · 断言补齐到 56 条（numeric 覆盖率 56/59）
+
+- **本批改动**：给 30 条已连目标的 numeric 规则补上 `assert`（`R1.4 R1.6 R2.2 R2.5 R2.6 R2.9 R5.2 R6.3
+  R6.7 R7.1.1 R7.4.3 R7.5.2 R9.5 R10.6 R11.3 R11.5 R11.6 R11.7 R12.2 R12.4 R12.6 R12.8 R13.4 R13.5
+  R13.6 R13.7 R13.8 R14.5 R14.6 R14.8`）。断言总数 **26 → 56**。
+- **百分比类的处理**：正文写「20%」「55%」，导出表是 0.2 / 0.55，故 `assert.scale = 0.01` 做单位换算
+  （`R11.5 R11.6 R13.5 R13.6 R13.7 R13.8 R14.6`），不做硬编码除法。
+- **一次真实的 ERR 案例（论证告警分级有效）**：`R1.6` 首次写入时，shell 双引号吃掉一层转义，
+  正则变成 `三档分布s*(d+)/`，判定器报 `ERR 正则未命中` 而不是静默判 PASS；改回 heredoc 写入后
+  `PASS 正文 28 == 导出 28`。这正好验证了两件事：① ERR 通道能抓自己写错的断言；
+  ② ERR 不阻门禁（`npm run check` 仍 10/0），不会因一条断言写坏就卡住全员。
+- **剩下 3 条仍无断言，原因各异**：
+  `R6.1`（任务点 2/1 分）与 `R6.8`（电路维修 10 秒）的值落在 `map.points[].dur` / 空间模块的聚合上，
+  需要先算派生值；`R11.2` 是 24 项证据权重表，只连 `constants.EV_W` 整表，不设单值断言假装覆盖。
+- **T3 记录（本次实跑）**：`npm run check` **10 通过 / 0 失败**；`audit:rules` 已连 66 · 断言 **56** ·
+  **PASS 56 / FAIL 0 / ERR 0**；`audit:parity:strict` 391 函数 / 映射 245 / 未映射 0 / 漂移 0。
+  断言经 `map:build` 重建后指纹一致（`cde447cbe8d1`），不会被重建冲掉。
+- **下一批立项依据**：numeric 侧已接近穷尽，下一步是 **35 条 scenario 的夹具原语**
+  （`spawn_at_dark_room` / `face` / `hold_torch` / `walk_to` / `stab_nearest` …），
+  以及 `R6.1` / `R6.8` 的派生值导出。
+
+## 2026-11-14 · 补 10 个导出键：已连目标 56 → 66，断言 17 → 26
+
+- **本批改动（导出层）**：
+  ① `3d/tools/export-space.cjs` 新增 `reach.pipe`(1.6) / `reach.monitor`(1.8) / `reach.report`(2.4)、
+  `drag.ai_interval`(1.6) / `drag.ai_hear_r`(8)、`tasks.hard_per_seat`(1) / `tasks.normal_per_seat`(3)；
+  ② `3d/tools/export-rules.cjs` 新增 `constants.AGGR_FLOOR`(60)、`constants.QUAL_AT`([3,5])、
+  `constants.QUAL_CAP`(2)、`constants.FOLLOW_SUS`({pack:2, hot:0.10, normal:0.18})；
+  ③ 重导 `preview/data/space.json` 与 `rules.json`（均为生成物，未手改）。
+  取法一律「具名正则 + 抠不到即 fail-loud」，沿用 `export-space.cjs` 既有口径（ADR-0008）。
+- **规则侧**：`R1.5` / `R1.7` / `R5.6` / `R6.4` / `R6.5` / `R7.2.1` / `R7.3.1` / `R10.1` / `R11.2` / `R14.4`
+  连上目标，其中 9 条补了断言（`R11.2` 是权重表，只连 `constants.EV_W`，不设单值断言）。
+- **结果**：已连目标 **66 / 112**、已写断言 **26 条 · PASS 26 / FAIL 0 / ERR 0**。
+  `numeric` 未连只剩 **`R6.1`（任务点 2/1 分）与 `R6.8`（电路维修 10 秒）**——这两个值落在
+  `map.points[].dur` 与 `js/t2/space.js` 的聚合上，需要先算派生值才能比对，留下一批。
+  `symbolic` 未连仍是 `R8.4`（子弹来源入口名待确认）与 `R12.1`（嫌疑累加入口待定）。
+- **顺带发现（未处置，待裁定）**：两仓 `3d/tools/export-space.cjs` / `export-rules.cjs` **已分叉 9 行**，
+  3D 侧较新（含 `MEDBOT_*` 参数、`hp_secbot/hp_medbot` 复位、`SKTeam` 导出）。本批只在 3D 侧补键，
+  **没有回灌主仓**：因为回灌等于决定「导出链以哪边为源」，属口径裁定，不擅自做。
+- **T3 记录（本次实跑）**：`npm run check` **10 通过 / 0 失败**；`audit:rules` 已连 66 · 断言 26 ·
+  PASS 26 / FAIL 0 / ERR 0；`audit:parity:strict` 391 函数 / 映射 245 / 未映射 0 / 漂移 0；
+  `map:check` 数据目标 57 · 代码目标 9 · `unclassified` 0。
+- **下一批立项依据**：① 给剩下 33 条已连但无断言的 numeric 补断言（纯加法，风险最低）；
+  ② `R6.1` / `R6.8` 的派生值导出；③ 35 条 scenario 的夹具原语。
+
+## 2026-11-14 · 规则判定器上线（首批 17 条数值断言进第 10 项门禁）
+
+- **本批改动**：
+  ① 新增 `3d/tools/audit-rules.cjs`——只读判定器，从 `3d/CORE_RULES.md` **正文现取数值**，
+  与 `data_targets` 指向的导出键比对；**账本里只存读取模式（正则），不存期望值**，
+  正文改词改数就会失配报 ERR，逼人复核，而不是拿旧值继续判。
+  ② `rules` 段新增 `assert` 字段，首批 **17 条**（R1.8 / R2.1 / R3.1 / R5.1 / R5.3 / R5.5 / R6.6 /
+  R7.1.2 / R7.2.2 / R7.4.1 / R7.5.1 / R8.9 / R9.4 / R10.2 / R12.3 / R13.3 / R14.2）。
+  ③ `tools/check-all.cjs` 增第 10 项 `audit:rules`；`package.json` 增 `audit:rules` / `audit:rules:check`。
+- **告警分级**：`--check` 只在 **FAIL**（正文值与导出值不等）时 exit 1；**ERR**（正文措辞漂移、
+  正则未命中、导出键失效）只告警，收口时用 `--strict` 把 ERR 也算失败。
+  理由：正文由设计者维护，改一个字不该直接把全员门禁卡红；但「值不等」必须立刻红。
+- **灵敏度自检（证明判定器不是空转）**：把 `R2.1` 的 `assert.ref` 故意指到 `space.json#move.speed`（=4），
+  判定器报 `FAIL R2.1 正文 75 != 导出 4` 且 exit 1；换回真账本 exit 0、17/17 PASS。
+  自检用 `--ledger <临时账本>` 完成，未改动真账本。
+- **T3 记录（本次实跑）**：`npm run check` **10 通过 / 0 失败**；
+  `audit:rules` 规则 112 条 · 已连目标 56 · 已写断言 17 · **PASS 17 / FAIL 0 / ERR 0**；
+  `map:check` 数据目标 47 · 代码目标 9 · `unclassified` 0；`audit:parity:strict` 未映射 0 / 漂移 0。
+- **下一批立项依据**：先补 12 条导出键（R1.5 / R1.7 / R5.6 / R6.1 / R6.4 / R6.5 / R6.8 / R7.2.1 /
+  R7.3.1 / R10.1 / R11.2 / R14.4），补完即可把断言从 17 条扩到 40+ 条。
+
+## 2026-11-14 · 规则索引连目标：47 条接数据键、9 条接代码符号
+
+- **本批改动**：`rules` 段新增 `data_targets` 字段，与 `targets` 分工——
+  `targets` 只放 3D 侧 gd 符号（`sim/xxx.gd:symbol`，按 gd 清单校验），
+  `data_targets` 只放导出数据键（`file.json#dot.path`，按真实 JSON 走查校验）；
+  `build-mapping-ledger.cjs` 增 `resolveDataRef()`（支持数组下标与 `.length`），`--check` 对两类目标分别校验。
+  结果：**47 条 numeric 连上数据键、9 条 symbolic 连上代码符号**。
+- **为什么分两栏**：若把 `rules.json#tables.X` 塞进 `targets`，`--check` 会按 gd 符号去比，
+  必然误报「目标不存在」；混栏还会让「代码没实现」和「数据没导出」两种缺陷看起来一样。
+- **未连的 14 条（属导出缺口，不是漏填）**：
+  - numeric 12：`R1.5`（每席 4 任务配额）、`R1.7`（异形 aggr 保底 60）、`R5.6`（拖尸声 1.6s/8 格）、
+    `R6.1`（任务点 2/1 分）、`R6.4`（3/5 分触发申请单）、`R6.5`（持单上限 2）、`R6.8`（电路维修 10s）、
+    `R7.2.1`（管道口 1.6 格）、`R7.3.1`（监控 1.8 格）、`R10.1`（报告 2.4 格）、`R11.2`（证据权重表）、
+    `R14.4`（跟票门槛 0.18/0.10）。
+  - symbolic 2：`R8.4`（子弹来源需先确认 `exchange` 入口名）、`R12.1`（嫌疑累加入口待定）。
+  这些值在 `js/` 里有定义，但**导出层没有可寻址的键**；补键属 T2/导出改动，要按 `docs/acceptance.md §6.2`
+  顺序（改真源 → 重导 → 门禁）走，不在本批范围内硬凑。
+- **T3 记录（本次实跑）**：`map:check` 规则 112 条 · 已连代码目标 9 · 已连数据目标 47 · `unclassified` 0（预算 0）；
+  `npm run check` **9 通过 / 0 失败**；`audit:parity:strict` 未映射 0 / 漂移 0。
+- **下一批立项依据**：① 先补上面 12 条导出键（收益最大：补完即可全自动比对）；
+  ② 再给 35 条 scenario 建夹具原语；③ 最后才写 `audit-rules.cjs` 判定器。
+
+## 2026-11-14 · 112 条规则完成四级分类（判据与边界决定）
+
+- **本批改动**：`3d/spec/mapping-ledger.json#rules` 的 112 条由 `unclassified` 全部落定为
+  **numeric 59 / scenario 35 / symbolic 11 / manual 7**；`budget.unclassified` 由 112 收紧到 **0**
+  （沿用 `--update-budget` 棘轮，之后新增规则不分类就会红）。
+- **四级判据（先定判据再分，避免逐条拍脑袋）**：
+  - `numeric`：断言可完全由标量表达，且该值在 `preview/data/*.json` 有唯一定义点 → 三向比对可全自动；
+  - `symbolic`：断言是「存在 / 入口 / 归属 / 顺序」，静态可查（符号 + 调用链），不需跑局；
+  - `scenario`：必须跑一局并取状态断言（视野、战斗结算、会议流程、拖拽、搜尸等）；
+  - `manual`：输入映射、语料质感、美术提示词——只能人工判读。
+- **几个容易争的边界，按下述口径落定**：
+  `R4.2` 键位 → `manual`（输入映射属红线 11 允许差异，只能核对语义等价）；
+  `R8.4` 子弹来源 → `symbolic`（入口清单可查，数量约束归 `R8.3`）；
+  `R12.1` 嫌疑累加、`R14.1` 选民条件 → `symbolic`（口径可查，权重与门槛分别归 `R11.2` / `R14.2`）；
+  `R13.1` 发言由真实经历组句 → `manual`（属语料质感）。
+- **回归保护**：分类后跑一次 `map:build` 重建，`rules` 的 `(id, verifier)` 指纹前后一致
+  （`f8099f11d133`），证明「重建不丢人工填写字段」这条保留逻辑成立。
+- **T3 记录（本次实跑）**：`map:check` 规则索引 112 条 · 已连目标 0 · `unclassified` 0（预算 0）；
+  `npm run check` **9 通过 / 0 失败**；`npm run audit:parity:strict` 未映射 0 / 漂移 0。
+- **下一批立项依据**：给 `targets` 填目标——`numeric` 59 条先连 `preview/data/*.json` 的键、
+  `symbolic` 11 条连 `sim/**` 符号，`scenario` 35 条留到夹具原语到位后再连。
+
+## 2026-11-14 · 映射账本增设「规则索引」段（R 条目 ↔ 3D 实现）
+
+- **本批改动**：
+  ① `3d/tools/build-mapping-ledger.cjs` 增加规则索引能力：`--rules-init` 从 `3d/CORE_RULES.md` 解析
+  R 条目写入账本（保留已填分类与目标）、`--ack-rules` 推进复核基线哈希、`--check` 增三项校验
+  （编号不重复 / `targets` 必须在 3D 侧可解析到函数或 `extras` / `unclassified` 不超预算）；
+  ② `3d/spec/mapping-ledger.json` 增设 `rules` 段 **112 条**、`rules_source_sha256` /
+  `rules_reviewed_sha256`、`budget.unclassified`；
+  ③ `docs/ASSET_GOVERNANCE.md`（经 `docs:sync` 镜像）§14.4 增 **9 条** 2026-11-14 公开来源登记。
+- **口径（对齐根 `ARCHITECTURE.md`）**：账本只存「编号 / 章节 / 原文前缀 / `js/` 锚点 / 分类 / 目标」，
+  **不复制条文正文**——规则该是什么只以 `docs/CORE_RULES.md`（N）为准，账本 `rules` 段是索引（`flag: F`），
+  索引可漂、定义不可动。分类（`verifier`）与目标（`targets`）由人 / agent 显式填写，工具**不猜**；
+  `unclassified` 初始 112 作为预算上限，之后只许收敛（沿用 `unmapped` / `pending` 同一棘轮）。
+- **顺带修正一处陈旧汇总**：HEAD 版 `summary.by_status` 声明 `adapter 373 / ported 115`，
+  与自身 `entries` 实际分布（`adapter 372 / ported 116`）不一致；本批重建后对齐，条目内容零改动。
+- **T3 记录（本次实跑）**：`npm run check` **9 通过 / 0 失败**；`audit:parity:strict` 总函数 391 /
+  映射 245 / 未映射 0 / 守卫缺口 0 / 写入缺口 0 / 3D 独有 0 / 漂移 0；`baseline:check` OK 407 文件；
+  `docs:check` PASS；`map:check` 规则索引 112 条 · 已连目标 0 · `unclassified` 112（预算 112）；
+  `file:check` 52 文件 / 27,308 行 / 最大 `main.gd` 5,550 行。
+- **公开依据**：`docs/ASSET_GOVERNANCE.md §14.4`（2026-11-14 登记 9 条：spec-kit / Voyager / Agent0 /
+  phalanxduel / GameTest / reflexion / OpenHands / Stryker / autoresearch）。一律按方法论吸收，
+  未下载、未采用其代码或素材；AGPL-3.0 与无许可仓库只读文档。
+- **下一批立项依据**：给 112 条填 `verifier`（`numeric` / `symbolic` / `scenario` / `manual`）与
+  `targets`，先做数值类（R16 表与 `rules.json#tables` 三向比对）。
+- **遗留**：规则正文哈希漂移目前在 `--check` 里只报 **WARN**（未升级 FAIL），待分类完成后再收紧。
+
 ## 2026-11-14 · 规则释义镜像与首读顺序
 
 - **本批改动**：① `npm run docs:sync` 新增生成 `3d/CORE_RULES.md` —— 2.5D `docs/CORE_RULES.md` 的

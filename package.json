@@ -53,6 +53,8 @@
     "3d:refs:cabin": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set cabin",
     "3d:refs:tasks": "pwsh -NoProfile -ExecutionPolicy Bypass -File 3d/tools/gen-art-refs.ps1 -Set tasks",
     "audit:parity": "node 3d/tools/check-gameplay-parity.cjs",
+    "audit:rules": "node 3d/tools/audit-rules.cjs",
+    "audit:rules:check": "node 3d/tools/audit-rules.cjs --check",
     "audit:parity:strict": "node 3d/tools/check-gameplay-parity.cjs --strict",
     "port:stub": "node 3d/tools/gen-port-stubs.cjs",
     "audit:parity:baseline": "node 3d/tools/check-gameplay-parity.cjs --update-baseline",

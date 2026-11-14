@@ -1726,6 +1726,17 @@
       "priorMin": 0.02,
       "priorMax": 0.98
     },
+    "AGGR_FLOOR": 60,
+    "QUAL_AT": [
+      3,
+      5
+    ],
+    "QUAL_CAP": 2,
+    "FOLLOW_SUS": {
+      "pack": 2,
+      "hot": 0.1,
+      "normal": 0.18
+    },
     "MEET_SCHED_note": "MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值"
   },
   "dispatch": {

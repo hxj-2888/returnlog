@@ -142,6 +142,19 @@ function buildRules() {
     EV_W: grabObject(texts.game, 'EV_W', 'game.js EV_W'),
     ID_EVIDENCE: grabObject(texts.game, 'ID_EVIDENCE', 'game.js ID_EVIDENCE'),
     IDENTITY: grabObject(texts.game, 'IDENTITY', 'game.js IDENTITY'),
+    /* 2026-11-14：R1.7 / R6.4 / R6.5 / R14.4 的数值此前只内联在函数里，导出层没有键。
+       一律按具名模式抠，抠不到即 fail-loud。 */
+    AGGR_FLOOR: grabNumber(texts.game, /t\.aggr=Math\.max\(t\.aggr,(\d+)\)/, 'game.js 异形 aggr 保底'),
+    QUAL_AT: [
+      grabNumber(texts.game, /if\(a\.progress>=(\d+)&&!a\._q3\)/, 'game.js 第 1 份申请单阈值'),
+      grabNumber(texts.game, /if\(a\.progress>=(\d+)&&!a\._q5\)/, 'game.js 第 2 份申请单阈值'),
+    ],
+    QUAL_CAP: grabNumber(texts.game, /a\.qual=Math\.min\((\d+),\(a\.qual\|\|0\)\+1\)/, 'game.js 持单上限'),
+    FOLLOW_SUS: {
+      pack: grabNumber(texts.game, /const needSus=pack>=(\d+)\?/, 'game.js 跟票降门槛人数'),
+      hot: grabNumber(texts.game, /const needSus=pack>=\d+\?([\d.]+):/, 'game.js 跟票降门槛'),
+      normal: grabNumber(texts.game, /const needSus=pack>=\d+\?[\d.]+:([\d.]+);/, 'game.js 跟票门槛'),
+    },
     MEET_SCHED_note: 'MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值',
   };
 

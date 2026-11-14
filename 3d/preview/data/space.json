@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-13T08:42:22.354Z",
+  "generated_at": "2026-11-14T02:12:08.557Z",
   "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
   "sources": {
     "js/ai/sanity.js": "a2dd222adc5c",
@@ -49,7 +49,18 @@
     "fix": 2,
     "body": 2.2,
     "round_table": 2.3,
-    "breaker": 2
+    "breaker": 2,
+    "pipe": 1.6,
+    "monitor": 1.8,
+    "report": 2.4
+  },
+  "drag": {
+    "ai_interval": 1.6,
+    "ai_hear_r": 8
+  },
+  "tasks": {
+    "hard_per_seat": 1,
+    "normal_per_seat": 3
   },
   "pipe": {
     "cooldown": 20,

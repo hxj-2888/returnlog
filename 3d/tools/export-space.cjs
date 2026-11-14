@@ -102,6 +102,21 @@ const out = {
     /* 圆桌领取判定半径：nearRoundTable 里的 Math.hypot(dx,dy)<2.3 */
     round_table: pick(gameSrc, gamePath, /nearRoundTable[\s\S]{0,220}?Math\.hypot\(dx,dy\)<([\d.]+)/, '圆桌领取半径'),
     breaker: pick(gameSrc, gamePath, /const BREAKER_USE_R=([\d.]+);/, 'BREAKER_USE_R'),
+    /* 2026-11-14：规则索引要连「管道口 1.6 / 监控 1.8 / 报告 2.4」，此前只在函数里内联，
+       导出层没有可寻址键，导致 CORE_RULES 的 R7.2.1 / R7.3.1 / R10.1 只能人工看。 */
+    pipe: pick(gameSrc, gamePath, /function nearPipe\(a\)\{\s*let best=null,bd=([\d.]+)/, '管道口半径'),
+    monitor: pick(gameSrc, gamePath, /function nearMonitor\(a\)\{[\s\S]{0,160}?<([\d.]+)\)\?m:null/, '监控半径'),
+    report: pick(gameSrc, gamePath, /function tryReport\(\)\{[\s\S]{0,200}?bd=([\d.]+)/, '报告半径'),
+  },
+  /* 拖尸声（js/game.js dragSound）：每 1.6 秒给 AI 记一次 8 格声纹 —— R5.6 */
+  drag: {
+    ai_interval: pick(gameSrc, gamePath, /if\(a\._dragAiT>=([\d.]+)\)\{a\._dragAiT=0;aiHear\('drag',a\.x,a\.y,\d+/, '拖尸声间隔'),
+    ai_hear_r: pick(gameSrc, gamePath, /if\(a\._dragAiT>=[\d.]+\)\{a\._dragAiT=0;aiHear\('drag',a\.x,a\.y,(\d+)/, '拖尸声半径'),
+  },
+  /* 每席任务配额（js/game.js:208）：1 个高难点 + 3 个普通点 —— R1.5 */
+  tasks: {
+    hard_per_seat: 1,
+    normal_per_seat: pick(gameSrc, gamePath, /\.concat\(shuffle\(normalPts\.slice\(\)\)\.slice\(0,(\d+)\)\)/, '普通任务配额'),
   },
   pipe: {
     cooldown: SKSanity.PIPE.cooldown,
