@@ -64,7 +64,10 @@
     "3d:rules:test": "node 3d/tools/run-rule-fixtures.cjs",
     "audit:next": "node 3d/tools/next-work.cjs",
     "src:check": "node 3d/tools/check-src-anchors.cjs",
-    "visual:shots": "node 3d/tools/capture-visual.cjs"
+    "visual:shots": "node 3d/tools/capture-visual.cjs",
+    "3d:extra:test": "node 3d/tools/run-extra-fixtures.cjs",
+    "sym:check": "node 3d/tools/check-symbolic.cjs",
+    "ai:check": "node 3d/tools/check-ai-parity.cjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

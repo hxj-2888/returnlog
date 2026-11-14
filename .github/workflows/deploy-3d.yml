@@ -92,6 +92,17 @@ jobs:
       - name: Import project resources
         run: ~/godot/godot --headless --path 3d/preview --import
 
+      # 规则与 AI 行为夹具（2026-11-14）：这两组判据必须真跑 Godot，
+      # 而 check.yml 是纯 Node 只读门禁、没有引擎。放在这里等于「发布前必须过判据」：
+      # 场景规则（12 条 R + 3 条 BUG 回归）与补充判据（10 条规则 + AI 引擎 4 条）。
+      # 找不到引擎时执行器 exit 2，不会静默跳过。
+      - name: Rule fixtures (rule + extra)
+        run: |
+          set -euo pipefail
+          export GODOT_BIN="$HOME/godot/godot"
+          npm run 3d:rules:test
+          npm run 3d:extra:test
+
       - name: Export Web build
         run: |
           set -euo pipefail

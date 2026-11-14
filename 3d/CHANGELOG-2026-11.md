@@ -1,5 +1,43 @@
 # 3D 修改记录
 
+## 2026-11-14 · AI 引擎判据落地：ai:check + sym:check 进门禁，补充夹具 14 case（covered 30/35）
+
+- **本批改动**：
+  - 账本新增 **`ai_parity`** 段（29 条：H1–H15 / A1–A9 / 效用表 U1–U5）：附录 A 的每条机制
+    必须能在 `ai_human.gd` / `ai_alien.gd` 里找到锚点；`build-mapping-ledger.cjs` 会保留与序列化该段。
+    新增 `3d/tools/check-ai-parity.cjs`（`npm run ai:check`，门禁第 13 项）：① 覆盖——附录里的
+    H/A 编号账本必须有、多出来的算 STALE；② 存在——每条的 `file/func/must` 必须命中。
+  - 11 条 **symbolic** 规则补 `sym` 静态断言，新增 `3d/tools/check-symbolic.cjs`
+    （`npm run sym:check`，门禁第 14 项）：支持 `func` 作用域与 `must_not`（如 R3.4 不得再过滤 downed）。
+    口径写死在输出里：**只判存在与形态，不判行为等价**。
+  - 新增补充夹具 `3d/preview/scripts/tests/run_extra_fixtures.gd` + `npm run 3d:extra:test`
+    （**独立文件**，因为 run_rule_fixtures.gd 正被另一个 agent 在改）：
+    10 条场景规则 + 3 条 AI 行为（贴脸出刀压过拉闸 / 没刀 chase 分数归零 / FIX_CREW_CAP=3 不超员）。
+    结果 **12 通过 / 0 失败 / 1 已知偏离**。
+  - `deploy-3d.yml` 新增「Rule fixtures (rule + extra)」步骤：发布前必须真跑两组 Godot 判据
+    （此前 15 个场景 case 只在本机跑过，CI 全绿不代表夹具绿）。
+  - `audit-rules.cjs` 汇总行加「静态断言(sym) 11 条」。
+- **真实发现（已知偏离，待改 sim_state.gd）**：**R11.4 处决豁免缺失**——
+  2.5D `js/game.js:1946` 有 `justified` 前置（目击者已确证死者是异形时，这一枪不记凶手证据），
+  3D 的 `shoot()` 完全没有该分支，夹具实测 sus 0.00 → 1.00。已在夹具账本标
+  `known_deviation`，因 `sim_state.gd` 有他人在途改动，本批不修。
+- **夹具建设过程中的两个教训（已写进夹具注释）**：
+  ① `sab_tick` 第一条守卫是 `t<=0`，new_game 后 t=0，不先 `_start_night` 测的永远是「没有夜」；
+  ② 没刀时 `_plan` 仍返回 `id=chase`（真源结构 `best<=chase` 即返回），断言必须看分数是否归零，看 id 会把正确实现判成失败。
+- **灵敏度自检**：给 `ai:check` 的 H6 与 `sym:check` 的 R3.4 注入假断言 → 两个都 exit 1；还原后 exit 0。
+  两个判定器首跑全 PASS（它们查的是现有代码的存在性），灵敏度自检证明不是空转。
+- **附带修复（他人在途文件，只改 1 处语法，未提交）**：`ai_alien.gd:916` 的 `(a["drag"] = -1)`
+  括号赋值导致全仓 GDScript 解析失败（"Assignment is not allowed inside an expression"），
+  连带所有夹具与 `3d:rules:test` 都跑不了；去掉括号恢复可解析，逻辑未动。
+- **T3 记录（本次实跑）**：`npm run check` **14 通过 / 0 失败**；`npm run 3d:rules:test` **15 通过 / 0 失败**；
+  `npm run 3d:extra:test` **12 通过 / 0 失败 / 1 已知偏离**；`ai:check` 附录 24 条 · 索引 29 条 · 命中 29；
+  `sym:check` 11 条全 OK；夹具账本 **covered 30 / partial 5 / todo 0**（预算 30）。
+  另在 HEAD 工作树（排除他人在途改动）复跑夹具同样 12/0/1，确认 CI 上的提交态可过。
+- **规则覆盖**：112 条中 **97 条有机器判据**（数值 56 + 场景 30 + 符号 11）＝ 86.6%；
+  剩 15 条 = 3 numeric（R6.1/R6.8 需派生值、R11.2 权重表）+ 5 scenario partial + 7 manual。
+- **下一批立项依据**：① `R11.4` 按 `js/game.js:1946` 给 `shoot()` 补 justified 前置（等 sim_state.gd 收工）；
+  ② `R6.1`/`R6.8` 补任务点派生值导出；③ 5 条 partial 里的 `R4.1`/`R14.3`/`R7.1.3` 需要 main 层 headless 驱动。
+
 ## 2026-11-14 · 附录 A 定为「AI 移植验收判据（仅实现侧）」
 
 - **本批改动**：

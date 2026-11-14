@@ -119,6 +119,7 @@ function ruleRecord(parsed, prev) {
     targets: (prev && prev.targets) || [],
     data_targets: (prev && prev.data_targets) || [],
     ...(prev && prev.assert ? { assert: prev.assert } : {}),
+    ...(prev && prev.sym ? { sym: prev.sym } : {}),
     note: (prev && prev.note) || '',
   };
 }
@@ -294,6 +295,7 @@ function build(opts) {
   entries.sort((a, b) => (a.src + '#' + (a.occ || 1)).localeCompare(b.src + '#' + (b.occ || 1)));
 
   const rulesPrev = (prev && prev.rules) || [];
+  const aiParityPrev = (prev && prev.ai_parity) || null;
   const body = rulesBody();
   let rules = rulesPrev;
   const rulesAdded = [];
@@ -347,6 +349,7 @@ function build(opts) {
       rules_reviewed_sha256: (prev && prev.rules_reviewed_sha256) || '',
       extras,
       rules,
+      ...(aiParityPrev ? { ai_parity: aiParityPrev } : {}),
       entries,
       summary: { total: entries.length, by_status: byStatus, by_layer: byLayer, targets_missing: missing.length },
     },
@@ -377,6 +380,9 @@ function serialize(l) {
   out.push('  "rules": [');
   (l.rules || []).forEach((r, i) => out.push('    ' + q(r) + (i < l.rules.length - 1 ? ',' : '')));
   out.push('  ],');
+  if (l.ai_parity) {
+    out.push('  "ai_parity": ' + q(l.ai_parity) + ',');
+  }
   out.push('  "entries": [');
   l.entries.forEach((e, i) => out.push('    ' + q(e) + (i < l.entries.length - 1 ? ',' : '')));
   out.push('  ],');

@@ -141,7 +141,8 @@ for (const r of rows) {
 console.log('');
 console.log('[rules] 规则 ' + (ledger.rules || []).length + ' 条 · ' +
   Object.entries(by).map(([k, v]) => k + ' ' + v).join(' / '));
+const symCount = (ledger.rules || []).filter((r) => r.sym).length;
 console.log('[rules] 已连目标 ' + linked + ' 条 · 已写断言 ' + assertCount + ' 条 · ' +
-  'PASS ' + pass + ' / FAIL ' + fail + ' / ERR ' + err);
+  '静态断言(sym) ' + symCount + ' 条 · ' + 'PASS ' + pass + ' / FAIL ' + fail + ' / ERR ' + err);
 if (err) console.log('[rules] ERR 多为正文措辞漂移或导出键失效，按「规则优先」复核断言，不要改正文迁就实现。');
 finish(CHECK && (fail || (STRICT && err)) ? 1 : 0);

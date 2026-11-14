@@ -18,7 +18,7 @@
   "search(seat)"
  ],
  "budget": {
-  "covered": 21
+  "covered": 30
  },
  "cases": [
   {
@@ -110,8 +110,11 @@
   },
   {
    "rule": "R7.1.4",
-   "status": "todo",
-   "why": "需要目击拉闸与目击合闸两组"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r7_1_4"
+   ],
+   "note": "目击拉闸写 known（身份级）、目击合闸只加 cred 不写 known"
   },
   {
    "rule": "R7.4.2",
@@ -131,8 +134,11 @@
   },
   {
    "rule": "R7.5.3",
-   "status": "todo",
-   "why": "需要刀砍医疗无人机的伤害与停摆"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r7_5_3"
+   ],
+   "note": "刀砍医疗无人机：装甲 1 点，归零即停摆"
   },
   {
    "rule": "R8.1",
@@ -208,13 +214,19 @@
   },
   {
    "rule": "R9.3",
-   "status": "todo",
-   "why": "需要三种引爆距离的对照"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r9_3"
+   ],
+   "note": "站在落点引爆；远在会议室且不在目标舱则不引爆"
   },
   {
    "rule": "R9.6",
-   "status": "todo",
-   "why": "需要目击者位置矩阵"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r9_6"
+   ],
+   "note": "幽灵破坏留故障但不写活人目击；活人破坏写目击"
   },
   {
    "rule": "R10.3",
@@ -244,28 +256,45 @@
   },
   {
    "rule": "R11.1",
-   "status": "todo",
-   "why": "需要「AI 未看见但系统知道他身份」的对照"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r11_1"
+   ],
+   "note": "开局 mates 全空（未读阵营表）；异形目击同伴出刀后记 mates，人类不记"
   },
   {
    "rule": "R11.4",
-   "status": "todo",
-   "why": "需要目击者已确证死者为异形的前提"
+   "status": "partial",
+   "why": "待改 sim/sim_state.gd#shoot：按 js/game.js:1946 加 justified 前置（victim 已在目击者 known 里则跳过 susAdd）。该文件当前有他人在途改动，本批不动",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r11_4"
+   ],
+   "note": "已写夹具并复现：目击者已确证死者是异形时，开枪仍被记凶手证据（sus 0→1.00）。3D 无 2.5D 的 justified 分支",
+   "known_deviation": true
   },
   {
    "rule": "R11.8",
-   "status": "todo",
-   "why": "需要构造口供与位置记录矛盾/一致两组"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r11_8"
+   ],
+   "note": "口供与位置记录一致→不判矛盾；指向别的舱室→判矛盾"
   },
   {
    "rule": "R12.5",
-   "status": "todo",
-   "why": "需要只有传闻、没有实证的目标"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r12_5"
+   ],
+   "note": "只有传闻不算身份级证据；含亲眼所见才算"
   },
   {
    "rule": "R12.7",
-   "status": "todo",
-   "why": "需要当众指控/辩护后再投票"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r12_7"
+   ],
+   "note": "被指控记 grudge；trust≥0.8 进入「不过票」保护"
   },
   {
    "rule": "R13.2",
@@ -286,8 +315,11 @@
   },
   {
    "rule": "R14.7",
-   "status": "todo",
-   "why": "需要异形已认出队友，观察是否避开"
+   "status": "covered",
+   "evidence": [
+    "tests/run_extra_fixtures.gd:_case_r14_7"
+   ],
+   "note": "异形投票不会选已认出的队友"
   }
  ]
 }

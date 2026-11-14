@@ -32,6 +32,10 @@ const CHECKS = [
   ['audit:rules', '3d/tools/audit-rules.cjs', ['--check']],
   // 场景夹具账本：35 条 scenario 规则逐条有账，covered 必须指向真实测试函数（2026-11-14）
   ['fixtures:check', '3d/tools/check-fixtures.cjs'],
+  // AI 引擎对照：附录 A 的每条 H/A 必须在 3D 实现里有对应机制（2026-11-14）
+  ['ai:check', '3d/tools/check-ai-parity.cjs', ['--check']],
+  // 符号类规则：11 条 symbolic 的静态断言（存在/形态，不判等价）（2026-11-14）
+  ['sym:check', '3d/tools/check-symbolic.cjs', ['--check']],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;
