@@ -418,6 +418,27 @@
 | 事件流作为唯一状态载体（检索 2026-11-14） | https://github.com/OpenHands/OpenHands | All Hands AI | MIT | Plan → Act → Observe 循环；observation 由运行时返回，不由模型自述 | 报告由事件流生成，不接受「我觉得修好了」式自述 |
 | 判定器灵敏度度量（检索 2026-11-14） | https://github.com/stryker-mutator/stryker-js | Stryker Mutator | Apache-2.0 | 以「注入变异后测试能否杀死」度量测试有效性（mutation score），而非只看用例是否通过 | 审计器自身质量指标；**阈值属项目自有契约，不以本条为依据** |
 | 固定预算实验记录（检索 2026-11-14） | https://github.com/karpathy/autoresearch | Andrej Karpathy | **仓库未声明许可（只取方法，不引代码）** | 固定预算下逐次记录实验与结论，保留可验证轨迹，避免无限试错 | 单轮闭环的预算与留痕口径 |
+| Canvas 静态层离屏预渲染 / 分层画布（检索 2026-11-14） | https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas | Mozilla MDN | 官方文档（CC-BY-SA 2.5） | 「Pre-render similar primitives or repeating objects on an off-screen canvas」「Use multiple layered canvases for complex scenes」（UI 层只在用户输入时画）、「Render screen differences only, not the whole new state」 | `drawMini()` 每帧重画整张静态蓝图（网格 / 走廊 / 10 房间轮廓与中文短名 / 管道 / 设施 / 26 任务点），CPU Profiler 中 `drawMini@game.js:10676` 为第三大 JS 热点 |
+| 帧预算与 rAF 回调（检索 2026-11-14） | https://web.dev/articles/speed-rendering | Google / web.dev | 官方文档（见站点） | 60Hz 下一帧只有约 16ms 完成 JS + 布局 + 绘制；`requestAnimationFrame` 回调超过 16ms 必然掉帧；「性能就是少做事」（do less work） | 用「每帧 JS 回调耗时」而非 headless 帧间隔作为体感读数；headless rAF 不受 vsync 约束，帧间隔不可当作流畅度 |
+| 强制同步布局与批量读写（检索 2026-11-14） | https://web.dev/articles/avoid-large-complex-layouts-and-layout-thrashing | Google / web.dev | 官方文档（见站点） | 先批量读样式、再批量写；DOM 越大布局越贵；避免 read-write-read-write 循环 | 复核 11-13 的 HUD 值变化才写是否仍生效，本批不得重新引入每帧 DOM 写入 |
+| 运行时性能定位方法（检索 2026-11-14） | https://developer.chrome.com/docs/devtools/performance | Google / Chrome DevTools | 官方文档（见站点） | 用 4× CPU 降速模拟低端设备；在 Main 火焰图里放大 `Animation Frame Fired`，按事件宽度找瓶颈，对比优化 / 未优化两版 | 本次用 CDP `Profiler` / `Performance.getMetrics` 做同口径前后对照，拒绝「凭感觉判卡」 |
+
+> **2026-11-14 登记（2.5D 运行时卡顿复测）**：上 4 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
+> 未下载、未采用其代码或素材文件。
+> **比对**：公开方案是「重复图元离屏预渲染 + 静态层分层画布 + 只画差异 + 16ms 帧预算内少做事」；
+> 本项目 11-13 已修大图纹理超限与 HUD 每帧重排（实测最坏单帧 1001ms → 0 次 >120ms、布局 440→23/6s），
+> 但 `draw()` 仍每帧全量重画静态装饰与小地图，静态内容没有缓存。
+> **采纳**：小地图静态层离屏缓存 + 脏检查（尺寸 / 舱室亮度 / 走廊灯 / 自身任务点变化才重建），
+> 动态标记（机器人巡逻位、玩家点、申请单脉冲）仍每帧叠加；保留 HUD「值变化才写」。
+> **不采纳**：`OffscreenCanvas` / Web Worker（违反 `file://` 零依赖与 DOM 契约）；
+> 静态背景改 CSS div（会绕过镜头裁剪 / 迷雾 / 亮度层，且底图与设施状态层必须同帧对齐）；
+> 改分辨率（§14.5 已登记历史反例）；底图 9 参数视口源裁剪（A/B 三轮显示 JS 侧仅约 0.07ms/帧、
+> GPU 合成收益在 headless 下无法证实，**本批不动**，另批立项）。
+> **实测（2026-11-14 · 1920×1080 dpr2 / Edge / 4× 降速）**：同环境 A/B 三轮每帧 JS 回调中位
+> 9.46 → 9.00ms（约 −5%）；10× 降速中位 41.43 → 38.43ms（约 −7%）；
+> CPU Profiler 中 `drawMini` 从第三大热点（271 samples）跌出 TOP20、DEV 场景 412 → 118 samples；
+> 缓存命中为「离屏 canvas 创建 0 次 / 每帧贴回 1 次」。收益为个位数百分比，**不构成「解决卡顿」的结论**：
+> 本机改前各场景即已 0 次 >100ms 长帧，未复现用户描述的「十分卡」，具体场景待用户补充（见 CHANGELOG 最新批次）。
 
 > **2026-11-14 登记（自动化审阅与修复闭环）**：上 9 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件；`phalanxduel` 为 AGPL-3.0、`autoresearch` 未声明许可，两者**只读文档、不引任何代码**。
