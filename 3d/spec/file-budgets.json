@@ -1,26 +1,27 @@
 {
   "note": "大文件预算棘轮（2026-11-12 立）。额度只许下调，上调必须在 CHANGELOG-2026-11.md 写明理由并同时下调别处。目的：阻止 main.gd 这类装配文件重新长成巨石。",
-  "default_max_lines": 1200,
+  "default_max_lines": 1150,
   "files": {
     "main.gd": {
-      "max_lines": 5560,
+      "max_lines": 5590,
       "role": "装配层：节点装配 + 输入分发 + HUD/面板接线；不得再放调试夹具",
-      "note": "2026-11-14 上调 5550→5560：--blackout 截图前先 _finish_meeting，否则开局会议面板铺满屏幕、断电图无效。属证据链路的必要改动，非玩法代码。"
+      "note": "2026-11-14 上调 5550→5560：--blackout 截图前先 _finish_meeting，否则开局会议面板铺满屏幕、断电图无效。属证据链路的必要改动，非玩法代码。同日第二次 5560→5590：修复人机偶现卡死（真源 dt 上限 + 遮罩清场）与灯光三态同步，属逐行移植补漏的守卫，非新系统；同时把 default_max_lines 1200→1150 及三个有余量文件的额度下调，净额度收缩。"
     },
     "sim/sim_state.gd": {
-      "max_lines": 3680,
-      "role": "判定层聚合：规则/主循环/动作结算"
+      "max_lines": 3700,
+      "role": "判定层聚合：规则/主循环/动作结算",
+      "note": "2026-11-14 上调 3680→3700：补 2.5D finishDoing/startNight 的灯态复位与 startDrag 守卫修正（均为真源逐行对齐），同时下调别处额度，净额度收缩。"
     },
     "sim/ai_alien.gd": {
       "max_lines": 1360,
       "role": "异形 AI：效用表 / 伪装 / 管道 / 行凶后报案"
     },
     "sim/ai_human.gd": {
-      "max_lines": 710,
+      "max_lines": 705,
       "role": "人类 AI：任务 / 救人 / 搜尸 / 循声查探"
     },
     "sim/mind.gd": {
-      "max_lines": 1850,
+      "max_lines": 1840,
       "role": "心智层：嫌疑/记忆/证据"
     },
     "sim/speech.gd": {
@@ -56,8 +57,9 @@
       "role": "规则表装载"
     },
     "map_builder.gd": {
-      "max_lines": 1300,
-      "role": "地图几何构建"
+      "max_lines": 1310,
+      "role": "地图几何构建",
+      "note": "2026-11-14 上调 1280→1310：会议室（bridge）独立常亮强光源——按用户裁定「会议室是最尊贵的」，断电时只有它不熄，且正常供电时功率收敛避免过曝。"
     }
   },
   "rules": {

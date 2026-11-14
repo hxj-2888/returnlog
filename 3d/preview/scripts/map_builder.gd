@@ -199,7 +199,9 @@ var _materials: Dictionary = {}
 var _cabin_mats: Dictionary = {}
 
 ## 断电表现要作用的对象：全船灯 + 自发光材质 + 环境光
-var _room_lights: Array = []      # [{light, energy, range}]
+var _room_lights: Array = []
+## 会议室专属灯（不随供电熄灭，但正常供电时收敛功率，避免过曝）
+var _keynote: OmniLight3D = null      # [{light, energy, range}]
 var _corr_lights: Array = []      # [{light, energy, range}]
 var _emit_mats: Array = []        # [StandardMaterial3D] 天花板/墙顶一类常亮材质
 var _env: Environment = null
@@ -250,7 +252,11 @@ func build() -> void:
 func set_light_state(st: int) -> void:
 	power_on = st != 2
 	for rec: Dictionary in _room_lights:
-		var lit: bool = st == 1 or (st == 0 and bool(rec.get("bright", true)))
+		# 会议室不随供电状态熄灭（R5.4「会议室除外」）。原先 st==2 时全房间一律 lit=false，
+		# 连 bridge 也黑掉 —— 逻辑层 lit_zone_at(bridge) 仍非空，画面却全暗，
+		# 属「规则成立、画面不成立」，2026-11-14 视觉评审发现，按用户裁定改为独立常亮强光源。
+		var lit: bool = bool(rec.get("bridge", false)) or st == 1 \
+			or (st == 0 and bool(rec.get("bright", true)))
 		(rec["light"] as OmniLight3D).visible = lit
 	for rec2: Dictionary in _corr_lights:
 		(rec2["light"] as OmniLight3D).visible = st != 2
@@ -261,6 +267,11 @@ func set_light_state(st: int) -> void:
 		_env.ambient_light_energy = _ambient_base if on else BLACKOUT_AMBIENT
 	## 补光必须一起切：它是预演期为"别让画面全黑"加的 DirectionalLight，
 	## 2.5D 没有对应物。不切的话拉闸后仍然看得清整间房，熄灯等于没做。
+	## 会议室专属灯永不熄灭（R5.4「会议室除外」），但正常供电时收敛到 5，
+	## 否则叠加在本就明亮的场景上会过曝（实测亮像素占比 1.3% → 7.4%）；
+	## 断电档也不宜高于正常档，否则会出现「黑天比亮天更亮」的怪相（实测 22.9 vs 18.1）。
+	if _keynote != null:
+		_keynote.light_energy = 8.0 if st == 2 else 5.0
 	if _fill != null:
 		_fill.light_energy = _fill_base if on else 0.02
 	if _ceil_fill != null:
@@ -943,13 +954,37 @@ func _build_lights() -> void:
 		var light := OmniLight3D.new()
 		var span: float = max(float(rect[2]), float(rect[3]))
 		var bright := String(room.get("light", "bright")) == "bright"
-		light.position = Vector3(float(label[0]), 2.6, float(label[1]))
-		light.omni_range = clampf(span * 1.6, 9.0, 38.0)
-		light.light_energy = 2.4 if bright else 1.15
-		light.light_color = Color(1.0, 0.93, 0.82) if bright else Color(0.62, 0.76, 1.0)
+		## 会议室（bridge）是唯一的「断电也不熄」的房间（R5.4：舱室全暗、会议室除外）。
+		## 2026-11-14 用户裁定：给它**单独的强亮光源**——会议室是最尊贵的那间。
+		## 它不进供电三态：拉闸时其余房间全灭，这里仍按满功率照。
+		var rid := String(room.get("id", ""))
+		var is_bridge := rid == "bridge"
+		light.position = Vector3(float(label[0]), 2.85 if is_bridge else 2.6, float(label[1]))
+		if is_bridge:
+			light.omni_range = clampf(span * 1.6, 14.0, 40.0)
+			light.light_energy = 2.6
+			light.light_color = Color(1.0, 0.96, 0.88)
+			## 会议室专属强光：不进 _room_lights，因此**任何供电状态都不切它**
+			## （R5.4「会议室除外」的画面实现）。用户 2026-11-14 裁定：会议室是最尊贵的。
+			var keynote := OmniLight3D.new()
+			keynote.position = Vector3(float(label[0]), 4.2, float(label[1]))
+			keynote.omni_range = 46.0
+			keynote.light_energy = 18.0
+			keynote.light_color = Color(1.0, 0.97, 0.90)
+			# 会议室是 42×16 的大房间：attenuation 取 0.5（比默认衰减慢），
+			# 否则单盏点光只照出中间一小片，玩家看到的仍是"整间黑"。
+			keynote.omni_attenuation = 0.5
+			keynote.shadow_enabled = false
+			keynote.light_energy = 5.0
+			add_child(keynote)
+			_keynote = keynote
+		else:
+			light.omni_range = clampf(span * 1.6, 9.0, 38.0)
+			light.light_energy = 2.4 if bright else 1.15
+			light.light_color = Color(1.0, 0.93, 0.82) if bright else Color(0.62, 0.76, 1.0)
 		light.shadow_enabled = false
 		add_child(light)
-		_room_lights.append({"light": light, "room": String(room.get("id", "")), "bright": bright})
+		_room_lights.append({"light": light, "room": rid, "bright": bright, "bridge": is_bridge})
 
 
 ## 走廊顶灯位来自真源：SKT2Space.corridorLampPos（每条走廊两盏，0.28 / 0.72 分位），

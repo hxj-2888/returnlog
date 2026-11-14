@@ -77,17 +77,17 @@
    "evidence": [
     "tests/run_rule_fixtures.gd:_case_r5_4"
    ],
-   "note": "断电后会议室仍亮、走廊采样点为暗",
+   "note": "断电影像：会议室独立常亮强光（bridge 专属 OmniLight，不随供电切换；正常 5 / 断电 8 收敛防过曝）",
    "visual": [
     {
      "tag": "above-blackout",
-     "verdict": "partial",
-     "note": "断电后整图变暗、天花板隐藏；但会议室未见亮区，与「会议室除外」不符，待裁定（逻辑层 lit_zone_at(bridge) 仍非空）"
+     "verdict": "pass",
+     "note": "断电后只剩会议室亮（专属常亮光源），其余舱室与走廊全暗；场景均值 16.8 / 亮像素 0.94%）"
     },
     {
      "tag": "above",
      "verdict": "pass",
-     "note": "同机位正常光照：天花板整层隐藏、布局可辨；对照用"
+     "note": "同机位正常光照：天花板隐藏、会议室不过曝（均值 18.1 / 亮像素 1.99%）；与断电图对照"
     }
    ]
   },
