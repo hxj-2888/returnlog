@@ -1,9 +1,7 @@
 extends RefCounted
 
-## 异形 AI（B3 最小版）：找人 → 走到刀程 → 出刀；偶尔去非会议室舱破坏。
-## 不做完整的计划/伪装/管道，这些留给后续批次；先把“夜里真的会死人”跑起来。
-## 口径：异形互不知道身份，这里也不读队友表；目标只按「现在看得见 / 本夜亲眼见过
-## 的最后位置（≤HUNT.memorySec）」选，完全没印象的人不进候选（2.5D 取消全图锁敌）。
+## 异形 AI：找人 → 刀程 → 出刀；效用表管拉闸/破坏/拆机器人/伪装/管道。
+## 目标只按「现在看得见 / 本夜最后目击（≤HUNT.memorySec）」选（2.5D 取消全图锁敌）。
 
 const SpaceData := preload("res://scripts/space_data.gd")
 
@@ -220,11 +218,8 @@ func _hunt_spot(a: Dictionary) -> Vector2:
 	return c
 
 
-## 管道突袭（2.5D alienPipeMove，js/game.js:3613）：
-##   · 只在目标 >15 格、没拖尸、冷却完毕时考虑；
-##   · 自己贴着某个管道口（<1.2 格）且**存在一个出口比走路显著更近**（收益 > 5 格）
-##     → 直接传送过去（PIPE.cooldown 20 秒）；
-## 入口/出口 6 格内目击写 saw_pipe；收益不足时走向入口（_pipePlan），每夜最多 2 趟。
+## 管道突袭（2.5D alienPipeMove, js:3613）：目标>15 格、没拖尸、冷却好；贴口且出口
+## 显著更近（>5 格）就直接传送；两端 6 格目击写 saw_pipe；收益不足走向入口，每夜 2 趟。
 func _pipe_move(a: Dictionary, tgt_pos: Vector2, td: float, dt: float) -> bool:
 	if _pipes.is_empty() or td <= 15.0 or int(a.get("drag", -1)) >= 0:
 		a["_pipePlan"] = {}
@@ -357,6 +352,20 @@ func tick(dt: float) -> void:
 					var r0: Dictionary = rooms0[sim._rng.randi_range(0, rooms0.size() - 1)]
 					sim.set_path(int(a.get("i", -1)), sim.room_center(String(r0.get("id", ""))))
 			continue
+		# @src js/game.js:3604-3612：真做任务只为换申请单（每只异形整局最多 1 次），
+		# 2.5D 是**每帧**掷骰 0.02×dt；3D 的 _decide 有 _aiT 节流，放那里会少采样一个量级。
+		if int(a.get("_alienTaskTotal", 0)) < 1 and int(a.get("knife", 0)) <= 0 \
+				and int(a.get("bullet", 0)) < 1 and int(a.get("qual", 0)) < 1 \
+				and sim.prog < 38 and int(a.get("_alienTaskN", -1)) != int(sim.night) \
+				and (a.get("_supportGoal", {}) as Dictionary).is_empty() \
+				and sim._rng.randf() < dt * 0.02:
+			var tl0: Array = a.get("tasks", []) as Array
+			var ti0 := int(a.get("tIdx", 0))
+			if ti0 < tl0.size():
+				var tp0: Dictionary = sim.point(int(tl0[ti0]))
+				a["_supportGoal"] = {"kind": "task", "x": float(tp0.get("x", 0.0)),
+					"y": float(tp0.get("y", 0.0)), "dur": float(tp0.get("dur", 0.0)),
+					"pt": int(tl0[ti0])}
 		# 2.5D `p.wait-=dt` 每帧都走（赶路时也走）；放 _decide 里会在路上停表。
 		var rp: Dictionary = a.get("_reportPlan", {}) as Dictionary
 		if not rp.is_empty() and float(rp.get("wait", 0.0)) > 0.0:
@@ -372,14 +381,9 @@ func tick(dt: float) -> void:
 		_decide(a)
 
 
-## @src js/game.js:3266 disguiseOptions(a,aud)
-## 一次返回全部候选，由 `_plan` 逐个算分取最优（不做 if 硬排）：
-##   ① realFix 真修故障（没刀、本夜没真修过、不是自己炸的）
-##   ② realRevive 真救非队友（有医疗包、本夜没真救过）
-##   ③ breakerOn 当众合闸（断电、闸在 spotR 内）
-##   ④ fake 假装修理（多人在场不演，要演就真修）
-##   ⑤ fakeTask 假装做任务（常客舱室 > 没人做过的点 > 距离）
-## 排序：常客舱室优先；打平按 LENS.lr 降序（只定顺序，不进权重）。
+## @src js/game.js:3266 disguiseOptions：一次返回全部候选，由 `_plan` 统一算分。
+## ① realFix 真修（没刀/本夜未真修/非自炸） ② realRevive 真救非队友 ③ breakerOn 当众合闸
+## ④ fake 假装修理 ⑤ fakeTask 假装做事；排序：常客舱优先 → LENS.lr 降序。
 func disguise_options(a: Dictionary, aud: Dictionary) -> Array:
 	var D: Dictionary = sim.rules.t("DISGUISE")
 	var CRED: Dictionary = sim.rules.t("CRED")
@@ -565,11 +569,8 @@ func _move_speed(a: Dictionary) -> float:
 	return SpaceData.num(space, "move", "speed")
 
 
-## @src js/game.js:3382 alienPlan(a,td)
-## 2.5D 效用表**逐字移植**：拉闸 / 破坏 / 拆机器人 / 狩猎 / 伪装 同台比分取 max。
-## td = 到当前猎杀目标的距离（无目标传 1e9）。
-## 所有数值只从 rules.json（SKTeam / DISGUISE / CRED / RUSH）与 space.json 读，
-## 本函数不写第二份常量，也不加真源没有的门槛。
+## @src js/game.js:3382 alienPlan：拉闸/破坏/拆机器人/狩猎/伪装同台比分取 max。
+## td=到猎杀目标距离（无目标 1e9）；数值只读 rules.json / space.json，不另立常量。
 func _plan(a: Dictionary, td: float) -> Dictionary:
 	# 合闸目标锁：`if(a._breakerGoal)` 未过期且不贴脸就沿用（真源 :3385-3391）
 	var bg: Variant = a.get("_breakerGoal", null)
@@ -814,22 +815,46 @@ func _decide(a: Dictionary) -> void:
 		return
 
 	# ---- 补给链（2.5D aiAlien 3505-3528，与人类同一条规则）----
-	# 有申请单先回圆桌领取；有申请单且缺子弹 → 军械补给点。
-	# 2.5D 异形场均 alienShots 1.0 次 —— 子弹就是从这条链来的；
-	# 3D 之前异形完全没有补给行为，"异形开枪"因此无从发生。
+	# @src js/game.js:3555-3572：已锁定的「真做任务」目标 —— 这是异形**赚申请单**的唯一入口
+	# （3/5 进度各发一张）；到 2.0 格内站桩，做完记一次。
+	var sup: Dictionary = a.get("_supportGoal", {}) as Dictionary
+	if not sup.is_empty():
+		if String(sup.get("kind", "")) != "task" \
+				or int(a.get("_alienTaskN", -1)) == int(sim.night):
+			a["_supportGoal"] = {}
+		else:
+			var sup_p := Vector2(float(sup.get("x", 0.0)), float(sup.get("y", 0.0)))
+			if ap0.distance_to(sup_p) < 2.0:
+				a["_supportGoal"] = {}
+				a["_alienTaskN"] = int(sim.night)
+				a["_alienTaskTotal"] = int(a.get("_alienTaskTotal", 0)) + 1
+				sim.start_doing(i, "task", float(sup.get("dur", 0.0)), int(sup.get("pt", -1)))
+				return
+			if sim.set_path(i, sup_p):
+				return
 	var qual_pending := int(a.get("qualPending", 0))
 	var qual := int(a.get("qual", 0))
-	if qual_pending > 0 and qual < 2:
+	# @src js/game.js:3574-3585：领申请单是交互即领（无 qual<2 门、无站桩，STAND.qual=0）。
+	# 旧写法 start_doing(dur=0) 空转且不 return，随后 set_path 又取消动作 → 整局拿不到单。
+	if qual_pending > 0:
 		var spot: Vector2 = sim.claim_spot()
 		if sim.distance_to(i, spot) <= SpaceData.num(space, "reach", "round_table"):
-			sim.start_doing(i, "claim", SpaceData.num(space, "stand", "qual"))
-		elif sim.set_path(i, spot):
+			var qdur := SpaceData.num(space, "stand", "qual")
+			if qdur <= 0.0:
+				sim.claim_qual(i)
+				a["_aiT"] = 0.6
+			else:
+				sim.start_doing(i, "claim", qdur)
 			return
+		if sim.set_path(i, spot):
+			return
+	# @src :3586-3598：有申请单且缺子弹 → 军械点兑换；旧实现少 return，站桩被后续 set_path 取消。
 	if qual > 0 and int(a.get("bullet", 0)) < 1:
 		var sp: Vector2 = sim.supply_spot("ammo")
 		if sim.distance_to(i, sp) <= SpaceData.num(space, "reach", "fix"):
 			sim.start_doing(i, "supply", SpaceData.num(space, "stand", "ammo"), -1, "ammo")
-		elif sim.set_path(i, sp):
+			return
+		if sim.set_path(i, sp):
 			return
 
 	# 2.5D alienSupport:3538-3552：自己放倒的人 45 秒内仍带缺的物资 → 绕回去收。
@@ -1020,10 +1045,7 @@ func _decide(a: Dictionary) -> void:
 	# 同台比分取 max；chase 最高时 fallthrough 到下面的出刀段，不再用 if 顺序硬排。
 	if _exec_plan(a, _plan(a, real_d)):
 		return
-	# 2.5D aiAlien 的开枪分支（js/game.js:3877）：异形有子弹也会开枪 ——
-	# 远距离/没刀时优先用枪，而不是永远只贴脸出刀。
-	# 条件：有弹 + 不是队友 + (没进刀程 或 没刀) + 枪程内 + LOS + alienFireP 概率。
-	# @src js/game.js:3947 `(td>REACH.knife||a.knife<=0)`：没刀时即使贴身也用枪
+	# @src js/game.js:3947：有弹 + 非队友 + (没进刀程或没刀) + 枪程内 + LOS + alienFireP。
 	if int(a.get("bullet", 0)) > 0 \
 			and (real_d > SpaceData.num(space, "reach", "knife") or int(a.get("knife", 0)) <= 0):
 		var shoot_range: float = SpaceData.num(space, "shoot", "range")

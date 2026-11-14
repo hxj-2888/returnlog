@@ -1,5 +1,29 @@
 # 3D 修改记录
 
+## 2026-11-13 · 异形物资链：申请单领不到、兑换不结算（用户现场）
+
+- **用户口径**：异形手里有申请单却不去领、拿到也兑不成资源 —— 这条设定等于没有。
+- **根因（三处，全部对 `js/game.js`）**：
+  ① `js/game.js:3574-3585` 领单是 `grantQual(a)` **交互即领**：没有 `qual<2` 门、没有站桩
+  （`STAND.qual=0`）。3D 写成 `qual_pending>0 and qual<2` + `start_doing(dur=0)`：
+  `start_doing` 遇到 `dur<=0` 直接返回，什么也没发生；而且这里不 `return`，
+  后面的目标选择 `set_path` 还会把刚起的动作取消。
+  ② `js/game.js:3586-3598` 军械点兑换：3D 在 `start_doing("supply")` 后**少一个 `return`**，
+  站桩刚起就被后续目标选择取消 → 兑换永远结算不了，异形几乎拿不到子弹。
+  ③ `js/game.js:3604-3612` 异形「真做任务换申请单」整段未移植：`_supportGoal` 在 3D 里
+  只有 `_plan` 的判空引用、从来没人赋值 —— 异形因此没有赚申请单的入口。
+  2.5D 这条是**每帧**掷骰 `0.02×dt`，3D 摆进 `_decide` 会因 `_aiT` 节流少采样一个量级，
+  故放在异形 `tick` 里；执行沿用 `start_doing("task", pt)`，与人类/玩家同一条结算。
+- **改动**：`sim/ai_alien.gd`（领单/兑换补 `return` 与 `claim_qual` 即时结算、`_supportGoal`
+  的选定与执行、每帧掷骰）；`sim/sim_state.gd` 夜间复位补 `_supportGoal`；
+  `tests/test_sim.gd` 新增 2 条断言：异形回圆桌能领到申请单、在军械点真的开始兑换。
+- **文件预算**：ai_alien 1330→1360（本批新增的是逐行移植的行为分支）；
+  同时把 ai_human / speech / bots / crew_view / grid_nav / lines_data / invariants /
+  body_state / rules_data 九个文件按当前用量显式收紧，净棘轮向下。
+- **T3 记录（只作事后观测，不作改动依据）**：`--simtest` **29/0**（新增 2 条补给链断言）；
+  `--aittest prog=22/45 qual=5 supply=3`；`file:check` 52 文件 / 27,246 行；
+  `npm run check` 9 通过 / 0 失败。
+
 ## 2026-11-13 · 行为映射补齐：人类搜尸/循声、异形报案、破坏落点
 
 - **改动依据（逐条对 `js/` 行号，不看读数）**：

@@ -11,11 +11,11 @@
       "role": "判定层聚合：规则/主循环/动作结算"
     },
     "sim/ai_alien.gd": {
-      "max_lines": 1330,
+      "max_lines": 1360,
       "role": "异形 AI：效用表 / 伪装 / 管道 / 行凶后报案"
     },
     "sim/ai_human.gd": {
-      "max_lines": 760,
+      "max_lines": 710,
       "role": "人类 AI：任务 / 救人 / 搜尸 / 循声查探"
     },
     "sim/mind.gd": {
@@ -23,35 +23,35 @@
       "role": "心智层：嫌疑/记忆/证据"
     },
     "sim/speech.gd": {
-      "max_lines": 1560,
+      "max_lines": 1555,
       "role": "会议编排与台词生成"
     },
     "sim/bots.gd": {
-      "max_lines": 400,
+      "max_lines": 395,
       "role": "保安 / 医疗无人机"
     },
     "sim/crew_view.gd": {
-      "max_lines": 340,
+      "max_lines": 330,
       "role": "船员视图数据"
     },
     "sim/grid_nav.gd": {
-      "max_lines": 300,
+      "max_lines": 290,
       "role": "网格寻路"
     },
     "sim/lines_data.gd": {
-      "max_lines": 300,
+      "max_lines": 285,
       "role": "语料装载"
     },
     "sim/invariants.gd": {
-      "max_lines": 220,
+      "max_lines": 200,
       "role": "对局不变量"
     },
     "sim/body_state.gd": {
-      "max_lines": 90,
+      "max_lines": 80,
       "role": "尸体链"
     },
     "sim/rules_data.gd": {
-      "max_lines": 120,
+      "max_lines": 105,
       "role": "规则表装载"
     },
     "map_builder.gd": {

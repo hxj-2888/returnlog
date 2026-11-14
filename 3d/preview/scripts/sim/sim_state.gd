@@ -868,6 +868,8 @@ func _reset_agent_night(a: Dictionary) -> void:
 	a["_killBody"] = -1
 	a["_killDecided"] = true
 	a["_reportPlan"] = {}
+	# 2.5D startNight:7888 `a._supportGoal=null;`（每夜重掷；_alienTaskTotal 按局累计）
+	a["_supportGoal"] = {}
 	a["_alienReports"] = 0
 	a["_hideCD"] = 0.0
 	a["_hides"] = 0

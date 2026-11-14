@@ -123,6 +123,32 @@ static func _run_simtest(__h) -> bool:
 	__h._sim_check(r, bool(s.over) and bool(s.over_win) and String(s.over_why) == "异形全部出局",
 		"异形全部出局 → 人类胜利（%s）" % s.over_why)
 
+	# 异形补给链：申请单必须能真的领到、且在军械点真的开始兑换
+	# （STAND.qual=0 → 必须走 claim_qual；旧实现 start_doing(dur=0) 空转 + 补给缺 return）
+	__h._sim_check(r, s.new_game(10, 0, __h.map_data, __h.space), "重开用于异形补给链测试")
+	s.ai_enabled = false
+	var al: Dictionary = {}
+	for a: Dictionary in s.agents:
+		if bool(a.get("alien", false)):
+			al = a
+			break
+	al["qualPending"] = 1
+	al["qual"] = 0
+	al["pos"] = s.claim_spot()
+	al["path"] = PackedVector2Array()
+	al["doing"] = 0.0
+	al["_doing"] = ""
+	s._ai_alien._decide(al)
+	__h._sim_check(r, int(al.get("qual", 0)) == 1 and int(al.get("qualPending", 0)) == 0,
+		"异形回圆桌能领到申请单")
+	al["bullet"] = 0
+	al["pos"] = s.supply_spot("ammo")
+	al["path"] = PackedVector2Array()
+	al["doing"] = 0.0
+	al["_doing"] = ""
+	s._ai_alien._decide(al)
+	__h._sim_check(r, String(al.get("_doing", "")) == "supply", "异形在军械点开始兑换子弹")
+
 	print("SIMTEST pass=%d fail=%d" % [int(r["pass"]), int(r["fail"])])
 	for f: String in (r["fails"] as Array):
 		print("  FAILED: ", f)
