@@ -1,5 +1,23 @@
 # 3D 修改记录
 
+## 2026-11-14 · 规则镜像纳入「附录 A · AI 引擎释义」
+
+- **本批改动**：
+  - `3d/CORE_RULES.md` 由 `npm run docs:sync` 重生成，`source_sha256 3d64275d7c4e`；
+    源（`新返航录/docs/CORE_RULES.md`）新增 **附录 A**，把 2.5D 的 AI 决策结构写成自然语言
+    （人类 15 步优先级 H1–H15、异形效用表、`SKTeam` / `SKTrait` 两张量化表、认知函数索引）。
+    `---` 分隔线与正文分开，附录开头明确：**R0–R19 的下属说明，不是权威文本，不参与裁定**。
+  - `3d/PORTING_PROTOCOL.md` 头部指引改指向「附录 A」；移植 `ai_human.gd` / `ai_alien.gd` / `bots.gd`
+    前先对照，不凭"看起来像"。
+  - 映射账本 `rules_reviewed_sha256` 推进到同一哈希（`--ack-rules`），`map:check` 仍 112 条 / unclassified 0。
+- **为什么**：正文只覆盖可感知结果（视野/伤害/投票/性格），没覆盖 AI 怎么选目标、怎么算分；
+  3D 的 `_decide` 决策链因此无锚可依，行为不对只能靠玩出来。
+- **T3 记录（本次实跑）**：`npm run check` **12 通过 / 0 失败**；`npm run docs:check` PASS；
+  `npm run 3d:rules:test` **15 通过 / 0 失败**（含他人在途的 3 个 BUG 回归 case）；
+  `map:check` 规则 112 条 · unclassified 0；`--ack-rules` 写入 `3d64275d7c4e`。
+- **下一批**：按附录 A 对 `ai_human.gd` / `ai_alien.gd` 做逐条对照（H1–H15 / A1–A9），
+  产出「缺哪几条、哪几条公式不一致」清单。**附录 A 不是判据**，对照结论只作修复依据。
+
 ## 2026-11-14 · 会议室断电常亮：独立强光源（按用户裁定）
 
 - **本批改动**：
