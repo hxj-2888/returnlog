@@ -1,5 +1,26 @@
 # 3D 修改记录
 
+## 2026-11-14 · 闭环首次实跑：夹具抓出 R10.4 真实偏离并修复
+
+- **本批改动（一轮完整循环：红 → 改 → 绿）**：
+  - 新增 `R10.4` 夹具：玩家拖尸 → 开会 → 断言 `drag` / `draggedBy` 必须解除。
+    **首跑即红**：`会议开始未松手拖拽（drag 仍为 1）`。
+  - 回真源核对：2.5D `openMeeting`（`js/game.js:6957-6961`）在清路径之后紧跟
+    `releaseAllDrags(true)`；3D `open_meeting_kind` 只清路径，漏了松手，
+    拖着开会时尸体会被清场（`bodyGone=true`）而拖拽关系残留 —— 属 R10.4 的偏离。
+  - 修 `sim/sim_state.gd#open_meeting_kind`：清路径后遍历 `agents`，对 `drag >= 0` 者
+    `release_drag`（等价 `releaseAllDrags(true)`）。复跑 **12 通过 / 0 失败**。
+  - 修执行器两个「假绿」隐患：① `release_drag` 把 `draggedBy` 置 `null` 而非 `-1`，
+    夹具里 `int(null)` 会运行期报错 → 改为先判 `null`；
+    ② **GDScript 的 SCRIPT ERROR 不改变进程退出码**，脚本崩了仍 `exit 0` →
+    `run-rule-fixtures.cjs` 现在要求必须出现 `RULETEST … 通过 / … 失败` 汇总行，否则按失败处理。
+- **T3 记录（本次实跑）**：`npm run check` **12 通过 / 0 失败**；
+  `npm run 3d:rules:test` **12 通过 / 0 失败**；`fixtures:check` 35 条 · covered **21** / partial 4 / todo 10。
+- **顺带确认（下批的前提）**：主场景可在 headless 下驱动 —— 实例化 `main.tscn` 后
+  `_ready` 5.2 s 完成、6,748 个节点、`sim`/`extras`/`player` 均可用，
+  `_collect_offers()` 可调用。这意味着 `R4.1` / `R14.3` / `R7.1.3` 这类读视图层状态的规则
+  有了自动化入口（预算可上调，不再是阻塞理由）。
+
 ## 2026-11-14 · @src 锚点门禁（第 12 项）+ 夹具 17 → 21（V1P-0.3 补记，不升版本号）
 
 - **本批改动**：

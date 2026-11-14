@@ -2180,6 +2180,13 @@ func open_meeting_kind(kind: String, reporter_i: int, victim_i: int) -> bool:
 		a["path"] = PackedVector2Array()
 		a["pathI"] = 0
 		a["moving"] = false
+	# 2.5D openMeeting（js/game.js:6959）紧跟清路径之后是 `releaseAllDrags(true)`：
+	# 开会时**松手所有拖拽**。3D 原先漏了这一步 —— 拖着尸体开会时，尸体会被清场
+	# （bodyGone=true）而拖拽关系还留在身上，属 R10.4 的偏离。
+	for a3: Dictionary in agents:
+		var dv: Variant = a3.get("drag", -1)
+		if dv != null and int(dv) >= 0:
+			release_drag(int(a3.get("i", -1)))
 	# 2.5D openMeeting：案发地点按**尸体 / 濒死者当前身体位置**算（清场前），
 	# 会议信息行要显示「报告地点」；走廊与未知区域分开标（js/game.js:6908-6911）。
 	var meet_room := ""

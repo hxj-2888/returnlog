@@ -215,11 +215,12 @@
   {
    "rule": "R10.4",
    "status": "partial",
-   "why": "需在 main 层驱动或把 release_drag 下沉进 open_meeting_kind",
+   "why": "需 main 层 headless 驱动（已验证主场景可 headless 拉起，5.2s/6748 节点）",
    "evidence": [
+    "tests/run_rule_fixtures.gd:_case_r10_4",
     "tests/test_social.gd:_run_meetingtest"
    ],
-   "note": "sim.open_meeting_kind 清路径/移动；松手拖拽在 main.gd:4489（视图层），headless 到不了"
+   "note": "sim 侧两半已验：清路径、松手所有拖拽（2026-11-14 修正）；屏幕遮罩与监控/管道/破坏选择属视图层，未验"
   },
   {
    "rule": "R10.5",

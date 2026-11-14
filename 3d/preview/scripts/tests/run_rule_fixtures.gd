@@ -408,6 +408,40 @@ func _case_r9_2(sim: Variant) -> void:
 	_ok("R9.2")
 
 
+## R10.4 会议开始清场：清路径 + 松手所有拖拽（2.5D openMeeting:6957-6961 releaseAllDrags）。
+## 这里只验 sim 侧两半；屏幕遮罩、监控/管道/破坏选择属视图层，另计。
+func _case_r10_4(sim: Variant) -> void:
+	if sim.agents.size() < 2:
+		_bad("R10.4", "席位不足")
+		return
+	_close_pre_meeting(sim)
+	var me: Dictionary = sim.agent(sim.me_idx)
+	var body: Dictionary = sim.agent(1)
+	body["alive"] = false
+	body["downed"] = false
+	body["deathCause"] = "knife"
+	body["bodyPos"] = me["pos"]
+	body["bodyGone"] = false
+	body["bodyReported"] = false
+	if not sim.start_drag(sim.me_idx, 1):
+		_bad("R10.4", "前置失败：拖不起尸体")
+		return
+	if int(sim.me().get("drag", -1)) != 1:
+		_bad("R10.4", "前置失败：drag 未记录")
+		return
+	sim.open_meeting_kind(sim.MEET_NIGHT, sim.me_idx, 1)
+	# release_drag 把 draggedBy 置成 null（不是 -1），所以这里不能用 int(null)。
+	var drag_v: Variant = sim.me().get("drag", -1)
+	if drag_v != null and int(drag_v) >= 0:
+		_bad("R10.4", "会议开始未松手拖拽（drag 仍为 %d）" % int(drag_v))
+		return
+	var by_v: Variant = body.get("draggedBy", null)
+	if by_v != null and int(by_v) >= 0:
+		_bad("R10.4", "尸体侧 draggedBy 未解（%d）" % int(by_v))
+		return
+	_ok("R10.4")
+
+
 func _initialize() -> void:
 	_map = _load_json(MAP_PATH)
 	_space = _load_json(SPACE_PATH)
@@ -427,6 +461,7 @@ func _initialize() -> void:
 		["R8.6", Callable(self, "_case_r8_6")],
 		["R2.10", Callable(self, "_case_r2_10")],
 		["R9.2", Callable(self, "_case_r9_2")],
+		["R10.4", Callable(self, "_case_r10_4")],
 	]
 	print("RULETEST 开始：", cases.size(), " 个 case")
 	for row: Array in cases:

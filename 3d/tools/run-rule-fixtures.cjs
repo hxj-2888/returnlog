@@ -45,14 +45,21 @@ const out = ((r.stdout || '') + (r.stderr || ''))
   .split(/\r?\n/)
   .filter((l) => !/ObjectDB instances leaked|resources still in use|^\s+at: /.test(l));
 for (const l of out) if (l.trim()) console.log(l);
-const code = r.status === null ? 1 : r.status;
+let code = r.status === null ? 1 : r.status;
 
 // 从 GDScript 的汇总行取读数：`RULETEST 4 通过 / 0 失败`
+// 没有汇总行 = 执行器被运行期错误中断（GDScript 的 SCRIPT ERROR 不会改变进程退出码），
+// 这种情况必须按失败处理，否则「脚本崩了」会被当成「全部通过」。
 let pass = 0;
 let fail = 0;
+let sawSummary = false;
 for (const l of out) {
   const m = /RULETEST\s+(\d+)\s+通过\s*\/\s*(\d+)\s+失败/.exec(l);
-  if (m) { pass = parseInt(m[1], 10); fail = parseInt(m[2], 10); }
+  if (m) { sawSummary = true; pass = parseInt(m[1], 10); fail = parseInt(m[2], 10); }
+}
+if (!sawSummary) {
+  console.error('[rules:test] 没等到 RULETEST 汇总行 —— 执行器被运行期错误中断，按失败处理');
+  code = 1;
 }
 try {
   const p = R.record('fixtures', {
