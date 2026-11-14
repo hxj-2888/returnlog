@@ -374,14 +374,140 @@
 
 ---
 
-## R19. 美术 / 建模 / 音频：只保留提示词
+## R19. 美术 / 建模 / 音频：提示词正文（设计口径）
 
-- **R19.1** 本文对美术、建模、音频只记录**自然语言提示词**：风格、比例、材质、机位、光线、避免项。
-  不记录二进制素材、不贴图、不写像素级参数。
-- **R19.2** **提示词是资产的设计口径**：模型、贴图、音频按提示词产出；生成结果与提示词不符时，
-  改的是生成物或重新生成，**不能反向改提示词来迁就现有素材**。
-- **R19.3** 提示词的修改同样只在设计者明确指示下进行（与 R0 第 3 条同一口径）。
-- **R19.4** 现有美术规范的落点：`3d/docs/art/ART_HANDOFF.md`（P0 规格、2.5D 参照物、交付格式）、
-  `3d/ASSETS.md`（资产登记）；许可与署名以各 `CREDITS` / `LICENSE` 为真源，本文不复制。
-- **R19.5** 与规则的关系：美术只允许影响**表现**，不得反向改变判定、数值与输入语义；
-  若某条美术需求会影响玩法，先在本文补一条规则，再动资产。
+- **R19.1** 本节是美术资产**提示词的权威正文**：模型、贴图、音频按这些提示词产出；
+  生成结果与提示词不符时，改生成物或重跑，**不能反向改提示词**迁就现有素材。
+- **R19.2** **修改只在设计者明确指示下进行**。`3d/assets/**/manifest*.json` 里的 `prompt` 是
+  生成时的**执行快照**（脚本会读它重跑）；若与本节不一致，以本节为准，并在下次重生成时回填。
+- **R19.3** 生成环境（只登记，不改口径）：Qwen-Image 2.1 Turbo Q4_K_M GGUF + Qwen3-VL-8B-Instruct
+  + qwen_image_2.1_vae；运行器 stable-diffusion.cpp（Vulkan，本机 RTX 5060 Laptop）；
+  许可 Qwen Research License（**非商用**）。**SDXL 已退役**，历史产物只作风格对照。
+- **R19.4** 通用负向提示词（平铺材质 / 天花板 / 装甲共用）：
+  `perspective, 3d object, product photo, shadow, gradient, vignette, white background, border, frame, text, watermark, logo, signature, person, hand, face, cartoon, sketch, oversaturated, blurry, lowres`；
+  材质版额外加 `blade shape, handle`。角色面部负向词见 R19.7。
+- **R19.5** 平铺材质通用尾缀（所有材质 / 天花板 / 装甲 prompt 必带，正文里已内联，新增也必须带）：
+  `seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`。
+
+### R19.6 角色参考（crew_refs，3 条）
+
+- **crew-turnaround_768.png**（seed 20261206）：`adult spaceship crew member, slim athletic build, 1.75 m tall, short dark hair, no helmet, pale grey utility jumpsuit with coral-red chest harness, shoulder panels and knee pads, dark utility boots, small black backpack, matte fabric with clean seams, soft utilitarian sci-fi uniform, neutral friendly face, full body, character turnaround reference sheet, front view, three-quarter view and back view of the same character, standing neutral A-pose, orthographic full-body views, evenly spaced, plain light neutral grey background, front and back clearly readable, concept art for 3D low-poly modeling, matte flat lighting, no text`
+- **crew-variants_768.png**（seed 20261207）：`three spaceship crew members standing side by side, same slim 1.75 m body type and utility jumpsuit design, three colorways: pale grey with coral red, olive with amber, steel blue with teal, short hair, no helmets, no armor, full body neutral pose, plain light grey background, character lineup concept art for 3D low-poly modeling, evenly lit, no text`
+- **crew-detail_768.png**（seed 20261208）：`character design detail sheet of the same sci-fi utility jumpsuit, chest harness, belt pouches, knee pads, dark boots, rolled sleeves, fabric seams, matte materials, pale grey with coral red accents, neutral grey background, three-quarter view, close-up, concept art for 3D modeling, no text`
+
+### R19.7 角色面部（6 条）
+
+负向词：`side view, profile, three quarter view, open mouth, teeth, smile, beard, glasses, hat, helmet, mask, hair covering face, strong shadow, dramatic lighting, cartoon, anime, text, watermark, multiple faces, blurry, lowres`。
+
+- **crew-face_512_s20261141.png**（v1，seed 20261141）：`stylized realistic human face, front view, neutral expression, eyes open, mouth closed, no hair, forehead and cheeks visible, symmetrical, soft even lighting, centered, plain light skin background, video game character face, detailed skin`
+- **crew-face_512_s20261142.png**（v1，seed 20261142）：`front view portrait of a calm human face, neutral expression, eyes open, no hair, symmetrical features, smooth skin, even studio light, centered, plain skin background, low-poly game character face texture`
+- **crew-face_512_s20261143.png**（v1，seed 20261143）：`human face texture for a game character, front view, neutral, eyes nose mouth, no hair, no beard, no glasses, even lighting, centered, plain skin background, stylized realism`
+- **crew-face-v2_512_s20261160.png**（v2，seed 20261160）：`stylized realism video game character face albedo, hand-painted 3D game art, semi-realistic, smooth stylized skin, soft neutral studio light, front view, symmetrical, clean high forehead, no hair, eyes open, mouth closed, neutral expression, plain light warm grey background, centered, male face, strong jaw, calm eyes`
+- **crew-face-v2_512_s20261161.png**（v2，seed 20261161）：`stylized realism video game character face albedo, hand-painted 3D game art, semi-realistic, smooth stylized skin, soft neutral studio light, front view, symmetrical, clean high forehead, no hair, eyes open, mouth closed, neutral expression, plain light warm grey background, centered, male face, angular cheekbones, calm eyes`
+- **crew-face-v2_512_s20261162.png**（v2，seed 20261162）：`stylized realism video game character face albedo, hand-painted 3D game art, semi-realistic, smooth stylized skin, soft neutral studio light, front view, symmetrical, clean high forehead, no hair, eyes open, mouth closed, neutral expression, plain light warm grey background, centered, male face, soft jaw, calm eyes`
+
+### R19.8 舱室家具参考（10 间，各 1 条）
+
+- **bridge · 中央会议室**（seed 300102）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, seven separate bridge pieces: a large circular command table with a central holographic column, an octagonal structural column, a low sideboard cabinet, a command chair, a navigation console with three angled screens, a long record desk with two monitors, a curved holo screen bank; amber and warm brass accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **cam · 监控室**（seed 300106）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, five separate security-room pieces: a six-unit codec rack with status LEDs, stacked archive boxes, a 3x3 video wall with an operator desk beneath it, a server cabinet with louvered door, an operations desk with two monitors; cold blue and cyan accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **ecosys · 生态舱**（seed 300110）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, eight separate hydroponics-bay pieces: a large tree in an octagonal planter, twin glass cultivation tanks on a shared plinth, a long rectangular water pond with raised rim, low shrub planters with glowing flowers, an oxygen generator with two gas cylinders, a three-tier seedling rack, an irrigation console with water tank, a climate control desk with angled screen; botanical green and cyan accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **power · 配电室**（seed 300108）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, four separate power-distribution pieces: a floor-standing instrument rack with two gauge dials, a switchgear cabinet with three doors and busbar, a transformer with cooling fins and insulators, a breaker bank with twelve lever handles; amber and hazard-yellow accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **transit · 食堂**（seed 300109）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, five separate mess-hall pieces: a beverage counter with two drink machines and cup tower, a tray-return cart with three slanted rails, a round dining table with two attached stools, a service counter with a glass sneeze guard, a two-tier plate cart with stacked trays; warm amber and cream accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **fun · 娱乐室**（seed 300101）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, seven separate recreation-room pieces: a curved jukebox with chrome arch and round speaker grille, an arcade cabinet with protruding sloped control deck and lit marquee, a racing simulator seat, a low two-seat sofa, a game table with rails and felt top, a round bar stool, a low coffee table; magenta and cyan accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **engine · 引擎**（seed 300107）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate engine-room pieces: a cylindrical reactor core with two glowing ring bands and coolant pipes, a bank of four vertical cylinders, an air compressor with horizontal tank and pressure gauge, a fuse panel cabinet with two rows of breakers, a three-tier parts cart, a low tool bench with vise mount; orange and teal accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **med · 医疗间**（seed 300104）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate medical bay pieces: an operating table with overhead monitor arm, a bedside vital-signs monitor on a stand, a ventilator cart with gas cylinders, a hospital bed with side rails and IV pole, a glass-door medicine cabinet, a autoclave sterilizer with round door; clean white and cyan accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **armory · 军械库**（seed 300105）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate armory pieces: a long rifle rack with three tiers of rifles, a gunsmith workbench with vise, a shooting lane barrier with paper target, stacked ammunition crates, an issue counter with steel grille, a bench vise station; amber warning accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+- **warehouse · 仓库**（seed 300103）：`game asset reference sheet, isometric three-quarter view, dark industrial sci-fi spaceship interior furniture, six separate warehouse pieces: tall industrial pallet racking with crates and barrels, a logistics terminal desk with two screens, a pallet stack, a packing bench with pegboard, a roller conveyor receiving station with scan arch; amber and hazard-yellow accents, brushed dark metal and matte panels, subtle panel seams, rounded edges, neon accent strips, neutral dark grey studio background, soft studio lighting, clean readable silhouettes, high detail, no text`
+
+### R19.9 天花板（10 条）
+
+- **bridge_768.png**（seed 20261171）：`spaceship command bridge ceiling deck panels, cool light grey pressed steel with recessed rectangular panels, slim cable conduits along seams, clean minimal wear, cool blue-grey tint, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **cam_768.png**（seed 20261172）：`surveillance room ceiling deck, blue-grey pressed steel panels with perforated vent sections and slim cable ducts, cool cyan sheen on seams, clean industrial, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **ecosys_768.png**（seed 20261173）：`hydroponics bay ceiling deck, green-grey painted steel panels with ventilation grille sections, faint moisture wear near seams, matte painted finish, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **power_768.png**（seed 20261174）：`electrical power room ceiling, dark steel deck panels with heavy bolted cable trays and conduit runs, small junction boxes, faded caution yellow accents, sooty industrial wear, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **transit_768.png**（seed 20261175）：`transit hub corridor ceiling deck, warm grey pressed steel panels with fine seam lines, subtle edge wear, neutral industrial finish, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **fun_768.png**（seed 20261176）：`crew recreation room ceiling deck, purple-grey painted steel panels with flush recessed light coves, smooth clean semi-matte finish, subtle scuffs, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **med_768.png**（seed 20261177）：`medical bay ceiling, clean matte white perforated steel panels, seamless hygienic joints, faint cool blue seam glow, sterile medical grade, almost no wear, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **engine_768.png**（seed 20261178）：`engine room ceiling, dark sooty heavy steel deck panels, heat stain discoloration, oil grime around bolts, heavy industrial machinery hall, faded orange markings, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **armory_768.png**（seed 20261179）：`armory ceiling deck, olive grey armored steel panels, recessed bolt lines and tie-down rails, weapon bay industrial, hard edge wear, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **warehouse_768.png**（seed 20261180）：`cargo warehouse ceiling deck, blue-grey steel panels with mesh reinforcement strips, scuffed paint, forklift-grade cargo wear, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+
+### R19.10 材质与装甲（7 条）
+
+- **knife-blade**（seed 20261112）：`brushed stainless steel surface with fine linear grind marks and sparse shallow scratches, cool grey metal, matte industrial finish, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **knife-grip**（seed 20261113）：`black rubber grip surface with fine cross-hatch knurling, matte finish, faint dust inside the grooves, dark charcoal tone, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **crew-fabric**（seed 20261114）：`light grey twill service-uniform fabric, tight diagonal weave, matte cotton blend, faint pilling and soft fold shading, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **crew-webbing**（seed 20261115）：`coral red nylon webbing strap, dense woven ribs, matte synthetic fibre, slight fraying along one edge, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **crew-leather**（seed 20261116）：`black leather with fine pebbled grain, scuffed matte finish, subtle creases, boot-grade hide, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **crew-skin**（seed 20261117）：`human skin surface close-up, natural pores and fine lines, warm neutral tone, soft even illumination with no highlights, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+- **secbot-paint**（seed 20261135）：`painted steel armor plate surface, matte dark charcoal, chipped edges, fine wear and faint scratches, flat panel, seamless flat texture map, orthographic top-down view, evenly lit with no shadow, fills the entire frame edge to edge, no object outline, no background, no perspective, tileable, high detail`
+
+### R19.11 界面 / 道具
+
+- **console（控制台屏幕）**：`sci-fi spacecraft maintenance console screen, very dark glass, faint teal grid, glowing amber traces, no text, no logo, flat front view`
+  （登记在 `3d/ASSETS.md`；许可见对应 `CREDITS`）
+
+### R19.12 房间墙面（10 条房间风格 + 40 条墙面）
+
+规则：墙面 prompt = **房间风格 prompt + ", " + 墙面名称**（`tools/ship-layout-check.cjs` 的 R7 校验前缀）。
+
+**房间风格 prompt**
+
+- **bridge · 中央会议室**（seed 101）：`sci-fi ship briefing room wall panel, warm ivory enamel, thin amber line chart of a return trajectory, brushed bronze frame, no text, flat front view`
+- **cam · 监控室**（seed 201）：`spacecraft surveillance room wall plate, cold white-blue enamel, faint cyan grid of camera sectors, thin blue status bars, no text, flat front view`
+- **ecosys · 生态舱**（seed 301）：`spacecraft hydroponics bay wall plate, pale green enamel, faint botanical line drawings of leaves and water cycle arrows, soft green glow, no text, flat front view`
+- **power · 配电室**（seed 401）：`spacecraft power distribution room wall plate, warm amber enamel, high voltage hazard chevrons and a thin single-line circuit diagram, dark metal frame, no text, flat front view`
+- **transit · 食堂**（seed 501）：`spacecraft canteen wall board, warm cream enamel, faint orange menu row lines and simple tray pictograms, thin metal frame, no readable text, flat front view`
+- **fun · 娱乐室**（seed 601）：`spacecraft recreation room neon wall sign, pale violet enamel, soft magenta and cyan neon tubing in geometric arcs, dark purple frame, no text, flat front view`
+- **engine · 引擎**（seed 701）：`spacecraft engine room wall plate, warm orange enamel, heat hazard stripes and a thin schematic of piston cylinders and pipes, soot stained dark frame, no text, flat front view`
+- **med · 医疗间**（seed 801）：`spacecraft medical bay wall panel, clean cool white enamel, faint cyan vital-sign waveform and a thin clinical grid, pale blue frame, no text, flat front view`
+- **armory · 军械库**（seed 901）：`spacecraft armory wall plate, warm grey-yellow enamel, thin amber regulation lines and a faint weapon rack silhouette diagram, dark olive frame, no text, flat front view`
+- **warehouse · 仓库**（seed 1001）：`spacecraft cargo bay wall plate, neutral grey-white enamel, thin amber slot-number grid and a subtle load-limit scale, steel frame, no readable text, flat front view`
+
+**墙面 prompt（40 条）**
+
+- **bridge__wall__bridge_starchart**（中央会议室 · 返航航线星图，seed 102）：`sci-fi ship briefing room wall panel, warm ivory enamel, thin amber line chart of a return trajectory, brushed bronze frame, no text, flat front view, 返航航线星图`
+- **bridge__wall__bridge_crest**（中央会议室 · 舰徽铭牌，seed 103）：`sci-fi ship briefing room wall panel, warm ivory enamel, thin amber line chart of a return trajectory, brushed bronze frame, no text, flat front view, 舰徽铭牌`
+- **bridge__wall__bridge_roster**（中央会议室 · 席次铭牌，seed 104）：`sci-fi ship briefing room wall panel, warm ivory enamel, thin amber line chart of a return trajectory, brushed bronze frame, no text, flat front view, 席次铭牌`
+- **bridge__wall__bridge_protocol**（中央会议室 · 会议规程屏，seed 105）：`sci-fi ship briefing room wall panel, warm ivory enamel, thin amber line chart of a return trajectory, brushed bronze frame, no text, flat front view, 会议规程屏`
+- **cam__wall__cam_sectormap**（监控室 · 舱位编号图，seed 202）：`spacecraft surveillance room wall plate, cold white-blue enamel, faint cyan grid of camera sectors, thin blue status bars, no text, flat front view, 舱位编号图`
+- **cam__wall__cam_shiftboard**（监控室 · 值班班次表，seed 203）：`spacecraft surveillance room wall plate, cold white-blue enamel, faint cyan grid of camera sectors, thin blue status bars, no text, flat front view, 值班班次表`
+- **cam__wall__cam_wiring**（监控室 · 布线示意，seed 204）：`spacecraft surveillance room wall plate, cold white-blue enamel, faint cyan grid of camera sectors, thin blue status bars, no text, flat front view, 布线示意`
+- **cam__wall__cam_statusstrip**（监控室 · 状态灯带，seed 205）：`spacecraft surveillance room wall plate, cold white-blue enamel, faint cyan grid of camera sectors, thin blue status bars, no text, flat front view, 状态灯带`
+- **ecosys__wall__ecosys_plantplate**（生态舱 · 植物铭牌，seed 302）：`spacecraft hydroponics bay wall plate, pale green enamel, faint botanical line drawings of leaves and water cycle arrows, soft green glow, no text, flat front view, 植物铭牌`
+- **ecosys__wall__ecosys_flowchart**（生态舱 · 水循环示意，seed 303）：`spacecraft hydroponics bay wall plate, pale green enamel, faint botanical line drawings of leaves and water cycle arrows, soft green glow, no text, flat front view, 水循环示意`
+- **ecosys__wall__ecosys_scale**（生态舱 · 浇灌刻度，seed 304）：`spacecraft hydroponics bay wall plate, pale green enamel, faint botanical line drawings of leaves and water cycle arrows, soft green glow, no text, flat front view, 浇灌刻度`
+- **ecosys__wall__ecosys_humid**（生态舱 · 湿度计面板，seed 305）：`spacecraft hydroponics bay wall plate, pale green enamel, faint botanical line drawings of leaves and water cycle arrows, soft green glow, no text, flat front view, 湿度计面板`
+- **power__wall__power_hvstripe**（配电室 · 高压警示条，seed 402）：`spacecraft power distribution room wall plate, warm amber enamel, high voltage hazard chevrons and a thin single-line circuit diagram, dark metal frame, no text, flat front view, 高压警示条`
+- **power__wall__power_singleline**（配电室 · 单线接线图，seed 403）：`spacecraft power distribution room wall plate, warm amber enamel, high voltage hazard chevrons and a thin single-line circuit diagram, dark metal frame, no text, flat front view, 单线接线图`
+- **power__wall__power_loadplate**（配电室 · 载荷铭牌，seed 404）：`spacecraft power distribution room wall plate, warm amber enamel, high voltage hazard chevrons and a thin single-line circuit diagram, dark metal frame, no text, flat front view, 载荷铭牌`
+- **power__wall__power_breakerlabel**（配电室 · 回路编号，seed 405）：`spacecraft power distribution room wall plate, warm amber enamel, high voltage hazard chevrons and a thin single-line circuit diagram, dark metal frame, no text, flat front view, 回路编号`
+- **transit__wall__transit_menuboard**（食堂 · 菜单板，seed 502）：`spacecraft canteen wall board, warm cream enamel, faint orange menu row lines and simple tray pictograms, thin metal frame, no readable text, flat front view, 菜单板`
+- **transit__wall__transit_servingrule**（食堂 · 配餐规程，seed 503）：`spacecraft canteen wall board, warm cream enamel, faint orange menu row lines and simple tray pictograms, thin metal frame, no readable text, flat front view, 配餐规程`
+- **transit__wall__transit_queuemark**（食堂 · 排队标识，seed 504）：`spacecraft canteen wall board, warm cream enamel, faint orange menu row lines and simple tray pictograms, thin metal frame, no readable text, flat front view, 排队标识`
+- **transit__wall__transit_ration**（食堂 · 配给告示，seed 505）：`spacecraft canteen wall board, warm cream enamel, faint orange menu row lines and simple tray pictograms, thin metal frame, no readable text, flat front view, 配给告示`
+- **fun__wall__fun_neonsign**（娱乐室 · 霓虹招牌，seed 602）：`spacecraft recreation room neon wall sign, pale violet enamel, soft magenta and cyan neon tubing in geometric arcs, dark purple frame, no text, flat front view, 霓虹招牌`
+- **fun__wall__fun_machineid**（娱乐室 · 机台编号，seed 603）：`spacecraft recreation room neon wall sign, pale violet enamel, soft magenta and cyan neon tubing in geometric arcs, dark purple frame, no text, flat front view, 机台编号`
+- **fun__wall__fun_poster**（娱乐室 · 游戏海报，seed 604）：`spacecraft recreation room neon wall sign, pale violet enamel, soft magenta and cyan neon tubing in geometric arcs, dark purple frame, no text, flat front view, 游戏海报`
+- **fun__wall__fun_safetyline**（娱乐室 · 安全提示，seed 605）：`spacecraft recreation room neon wall sign, pale violet enamel, soft magenta and cyan neon tubing in geometric arcs, dark purple frame, no text, flat front view, 安全提示`
+- **engine__wall__engine_heatwarn**（引擎 · 高温警示，seed 702）：`spacecraft engine room wall plate, warm orange enamel, heat hazard stripes and a thin schematic of piston cylinders and pipes, soot stained dark frame, no text, flat front view, 高温警示`
+- **engine__wall__engine_serviceplate**（引擎 · 检修铭牌，seed 703）：`spacecraft engine room wall plate, warm orange enamel, heat hazard stripes and a thin schematic of piston cylinders and pipes, soot stained dark frame, no text, flat front view, 检修铭牌`
+- **engine__wall__engine_pipediagram**（引擎 · 缸体管线图，seed 704）：`spacecraft engine room wall plate, warm orange enamel, heat hazard stripes and a thin schematic of piston cylinders and pipes, soot stained dark frame, no text, flat front view, 缸体管线图`
+- **engine__wall__engine_gauge**（引擎 · 压力表盘，seed 705）：`spacecraft engine room wall plate, warm orange enamel, heat hazard stripes and a thin schematic of piston cylinders and pipes, soot stained dark frame, no text, flat front view, 压力表盘`
+- **med__wall__med_vitalscreen**（医疗间 · 生命体征屏，seed 802）：`spacecraft medical bay wall panel, clean cool white enamel, faint cyan vital-sign waveform and a thin clinical grid, pale blue frame, no text, flat front view, 生命体征屏`
+- **med__wall__med_triagechart**（医疗间 · 急救流程图，seed 803）：`spacecraft medical bay wall panel, clean cool white enamel, faint cyan vital-sign waveform and a thin clinical grid, pale blue frame, no text, flat front view, 急救流程图`
+- **med__wall__med_sterilerule**（医疗间 · 消毒规程，seed 804）：`spacecraft medical bay wall panel, clean cool white enamel, faint cyan vital-sign waveform and a thin clinical grid, pale blue frame, no text, flat front view, 消毒规程`
+- **med__wall__med_drugindex**（医疗间 · 药品编号，seed 805）：`spacecraft medical bay wall panel, clean cool white enamel, faint cyan vital-sign waveform and a thin clinical grid, pale blue frame, no text, flat front view, 药品编号`
+- **armory__wall__armory_regulation**（军械库 · 武器条例铭牌，seed 902）：`spacecraft armory wall plate, warm grey-yellow enamel, thin amber regulation lines and a faint weapon rack silhouette diagram, dark olive frame, no text, flat front view, 武器条例铭牌`
+- **armory__wall__armory_ammomark**（军械库 · 弹药标识，seed 903）：`spacecraft armory wall plate, warm grey-yellow enamel, thin amber regulation lines and a faint weapon rack silhouette diagram, dark olive frame, no text, flat front view, 弹药标识`
+- **armory__wall__armory_safetyrule**（军械库 · 安全规程，seed 904）：`spacecraft armory wall plate, warm grey-yellow enamel, thin amber regulation lines and a faint weapon rack silhouette diagram, dark olive frame, no text, flat front view, 安全规程`
+- **armory__wall__armory_rangegrade**（军械库 · 靶道刻度，seed 905）：`spacecraft armory wall plate, warm grey-yellow enamel, thin amber regulation lines and a faint weapon rack silhouette diagram, dark olive frame, no text, flat front view, 靶道刻度`
+- **warehouse__wall__warehouse_slotindex**（仓库 · 货位编号牌，seed 1002）：`spacecraft cargo bay wall plate, neutral grey-white enamel, thin amber slot-number grid and a subtle load-limit scale, steel frame, no readable text, flat front view, 货位编号牌`
+- **warehouse__wall__warehouse_outflow**（仓库 · 出库流程图，seed 1003）：`spacecraft cargo bay wall plate, neutral grey-white enamel, thin amber slot-number grid and a subtle load-limit scale, steel frame, no readable text, flat front view, 出库流程图`
+- **warehouse__wall__warehouse_zoneplate**（仓库 · 区域标识，seed 1004）：`spacecraft cargo bay wall plate, neutral grey-white enamel, thin amber slot-number grid and a subtle load-limit scale, steel frame, no readable text, flat front view, 区域标识`
+- **warehouse__wall__warehouse_loadplate**（仓库 · 安全载荷牌，seed 1005）：`spacecraft cargo bay wall plate, neutral grey-white enamel, thin amber slot-number grid and a subtle load-limit scale, steel frame, no readable text, flat front view, 安全载荷牌`
+
+### R19.13 音频
+
+当前音频为 CC0 采样（`audio/`，见 `audio/LICENSE.txt` / `CREDITS`），**没有生成提示词**。
+若改为本地生成，先在 R19 补写提示词与负向词，再产出素材。
