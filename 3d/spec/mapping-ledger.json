@@ -4,8 +4,8 @@
   "generated_by": "3d/tools/build-mapping-ledger.cjs",
   "denominator": {"tool":"tools/filemap-js.cjs","files":22,"functions":999,"lines":20099},
   "budget": {"unmapped":0,"pending":32,"unclassified":0},
-  "rules_source_sha256": "3d64275d7c4ea4a5a0227dab94a5f229cdfbfd5fbd356cca2067696a11ad47b3",
-  "rules_reviewed_sha256": "3d64275d7c4ea4a5a0227dab94a5f229cdfbfd5fbd356cca2067696a11ad47b3",
+  "rules_source_sha256": "aaf7b20871e30ea03dc403775a31d9d35cf9390ce45c4542170ea3822eeb2332",
+  "rules_reviewed_sha256": "aaf7b20871e30ea03dc403775a31d9d35cf9390ce45c4542170ea3822eeb2332",
   "extras": [
     {"target":"sim/ai_alien.gd:disguise_risk_parts","reason":"disguiseRiskParts 的拆分实现（主判定已映射 mind.disguise_risk）"},
     {"target":"sim/ai_alien.gd:sab_spot","reason":"sabSpot 的 AI 侧入口，委托 sim.sab_spot_for（与 damageRoom 共用同一落点）"},
