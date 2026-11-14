@@ -63,7 +63,8 @@
     "map:check": "node 3d/tools/build-mapping-ledger.cjs --check",
     "3d:rules:test": "node 3d/tools/run-rule-fixtures.cjs",
     "audit:next": "node 3d/tools/next-work.cjs",
-    "src:check": "node 3d/tools/check-src-anchors.cjs"
+    "src:check": "node 3d/tools/check-src-anchors.cjs",
+    "visual:shots": "node 3d/tools/capture-visual.cjs"
   },
   "devDependencies": {
     "playwright-core": "^1.64.1"

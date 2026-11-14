@@ -796,6 +796,9 @@ func _ready() -> void:
 	if args.has("--shot") and DisplayServer.get_name() != "headless":
 		# --blackout 用来出"拉闸后"的对照图（熄灯必须在画面上真的看得出来）
 		if args.has("--blackout"):
+			# 开局自带一场公开讨论，面板会铺满整屏、把场景整块盖住 —— 那样拍出来的
+			# 「断电图」什么也证明不了（2026-11-14 视觉评审实测踩到）。先收掉会议再拍。
+			_finish_meeting(sim)
 			set_power(false)
 		# --above：旁观者飞到天花板以上，验"俯视剖面"（天花板整层隐藏）
 		if args.has("--above") and player != null:

@@ -18,7 +18,14 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const LEDGER = path.join(ROOT, '3d', 'spec', 'mapping-ledger.json');
 const FIX = path.join(ROOT, '3d', 'spec', 'fixtures', 'rules-scenarios.json');
+const VISUAL = path.join(ROOT, '3d', 'spec', 'visual-cases.json');
 const SCRIPTS = path.join(ROOT, '3d', 'preview', 'scripts');
+/* 视觉证据用例的 tag 集合：账本里写 `visual: [{tag:...}]` 时，tag 必须真实存在，
+ * 否则「贴了个不存在的证据名」也能过闸，等于假证。 */
+const visualTags = new Set(
+  ((fs.existsSync(VISUAL) ? JSON.parse(fs.readFileSync(VISUAL, 'utf8')).cases : []) || []).map((c) => c.tag)
+);
+const VISUAL_VERDICTS = new Set(['pass', 'partial', 'fail', 'pending']);
 
 const ledger = JSON.parse(fs.readFileSync(LEDGER, 'utf8'));
 const fix = JSON.parse(fs.readFileSync(FIX, 'utf8'));
@@ -49,6 +56,11 @@ for (const c of cases) {
     }
   } else if (!c.why || !String(c.why).trim()) {
     problems.push(c.rule + ' 标 todo 但没写 why（为什么现在建不了）');
+  }
+  for (const v of c.visual || []) {
+    if (!v || !v.tag) { problems.push(c.rule + ' 的 visual 条目缺 tag'); continue; }
+    if (!visualTags.has(v.tag)) problems.push(c.rule + ' 的视觉证据 tag 不存在于 visual-cases.json：' + v.tag);
+    if (!VISUAL_VERDICTS.has(v.verdict)) problems.push(c.rule + ' 的视觉结论非法：' + v.verdict);
   }
 }
 for (const id of scenario) if (!seen.has(id)) problems.push(id + ' 未登记（35 条 scenario 必须逐条有账）');

@@ -3,8 +3,9 @@
   "default_max_lines": 1200,
   "files": {
     "main.gd": {
-      "max_lines": 5550,
-      "role": "装配层：节点装配 + 输入分发 + HUD/面板接线；不得再放调试夹具"
+      "max_lines": 5560,
+      "role": "装配层：节点装配 + 输入分发 + HUD/面板接线；不得再放调试夹具",
+      "note": "2026-11-14 上调 5550→5560：--blackout 截图前先 _finish_meeting，否则开局会议面板铺满屏幕、断电图无效。属证据链路的必要改动，非玩法代码。"
     },
     "sim/sim_state.gd": {
       "max_lines": 3680,

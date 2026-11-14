@@ -77,7 +77,19 @@
    "evidence": [
     "tests/run_rule_fixtures.gd:_case_r5_4"
    ],
-   "note": "断电后会议室仍亮、走廊采样点为暗"
+   "note": "断电后会议室仍亮、走廊采样点为暗",
+   "visual": [
+    {
+     "tag": "above-blackout",
+     "verdict": "partial",
+     "note": "断电后整图变暗、天花板隐藏；但会议室未见亮区，与「会议室除外」不符，待裁定（逻辑层 lit_zone_at(bridge) 仍非空）"
+    },
+    {
+     "tag": "above",
+     "verdict": "pass",
+     "note": "同机位正常光照：天花板整层隐藏、布局可辨；对照用"
+    }
+   ]
   },
   {
    "rule": "R6.2",

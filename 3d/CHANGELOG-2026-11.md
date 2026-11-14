@@ -1,5 +1,30 @@
 # 3D 修改记录
 
+## 2026-11-14 · 视觉证据链路：截图进自动化（判据仍走状态断言）
+
+- **本批改动**：
+  - 新增 `3d/spec/visual-cases.json`（4 个用例：meeting / above / blackout / above-blackout）
+    与 `3d/tools/capture-visual.cjs`（`npm run visual:shots`）：逐条用**非 headless** 进程跑
+    `--shot`，把图收进 `3d/reports/visual/<ts>/`，manifest 带 `code_sha` / `rules_sha` 绑定构建。
+  - `CI=1` 直接 SKIP 并 exit 0：实测 headless 下 `get_viewport().get_texture().get_image()`
+    返回 **null**，取不到帧缓冲；截图只能在本机采，不假装验过。
+  - `check-fixtures.cjs` 增校验：账本 `visual: [{tag, verdict}]` 的 tag 必须存在于
+    `visual-cases.json`，verdict 只允许 pass/partial/fail/pending —— 防止贴一个不存在的证据名过闸。
+    灵敏度自检：注入 `no-such-shot` → FAIL exit 1，清除后 OK。
+  - **修 `--blackout` 证据无效**：开局公开讨论面板铺满屏幕，原断电图整个被遮住。
+    改为先 `_finish_meeting(sim)` 再 `set_power(false)`。为此 `main.gd` +4 行，
+    `file-budgets.json` 的 main.gd 预算 5550 → **5560** 并登记理由（棘轮可上调，但必须写明）。
+- **视觉评审结论（本轮由视觉模型看图给出，报告在 `3d/reports/visual/<ts>/visual-report.md`）**：
+  - `meeting` **通过**：三栏齐全、按钮无重叠裁切；
+  - `above` **通过**：天花板整层隐藏、布局可辨（守住了此前 `cull_mode` 事故的回归点）；
+  - `blackout` **有效但不足**：视角在会议室内部，判不了「其余舱室全暗」；
+  - `above-blackout` **部分通过 + 一处待裁定**：整图变暗、走廊只剩细描边，
+    但**会议室也一起黑了**，与 `R5.4`「舱室全暗（会议室除外）」的画面表现不符，
+    而 sim 侧 `lit_zone_at(bridge)` 仍非空（`_case_r5_4` 通过）。
+    即「逻辑层成立、画面层不成立」——**规则语义问题不由我裁定，只登记待查**，未改规则文本。
+- **T3 记录（本次实跑）**：`npm run check` **12 通过 / 0 失败**；`npm run 3d:rules:test` **12 通过 / 0 失败**；
+  `npm run visual:shots` **4/4 采集成功**（code_sha 见各 manifest）；`fixtures:check` covered 21（预算 21）。
+
 ## 2026-11-14 · 闭环首次实跑：夹具抓出 R10.4 真实偏离并修复
 
 - **本批改动（一轮完整循环：红 → 改 → 绿）**：
