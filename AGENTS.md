@@ -26,11 +26,11 @@
 > 目的：主仓只让 AI 读正式内容。**默认不读**测试/夹具/报告/二进制/历史分卷；需要时按任务读。
 > 本表是读区的**唯一真源**；README 只写指针，不复制。
 
-**默认只读**：本文件 → `ARCHITECTURE.md` → `docs/00-先导-游戏体验.md` → 任务对应的 `js/` 模块。
+**默认只读**：本文件 → `ARCHITECTURE.md` → **`docs/CORE_RULES.md`（规则的设计口径，先读）** → `docs/00-先导-游戏体验.md` → 任务对应的 `js/` 模块。
 
 | 任务 | 读 | 默认不读 |
 |---|---|---|
-| 玩法 / 数值 / 语料 | `js/` + `docs/00` + 相关真源 | `tests/`、`tests/reports/`、`assets/`、`android/`、`tools/` |
+| 玩法 / 数值 / 语料 | **`docs/CORE_RULES.md`（先读，规则语义以它为准）** + `js/` + `docs/00` + 相关真源 | `tests/`、`tests/reports/`、`assets/`、`android/`、`tools/` |
 | 验收 / 门禁 | `docs/acceptance.md` + `tests/` + `CHANGELOG.md` 最新批次 | `assets/`、`android/` |
 | 美术 / 资产 | `assets/MANIFEST.json` + 对应 `CREDITS` + 本地素材仓 | `js/`、`tests/` |
 | 发布 / 部署 | `tools/` 发布脚本 + `package.json` | `tests/`、`assets/` 二进制 |
