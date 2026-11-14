@@ -10,6 +10,24 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 自动化审阅前置：公开来源登记] — 2026-11-14
+
+- **本批改动**：`docs/ASSET_GOVERNANCE.md §14.4` 追加 **9 条** 2026-11-14 公开来源登记
+  （spec-kit / Voyager / Agent0 / phalanxduel / GameTest / reflexion / OpenHands /
+  Stryker Mutator / autoresearch），每条写清「URL / 作者或机构 / 许可 / 可引用结论 / 对应本项目问题」，
+  并在表后注明：一律按 §14.4 第②条作为**方法论与技术指导**吸收，未下载、未采用其代码或素材文件；
+  `phalanxduel`（AGPL-3.0）与 `autoresearch`（仓库未声明许可）**只读文档、不引任何代码**；
+  mutation score 的阈值属项目自有契约（§14.3 自研豁免），不以公开来源为依据。
+- **为什么先做这条**：§14.2 第四步要求「无登记不得改参数、不得生成资产、不得提交」，
+  而 §14.1 把所有涉及门禁 / CI 流程的工程方案都纳入适用范围。规则索引与审阅闭环属工程方案，
+  故先补登记再动实现。
+- **读数变化**：无——本批只改文档，未动 `js/`、未改数值、未动门禁逻辑。
+  本次实跑：`npm run t3:check` **PASS 12 / WARN 1 / FAIL 0**（WARN 为 §8 已登记存量债）；
+  `npm run agent:contract` PASS（§一 14 条 / `46b1376b1edb04cf`，与 `docs/REDLINES.md` 一致）。
+- **下一批立项依据**：3D 侧已在 `3d/spec/mapping-ledger.json` 落地 `rules` 索引段（112 条）；
+  下一步给条目填 `verifier` / `targets`，先做数值类三向比对（`docs/CORE_RULES.md` R16 ↔
+  `3d/preview/data/rules.json#tables` ↔ GDScript 是否读导出）。
+
 ## [未发布 · 核心规则释义文档（供逐行评审）] — 2026-11-14
 
 - **本批改动**：新增 `docs/CORE_RULES.md`，把现行 2.5D 的玩法规则提炼成自然语言，按
