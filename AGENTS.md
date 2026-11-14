@@ -17,7 +17,11 @@
 > 能在本工程内闭环，不需要跨仓猜测，也不允许借「已经独立了」的理由自造规则。
 >
 > **版本**：3D `V1P-0.2` / `0.2.0`（真源 `3d/version.json`）· 移植基线 `返航录V3.7` / `3.7.0`（只读标识见 `package.json`）。
-> **接手顺序（2026-11-13 统一，只有这一套）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` → `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → 任务对应的 `3d/preview/scripts/` 模块。
+> **接手顺序（2026-11-14 统一，只有这一套）**：根 `AGENTS.md` → `docs/ASSET_GOVERNANCE.md` →
+> `3d/ARCHITECTURE.md` → **`3d/CORE_RULES.md`（自然语言规则释义，改玩法前先在这里对语义）** →
+> `BASELINE.md` → `3d/HANDOFF.md` → `3d/PORTING_PROTOCOL.md` → 任务对应的 `3d/preview/scripts/` 模块。
+> `3d/CORE_RULES.md` 是 2.5D `docs/CORE_RULES.md` 的**只读镜像**（`npm run docs:sync` 生成），
+> 只服务「先读懂规则、再找行号」，**不是第二真源**：数值/判定仍以 `js/` 与 `data/rules.json` 为准。
 > **2026-11-09 分离时刻的历史事实**：当时玩家除移动外无法操作、门禁有 2 项既有失败；现状与读数见 `3d/HANDOFF.md` 与 `3d/CHANGELOG-2026-11.md`，本文件不再维护 §六。
 
 ## 零、AI 读取边界（2026-11-13）
@@ -25,11 +29,11 @@
 > 目的：只让 AI 读正式内容。**默认不读**测试夹具、导出数据、二进制资产、历史台账与一次性报告；
 > 需要时按任务读。本表是 3D 仓读区的**唯一真源**；README 只写指针，不复制。
 
-**默认只读**：本文件 → `3d/ARCHITECTURE.md` → 任务对应的 `3d/preview/scripts/` 模块。
+**默认只读**：本文件 → `3d/ARCHITECTURE.md` → `3d/CORE_RULES.md`（规则释义，先读它） → 任务对应的 `3d/preview/scripts/` 模块。
 
 | 任务 | 读 | 默认不读 |
 |---|---|---|
-| 玩法 / 判定 / 数值 / 语料 | `3d/preview/scripts/sim/` + `3d/spec/mapping-ledger.json` + 只读基线 `js/` | `3d/preview/scripts/tests/`、`3d/preview/assets/`、`3d/preview/reports/` |
+| 玩法 / 判定 / 数值 / 语料 | **`3d/CORE_RULES.md`（先读）** + `3d/preview/scripts/sim/` + `3d/spec/mapping-ledger.json` + 只读基线 `js/` | `3d/preview/scripts/tests/`、`3d/preview/assets/`、`3d/preview/reports/` |
 | 界面 / 输入 / 交互 | `3d/preview/scripts/main.gd`、`ui_*`、`minimap.gd` | `3d/preview/scripts/tests/`、`3d/preview/data/` 大 JSON |
 | 验收 / 门禁 | `3d/HANDOFF.md` §0.8、当月 `3d/CHANGELOG-*.md` 最新批次 | 历史台账全文、`3d/preview/screenshots/` |
 | 数据链 / 导出 | `3d/tools/export-*.cjs` + `3d/spec/*.json` | `3d/preview/data/` 生成物（只读产物，不手改） |

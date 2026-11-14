@@ -9,6 +9,7 @@
  * 生成：
  *   docs/REDLINES.md            ← 2.5D AGENTS.md §一（逐字，无额外头，兼容 agent:contract）
  *   docs/ASSET_GOVERNANCE.md    ← 2.5D docs/ASSET_GOVERNANCE.md（带 source_sha256 头，含层级表附录 B）
+ *   3d/CORE_RULES.md            ← 2.5D docs/CORE_RULES.md（规则释义镜像，带 source_sha256 头）
  *
  * 不处理：
  *   docs/ASSET_CLEANUP_LOG.md   ← 各仓本地执行台账
@@ -41,8 +42,12 @@ function fail(msg) { console.error('[docs-sync] FAIL ' + msg); process.exit(1); 
 
 const srcAgent = path.join(SOURCE, 'AGENTS.md');
 const srcGov = path.join(SOURCE, 'docs', 'ASSET_GOVERNANCE.md');
+const srcRules = path.join(SOURCE, 'docs', 'CORE_RULES.md');
 if (!fs.existsSync(srcAgent)) fail('源 AGENTS.md 不存在：' + srcAgent);
 if (!fs.existsSync(srcGov)) fail('源 ASSET_GOVERNANCE.md 不存在：' + srcGov);
+if (!fs.existsSync(srcRules)) {
+  fail('源 docs/CORE_RULES.md 不存在：' + srcRules + '（规则释义由 2.5D 先落地并推送，3D 只做镜像）');
+}
 
 const srcRedlines = redlines(read(srcAgent));
 if (!srcRedlines) fail('源 AGENTS.md 未找到 §一');
@@ -54,6 +59,10 @@ const govPath = path.join(ROOT, 'docs', 'ASSET_GOVERNANCE.md');
 const srcGovText = read(srcGov);
 const govHash = sha(srcGovText);
 const govHeader = `<!-- GENERATED from 新返航录/docs/ASSET_GOVERNANCE.md @ sha256:${govHash}; do not edit; run npm run docs:sync -->\n\n`;
+const rulesPath = path.join(ROOT, '3d', 'CORE_RULES.md');
+const srcRulesText = read(srcRules);
+const rulesHash = sha(srcRulesText);
+const rulesHeader = `<!-- GENERATED from 新返航录/docs/CORE_RULES.md @ sha256:${rulesHash}; do not edit; run npm run docs:sync -->\n\n`;
 
 let ok = true;
 if (localAgent !== srcRedlines) {
@@ -84,6 +93,23 @@ if (CHECK) {
       ok = false;
     }
   }
+  if (!fs.existsSync(rulesPath)) {
+    console.error('[docs-sync] FAIL 3d/CORE_RULES.md 缺失');
+    ok = false;
+  } else {
+    const cur = read(rulesPath);
+    const m = cur.match(/^<!-- GENERATED from 新返航录\/docs\/CORE_RULES\.md @ sha256:([0-9a-f]{64});[^\n]*-->\n\n/);
+    if (!m) {
+      console.error('[docs-sync] FAIL 3d/CORE_RULES.md 缺少 GENERATED 头');
+      ok = false;
+    } else if (m[1] !== rulesHash) {
+      console.error('[docs-sync] FAIL 3d/CORE_RULES.md source_sha256 过期');
+      ok = false;
+    } else if (cur.slice(m[0].length) !== srcRulesText) {
+      console.error('[docs-sync] FAIL 3d/CORE_RULES.md 正文与 2.5D 不一致');
+      ok = false;
+    }
+  }
   console.log(ok ? '[docs-sync] PASS 共享规范与 2.5D 一致' : '[docs-sync] 结果 FAIL');
   process.exit(ok ? 0 : 1);
 }
@@ -92,6 +118,9 @@ ensure(redPath);
 fs.writeFileSync(redPath, srcRedlines + '\n', 'utf8');
 ensure(govPath);
 fs.writeFileSync(govPath, govHeader + srcGovText, 'utf8');
+ensure(rulesPath);
+fs.writeFileSync(rulesPath, rulesHeader + srcRulesText, 'utf8');
 console.log('[docs-sync] 已生成 docs/REDLINES.md');
 console.log('[docs-sync] 已生成 docs/ASSET_GOVERNANCE.md（source_sha256 ' + govHash.slice(0, 12) + '）');
+console.log('[docs-sync] 已生成 3d/CORE_RULES.md（source_sha256 ' + rulesHash.slice(0, 12) + '）');
 console.log('[docs-sync] 源：' + SOURCE);
