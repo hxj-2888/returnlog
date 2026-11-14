@@ -20,12 +20,15 @@
 const fs = require('fs');
 const path = require('path');
 const B = require('./build-mapping-ledger.cjs');
+const R = require('./run-record.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
+const STARTED = Date.now();
 const args = process.argv.slice(2);
 const CHECK = args.includes('--check');
 const STRICT = args.includes('--strict');
 const JSONOUT = args.includes('--json');
+const NO_RECORD = args.includes('--no-record');
 const li = args.indexOf('--ledger');
 const LEDGER = li >= 0 && args[li + 1] ? path.resolve(args[li + 1]) : path.join(ROOT, '3d', 'spec', 'mapping-ledger.json');
 
@@ -87,6 +90,32 @@ const pass = rows.filter((r) => r.verdict === 'PASS').length;
 const fail = rows.filter((r) => r.verdict === 'FAIL').length;
 const err = rows.filter((r) => r.verdict === 'ERR').length;
 
+/** 退出前留痕：verdict 三态 + 本次代码/规则指纹 + 计数。留痕失败不影响判定结果。 */
+function finish(code) {
+  if (!NO_RECORD) {
+    try {
+      const verdict = code !== 0 ? 'failed' : (err ? 'partial' : 'verified');
+      const p = R.record('audit', {
+        verdict,
+        exit: code,
+        duration_ms: Date.now() - STARTED,
+        counts: {
+          rules: (ledger.rules || []).length,
+          linked, asserts: assertCount, pass, fail, err,
+        },
+        targets: {
+          data: (ledger.rules || []).filter((r) => (r.data_targets || []).length).length,
+          code: (ledger.rules || []).filter((r) => (r.targets || []).length).length,
+        },
+      });
+      if (!JSONOUT) console.log('[rules] 已留痕 ' + path.relative(ROOT, p).replace(/\\/g, '/'));
+    } catch (e) {
+      console.error('[rules] 留痕失败（不影响判定）：' + e.message);
+    }
+  }
+  process.exit(code);
+}
+
 if (JSONOUT) {
   console.log(JSON.stringify({
     rules_total: (ledger.rules || []).length,
@@ -96,7 +125,7 @@ if (JSONOUT) {
     pass, fail, err,
     rows,
   }, null, 1));
-  process.exit(CHECK && (fail || (STRICT && err)) ? 1 : 0);
+  finish(CHECK && (fail || (STRICT && err)) ? 1 : 0);
 }
 
 for (const r of rows) {
@@ -115,4 +144,4 @@ console.log('[rules] 规则 ' + (ledger.rules || []).length + ' 条 · ' +
 console.log('[rules] 已连目标 ' + linked + ' 条 · 已写断言 ' + assertCount + ' 条 · ' +
   'PASS ' + pass + ' / FAIL ' + fail + ' / ERR ' + err);
 if (err) console.log('[rules] ERR 多为正文措辞漂移或导出键失效，按「规则优先」复核断言，不要改正文迁就实现。');
-process.exit(CHECK && (fail || (STRICT && err)) ? 1 : 0);
+finish(CHECK && (fail || (STRICT && err)) ? 1 : 0);

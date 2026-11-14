@@ -77,3 +77,6 @@ tools/mc-results-E.json
 3d/reports/*.csv
 3d/reports/*.json
 !3d/reports/js-simdump-20261108.json
+
+# 运行留痕（生成物，可随时重建）
+3d/reports/runs/

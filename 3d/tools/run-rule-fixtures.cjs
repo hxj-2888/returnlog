@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const R = require('./run-record.cjs');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROJECT = path.join(ROOT, '3d', 'preview');
@@ -45,5 +46,24 @@ const out = ((r.stdout || '') + (r.stderr || ''))
   .filter((l) => !/ObjectDB instances leaked|resources still in use|^\s+at: /.test(l));
 for (const l of out) if (l.trim()) console.log(l);
 const code = r.status === null ? 1 : r.status;
+
+// 从 GDScript 的汇总行取读数：`RULETEST 4 通过 / 0 失败`
+let pass = 0;
+let fail = 0;
+for (const l of out) {
+  const m = /RULETEST\s+(\d+)\s+通过\s*\/\s*(\d+)\s+失败/.exec(l);
+  if (m) { pass = parseInt(m[1], 10); fail = parseInt(m[2], 10); }
+}
+try {
+  const p = R.record('fixtures', {
+    verdict: code === 0 ? 'verified' : 'failed',
+    exit: code,
+    cases: { pass, fail },
+    engine: path.basename(godot),
+  });
+  console.log('[rules:test] 已留痕 ' + path.relative(ROOT, p).replace(/\\/g, '/'));
+} catch (e) {
+  console.error('[rules:test] 留痕失败（不影响判定）：' + e.message);
+}
 console.log('[rules:test] exit ' + code + '（引擎 ' + path.basename(godot) + '）');
 process.exit(code);

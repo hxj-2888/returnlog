@@ -1,5 +1,25 @@
 # 3D 修改记录
 
+## 2026-11-14 · 运行留痕与三态 verdict（先斩后奏的凭据）
+
+- **本批改动**：
+  ① 新增 `3d/tools/run-record.cjs`：每次判定写一份 manifest，含
+  `verdict`（**verified / partial / failed**）、`code_sha`（`3d/preview/scripts` 下全部 `.gd` 的路径+内容整体哈希）、
+  `rules_sha`（规则正文去 GENERATED 头后的哈希）、计数、耗时、退出码；
+  落点 `3d/reports/runs/<kind>-latest.json` 与 `<kind>-history.jsonl`（只增不改），已加入 `.gitignore`；
+  ② `audit-rules.cjs` 与 `run-rule-fixtures.cjs` 都接上留痕（`--no-record` 可关），
+  留痕失败**不影响判定结果**（只打印警告）；
+  ③ verdict 判定口径：0 FAIL 且 0 ERR → `verified`；0 FAIL 但有 ERR → `partial`；有 FAIL → `failed`。
+- **为什么这一步重要**：此前结论只打到 stdout，关掉终端就没了——「先斩后奏」没有凭据。
+  现在同一批跑出的两份 manifest 共享同一个 `code_sha` / `rules_sha`，
+  可以证明「数值判定与场景夹具验的是同一份代码、同一份规则」，而不是各跑各的。
+- **T3 记录（本次实跑）**：`npm run check` **11 通过 / 0 失败**（`audit:rules` 随之写 `audit-latest.json`）；
+  `npm run 3d:rules:test` **4 通过 / 0 失败**（写 `fixtures-latest.json`）；
+  两份 manifest 的 `code_sha = de99fac054a08a79`、`rules_sha = fba3aa83…1840` 完全一致，`verdict` 均为 `verified`。
+- **下一批立项依据**：① 把两份 manifest 聚合成一份 `audit-summary.md`（人读的一页纸）；
+  ② CI 里把 `3d/reports/runs/` 作为 artifact 上传（当前只在本地）；
+  ③ 再补 scenario 覆盖 14 → 25。
+
 ## 2026-11-14 · 场景夹具执行器跑通（covered 10 → 14）
 
 - **本批改动**：
