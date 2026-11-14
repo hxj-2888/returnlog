@@ -1,0 +1,250 @@
+{
+ "schema_version": 1,
+ "note": "场景夹具账本（2026-11-14）：35 条 scenario 规则逐条登记覆盖状态。covered 必须指向真实存在的测试函数；partial 写清缺哪一段；todo 写清为什么现在建不了。覆盖数只许升不许降。",
+ "status_legend": {
+  "covered": "已有可执行测试明确断言该规则",
+  "partial": "有相关测试但未覆盖该条全部断点",
+  "todo": "尚无夹具"
+ },
+ "primitives": [
+  "new_game(seed,seat)",
+  "place(seat,x,y)",
+  "set(seat,field,value)",
+  "lights(state)",
+  "tick(seconds)",
+  "knife(from,to)",
+  "report(seat)",
+  "drag(seat,target)",
+  "search(seat)"
+ ],
+ "budget": {
+  "covered": 10
+ },
+ "cases": [
+  {
+   "rule": "R2.4",
+   "status": "covered",
+   "evidence": [
+    "tests/test_sim.gd:_run_simtest"
+   ],
+   "note": "天亮链与三条胜负分支"
+  },
+  {
+   "rule": "R2.7",
+   "status": "todo",
+   "why": "需要「先死人再开会」的场景，断言尸体 bodyGone 而濒死者保留"
+  },
+  {
+   "rule": "R2.8",
+   "status": "todo",
+   "why": "需要夜会中途保留 doing 的对照"
+  },
+  {
+   "rule": "R2.10",
+   "status": "todo",
+   "why": "需要连跑两夜，逐字段比对重置项"
+  },
+  {
+   "rule": "R4.1",
+   "status": "partial",
+   "evidence": [
+    "tests/test_world.gd:_run_aiporttest"
+   ],
+   "note": "只验交互收集，未验「1 项直执 / 多项轮盘」",
+   "why": "需补：只验交互收集，未验「1 项直执 / 多项轮盘」"
+  },
+  {
+   "rule": "R4.4",
+   "status": "partial",
+   "evidence": [
+    "tests/test_ui.gd:_run_mgtest"
+   ],
+   "note": "验小游戏本身，未验「移动打断站桩」",
+   "why": "需补：验小游戏本身，未验「移动打断站桩」"
+  },
+  {
+   "rule": "R5.4",
+   "status": "partial",
+   "evidence": [
+    "tests/test_world.gd:_run_powertest"
+   ],
+   "note": "验供电状态，未验「舱室全暗 / 走廊全熄」的可见性",
+   "why": "需补：验供电状态，未验「舱室全暗 / 走廊全熄」的可见性"
+  },
+  {
+   "rule": "R6.2",
+   "status": "covered",
+   "evidence": [
+    "tests/test_sim.gd:_run_simtest"
+   ],
+   "note": "任务乱序记账"
+  },
+  {
+   "rule": "R7.1.3",
+   "status": "partial",
+   "evidence": [
+    "tests/test_world.gd:_run_powertest"
+   ],
+   "note": "验供电，未验断电后的门/监控联动",
+   "why": "需补：验供电，未验断电后的门/监控联动"
+  },
+  {
+   "rule": "R7.1.4",
+   "status": "todo",
+   "why": "需要目击拉闸与目击合闸两组"
+  },
+  {
+   "rule": "R7.4.2",
+   "status": "covered",
+   "evidence": [
+    "tests/test_combat.gd:_run_bottest"
+   ],
+   "note": "保安追逐与押送"
+  },
+  {
+   "rule": "R7.4.4",
+   "status": "covered",
+   "evidence": [
+    "tests/test_fixture.gd:_run_knifebottest"
+   ],
+   "note": "机器人刀击守卫与副作用"
+  },
+  {
+   "rule": "R7.5.3",
+   "status": "todo",
+   "why": "需要刀砍医疗无人机的伤害与停摆"
+  },
+  {
+   "rule": "R8.1",
+   "status": "covered",
+   "evidence": [
+    "tests/test_combat.gd:_run_knifetest"
+   ],
+   "note": "出刀链与刀程/守卫"
+  },
+  {
+   "rule": "R8.2",
+   "status": "covered",
+   "evidence": [
+    "tests/test_combat.gd:_run_knifetest"
+   ],
+   "note": "濒死与红身副作用"
+  },
+  {
+   "rule": "R8.3",
+   "status": "covered",
+   "evidence": [
+    "tests/test_combat.gd:_run_b4test"
+   ],
+   "note": "开枪"
+  },
+  {
+   "rule": "R8.5",
+   "status": "todo",
+   "why": "需要跨夜观察濒死不断气"
+  },
+  {
+   "rule": "R8.6",
+   "status": "todo",
+   "why": "需要死亡后 place 幽灵穿墙 + 驱逐者无尸体两个分支"
+  },
+  {
+   "rule": "R8.7",
+   "status": "covered",
+   "evidence": [
+    "tests/test_fixture.gd:_run_dragtest"
+   ],
+   "note": "拖尸全链路"
+  },
+  {
+   "rule": "R8.8",
+   "status": "covered",
+   "evidence": [
+    "tests/test_combat.gd:_run_b4test"
+   ],
+   "note": "搜尸"
+  },
+  {
+   "rule": "R9.1",
+   "status": "todo",
+   "why": "需要异形连续两次破坏，验第二次被拒"
+  },
+  {
+   "rule": "R9.2",
+   "status": "todo",
+   "why": "需要同夜同舱两次破坏落点一致"
+  },
+  {
+   "rule": "R9.3",
+   "status": "todo",
+   "why": "需要三种引爆距离的对照"
+  },
+  {
+   "rule": "R9.6",
+   "status": "todo",
+   "why": "需要目击者位置矩阵"
+  },
+  {
+   "rule": "R10.3",
+   "status": "todo",
+   "why": "需要同一尸体同夜两次报告"
+  },
+  {
+   "rule": "R10.4",
+   "status": "todo",
+   "why": "需要会议前设置拖拽/监控/管道选择，开会后断言全清"
+  },
+  {
+   "rule": "R10.5",
+   "status": "todo",
+   "why": "需要白天与夜里两场会议的位置对照"
+  },
+  {
+   "rule": "R11.1",
+   "status": "todo",
+   "why": "需要「AI 未看见但系统知道他身份」的对照"
+  },
+  {
+   "rule": "R11.4",
+   "status": "todo",
+   "why": "需要目击者已确证死者为异形的前提"
+  },
+  {
+   "rule": "R11.8",
+   "status": "todo",
+   "why": "需要构造口供与位置记录矛盾/一致两组"
+  },
+  {
+   "rule": "R12.5",
+   "status": "todo",
+   "why": "需要只有传闻、没有实证的目标"
+  },
+  {
+   "rule": "R12.7",
+   "status": "todo",
+   "why": "需要当众指控/辩护后再投票"
+  },
+  {
+   "rule": "R13.2",
+   "status": "covered",
+   "evidence": [
+    "tests/test_social.gd:_run_speechtest"
+   ],
+   "note": "连说让位"
+  },
+  {
+   "rule": "R14.3",
+   "status": "partial",
+   "evidence": [
+    "tests/test_social.gd:_run_meetingtest"
+   ],
+   "note": "验会议流程，未逐条验 10 步投票顺序",
+   "why": "需补：验会议流程，未逐条验 10 步投票顺序"
+  },
+  {
+   "rule": "R14.7",
+   "status": "todo",
+   "why": "需要异形已认出队友，观察是否避开"
+  }
+ ]
+}

@@ -28,6 +28,8 @@ const CHECKS = [
   ['map:check', '3d/tools/build-mapping-ledger.cjs', ['--check']],
   // 规则判定：按 3d/CORE_RULES.md 正文核对导出数值，不等即 FAIL（2026-11-14）
   ['audit:rules', '3d/tools/audit-rules.cjs', ['--check']],
+  // 场景夹具账本：35 条 scenario 规则逐条有账，covered 必须指向真实测试函数（2026-11-14）
+  ['fixtures:check', '3d/tools/check-fixtures.cjs'],
 ];
 
 const KEY = /(OK|FAIL|PASS|WARN|通过|失败|错误|差异|提醒|ERR )/;

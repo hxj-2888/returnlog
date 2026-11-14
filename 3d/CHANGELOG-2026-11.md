@@ -1,5 +1,29 @@
 # 3D 修改记录
 
+## 2026-11-14 · 场景夹具账本（35 条 scenario 逐条有账，进第 11 项门禁）
+
+- **本批改动**：
+  ① 新增 `3d/spec/fixtures/rules-scenarios.json`——35 条 `scenario` 规则**逐条登记**覆盖状态：
+  **covered 10 / partial 5 / todo 20**，`budget.covered = 10` 作棘轮（只许升不许降）；
+  ② 新增 `3d/tools/check-fixtures.cjs` 做结构校验：规则编号必须存在且分级为 `scenario`、
+  `covered`/`partial` 的 `evidence` 必须指向**真实存在的测试函数**（读文件确认 `func` 在不在）、
+  `todo` 必须写清为什么现在建不了、`covered` 不得低于预算；
+  ③ `tools/check-all.cjs` 增第 11 项 `fixtures:check`。
+- **覆盖口径（保守，不虚报）**：`covered` 只给「测试注释里明确写了这条行为」的条目，例如
+  `R8.1/R8.2 → test_combat._run_knifetest`、`R8.7 → test_fixture._run_dragtest`、
+  `R7.4.2 → test_combat._run_bottest`；只沾边的一律 `partial`（如 `R4.1` 只验了交互收集、
+  没验「1 项直执 / 多项轮盘」）。
+- **为什么先做账本、不直接写场景**：`main.gd` 现为 **5,549 行 / 预算 5,550**，只剩 1 行余量，
+  新增 `--rulestest` 参数与分发必然破预算（`file:check` 是只许下调的棘轮）。
+  所以本批先把「哪条规则有夹具、缺哪一段」变成可数、可门禁的事实；执行器另批解决
+  （走独立 `SceneTree` 脚本，或先腾出 main.gd 预算）。
+- **灵敏度自检**：把 `R8.1` 的 evidence 改成不存在的 `_run_no_such_test`，校验器报
+  `FAIL R8.1 的 evidence 函数在文件里找不到` 且 exit 1；还原后 OK。证明「覆盖」不能靠写个名字混过去。
+- **T3 记录（本次实跑）**：`npm run check` **11 通过 / 0 失败**；`fixtures:check` 场景规则 35 ·
+  covered 10 / partial 5 / todo 20（预算 10）；`audit:rules` 断言 56 全 PASS。
+- **下一批立项依据**：① 先把 5 条 `partial` 补成 `covered`（都是差一小段断言，成本最低）；
+  ② 再攻 `todo` 里最影响手感的 `R5.3`（视野）/ `R9.1`（破坏次数）/ `R10.3`（报告一次性）。
+
 ## 2026-11-14 · 断言补齐到 56 条（numeric 覆盖率 56/59）
 
 - **本批改动**：给 30 条已连目标的 numeric 规则补上 `assert`（`R1.4 R1.6 R2.2 R2.5 R2.6 R2.9 R5.2 R6.3
