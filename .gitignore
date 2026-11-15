@@ -15,6 +15,10 @@ tools/_zoom*.png
 tools/_*.cjs
 tools/_mc-*.json
 tools/_mc-*.md
+# AI 走动体检（tools/track-ai*.cjs 已入库）：采样与报告是本地产物，不入库
+tools/track-ai*.json
+tools/track-ai*.html
+tools/probe-caller.json
 3d/preview/scripts/_*.gd
 3d/preview/scripts/_*.gd.uid
 # 2026-11-10 真源清洁：字节码 / 工具备份不入库（2.5D main 与 3D 副分支同口径）
