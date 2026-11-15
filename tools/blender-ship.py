@@ -696,12 +696,14 @@ for c in M['corridors']:
             L, CW, -0.02, 0.0, FLOOR_MATS['corridor'], rot=rot)
         ux, uy = dx / L, dy / L
         seg_norm.append((-uy, ux))
-    # 折点补角：每段走廊矩形只在端点 butt 相接，折点左右两个外角各漏一块，
-    # 运行时被迷雾压成黑角。用一块 2CW×2CW 的同材质地面把整个折点铺平。
+    # 折点补角：每段走廊矩形只在端点 butt 相接，拐弯处会漏一块 CW/2×CW/2 的内角。
+    # 2026-11-15 用户反馈「多处走廊拐角处的钢格栅地板超出走廊」：原为 2CW×2CW，
+    # 会向走廊两侧外各溢出 CW/2，把格栅铺到走廊外面。
+    # 改为 CW×CW —— 四角分别落在两段走廊各自的覆盖范围内，只补折点缺口、不外溢。
     for i in range(1, len(pts) - 1):
         px, py = pts[i]
         box('corr_corner_%s_%d' % (c['id'], i), px, py,
-            CW * 2, CW * 2, -0.02, 0.0, FLOOR_MATS['corridor'])
+            CW, CW, -0.02, 0.0, FLOOR_MATS['corridor'])
     # 走廊两侧的地面导光条：暗走廊里唯一的方向感来源。
     # 2026-11-10：改为"连续偏移折线 + 拐角 miter"，两侧全覆盖、拐角收束，
     # 不再每段缩 0.4 导致交叉飞出 / 缺边（生态舱-医疗舱拐角曾飞线、下段缺线）。
