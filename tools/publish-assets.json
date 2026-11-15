@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated": "2026-11-12",
+  "generated": "2026-11-15",
   "source": "tools/publish-assets.cjs bundle",
-  "file_count": 256,
-  "total_bytes": 46675407,
+  "file_count": 255,
+  "total_bytes": 48513809,
   "files": {
     "assets/MANIFEST.json": {
-      "sha256": "ea12399462641aa75216ce10e93259410596de1ba50f39114025e9d627e90438",
-      "size": 12966
+      "sha256": "ba759adcbadc439858cf046c489c0d463e32ef3d562a776a3d61244155563c63",
+      "size": 373
     },
     "assets/minigame/panel-breaker.png": {
       "sha256": "3cb64bc7f23ac4c27d106bc0a8ef7a778023ef35225db7f21f15fe8edb18a227",
@@ -40,10 +40,6 @@
     "assets/portfolio/returnlog-thumb.png": {
       "sha256": "a6e582dcb9e575e6cfdf441e8a54b68b70ed5088b2344eb57ce73ae8ac45ebd0",
       "size": 341994
-    },
-    "assets/qwen-lib/素材库清单.json": {
-      "sha256": "51640fb5cdd35f0b8515422236de05d148d628d544310fa19f88a9abc3de2667",
-      "size": 10014
     },
     "assets/scene/bg/departure-ring.svg": {
       "sha256": "3ae0a8fce8c7e16603aadd14152a7de7ba9f50f8c551563fbc34909a45fcf07b",
@@ -802,12 +798,12 @@
       "size": 1757
     },
     "assets/scene/v4/_preview.png": {
-      "sha256": "925685db055098a4a099ab39b6ffbcca164c1608ceaaa2c26231d6d5561ad1a0",
-      "size": 714819
+      "sha256": "b2c15edff14f74388169837018ab509fa53ea9a5b72398afc8e0c5e862a6b337",
+      "size": 2594767
     },
     "assets/scene/v4/base-lit.png": {
-      "sha256": "7e73c60c4829c3295a203d915f1c1497909dd1f0ef5e2deb868f48a1bb185a42",
-      "size": 14194673
+      "sha256": "e7394138c9090c76fbc51c82af9b18f805e71e8a1400a69c08a8bfd4fa02c805",
+      "size": 14175734
     },
     "assets/scene/v4/facility/breaker-c0.png": {
       "sha256": "f575c443ac255b990fb38f4f8eeab06b75c0a69ad7a1055cdc7f6ccc6894696b",
