@@ -4,9 +4,9 @@
   "sources": {
     "js/ai/sanity.js": "a2dd222adc5c",
     "js/ai/traits.js": "a6395c194def",
-    "js/t2/ai.js": "3855ad5281d9",
+    "js/t2/ai.js": "c45e435a9f81",
     "js/t2/decision.js": "3db6ab20274c",
-    "js/game.js": "74985c971d99",
+    "js/game.js": "54f6f9aae573",
     "js/data/lines.js": "3e81434a06eb"
   },
   "tables": {
@@ -1212,14 +1212,21 @@
       ]
     },
     "SKT2AI.evPush": {
-      "sha": "6653f312103f",
+      "sha": "913fb2b871fd",
       "nums": [
         0,
         1,
         0.25,
         0,
         1,
-        0.35
+        0.35,
+        0,
+        0,
+        0,
+        0,
+        11.7,
+        0,
+        0
       ]
     },
     "SKT2AI.susAdd": {

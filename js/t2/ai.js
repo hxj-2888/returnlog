@@ -333,7 +333,11 @@
     if(ev.conf>0.25&&(String(ev.kind).indexOf('heard_')===0||
       ev.kind==='env_lights'||ev.kind==='env_fault'||ev.kind==='env_robot')){
       a.mind.alert=Math.min(1,a.mind.alert+ev.conf*0.35);
-      a.mind.noise={x:ev.x,y:ev.y,t:ev.t,kind:ev.kind};
+      /* 只有带真实坐标的事件才算「噪声方位」。证言／投票类事件（heard_accuse /
+         heard_frame / heard_vouch / heard_claim / presence_deny …）统一用 x:0,y:0
+         当"没有位置"的占位；以前它们也会写进 noise，aiHuman 便去「0,0 看看」，
+         那边不可走 ⇒ walkTo 永远返回 null ⇒ 人站着发呆（实测最长 11.7 秒）。 */
+      if(ev.x>0&&ev.y>0)a.mind.noise={x:ev.x,y:ev.y,t:ev.t,kind:ev.kind};
     }
   }
 
