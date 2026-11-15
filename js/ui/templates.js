@@ -214,6 +214,9 @@
   #body .row span:first-child{color:#8A94A3;flex:0 0 auto}
   #body .row b{color:#F0C674;font-weight:500;text-align:right;word-break:break-word}
   #body .bd-note{margin-top:12px;font-size:12px;color:#7C8798;line-height:1.7}
+  #body .bd-loot{cursor:pointer}
+  #body .bd-loot:hover b{color:#FFF1CE}
+  #body .bd-loot b{text-decoration:underline dotted rgba(240,198,116,.5)}
   #body .bd-bad{color:#E0574F}
   @keyframes qpop{0%{transform:scale(1)}35%{transform:scale(1.9);color:#FFF3C4;text-shadow:0 0 12px #F0C674}100%{transform:scale(1)}}
   #hud b.pop{display:inline-block;animation:qpop .75s ease}
@@ -241,7 +244,7 @@
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
-<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · T 视野 · C 相机 · M 音效 · ESC 暂停</div>
+<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · M 音效 · ESC 暂停</div>
 <div id="dragtag" class="hide">拖拽中 · 按 G 放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">
@@ -252,7 +255,7 @@
 <div id="body" class="ov hide"><div class="card">
   <h2 id="b-t">尸检记录</h2><div class="sub" id="b-s"></div>
   <div id="b-rows"></div>
-  <div class="bd-note" id="b-note">搜查会花掉一点时间，夜里也一样。</div>
+  <div class="bd-note" id="b-note">查看只取证；点物资栏领取。</div>
   <div class="btns"><button class="p" id="b-close">关闭 (X / Esc)</button></div>
 </div></div>
 

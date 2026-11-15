@@ -706,6 +706,13 @@
     suspectAge: 8,
     suspectRadius: 4,
   };
+  /* AI 搜尸：缺物资时必搜；不缺时人类 AI 也高概率顺手取证（每 6 秒掷一次）；
+     AI 搜尸动作固定 2 秒（玩家仍 1.2 秒）。 */
+  const LOOT = {
+    aiSearchChance: 0.85,
+    aiSearchCD: 6,
+    aiSearchTime: 2,
+  };
   /* 钻管道：以前 AI 有 20 秒冷却、玩家没有（可以连着钻）——
      这是玩家的白拿特权。现在两边共用同一个冷却。 */
   const PIPE = {
@@ -1094,7 +1101,7 @@
     ALIBI, alibiTimeWord, checkAlibi, HUMANISH,
     CARRY, ALMOST, RELIA, MIND, reliaMul, beliefEntropy,
     CONFIRM, MISID, DESC, FIRST, ATTN, SPEECH, COFRAME, META, AVOID, MEET, MISLEAD, TERMINATOR, VOTE, SOCIAL,
-    NIGHT, WIN, STAND, REACH, SHOT, PIPE, SOUND,
+    NIGHT, WIN, STAND, REACH, SHOT, PIPE, SOUND, LOOT,
     disguiseScore, disguiseRisk, credVoteShield, credTestimony, alibiReach,
   };
 })(window);
