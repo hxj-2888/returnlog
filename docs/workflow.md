@@ -13,15 +13,24 @@
 | 门禁依赖 | 本仓 devDependency `playwright-core@^1.64.1`；`npm i` 后 `npm test` 直接可跑（2026-11-04 实测） |
 | 指定 Playwright（后备） | 仅当 `node_modules` 缺失时：`PLAYWRIGHT_CORE=/path/to/playwright-core npm test` |
 | 蒙特卡洛 | `npm run sim`（1000 局 AI 对 AI，seed 可复现；产出本地 `tests/mc-results.json`，未入库） |
+| AI 走动体检 | `node tools/track-ai.cjs --sessions 6 --sec 120 --conc 4 --raf 25`（真实对局采样）→
+  `node tools/track-ai-report.cjs`（判定 + 出图 `tools/track-ai-report.html`）；产物已 gitignore。
+  深挖用 `node tools/probe-caller.cjs`（CDP 断点抓 `walkTo` 失败的调用栈与目标）。2026-11-15 靠它定位并修掉「循声去看 0,0」发呆 |
 | 调试模式 | `index.html?test`（跳过开局会议）/ `?dev`（DEV 面板）/ `&strict` |
 
-### PowerShell 7（强制）
+### 命令行与 PowerShell 7（只在必要场景要求）
 
-- **只在需要调用命令行时使用**：能用专用工具、API 或直接编辑完成的操作，直接用对应工具。
-- 需要调用命令行时，统一用 **PowerShell 7**：`pwsh` / `pwsh.exe`；**不要用 Windows PowerShell 5.1**（`powershell.exe`）。
-- 默认不用 Git Bash / `cmd.exe`；仅当项目脚本明确依赖 POSIX 工具且无法用 PowerShell 等价实现时，先说明原因再使用。
-- 多行脚本写成临时 `.ps1`，用 `pwsh -NoProfile -File` 调用；环境变量用 `$env:VAR='...'`，路径含空格时加引号。
-- 校验：`pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'` 应输出 7.x（本机 7.6.5）。
+- **不设全局 shell 强制**：Git Bash、`cmd.exe`、`pwsh` 各按既有优先级使用，本条不给任何 shell 加分或降级。
+- **只有这三类场景要求 PowerShell 7**（`pwsh` / `pwsh.exe`）：
+  1. 跑仓内 `.ps1`（`tools/check-blender.ps1`、3d 副分支的 `gen-*.ps1` 等；5.1 下会解析失败，或被脚本里的硬守卫拦下）；
+  2. Windows 专有操作：注册表、COM（含快捷方式解析）、服务、.NET 类型；
+  3. 脚本/文档已写死 `pwsh` 命令时，照抄运行。
+- 上述场景**不要用 Windows PowerShell 5.1**（`powershell.exe`）：它按 GBK 解码 UTF-8 源码，
+  中文注释会吃掉换行导致解析失败。
+- 其余命令行（`npm` / `node` / `git` / `python` / Blender 无头渲染）**不要求 PowerShell**，
+  用当前 shell 直接跑即可；能用专用工具、API 或直接编辑完成的，就别绕命令行。
+- 需要用 PowerShell 写多行脚本时：临时 `.ps1` + `pwsh -NoProfile -File`；环境变量 `$env:VAR='...'`；路径含空格加引号。
+- 自查：`pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'` 应输出 7.x（本机 7.6.5）。
 
 ## 二、本机环境
 
@@ -49,11 +58,10 @@
 | 权威来源 | 桌面 `C:\Users\ASUS\Desktop\Blender.lnk` 指向此路径 |
 | Steam 依赖 | **免登录**：无 `steam_api64.dll` / `steam_appid.txt`，Steam 未运行也可直接跑 |
 
-渲染前先过版本校验：
+渲染前先过版本校验（正斜杠路径在 bash / cmd / pwsh 里都能直接用）：
 
-```powershell
-$BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
-& $BLENDER --version | Select-Object -First 1   # 期望：Blender 5.2.2 LTS
+```text
+"E:/SteamLibrary/steamapps/common/Blender/blender.exe" --version   # 期望：Blender 5.2.2 LTS
 ```
 
 **禁止事项（违反即视为基线污染）**
@@ -66,11 +74,10 @@ $BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
 
 **标准调用模板**
 
-```powershell
-$BLENDER = "E:\SteamLibrary\steamapps\common\Blender\blender.exe"
-& $BLENDER -b -P tools/blender-ship.py -- --test    # 预览：960×901，约 5s
-& $BLENDER -b -P tools/blender-ship.py              # 正式底图：4704×4413，约 11s
-& $BLENDER -b --factory-startup -P tools/blender-ship.py   # 完全可复现
+```text
+"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test   # 预览：960×901，约 5s
+"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py             # 正式底图：4704×4413，约 11s
+"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b --factory-startup -P tools/blender-ship.py   # 完全可复现
 ```
 
 **渲染规范**

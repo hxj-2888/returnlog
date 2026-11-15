@@ -6,9 +6,9 @@ check-blender.ps1 —— 校验「新返航录」的权威渲染版本（Blender
   = 桌面 C:\Users\ASUS\Desktop\Blender.lnk 指向的路径
   = Blender 5.2.2 LTS / build hash d13f752e3b9c / 免 Steam 登录
 
-用法:
-  powershell -ExecutionPolicy Bypass -File tools\check-blender.ps1
-  powershell -File tools\check-blender.ps1 -Quiet      # 只回退出码
+用法（跑 .ps1 属「必要场景」，一律 PowerShell 7）:
+  pwsh -NoProfile -File tools\check-blender.ps1
+  pwsh -NoProfile -File tools\check-blender.ps1 -Quiet      # 只回退出码
 
 退出码: 0 = 通过；1 = 版本/路径/Python 载荷不符
 #>
