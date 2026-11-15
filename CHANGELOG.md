@@ -10,6 +10,22 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 卡顿定案：用户侧 Edge 关闭了硬件加速（环境修复，零代码改动）] — 2026-11-15
+
+- **结论**：长期反馈的「DEV 一开就卡 / 关 DEV 就流畅 / 越玩越卡 / 能不能多核」根因**不在游戏代码**，
+  而是 **Edge 的「使用图形加速」被关闭**：`Local State` 顶层 `hardware_acceleration_mode = {"enabled": false}`，
+  GPU 进程退到 ANGLE/WARP 纯 CPU 软件光栅（启动参数 `--use-angle=d3d11-warp-webgl`）。
+- **修法（用户侧 1 分钟）**：`edge://settings/system` → 开启「可用时使用图形加速」→ **完全退出 Edge** 再启动。
+  本次由代理直接改写 `Local State` 顶层键（`{"enabled":true}` + `_previous:true`；改前已备份到临时目录）。
+- **读数变化**（用户机器 2560×1600@165Hz / dpr1.5 / canvas 2548×1402 / 异形 + DEV 全知）：
+  - 修复前：`4 FPS · 绘 18.5ms · 间隔 257.6ms · 最差 281ms · 掉 2 · 屏 40Hz · 主线程 7%`
+    （同刻 renderer 单核 **101.8%**、GPU 进程 7.8% —— 主线程低但进程满核 = 卡在光栅/合成）
+  - 修复后：`60 FPS · 绘 1.2ms · 间隔 16.6ms · 最差 18ms · 掉 0 · 屏 148Hz · 主线程 7%`
+  - 本机 A/B 佐证（同代码同场景）：GPU 正常 `60 FPS · 绘 1.6ms`；`--disable-gpu`（SwiftShader）`7 FPS · 绘 29.2ms`。
+- **判读口径已写进 `docs/ASSET_GOVERNANCE.md` §14.4**：`主线程 %` 低而进程吃满一核 → 先查硬件加速；
+  canvas 2D 绘制命令只能由主线程发出，**加核心数不改善绘制**。
+- **下一批立项依据**：无（本批零代码改动）。
+
 ## [未发布 · 帧率仪表：F8 实时帧率 / 绘制耗时 / 帧间隔] — 2026-11-15
 
 - **本批改动**：`js/game.js` 新增帧率仪表 `fpsHud / fpsToggle / fpsRaf / fpsTick`，挂在 `loop` 上。
