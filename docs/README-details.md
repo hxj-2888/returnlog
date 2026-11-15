@@ -595,7 +595,7 @@ tools/
                            （3D 资产、美术工具、spec 与客户端在 3d 副分支）
 ```
 
-分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`；`game.js` 现 10,147 行。
+分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`。2026-11-15 工程化精简第一批新增 `js/engine/body.js`（尸体/物资 5 个纯函数，同一薄委托模式，`index.html` 在 `engine/assets` 之后加载）；`game.js` 现 **12,089** 行。
 所有脚本都是有顺序的经典脚本（IIFE + `window.SK*` 命名空间），不使用 ES Module 与构建步骤。
 
 ### 3D 预演（2.5D 的延伸，不是第二条产品线）

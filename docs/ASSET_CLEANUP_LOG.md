@@ -19,6 +19,7 @@
 | 2026-11-11 | L4 缓存 + L3 退役/时间戳备份 + 过期调试输出（✅ 全批次） | 新返航录 | 2037 | 857.83 MB | 见 RESTORE_MAP.csv | backups/2026-11-11/cleanup-full/ + quarantine/2026-11-11/ | RESTORE.md 一键还原 / tracked 用 git restore | WorkBuddy | 339 批全通过 · 体积一致 |
 | 2026-11-12 | A 档死音效 + L2/L4 可再生成输出（tools 截图/原始帧/日志 + APK 解包副本） | 新返航录 | 794 | 116.61 MB | — | `C:\Users\ASUS\Documents\returnlog_cleanup_20261112\backup\新返航录\` | 隔离区原样移回 / `git checkout HEAD -- <路径>` | ZCode | 80 批全通过 · 备份全量哈希校验一致 |
 | 2026-11-13 | 主仓出清：3D 资产/工具/spec + 素材源包 + 一次性夹具（✅ 全批） | 新返航录 | 610 | 202.7 MB | — | `C:\Users\ASUS\Documents\returnlog_cleanup_20261113\backup\新返航录\` | 素材层/隔离区原样移回；tracked 用 `git checkout HEAD -- <路径>` | Qoder | 616/616 备份哈希一致（+5 MC 补遗） |
+| 2026-11-15 | L4 一次性调试产物（AI 走动逐帧采样 / 调用栈空结果 / MC 1000 局结果） | 新返航录 | 11 | 62.5 MB | — | `F:\returnlog_cleanup_20261115\backup\新返航录\`（用户裁定放 F 盘） | 系统回收站原样还原 → F 盘备份副本 | WorkBuddy | 11/11 备份 SHA256 一致；原路径残留 0；T3 PASS 11 / WARN 2 / FAIL 0 |
 
 ### 2026-11-12 · A 档死音效 + B 档可再生成输出/缓存（主仓）
 
@@ -198,3 +199,12 @@
 - 校验：T3 `9 PASS / 4 WARN / 0 FAIL`（C3b 已改为「历史分册已清理」PASS）；`agent:contract` PASS；`guard` PASS；3D `check` 7/0、`baseline` 446 OK、`docs:check` PASS、`guard` PASS。
 - 共享规范自动化：2.5D `agent:contract:write` 生成 `docs/agent/REDLINES.md`；3D `docs:sync` / `docs:check` 从 2.5D 生成 `REDLINES.md` / `ASSET_GOVERNANCE.md`，CI 已接入 `docs:check`。
 - 保留：T3 `docs/agent/acceptance.md` + `tools/check-t3.cjs` + CHANGELOG 读数；`ASSET_LAYERS.md` 3D 专属行保留为本地附录。
+
+## 2026-11-15 · 一次性调试产物清理（11 件 / 62.5 MB）
+
+- **冻结**：11 个文件（4 个 AI 走动逐帧轨迹 JSON、1 个调用栈空结果、3 个 HTML 报告、1 张 PNG、2 个 MC 1000 局结果），全部未入库或已被 `.gitignore` 排除；清单、性质与可再生命令见 `docs/ENGINEERING-SLIM-PLAN.md` §5。
+- **完整备份**：先落 `C:\Users\ASUS\Documents\returnlog_cleanup_20261115\backup\新返航录\`，11/11 SHA256 与原件一致；按用户裁定迁至 **`F:\returnlog_cleanup_20261115\backup\新返航录\`**，再次 11/11 哈希一致（62 MB）。C 盘旧副本 11 个已送系统回收站，残留 0，空目录保留未递归删除。
+- **只进回收站**：`Microsoft.VisualBasic.FileIO.FileSystem::DeleteFile(..., SendToRecycleBin)`，分 2 批（10 + 1）逐批核对路径；未使用 `rm` / `del /F` / 通配符批量删，未永久删除。
+- **逐批校验**：原路径残留 0，异常 0，F 盘备份 11 个 / 62 MB。
+- **恢复方式**：回收站原样还原（首选）→ F 盘备份副本（次选）。工具脚本 `track-ai.cjs` / `track-ai-report.cjs` / `probe-caller.cjs` 与已入库 1000 局历史报告保留，可按 §5 命令重新采样。
+- **清理后校验**：本仓无 `BASELINE.sha256.json`（属 3D 仓），改跑 `npm run t3:check` **PASS 11 / WARN 2 / FAIL 0**、`npm run agent:contract`、`npm run guard`；`git status` 无被删文件残留。

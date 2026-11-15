@@ -10,6 +10,40 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 工程化精简第一批：尸体/物资纯函数外提 + 一次性调试产物清理] — 2026-11-15
+
+- **动机**（用户裁定）：`docs/ENGINEERING-SLIM-PLAN.md` 提出后，用户要求「删除，并且执行一下大文件的拆分任务」；
+  备份位置按用户补充裁定改到 F 盘。
+- **本批改动**：
+  1. 新增 `js/engine/body.js`（**75 行**）：逐字外提 `bodyPos` / `bodyHasLoot` / `lootBody` /
+     `bodyItemsText` / `lootText` 5 个**零闭包依赖纯函数**；只读写传入的 agent 字典，不碰 `G` / DOM / Canvas / 时钟。
+  2. `js/game.js` 删除 5 个定义（−47 行），在既有「方案 A 薄委托」区加同名局部别名（+4 行）：
+     **同一个函数对象、无转发层，55 处调用点一行未改**；文件 12,133 → **12,089** 行。
+  3. `index.html` 在 `engine/assets` 之后插入 `engine/body`（红线 2 唯一加载清单）；`AGENTS.md §一.2`
+     加载顺序同步；`npm run agent:contract:write` 重生成 `docs/REDLINES.md`。
+  4. 行数棘轮：`docs/file-budgets-js.json` 把 `js/game.js` 额度 12,132 → **12,089** 锁死，
+     新增 `js/engine/body.js` 额度 100 行；`docs/README-details.md` 结构表补录并更正过期行数（10,147 → 12,089）。
+  5. `npm run 3d:export:rules` 重导规则快照（`3d/preview/data/rules.json`），消除改行后的 C6 源哈希漂移。
+  6. 清理 11 个一次性调试产物（约 62.5 MB）按 `docs/ASSET_GOVERNANCE.md` §9 六步：
+     冻结 → 完整备份 → 系统回收站 → 每批 ≤10 → 逐批校验 → 台账；备份按用户裁定落在
+     **`F:\returnlog_cleanup_20261115\backup\新返航录\`**；常设工具与已入库历史报告保留。
+     台账见 `docs/ASSET_CLEANUP_LOG.md`，清单与性质见 `docs/ENGINEERING-SLIM-PLAN.md` §5。
+- **读数变化**（2026-11-15 本机实跑）：
+  - `node tests/test-v3.cjs`：**971 通过 / 0 失败**（拆分前后断言数不变，控制台零报错）。
+  - `npm run ci:gate`：首轮 4 条失败（3 条命中已登记抖动集 + 1 条「零证据的人类 AI 全部弃权」未登记），
+     **重跑 968 通过 / 3 失败 → PASS**（3 条全在 `tests/flaky-assertions.txt`）；未复现项按回归观察、**未加白名单**。
+  - `npm run t3:check`：拆分后 **10 PASS / 3 WARN / 0 FAIL**（新增 C6 源哈希漂移）→ 重导规则快照后
+     **11 PASS / 2 WARN / 0 FAIL**，与基线一致。
+  - `npm run agent:contract` **PASS**（14 条 / `802d0376d2b50f29`）；`npm run guard` **PASS**。
+  - `node tools/filemap-js.cjs --check` **OK**（24 文件 / 20,658 行 / 函数 1,032 / 最大 `game.js` 12,089 行 / 11 个历史超长函数待拆）。
+  - `node tools/deploy-pages.cjs --dry-run`：暂存 **282 文件 / 47.4 MB**（新增模块未使体积超 50 MB 门槛）。
+  - 清理：备份 11/11 SHA256 一致（62 MB，F 盘），原路径残留 0，回收站可还原，**未永久删除**。
+- **边界**：未改任何判定 / 数值 / 语料 / 版本；3D 仓未动（下次 `baseline:sync` 需认领 `js/engine/body.js`
+  并重排 `js/game.js` 行段 / `SOURCE_LITERALS` / `@src` 锚点，属同步批次而非本批）。
+- **下一批立项依据**：P1 第二批按族外提（63 个候选中的几何/位置组，或 `bodyWound` / `aiWantsLoot` /
+  `bodyInfo` 组——后三者需先解决 `causeName` / `isMate` / `roomIdAt` 的闭包依赖注入）；
+  收益判据仍是 3D 侧重登记条数是否下降。P2 的 flaky 4 条归因与资源瘦身另批。
+
 ## [未发布 · 进场加载门 + 素材加载容错 + 施救退出小游戏] — 2026-11-15
 
 - **现象**（用户现场）：偶现网页玩家进入对局后「无法加载完整画面」——地图只剩平铺色块，
