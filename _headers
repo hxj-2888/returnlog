@@ -1,0 +1,14 @@
+# Cloudflare Pages 响应头（2026-11-15）
+# 目的：地图底图 13.5 MB / 船壳 7 MB，原先全部 max-age=0 每次访问都回源校验；
+#       弱网下一次校验失败就没有图。这里给静态素材 10 分钟浏览器缓存 + 后台续期，
+#       续期失败仍用旧副本；入口 HTML 仍保持每次校验，避免版本更新被缓存挡住。
+# 依据：Cloudflare Pages _headers 文档；RFC 5861 stale-while-revalidate / stale-if-error。
+
+/assets/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400, stale-if-error=604800
+
+/audio/*
+  Cache-Control: public, max-age=600, stale-while-revalidate=86400, stale-if-error=604800
+
+/js/*
+  Cache-Control: public, max-age=300, stale-while-revalidate=3600, stale-if-error=86400

@@ -71,6 +71,21 @@
   #pick .ghost{padding:clamp(10px,1.4vh,13px) 13px;border-radius:11px;border:1px solid #232C39;
     background:rgba(13,18,26,.86);color:#DDE3EC;font:12px/1 inherit;cursor:pointer;transition:.18s}
   #pick .ghost:hover{border-color:#43536B;background:#18202B}
+  /* 素材加载条：图像与音频全部就绪前，「进入舱段」保持禁用 */
+  #pick .load[hidden]{display:none}
+  #pick .load{display:flex;align-items:center;gap:9px;font-size:10.5px;color:#7C8798;
+    min-height:20px}
+  #pick .load .lbar{flex:1;height:4px;border-radius:2px;background:#1B2430;overflow:hidden}
+  #pick .load .lbar i{display:block;height:100%;width:0;
+    background:linear-gradient(90deg,#3FBF8C,#F0C674);transition:width .18s ease}
+  #pick .load.ok{color:#7FE3A1}
+  #pick .load.ok .lbar i{background:#3FBF8C}
+  #pick .load.bad{color:#FF9A90}
+  #pick .load.bad .lbar i{background:#E0574F}
+  #pick .load button{padding:4px 9px;border-radius:6px;border:1px solid #6B3A34;
+    background:#2A1714;color:#FFB4A8;font:10px/1 inherit;cursor:pointer}
+  #pick .go[disabled]{opacity:.45;cursor:progress;filter:saturate(.45)}
+  #pick .go[disabled]:hover{background:linear-gradient(180deg,#2A2416,#1B1710);box-shadow:none}
   #pick .stats{display:flex;flex-wrap:wrap;gap:6px}
   #pick .chip{display:flex;align-items:baseline;gap:5px;padding:4px 9px;border:1px solid #232C39;
     border-radius:20px;background:rgba(12,17,24,.7);font-size:10px;color:#7C8798}
@@ -267,9 +282,15 @@
     </details>
 
     <div class="cta">
-      <button class="go" id="home-go">进 入 舱 段</button>
+      <button class="go" id="home-go" disabled>正在加载…</button>
       <button class="ghost" data-home-info="rules">玩法说明</button>
       <button class="ghost" id="btn-settings">设 置</button>
+    </div>
+
+    <div class="load" id="home-load" aria-live="polite">
+      <div class="lbar"><i id="home-load-bar"></i></div>
+      <span id="home-load-txt">准备加载素材…</span>
+      <button type="button" id="home-load-retry" hidden>重试</button>
     </div>
 
     <div class="stats" id="home-stats"></div>
@@ -334,6 +355,7 @@
 <script src="js/engine/clock.js"></script>
 <script src="js/engine/invariants.js"></script>
 <script src="js/engine/geo.js"></script>
+<script src="js/engine/assets.js"></script>
 <!-- 性格轴声明层：必须在 game.js 之前（game 里读 SKTrait.C 决定激进/谨慎的行为偏移） -->
 <script src="js/ai/sanity.js"></script>
 <script src="js/ai/traits.js"></script>

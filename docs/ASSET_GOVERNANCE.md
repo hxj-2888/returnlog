@@ -518,6 +518,24 @@
 > **判据**：听觉者只有在自己的 `saw_agent` 记忆命中时才产生弱受体；无目击者只有噪声/去现场；
 > 玩家“我听见枪声”可被解析为 heard 槽；异形可编造 `saw_shot`；异形打医疗无人机/保安机器人有独立小概率。
 
+> **2026-11-15 登记（网页素材加载容错）**：以上 3 条按 §14.4 第②条作为**方法论与技术指导**吸收，
+> 未下载或引入任何代码、素材。
+> **来源**：Cloudflare Pages `_headers` 配置文档
+> <https://developers.cloudflare.com/pages/configuration/headers/>；RFC 5861
+> <https://www.rfc-editor.org/rfc/rfc5861>；MDN "Optimizing canvas"
+> <https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Optimizing_canvas>。
+> **比对**：公开口径是「静态站用响应头设置缓存；`stale-while-revalidate` / `stale-if-error` 允许弱网先复用旧副本；
+> Canvas 大图在加载时缩放，且离屏画布可能因内存上限拿不到上下文」。本项目现状是「13.52 MB 底图 +
+> 3,843 px 运行时副本；加载失败无重试；`rtImg` 拿不到 context 时每帧抛错」。
+> **采纳**：① 根 `_headers` 给 `/assets/*`、`/audio/*` 10 分钟缓存 + 后台续期，`/js/*` 5 分钟；
+> ② 加载失败指数退避重试 + `online` 重试 + 手动重试条；③ 预缩放 4096→2048→1024→原图降档，全部失败回退原图；
+> ④ 主页进场加载门：图像与音频（含 BGM）全部就绪后才启用「进入舱段」，失败给重试，不静默放行。
+> **不采纳**：引入 Service Worker / 第三方加载库（破坏 `file://` 与零依赖红线）；直接下调底图分辨率
+> （会改变画面清晰度，属美术裁定）；把小游戏素材塞进进场门（用户裁定：不在这里加小游戏）。
+> **判据**：断网中止底图请求后能自动恢复；模拟 4096 context 失败时降到 2048；全部降档失败时回退原图且
+> `draw()` 零 pageerror；未就绪时 `#home-go` 禁用且双击身份卡不开局，就绪后显示「素材已就绪 · 可以进入」；
+> `_t.assets()` 读数可见 `retries / failed / fallback`。
+
 > **2026-11-14 登记（自动化审阅与修复闭环）**：上 9 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件；`phalanxduel` 为 AGPL-3.0、`autoresearch` 未声明许可，两者**只读文档、不引任何代码**。
 > 其中 mutation score 的阈值属项目自有契约（§14.3 自研豁免），不以公开来源为依据。

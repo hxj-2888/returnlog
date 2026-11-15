@@ -10,11 +10,84 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 进场加载门 + 素材加载容错 + 施救退出小游戏] — 2026-11-15
+
+- **现象**（用户现场）：偶现网页玩家进入对局后「无法加载完整画面」——地图只剩平铺色块，
+  或整块画布纯黑只剩 HUD，刷新才可能恢复。用户同时要求：**加载图像与音频，全部就绪后才允许玩家进入**；
+  施救过程不要做成小游戏（拉闸保持原样，不新增小游戏）。
+- **定位**（先复现再改，逐条落到具体行）：
+  1. `js/game.js#loadImg` 只给 `<img>` 设 `src`，没有 `error` 处理：13.52 MB 的 `base-lit.png`
+     一次请求失败，整局都走 `drawLegacyMap()` 的平铺占位，不会自愈。
+  2. `rtImg` 在底图 `load` 时同步创建 4704×4413 → 4096×3843 的离屏画布（约 63 MB）。
+     低内存设备上 `getContext('2d')` 可能返回 null，原实现直接 `o.imageSmoothingEnabled=...`
+     每帧抛错，`draw()` 在铺完背景后中断 —— 把 4096 画布 context 置空复现：2 秒内 12+ 次
+     pageerror，画面只剩 HUD。
+  3. 全站静态素材原先 `Cache-Control: max-age=0, must-revalidate`：每次访问都要对 20 MB 级底图
+     发一次校验请求；弱网下一次校验失败同样没有可复用的旧副本。
+  4. 素材清单原先在 `boot()` 里才执行（点「进入舱段」之后），主页阶段只靠 `<link preload>` 拉
+     base/hull；没有「全部资源就绪」的读数，也没有进场门槛。
+  5. `playerMiniGame` 的 `NO_MG_ACT` 未包含 `revive`，施救会弹小游戏；用户要求施救改为纯站桩，
+     拉闸保持原有小游戏（`breaker` 不动）。
+- **本批改动**：
+  1. 新增 `js/engine/assets.js`：素材加载器外提。`base/hull` 失败重试 5 次、其余 3 次
+     （0.6 s 起指数退避、封顶 4 s），`online` 事件重试所有失败项；仍失败时显示
+     「地图贴图加载失败 · 点击重试」条。
+  2. `rtImg` 预缩放逐级降档 **4096 → 2048 → 1024 → 原图**，每一档独立 `try/catch`；全部失败只标记
+     `RTFAIL`，不再在 `draw()` 里每帧抛错；成功后照旧替换 `IMG` 以便回收原图。
+  3. `js/game.js` 改为只引用 `SKAssets.IMG / loadImg / rtImg / mapReady`，并给全屏迷雾
+     `FOG.getContext('2d')` 加空值守卫；`_t.assets()` 增加 `retries / failed / fallback` 读数。
+  4. `index.html` 在 `engine/geo` 后加载 `engine/assets.js`；`AGENTS.md` §一.2 与 `docs/REDLINES.md`
+     的加载顺序同步（`npm run agent:contract:write`）；`docs/README-details.md` 结构表补一行。
+  5. 新增根 `_headers`（`tools/deploy-config.cjs` 纳入发布白名单）：`/assets/*` 与 `/audio/*`
+     `max-age=600 + stale-while-revalidate=86400 + stale-if-error=604800`，`/js/*` `max-age=300`。
+  6. `docs/file-budgets-js.json`：`js/game.js` 12,175 → **12,132** 行（加载器外提 + 预取前移 +
+     施救退出小游戏，额度随实际下降锁死）。
+  7. 门禁新增 3 条：断网中止底图后自动恢复 / 4096 context 失败降到 2048 /
+     全部降档失败回退原图且零 pageerror。
+  8. 进场加载门：`js/engine/assets.js` 增加 `SFX`/`BGM` 清单（原 `SND.FILE` 移入，单一来源）、
+     `preload()` / `progress()` / `onChange()`；音频以 `canplaythrough` 为就绪，失败重试 3 次，
+     20 秒兜底（`readyState>=3` 放行，否则记为未就绪）。
+  9. 图像预取从 `boot()` 外提到**页面加载时**：`preloadSceneAssets()` 先发 base/hull（大图优先），
+     再发地板 / 家具 / 角色 / 设施 / 管道；这是本批的 2.5D 加载优化，主页阶段与开局共用同一批图，
+     开局不再重新发请求。
+  10. 小游戏范围：`NO_MG_ACT` 增补 `revive` —— **施救改为纯站桩（5 秒）**；
+      拉闸保持原有小游戏，任务点与故障维修不变；**本批没有新增任何小游戏**。
+  11. 主页：`index.html` 增加 `#home-load` 进度条与初始禁用的 `#home-go`；`js/main.js#bindLoader`
+      用 `SKAssets.progress()` 更新「图像 x/y · 音频 x/y」，全部就绪才启用「进入舱段」；
+      双击身份卡也由 `startRole` 拦截；未就绪项显示重试按钮。`?test` 门禁页直接放行。
+  12. `docs/CORE_RULES.md` R4.4 / R7.1.1 / R8.9 同步；测试新增进场加载门 3 条与小游戏范围断言。
+- **读数变化**（2026-11-15 本机实跑）：
+  - `node tests/test-v3.cjs`：**971 通过 / 0 失败**；新增素材容错 3 条 + 进场加载门 4 条；
+    小游戏范围断言改为「task/fix/breaker 可弹，search/revive 不弹」，控制台零报错。
+  - `node tools/filemap-js.cjs --check`：**OK**（23 文件 / 20,626 行；`js/game.js` 12,132 / 12,132）。
+  - `npm run t3:check`：**PASS 11 / WARN 2 / FAIL 0**（C6 已按 §6.2 重跑 `npm run 3d:export:rules` 消除；
+    WARN 为 §8 已登记存量）；`npm run agent:contract` PASS；`npm run guard` PASS（281 文件 / 47.35 MB）。
+  - `npm run ci:gate`：PASS；最近一轮 **966 通过 / 4 失败**，4 条全部命中 `tests/flaky-assertions.txt`
+    （尸体拖动 / 藏尸计数 / 藏尸点 / 被质疑者回应），属已登记时序抖动；该轮早于新增的第 4 条进场断言，
+    最终全套 `node tests/test-v3.cjs` **971 通过 / 0 失败**，新断言已覆盖。
+    中间轮次出现过 1 条「队友不会被当作刀下目标」与 1 条「在场反驳」未登记失败，下一轮均未复现，
+    按回归观察、未加白名单。
+  - `node tools/deploy-pages.cjs --dry-run`：暂存 **281 文件 / 47.4 MB**，`_headers` 已包含。
+  - 进场加载门实测（file://，扣住 `base-lit.png`）：未放行时 `#home-go` 禁用、图像 61/62 +
+    音频 17/17、双击身份卡不开局；放行后 **62 图 / 17 音频全部就绪**才启用，页面零报错。
+  - **未跑 sim**：本批只改素材加载、进场门槛与玩家侧小游戏入口；AI 决策 / 随机流 / 数值表未动，
+    胜率读数不适用。施救退出小游戏不改变 AI 的站桩时长与结算；拉闸小游戏未动。
+  - 复现证据：模拟 4096 context 失败 —— 修复前 2 秒内 12+ 次 pageerror 且画面纯黑；修复后
+    `_t.assets().rtW=2048`、pageerror 0。模拟底图请求连续中止 —— 放行后 2 次重试自动恢复，pageerror 0。
+- **公开依据**：Cloudflare Pages `_headers` 文档（静态站点响应头）与 RFC 5861
+  `stale-while-revalidate` / `stale-if-error`；MDN "Optimizing canvas"（大图加载时预缩放而非每帧缩放）。
+  进场加载门与「施救不弹小游戏」为用户 2026-11-15 裁定，未下载或引入任何外部代码/素材。
+- **下一批立项依据**：3D 副分支按 `js/engine/assets.js` 的同一口径检查 Godot 资源加载（若 3D 端也有
+  大图失败无重试的问题，另批移植；本批只改 2.5D 真源）；3D 仓共享发布链的 `tools/deploy-config.cjs` /
+  `_headers` 镜像需在 3D 副分支跑一次 `baseline:sync`；部署后用 `curl -I` 复核 `_headers` 生效，
+  并观察线上底图失败率是否归零。用户提到的「乒乓对决」加载门**不在本仓实施**：该仓在
+  `Desktop/乒乓对决_合并`，有自己的 AGENTS / 红线与资源加载方式；若要同款，另开一批并在该仓内评估。
+
 ## [未发布 · 幽灵态 ESC 可暂停 + 自己发的发言始终可见] — 2026-11-15
 
 - **现象**（用户现场）：① 玩家阵亡变幽灵后按 ESC 没有任何反应，暂停面板弹不出来；
   ② 会议讨论里发到一定条数后，**再发的话在发言区看不见**。
-- **定位**（先复现再改，两条都落到具体行）：
+- **定位**（先复现再改，逐条落到具体行）：
   - ① `js/game.js#togglePause` 与 `keydown` 的 ESC 分支都用 `G.meet` 一刀切 `return`。
     幽灵在会议里 `canAct=false`：发言框 `disabled`、`m-skip` 隐藏（`canSkip=canAct||spectMode`），
     **一个可操作项都没有**，只能干等 讨论 35 + 投票 5 + 公布 3 秒；ESC 是唯一出口却被会议挡掉。

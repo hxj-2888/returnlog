@@ -145,7 +145,48 @@
     });
   }
 
+  /* ---------------- 素材加载门（2026-11-15） ----------------
+     图像与音频全部就绪前禁用「进入舱段」；?test 是门禁页，直接放行。 */
+  var TEST_PAGE = /[?&]test\b/.test(location.search);
+  function bindLoader() {
+    var go = $('home-go'), box = $('home-load'), bar = $('home-load-bar'),
+      txt = $('home-load-txt'), retry = $('home-load-retry');
+    if (!go || !box || !window.SKAssets) return;
+    if (TEST_PAGE) {
+      go.disabled = false;
+      go.textContent = '进 入 舱 段';
+      box.hidden = true;
+      return;
+    }
+    function render(p) {
+      var pct = Math.max(0, Math.min(100, p.pct || 0));
+      var bad = p.failed > 0 && p.pending === 0;
+      var ready = !!p.ready;
+      if (bar) bar.style.width = pct + '%';
+      box.classList.toggle('ok', ready);
+      box.classList.toggle('bad', bad);
+      go.disabled = !ready;
+      go.textContent = ready ? '进 入 舱 段' : (bad ? '素材加载失败' : '正在加载…');
+      if (txt) txt.textContent = ready ? '素材已就绪 · 可以进入'
+        : (bad ? ('有 ' + p.failed + ' 项素材未就绪 · 点击重试')
+          : ('正在加载素材 ' + pct + '% · 图像 ' + p.img.done + '/' + p.img.total +
+             ' · 音频 ' + p.aud.done + '/' + p.aud.total));
+      if (retry) retry.hidden = !bad;
+    }
+    SKAssets.onChange(render);
+    if (retry) retry.onclick = function () {
+      retry.hidden = true;
+      SKAssets.retryFailed();
+      render(SKAssets.progress());
+    };
+    render(SKAssets.progress());
+    SKAssets.preload();
+    render(SKAssets.progress());
+  }
+
   function startRole(role) {
+    var go = $('home-go');
+    if (go && go.disabled) return;
     playBgm();
     /* 名单由开始页收集（玩家名 + 14 个 AI 名）；对局侧会再兜一次去重补位。
        ?test 门禁页会忽略这份名单，保证断言里的默认名字稳定。 */
@@ -171,6 +212,7 @@
 
   function boot() {
     fillVersion();
+    bindLoader();
     bindRoles();
     bindSettings();
     apply();
