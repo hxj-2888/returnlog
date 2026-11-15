@@ -5,8 +5,8 @@
     "js/ai/sanity.js": "a2dd222adc5c",
     "js/ai/traits.js": "a6395c194def",
     "js/t2/ai.js": "c45e435a9f81",
-    "js/t2/decision.js": "3db6ab20274c",
-    "js/game.js": "54f6f9aae573",
+    "js/t2/decision.js": "b29f5845be80",
+    "js/game.js": "8225cb048e58",
     "js/data/lines.js": "3e81434a06eb"
   },
   "tables": {
@@ -1650,8 +1650,10 @@
       "nums": []
     },
     "SKT2Decision.meetLater": {
-      "sha": "865eb381f2d1",
-      "nums": []
+      "sha": "7acdd5edcc9f",
+      "nums": [
+        120
+      ]
     },
     "SKT2Decision.sayStreakOK": {
       "sha": "4f57f6bcb638",

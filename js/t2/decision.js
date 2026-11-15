@@ -172,6 +172,11 @@
       MEET_SCHED.timers=MEET_SCHED.timers.filter(x=>x!==h);
       const G=global.SKV3._t.G();
       if(G.meet!==m||MEET_SCHED.id!==id||m.phase!=='discuss')return;
+      /* 真暂停中把排期往后顺延：幽灵 / 旁观者在会议里可以按 ESC 暂停
+         （见 js/game.js#togglePause），暂停时台词不能在后台照说完。
+         与 meetingTimer 同一口径，只认 G.pauseMeet —— 门禁夹具大量用
+         `g.paused=true` 冻结世界、但仍要这些排期照常推进。 */
+      if(G.pauseMeet){meetLater(m,120,fn);return;}
       try{fn();}catch(e){}
     },ms);
     MEET_SCHED.timers.push(h);
