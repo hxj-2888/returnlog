@@ -47,6 +47,79 @@
   「只在底部才跟到底」的镜像，需同步一行（自己发言强制 `_jump_feed_bottom()`）；
   3D 目前没有暂停功能，幽灵 ESC 一项无对应物，故本批只改 2.5D 真源。
 
+## [未发布 · 开枪事件补全：听觉弱受体 / 目击 cred / 玩家 heard 槽 / 异形打机器人] — 2026-11-15
+
+- **现象**（用户反馈）：开枪场景的相关语料和推断受体缺失；开枪本身也会被目击，异形还会小概率对医疗无人机、
+  极小概率对保安机器人开枪。
+- **根因**：`fireShot` 只把 `{actor, victim}` 传给 `aiHear`，而 `aiHear` 只读 `extra.subj`：
+  `heard_shot.subj` 恒为 `null`，`if(extra.subj!=null) susAdd(...)` 永不执行；R11.2 的 `heard_shot=0.16`
+  是死权重。会议端又没有 `WHY.heard_shot`，玩家证词解析也没有“开枪”，因此“枪响了但没人能说、没人被推断”。
+- **本批改动**：
+  1. `aiHear`：开枪声的 `subj` 改为**听者自身上下文**——`SKT2AI.soundSubject` 只在听者最近（8 秒 / 4 格）
+     亲眼见过某人在声源附近时返回该人；`susAdd` 改读 `ev.subj`，不写 `known`。
+  2. `SKSanity`：新增 `SOUND`（8s / 4 格）、`CRED.gains.shotAct/shotAlien/shotHuman`（0.02 / +0.08 / −0.08）、
+     `SHOT.alienMedbotP/alienSecbotP/botShotCheck`（0.01 / 0.0025 / 10s）、`MISLEAD.shotRatio`（0.15）；
+     伪证三选一为开枪 15% / 出刀 55% / 钻管道 30%。
+  3. 目击开枪：`SKT2AI.shotCred` 给人类目击者写弱 cred；已确知死者是异形按 R11.4 处决，
+     已确知是人类才走 `knownHuman` 负值钩子（当前无生产端，不伪造真值）。
+  4. 语料/解析：`WHY.heard_shot` 6 条；`CLAIM_ACT.saw_shot`、`SEEN_WORD.saw_shot`、玩家 `saw_shot`
+     证词与独立 `heardShot` 槽；`evidenceReason` 优先 `saw_*`，避免弱传闻覆盖硬目击。
+  5. `aiAlien`：每 10 秒一次机会，小概率打医疗无人机 / 保安机器人；复用 `fireShotBot → damageBot`
+     的 `noticeAction` / `aiHear` 目击链，打机器人同样可被看见、听见。
+  6. `CORE_RULES` 同步：R8.3（开枪可目击）、R11.2（听觉弱受体）、R11.4（处决）、R12.6（开枪 cred）、
+     R13.5（伪证比例）、R16（新数值）与附录 A.4.1/A.4.2。
+  7. **语料上限**：按用户 2026-11-15 裁定，`js/data/lines.js` 取消行数上限（`line_limit_exempt`，
+     `tools/filemap-js.cjs` 跳过该文件的 cap）；函数 200 行上限仍保留。其余文件预算不变。
+  8. `3d/preview/data/{minigames,rules,sim}.json` 重导；`rules.json#sources` 6 个源哈希全等。
+- **读数变化**（本批实跑，2026-11-15）：
+  - `node tests/test-v3.cjs`：**963 通过 / 0 失败**；新增 9 条开枪夹具（弱受体、无目击不受体、
+    未知/已知异形/已知人类 cred、玩家 claim/heard、`WHY.heard_shot`、打医疗无人机）全过，控制台零报错。
+  - `npm run sim`：**1000 局 / seed 20261030**，人类 **49.7%**（95% CI 46.61–52.79）/ 异形 **50.3%** /
+    超时 0；开枪 **1.342 次/局**（异形 0.946 / 人类 0.396）。历史 52.5% 为旧批读数，
+    按 `docs/acceptance.md` §4.3 不跨批直接相减；下一批做同 seed A/B。
+  - `node tools/filemap-js.cjs --check`：**PASS**（`js/game.js` 12,175 / 12,175；`js/t2/minigame.js`
+    1,199 / 1,200；`js/data/lines.js` 2,098，按用户裁定免行数上限）。
+  - `npm run t3:check`：**PASS 11 / WARN 2 / FAIL 0**（WARN 为 §8 已登记存量；C6 导出哈希全等）。
+  - 公开依据：`docs/ASSET_GOVERNANCE.md` 2026-11-15“隐藏身份与部分观察 / 公开证词与指控”两条
+    （DeepRole, NeurIPS 2019；The Resistance: Avalon 公开规则页）；未下载或引入代码、素材。
+- **下一批立项依据**：3D 端按 `SOUND` / `shotCred` / `SHOT.alien*` 移植开枪听觉与打机器人行为
+  （3D 不移植发言，语料无需同步）；对 `alienMedbotP`、`alienSecbotP`、`MISLEAD.shotRatio` 做同 seed A/B，
+  再决定是否调值。
+
+## [未发布 · 小游戏可完成性与难度-时长对齐：sequence 崩溃 / 像素容差 / 27→9 次阀门] — 2026-11-15
+
+- **现象**（用户反馈）：「有一部分小游戏无法完成，只能通过保底；难度和实际所需完成时间不匹配」。
+- **定位**（本地逐型驱动 + 几何实测）：
+  1. `js/t2/minigame.js#buildSequence` 的点击处理使用**未声明**的 `idx`，首个点击即
+     `Uncaught ReferenceError: idx is not defined`；娱乐桌 / 点唱机 / 操作台 3 个任务因此只能等保底。
+  2. 手术台校准的容差是「板宽/板高的 2.2%」：板高约 168px 时**纵向只有 3.7px**；
+     货架校准 ±2.5% ≈ **4.4px**；靶道亮带 7% / 速度 58 → **121ms** 窗口；
+     消毒循环每点 15°，三个阀门共需 **27 次点击**；药柜 / 库存盘点 4 对 = **8 张牌**；
+     换芯的旧芯不显示型号，「同型号」没有任何可读线索，只能盲猜 1/3。
+- **本批改动**（只动小游戏 UI 参数，不改判定 / 分值 / `points[].dur` / 保底档）：
+  1. `buildSequence` 补 `let idx = 0`，并把提示改成「按屏幕上的顺序依次按下」。
+  2. 手术台校准 / 货架校准改**像素容差**：`tolPx` 高难 14px、普通 20px；货架高难 8px、普通 10px；
+     货架靠近虚线自动吸附，已对齐层加 `.ok` 并让出点击，避免层叠后抓不到被压住的下层。
+  3. 靶道亮带 7%→9%、速度 58→56（窗口 121ms→约 161ms，仍快于普通档 46/8≈174ms）。
+  4. 阀门步进 15°→45°（消毒循环 27→9 次）。
+  5. 药柜 / 库存盘点配对 4→3 对（8→6 张牌）。
+  6. 换芯旧芯直接标出型号（A/B/C 型旧芯），进度提示同步；注液加指针捕获与 `pointercancel`，
+     按住后移出按钮再松手也能正常结算。
+  7. 同步更新任务提示与 `HINT`；`3d/preview/data/minigames.json` / `sim.json` 重新导出。
+- **读数变化**：
+  - 临时 Playwright 探针（26 任务 + 电闸，`?test` 直驱 UI）：**27 / 27 全部可解，PAGE-ERRORS 0**；
+    修复前 sequence 三任务首点必抛 `ReferenceError`，只能等 10s 保底。
+  - 几何/操作量：手术台纵向 **3.7px→14px**；货架 **4.4px→8px + 吸附**；
+    靶道 **121ms→161ms**；消毒循环 **27→9 次点击**；配对 **8→6 张牌**。
+  - 保底档保持不变：普通 **10s** / 高难 **16s** / 电路 **20s**；没有用缩短保底掩盖难度。
+- **门禁**：`npm run ci:gate` **924 通过 / 3 失败**（3 条均命中 `tests/flaky-assertions.txt`
+  已登记抖动集，按门禁规则放行）；`node tools/filemap-js.cjs --check` 通过
+  （`js/t2/minigame.js` 1199 / 1200，`js/game.js` 12175 / 12175）。
+  §14 公开来源登记见 `docs/ASSET_GOVERNANCE.md` 2026-11-15 小游戏条目（WCAG 2.2 目标尺寸 /
+  NN/g 10s 注意力上限 / Game Accessibility Guidelines）。
+- **下一批立项依据**：3D 端按新字段 `tolPx` 移植手术台 / 货架容差，并在 3D 复跑同一套
+  「全型可完成性」探针；2.5D 临时探针未入库（`tools/_probe-minigame.cjs`，跑完即删）。
+
 ## [未发布 · 修复 AI「循声去看 0,0 不可走点」导致的原地发呆 2–11.7 秒] — 2026-11-15
 
 - **现象**（真实对局追踪，12 局 × 120 秒 / 256 人·分钟）：25 次「站着不动 2–11.7 秒」，

@@ -66,7 +66,7 @@
     const G=global.SKV3._t.G();
     const s=String(text||'');
     const out={raw:s.slice(0,80),rooms:[],people:[],accuse:null,vote:null,
-      deny:false,where:null,when:null,claim:null,support:null};
+      deny:false,where:null,when:null,claim:null,support:null,heardShot:null};
     for(const [w,id] of ROOM_WORDS){
       if(s.indexOf(w)>=0&&out.rooms.indexOf(id)<0)out.rooms.push(id);
     }
@@ -111,6 +111,7 @@
         ['saw_pipe',/(钻管道|钻进管道|钻了管道|从管道里|管道里出来)/],
         ['saw_red',/(红光|发红|红身|身上带着红|带着红光)/],
         ['saw_knife',/(出刀|捅了|捅人|刀了|杀人|杀了|动手|行凶)/],
+        ['saw_shot',/(开枪|枪击|打了一枪|朝他开枪|朝他打了一枪)/],
         ['saw_sabotage',/(破坏设备|破坏舱|拆设备|弄坏设备|损毁设备)/],
         ['saw_bot',/(停摆机器人|关掉机器人|弄停机器人|机器人停摆|拆机器人)/],
         ['saw_breaker',/(拉闸|断电|关灯|电闸)/]
@@ -121,6 +122,10 @@
     const saw=/(亲眼|看见|看到|发现|确定|确认|我保证|我发誓|确实看到|确实看见)/.test(s);
     if(claimKind&&saw&&!negSee&&has&&!support){
       out.claim={target:out.people[0],kind:claimKind,room:out.rooms[0]||null};
+    }
+    /* 只听见枪声：不是目击 claim，单独走弱听觉槽 */
+    if(!saw&&/(听见|听到|枪声|枪响)/.test(s)&&/枪/.test(s)){
+      out.heardShot={target:has?out.people[0]:null,room:out.rooms[0]||null};
     }
     if(!support&&!out.claim){
       if(has&&/怀疑|凶手|内鬼|狼|可疑|有问题|就是他|是他|他杀|杀了|动了手|出刀|钻管道|红光/.test(s)&&!negAcc)

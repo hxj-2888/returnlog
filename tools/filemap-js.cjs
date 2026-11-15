@@ -241,6 +241,7 @@ function check(files) {
   const b = loadBudgets();
   const rules = b.rules || {};
   const defaults = b.default_max_lines || 1200;
+  const lineExempt = new Set(b.line_limit_exempt || []);
   const maxFunc = rules.max_func_lines || 200;
   const allowBigFunc = rules.max_func_lines_allow || {};
   const violations = [];
@@ -250,7 +251,9 @@ function check(files) {
   for (const f of files) {
     const budget = (b.files || {})[f.file] || {};
     const cap = budget.max_lines || defaults;
-    if (f.lines > cap) violations.push(`${f.file} 行数 ${f.lines} 超出预算 ${cap}（只许减不许增）`);
+    if (!lineExempt.has(f.file) && f.lines > cap) {
+      violations.push(`${f.file} 行数 ${f.lines} 超出预算 ${cap}（只许减不许增）`);
+    }
     for (const x of f.funcs) {
       const key = `${f.file}:${x.name}`;
       if (x.lines <= maxFunc) continue;

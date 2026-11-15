@@ -1,15 +1,15 @@
 {
-  "note": "2.5D 真源大文件预算棘轮（2026-11-13 立，阶段 A）。额度只许下调；上调须在 CHANGELOG.md 写明理由并同时下调别处。检查：node tools/filemap-js.cjs --check。",
+  "note": "2.5D 真源大文件预算棘轮（2026-11-13 立，阶段 A）。额度只许下调；上调须在 CHANGELOG.md 写明理由并同时下调别处。检查：node tools/filemap-js.cjs --check。2026-11-15 用户裁定：js/data/lines.js 语料不受行数上限约束（仍受单函数 200 行约束）。",
   "default_max_lines": 1200,
   "max_func_lines": 200,
+  "line_limit_exempt": ["js/data/lines.js"],
   "files": {
     "js/game.js": {
       "max_lines": 12175,
       "role": "T2 跨域规则闭包：boot() 内含主循环 / 判定 / 动作结算；当前 12,175 行（2026-11-15 幽灵态 ESC 暂停 + 自己发言滚底 +15 行，与 2026-11-15 帧率仪表同批口径：额度按实际值触顶锁死，不留余量；补偿下调 js/data/lines.js 2100→2090）"
     },
     "js/data/lines.js": {
-      "max_lines": 2090,
-      "role": "台词语料库（纯数据，不拆；阶段 B 不动它）"
+      "role": "台词语料库（纯数据；2026-11-15 用户裁定：语料不受行数上限，仍保留函数 200 行约束）"
     }
   },
   "rules": {

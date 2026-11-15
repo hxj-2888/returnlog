@@ -323,6 +323,12 @@
          （护住"演出会露馅"的不是分值，是行为侧：时长、位置、有没有真把故障修好。） */
       fakeWork: 0.12,     /* = taskDone */
       fakeRepair: 0.20,   /* = fixDone */
+      /* 2026-11-15 用户裁定：开枪本身只给弱正向信任（两边都会开枪）；
+         已确知命中异形 → 更像人类；已确知命中人类 → 减信任。
+         “已确知”只来自目击者自己的 known / 公开身份，不读真实阵营。 */
+      shotAct: 0.02,
+      shotAlien: 0.08,
+      shotHuman: -0.08,
     },
     decay: 0.92,          /* 每夜 ×0.92，慢衰减：洗白是长期投资 */
     cap: 1.2,
@@ -617,8 +623,9 @@
        game.js:5063 的 `Math.random()<SKSanity.MISLEAD.chance` 恒为 false
        —— 异形"编一份具体伪证"（accuseWhy）这条通道一直是空转的。
        本批补齐真源并大幅提频，回应用户「大幅提升诬陷能力和频率」。 */
-    chance: 0.55,       /* 大厅指控时编造具体伪证（出刀 / 钻管道）的概率 */
-    knifeRatio: 0.55,   /* 伪证说"出刀"还是"钻管道" */
+    chance: 0.55,       /* 大厅指控时编造具体伪证（出刀 / 钻管道 / 开枪）的概率 */
+    knifeRatio: 0.55,   /* 伪证先说"出刀"的占比；开枪先占 shotRatio，其余钻管道 */
+    shotRatio: 0.15,    /* 伪证里"看见他开枪"的占比（2026-11-15 用户裁定：可以） */
     /* 2026-11-06 用户裁定：异形偶尔公开指控一个**已认出的队友**，
        用"大义灭亲"换听众的信任；如果队友最后被逐且翻出是异形，
        追责会给投票者 +cred（现有 settleAccountability），这就是洗白。
@@ -687,6 +694,17 @@
     range: 9,
     chaseKnown: 14, chaseSus: 10,
     alienFireP: 0.7,
+    /* 2026-11-15 用户裁定：异形小概率打医疗无人机、极小概率打保安机器人。
+       每 botShotCheck 秒最多掷一次，避免逐帧概率累积。 */
+    alienMedbotP: 0.01,
+    alienSecbotP: 0.0025,
+    botShotCheck: 10,
+  };
+  /* 听觉弱受体：只有听者最近亲眼见过某人在枪响点附近，才把该人作为候选。
+     这是“自己的记忆”，不读开枪者/死者真值。 */
+  const SOUND = {
+    suspectAge: 8,
+    suspectRadius: 4,
   };
   /* 钻管道：以前 AI 有 20 秒冷却、玩家没有（可以连着钻）——
      这是玩家的白拿特权。现在两边共用同一个冷却。 */
@@ -1076,7 +1094,7 @@
     ALIBI, alibiTimeWord, checkAlibi, HUMANISH,
     CARRY, ALMOST, RELIA, MIND, reliaMul, beliefEntropy,
     CONFIRM, MISID, DESC, FIRST, ATTN, SPEECH, COFRAME, META, AVOID, MEET, MISLEAD, TERMINATOR, VOTE, SOCIAL,
-    NIGHT, WIN, STAND, REACH, SHOT, PIPE,
+    NIGHT, WIN, STAND, REACH, SHOT, PIPE, SOUND,
     disguiseScore, disguiseRisk, credVoteShield, credTestimony, alibiReach,
   };
 })(window);

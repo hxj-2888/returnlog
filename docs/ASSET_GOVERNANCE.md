@@ -422,6 +422,11 @@
 | 帧预算与 rAF 回调（检索 2026-11-14） | https://web.dev/articles/speed-rendering | Google / web.dev | 官方文档（见站点） | 60Hz 下一帧只有约 16ms 完成 JS + 布局 + 绘制；`requestAnimationFrame` 回调超过 16ms 必然掉帧；「性能就是少做事」（do less work） | 用「每帧 JS 回调耗时」而非 headless 帧间隔作为体感读数；headless rAF 不受 vsync 约束，帧间隔不可当作流畅度 |
 | 强制同步布局与批量读写（检索 2026-11-14） | https://web.dev/articles/avoid-large-complex-layouts-and-layout-thrashing | Google / web.dev | 官方文档（见站点） | 先批量读样式、再批量写；DOM 越大布局越贵；避免 read-write-read-write 循环 | 复核 11-13 的 HUD 值变化才写是否仍生效，本批不得重新引入每帧 DOM 写入 |
 | 运行时性能定位方法（检索 2026-11-14） | https://developer.chrome.com/docs/devtools/performance | Google / Chrome DevTools | 官方文档（见站点） | 用 4× CPU 降速模拟低端设备；在 Main 火焰图里放大 `Animation Frame Fired`，按事件宽度找瓶颈，对比优化 / 未优化两版 | 本次用 CDP `Profiler` / `Performance.getMetrics` 做同口径前后对照，拒绝「凭感觉判卡」 |
+| 触控目标尺寸（检索 2026-11-15） | https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html | W3C / WAI | 公开标准（WCAG 2.2） | 指针目标至少 **24×24 CSS px**；目标过小需保证相邻目标的外接圆不相交（等效间距）；行内文本 / 用户代理控件等例外 | 手术台校准纵向容差 3.7px、货架校准 4.4px，均小于最小目标尺寸，触屏基本无法稳定命中 |
+| 响应时间与注意力边界（检索 2026-11-15） | https://www.nngroup.com/articles/response-times-3-important-limits/ | Nielsen Norman Group | 公开文章 | 0.1s 内视为即时；1s 保持思路连续；**10s 是保持注意力的上限** | 普通任务保底 10s、设计目标 4–6s；阀门 27 次点击 / 配对 8 张翻牌的期望用时逼近或超过 10s |
+| 交互元素与连续输入（检索 2026-11-15） | https://gameaccessibilityguidelines.com/full-list/ | Game Accessibility Guidelines | 公开指南 | 「Ensure interactive elements / virtual controls are large and well spaced, particularly on small or touch screens」；「Avoid repeated inputs (button-mashing/quick time events)」 | 阀门每点 15° 需 27 次点击；靶道亮带窗口 121ms；配对 4 对需记忆 8 张牌 |
+| 隐藏身份与部分观察（检索 2026-11-15） | https://arxiv.org/abs/1906.02330 | Jack Serrino 等（NeurIPS 2019） | arXiv 预印本（见站点） | 隐藏身份游戏中，智能体只能依据**部分观察**维护对他人身份的信念；公开行为/发言是证据，不是身份真值 | 开枪声只给方位；AI 不能读死者阵营，只能用自己的目击/已确知信息推断 |
+| 公开证词与指控（检索 2026-11-15） | https://boardgamegeek.com/boardgame/128882/resistance-avalon | Bezier Games / BoardGameGeek 公开规则页 | 公开规则页（见站点） | 集会中的公开指控、作证与投票是核心证据通道；隐藏身份玩家可以说谎，信息天然不对称 | 开枪目击 → 会议证词；听见枪声 → 弱证词；异形可编造“看见他开枪” |
 
 > **2026-11-14 登记（2.5D 运行时卡顿复测）**：上 4 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件。
@@ -485,6 +490,33 @@
 > 本机 A/B 佐证：GPU 正常 `60 FPS · 绘 1.6ms`；`--disable-gpu`（SwiftShader）`7 FPS · 绘 29.2ms`。
 > **今后任何性能读数先过这一步**：`edge://gpu` 是否显示硬件加速、GPU 进程参数是否含 `warp`/`swiftshader`。
 > 另：canvas 2D 的绘制命令必须由主线程发出，**增加核心数不会改善绘制**；能并行的只有 AI/寻路（实测 1~2ms）。
+
+> **2026-11-15 登记（小游戏可完成性 / 难度-时长对齐）**：以上 3 条按 §14.4 第②条作为**方法论与技术指导**吸收，
+> 未下载或引入任何代码、素材文件。
+> **比对**：公开口径是「可点目标 ≥24px、控件大且间距足、避免连续点击/短 QTE、交互应显著短于 10s 注意力上限」；
+> 本项目实测为「手术台纵向容差 3.7px、货架 4.4px、靶道亮带 121ms、阀门 27 次点击、配对 8 张牌」，
+> 且 `sequence` 型首个点击即抛 `ReferenceError: idx is not defined`，只能等保底——可完成性与时长均不达标。
+> **采纳**：① 修 `sequence` 的 `idx` 未声明；② 对准 / 货架改**像素容差**（手术台 14px、货架 8px，
+> 并加吸附与完成后锁层，避免货架层叠后抓不到被压住的层）；③ 靶道亮带 9% + 速度 56（窗口约 161ms）；
+> ④ 阀门步进 45°（消毒循环 27→9 次）；⑤ 药柜 / 库存盘点 4→3 对；⑥ 换芯旧芯显示型号，消除无信息猜测；
+> ⑦ 注液加指针捕获，避免移出按钮后无法松手确认。
+> **不采纳**：取消保底（破坏 2026-11-05「没有限时」裁定）；把整型改成拖动 / 长按等新交互（超出本批范围，且 3D 需同步）；
+> 下调 `points[].dur`（那是 AI 站桩真源，改它会动判定）。
+> **判据**：26 个任务在 `?test` 下均可由同一套脚本在保底时间内完成（新增门禁用例），不再出现「只能等保底」。
+
+> **2026-11-15 登记（开枪事件与推断受体）**：以上 2 条按 §14.4 第②条作为**方法论与技术指导**吸收，
+> 未下载或引入任何代码、素材。
+> **比对**：公开口径是「隐藏身份游戏只能依据部分观察维护身份信念；公开指控/作证是证据通道，且允许说谎」；
+> 本项目现状是「视觉 `saw_shot` 可用，但 `aiHear` 的 `subj` 恒为空，R11.2 的 `heard_shot=0.16` 从未生效；
+> `WHY` 没有 `heard_shot`，玩家证词解析也没有开枪」。
+> **采纳**：① 听觉受体改为**听者自身上下文**：只有最近亲眼见过某人在枪响点附近，才把该人作为弱受体；
+> ② 开枪动作本身只给**弱 cred**（`shotAct`），已确知命中异形再加 `shotAlien`，已确知命中人类才记
+> `shotHuman` 负值（后者目前缺公开来源，代码留钩子但不伪造真值）；③ 补 `heard_shot` 语料、玩家
+> “听见枪声”槽、异形 shot 伪证；④ 目击链保持 `saw_shot=0.55`，不写 `known`，保留 R11.4 处决口径。
+> **不采纳**：直接读死者真实阵营（违反 R11.1）；听声直接等于开枪者（无观察依据）；
+> 把开枪本身升级为身份级证据（R11.3）。
+> **判据**：听觉者只有在自己的 `saw_agent` 记忆命中时才产生弱受体；无目击者只有噪声/去现场；
+> 玩家“我听见枪声”可被解析为 heard 槽；异形可编造 `saw_shot`；异形打医疗无人机/保安机器人有独立小概率。
 
 > **2026-11-14 登记（自动化审阅与修复闭环）**：上 9 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件；`phalanxduel` 为 AGPL-3.0、`autoresearch` 未声明许可，两者**只读文档、不引任何代码**。

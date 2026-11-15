@@ -2,12 +2,12 @@
   "schema_version": 1,
   "note": "2.5D / 3D 推理与发言的唯一规则真源快照。勿手改；改 js/ 后重跑 npm run 3d:export:rules，check-parity 会拦截漂移。玩家输入映射、地形/A*/碰撞/LOS、美术允许各自实现。",
   "sources": {
-    "js/ai/sanity.js": "a2dd222adc5c",
+    "js/ai/sanity.js": "3a22c7891357",
     "js/ai/traits.js": "a6395c194def",
-    "js/t2/ai.js": "c45e435a9f81",
-    "js/t2/decision.js": "b29f5845be80",
-    "js/game.js": "8225cb048e58",
-    "js/data/lines.js": "3e81434a06eb"
+    "js/t2/ai.js": "fd39ce44403e",
+    "js/t2/decision.js": "0c4635aba966",
+    "js/game.js": "8dd2378f8cd9",
+    "js/data/lines.js": "8affa9a757be"
   },
   "tables": {
     "SKSanity": {
@@ -107,7 +107,10 @@
           "dragToMed": 0.16,
           "revive": 0.16,
           "fakeWork": 0.12,
-          "fakeRepair": 0.2
+          "fakeRepair": 0.2,
+          "shotAct": 0.02,
+          "shotAlien": 0.08,
+          "shotHuman": -0.08
         },
         "decay": 0.92,
         "cap": 1.2,
@@ -453,6 +456,7 @@
         "threshold": 0.3,
         "chance": 0.55,
         "knifeRatio": 0.55,
+        "shotRatio": 0.15,
         "busChance": 0.2
       },
       "TERMINATOR": {
@@ -495,10 +499,17 @@
         "range": 9,
         "chaseKnown": 14,
         "chaseSus": 10,
-        "alienFireP": 0.7
+        "alienFireP": 0.7,
+        "alienMedbotP": 0.01,
+        "alienSecbotP": 0.0025,
+        "botShotCheck": 10
       },
       "PIPE": {
         "cooldown": 20
+      },
+      "SOUND": {
+        "suspectAge": 8,
+        "suspectRadius": 4
       }
     },
     "SKTrait": {
@@ -909,6 +920,9 @@
       "bestAlmostTarget",
       "bestKnownTarget",
       "evidenceReason",
+      "soundSubject",
+      "playerHeard",
+      "shotCred",
       "affordableAlmostShot",
       "envEstimate",
       "audSusEstimate",
@@ -1365,10 +1379,35 @@
       ]
     },
     "SKT2AI.evidenceReason": {
-      "sha": "09aa177d6ee2",
+      "sha": "988ec16def94",
       "nums": [
+        1,
+        0,
+        0,
         1
       ]
+    },
+    "SKT2AI.soundSubject": {
+      "sha": "cc2e39f12aa9",
+      "nums": [
+        8,
+        4,
+        0,
+        0
+      ]
+    },
+    "SKT2AI.playerHeard": {
+      "sha": "540db2b71114",
+      "nums": [
+        0,
+        0,
+        0.4,
+        0
+      ]
+    },
+    "SKT2AI.shotCred": {
+      "sha": "48d74a9583bd",
+      "nums": []
     },
     "SKT2AI.affordableAlmostShot": {
       "sha": "e4e82f32da09",
@@ -1378,7 +1417,7 @@
       ]
     },
     "SKT2AI.envEstimate": {
-      "sha": "2e630bc2c13b",
+      "sha": "8eb2b7a1b738",
       "nums": [
         0,
         0,
@@ -1390,6 +1429,7 @@
         6,
         0,
         0.72,
+        0.16,
         0.28,
         0.6,
         0.22,
@@ -1405,7 +1445,8 @@
         0,
         1,
         0.35,
-        0.18
+        0.18,
+        0
       ]
     },
     "SKT2AI.audSusEstimate": {
@@ -1588,7 +1629,7 @@
       ]
     },
     "SKT2Decision.parseSpeech": {
-      "sha": "d0c755e7817a",
+      "sha": "57c2397011b1",
       "nums": [
         0,
         80,
@@ -1618,6 +1659,8 @@
         1,
         0,
         1,
+        0,
+        0,
         0,
         0,
         0,
@@ -1680,6 +1723,7 @@
       "saw_red": "身上带着红光",
       "saw_drag": "拖尸体",
       "saw_detain": "被保安拘留",
+      "saw_shot": "开枪",
       "saw_agent": "出现在那里"
     },
     "EV_W": {
@@ -1744,12 +1788,12 @@
   },
   "stats": {
     "modules": 4,
-    "table_keys": 48,
-    "functions": 70,
+    "table_keys": 49,
+    "functions": 73,
     "fn_count": {
       "SKSanity": 16,
       "SKTrait": 3,
-      "SKT2AI": 38,
+      "SKT2AI": 41,
       "SKT2Decision": 13
     }
   }

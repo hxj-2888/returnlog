@@ -545,7 +545,54 @@
 
   function evidenceReason(a,i){
     const why=(a.mind&&a.mind.why[i])||[];
-    return why.length?why[why.length-1]:null;
+    if(!why.length)return null;
+    /* 先取最后一条 saw_*：heard_shot 只是弱传闻，不能把更硬的目击句挤掉 */
+    for(let k=why.length-1;k>=0;k--){
+      const w=why[k];
+      if(w&&typeof w.kind==='string'&&w.kind.indexOf('saw_')===0)return w;
+    }
+    return why[why.length-1];
+  }
+
+  /* 听觉受体：听者自己的记忆里，最近谁在声源附近出现过。
+     不读开枪者真值、不读死者阵营；找不到就返回 null（只留噪声/去现场看）。 */
+  function soundSubject(a,x,y){
+    const G=global.SKV3._t.G();
+    if(!a||!G||!a.mind)return null;
+    const now=evNow();
+    const age=(SK.SOUND&&SK.SOUND.suspectAge)||8;
+    const rad=(SK.SOUND&&SK.SOUND.suspectRadius)||4;
+    let best=null,bd=Infinity;
+    for(const e of (a.mind.mem||[])){
+      if(!e||e.kind!=='saw_agent'||e.subj==null)continue;
+      if(e.night!=null&&e.night!==G.night)continue;
+      if(e.t!=null&&now-e.t>age)continue;
+      const d=Math.hypot((e.x||0)-x,(e.y||0)-y);
+      if(d>rad||d>=bd)continue;
+      const t=G.agents[e.subj];
+      if(!t||t===a||!t.alive||t.downed||t.detained)continue;
+      bd=d;best=e.subj;
+    }
+    return best;
+  }
+
+  /* 目击开枪后的信任增量：动作本身只给弱正值；已确知命中异形再加；
+     已确知命中人类才减（knownHuman 目前没有生产端，留钩子，不伪造真值）。 */
+  /* 玩家“我听见枪声”：给人类听众一条弱听觉；有对象才加弱嫌疑，无对象只留方位。 */
+  function playerHeard(a,tgt,room,by,x,y,w){
+    if(!a||a.alien||!a.mind)return;
+    const ev={kind:'heard_shot',x:x||0,y:y||0,room:room||null,conf:0.4,src:'speech',
+      subj:tgt==null?null:tgt,by:by};
+    evPush(a,ev);
+    if(tgt!=null&&w>0)susAdd(a,tgt,w,'heard_shot',ev);
+  }
+
+  function shotCred(w,actor,victim){
+    if(!w||!actor||!victim||!w.mind)return [];
+    const CR=SK.CRED.gains,out=[{w:CR.shotAct,reason:'shotAct'}];
+    if(w.mind.known&&w.mind.known[victim.i])out.push({w:CR.shotAlien,reason:'shotAlien'});
+    else if(w.mind.knownHuman&&w.mind.knownHuman[victim.i])out.push({w:CR.shotHuman,reason:'shotHuman'});
+    return out;
   }
 
   function affordableAlmostShot(a,thr){
@@ -575,7 +622,8 @@
   const SEEN_WORD = {
     saw_knife: '出刀', saw_pipe: '钻管道', saw_sabotage: '破坏设备',
     saw_breaker: '拉闸断电', saw_bot: '停摆机器人', saw_red: '身上带着红光',
-    saw_drag: '拖尸体', saw_detain: '被保安拘留', saw_agent: '出现在那里'
+    saw_drag: '拖尸体', saw_detain: '被保安拘留', saw_shot: '开枪',
+    saw_agent: '出现在那里'
   };
 
   /* 公开指认：只看"有没有当众说过"，不看是谁、也不看听众心里怎么想 */
@@ -637,6 +685,10 @@
         cues.push({ kind: kd, w: 0.72,
           why: '我在' + (e.room || '现场') + '看见他' + (SEEN_WORD[kd] || '动手'),
           alt: '近距离看见的也可能是同舱室的另一个人' });
+      } else if (kd === 'heard_shot') {
+        cues.push({ kind: 'heard_shot', w: 0.16,
+          why: '枪响时他在' + (e.room || '现场'),
+          alt: '枪声只给方位，也可能是别人' });
       } else if (kd === 'heard_accuse' || kd === 'heard_claim') {
         cues.push({ kind: 'heard', w: 0.28, why: '我听见有人当众指认他',
           alt: '指认他的人也可能在构陷' });
@@ -671,7 +723,7 @@
     if (nk >= 2) score = Math.min(1, score + 0.12);
     const conf = !cues.length ? 0 : Math.min(1, 0.35 + 0.18 * nk);
     const whyKind = !best ? 'none'
-      : (best.kind === 'heard' ? 'heard' : (best.kind === 'public' ? 'public' : 'seen'));
+      : (String(best.kind).indexOf('heard') === 0 ? 'heard' : (best.kind === 'public' ? 'public' : 'seen'));
     return { score: score, conf: conf, whyKind: whyKind, cues: cues };
   }
 
@@ -727,6 +779,9 @@
     bestAlmostTarget: bestAlmostTarget,
     bestKnownTarget: bestKnownTarget,
     evidenceReason: evidenceReason,
+    soundSubject: soundSubject,
+    playerHeard: playerHeard,
+    shotCred: shotCred,
     affordableAlmostShot: affordableAlmostShot,
     envEstimate: envEstimate,
     audSusEstimate: audSusEstimate,
