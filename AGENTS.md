@@ -127,7 +127,7 @@
 
 ## 二、硬约束（2026-11-11 治理规范，违反即回退）
 
-> 完整制度见 `docs/ASSET_GOVERNANCE.md`；层级登记见 `docs/ASSET_LAYERS.md`；清理台账见 `docs/ASSET_CLEANUP_LOG.md`。
+> 完整制度见 `docs/ASSET_GOVERNANCE.md`；层级登记见 `docs/ASSET_LAYERS.md`；清理台账为**仓外**本地文件（`~/.returnlog-cleanup/<repo>-ASSET_CLEANUP_LOG.md`，不入库）。
 
 1. **三态声明**：新增任何资产必须显式声明「是否入库 / 是否发布 / 是否留在磁盘」三项状态，并同步四处规则：两仓 `.gitignore`、两仓发布白名单 `tools/deploy-config.cjs`、`assets/MANIFEST.json`、`BASELINE.sha256.json`。
 2. **白名单**：禁止在 `assets/`、`js/`、`audio/` 放置 L1–L4 资产；白名单目录下新增文件默认会发布，必须在 `tools/deploy-config.cjs` 的 `SKIP` 中显式排除。发布脚本与门禁共用同一份配置，不得两处各写一套。
