@@ -1,0 +1,8 @@
+{
+  "generated": "2026-11-10T00:20:24.428Z",
+  "note": "以下文件不入 git（.gitignore 的 2026-11-04 载荷改造段落），本机为唯一副本。校验：node tools/assets-check.cjs；重生成：--write",
+  "restoreHint": "2026-11-04 之前入库过的版本仍可从 git 历史取回，见 --from-git",
+  "count": 71,
+  "totalBytes": 140307876,
+  "files": []
+}

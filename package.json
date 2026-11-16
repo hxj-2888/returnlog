@@ -1,0 +1,15 @@
+{
+  "name": "returnlog",
+  "displayName": "新返航录",
+  "version": "3.7.0",
+  "gameVersion": "返航录V3.7",
+  "description": "11 人类 vs 4 异形的实时太空船社交推理网页游戏；零依赖前端，file:// 可直接运行。",
+  "author": "hxj-2888",
+  "license": "MIT",
+  "private": true,
+  "homepage": "https://github.com/hxj-2888/returnlog",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hxj-2888/returnlog.git"
+  }
+}
