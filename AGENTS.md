@@ -156,3 +156,11 @@
 | `docs/workflow.md` | 命令、本机环境、Blender 权威版本、改动流程 | 需要跑工具 / 提交前 |
 
 > **口径优先级**：本文件与 `docs/ASSET_GOVERNANCE.md` 为现行口径；分册为历史原文逐字搬迁，仅供查阅，冲突时以现行口径为准并回写更新。
+
+## 公开物脱敏规范（2026-11-16 用户裁定 · 红线级）
+
+公开仓、公开站点、比赛帖、Release、安装包和截图在发布前，必须按 `Desktop/_public-release/POLICY.md` 逐项脱敏。默认禁止公开：本机绝对路径/用户名/设备信息、局域网 IP/端口、token/cookie/keystore/D1/KV/账号等资源 ID、私人邮箱/手机号、`AGENTS.md`/`CLAUDE.md`/提示词/交接台账、Qoder/WorkBuddy/ZCode 等工具痕迹、内部 `docs/`/`tools/`/`tests/`/日志。只有用户逐项确认的「公开需要」可以保留；一次确认不扩展到其他条目、项目或批次。
+
+- 推送前必须跑 `node Desktop/_public-release/check-public-leaks.cjs --ref HEAD`；pre-push 已接入，禁止用 `--no-verify` 绕过。
+- 公开仓只放产品代码、运行素材、LICENSE、简短 README、必要部署配置；本文件、内部规范、工具、测试与台账都不随公开仓发布。
+- 历史已泄露时按「单条纯净提交」重建并强推，删除旧分支、tag、Release、Actions 运行记录与缓存；有 fork 时另行处理。
