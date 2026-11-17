@@ -164,3 +164,4 @@
 - 推送前必须跑 `node Desktop/_public-release/check-public-leaks.cjs --ref HEAD`；pre-push 已接入，禁止用 `--no-verify` 绕过。
 - 公开仓只放产品代码、运行素材、LICENSE、简短 README、必要部署配置；本文件、内部规范、工具、测试与台账都不随公开仓发布。
 - 历史已泄露时按「单条纯净提交」重建并强推，删除旧分支、tag、Release、Actions 运行记录与缓存；有 fork 时另行处理。
+- **公开例外（2026-11-17 用户逐项确认）**：根目录 `ARCHITECTURE.md`（工程架构层说明）随公开仓发布；其正文对内部规范 `AGENTS.md` 的引用属纯文档指向，不构成工具痕迹泄露，检查器仅对该文件的此类引用放行（见 `_public-release/POLICY.md` §3 与 `check-public-leaks.cjs` ALLOW）。此确认只覆盖该文件、该项目、该批次；先导 `docs/00-先导-游戏体验.md` 与其余 `docs/` 仍不公开。
