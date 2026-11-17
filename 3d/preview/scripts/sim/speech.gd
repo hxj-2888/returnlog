@@ -1,0 +1,1550 @@
+extends RefCounted
+## 会议发言调度（S 轨，对应 2.5D `js/game.js` 4959–6738 的 startChatter / buildMeetCtx /
+## playerTalk / pickLine 与 `js/t2/decision.js#parseSpeech`）。
+##
+## 落点：sim 的 meeting.discuss 相位。AI 按 talkScore 排发言权 → 每间隔说一句 →
+## 听众用 mind.note_testimony 收证词；玩家自由发言走 lines.parse_speech 抽槽位，
+## 再让 AI 质疑 / 附议 / 否认。台词、证据短语、规则阈值全部来自 lines.json。
+##
+## 与 2.5D 的边界：这里实现的是"六类说服策略 + 去重 + 可信度 + 注意力窗口"的完整链路，
+## 但没有逐条复刻 2.5D 的构陷编排（planAlienDeception / planMateBus）与领袖型玩家剧本
+## ——那两块依赖完整的 mind 假设层，见 `PORTING_PROTOCOL.md` §3.1 与 `HANDOFF.md` §0.4。
+
+const SPEAK_CATS := ["identity", "accuse", "defend", "evidence", "ask", "call"]
+
+## 时间词（2.5D whenWord，js/t2/decision.js:52）：**白天会议必须说「昨晚」**，夜会说「今晚」。
+## 3D 原先三处全写死 false，等于白天的会也在说「今晚」。
+func _when_word() -> String:
+	return lines.when_word(String(sim.meeting.get("kind", "")) == "day")
+
+var sim
+var lines
+var mind
+var enabled := false
+var feed: Array = []              # 发言流：UI 只读
+var line_used: Dictionary = {}    # 整局模板降权 1/(1+3n)
+var meet_used: Dictionary = {}    # 同场同人硬去重
+var cands: Array = []             # 按 talkScore 排好的席位
+var agenda: Array = []            # [{t, i, cat, ctx, target, kind}]
+var leader_i := -1                # 本局领袖（-1 = 无）
+var leader_charisma := 0.0        # 号召力（LEADER.bands 重尾抽样）
+var orders_left := 0              # 本场会议剩余指令数
+var _t := 0.0
+var _alien_lines := 0
+var _last_who := -1
+var _streak := 0
+var _hard_lines := 0
+
+
+func setup(p_sim, p_lines, p_mind) -> void:
+	sim = p_sim
+	lines = p_lines
+	mind = p_mind
+	enabled = lines != null and mind != null and not lines.pools.is_empty()
+
+
+func _r(sec: String, key: String, fallback: float = 0.0) -> float:
+	if sim != null and sim.rules != null:
+		return sim.rules.n(sec, key, fallback)
+	return fallback
+
+
+func _d(key: String, fallback: float = 0.0) -> float:
+	## pickLine / startChatter / sayStreakOK 的调度系数（rules.json#dispatch）
+	if sim != null and sim.rules != null:
+		return sim.rules.disp(key, fallback)
+	return fallback
+
+
+func clear_game() -> void:
+	line_used.clear()
+	meet_used.clear()
+	feed.clear()
+	agenda.clear()
+	cands.clear()
+	_t = 0.0
+	leader_i = -1
+	leader_charisma = 0.0
+
+
+## 领袖_roll（2.5D newGame:252）：每局 LEADER.chance 概率出现一个领袖 ——
+## 只在 soc 轴 ≥ minSoc 的人里挑；号召力按 LEADER.bands 重尾抽样
+## （0=没人听 15% / 0.25=50% / 0.65=30% / 1=全场听 5%，两端都不截断）。
+func roll_leader() -> void:
+	leader_i = -1
+	leader_charisma = 0.0
+	if sim == null or sim._rng == null:
+		return
+	if sim._rng.randf() >= sim.rules.n("LEADER", "chance", 0.22):
+		return
+	var min_soc := int(sim.rules.n("LEADER", "minSoc", 45.0))
+	var pool: Array = []
+	for a: Dictionary in sim.agents:
+		var soc: int = int((a.get("trait", {}) as Dictionary).get("soc", 50))
+		if bool(a.get("alive", false)) and soc >= min_soc:
+			pool.append(int(a.get("i", -1)))
+	if pool.is_empty():
+		return
+	leader_i = int(pool[sim._rng.randi_range(0, pool.size() - 1)])
+	# 号召力重尾：0 / 0.25 / 0.65 / 1 四档
+	var bands: Array = [[0.0, 0.15], [0.25, 0.50], [0.65, 0.30], [1.0, 0.05]]
+	var r: float = sim._rng.randf()
+	var acc := 0.0
+	for b: Array in bands:
+		acc += float(b[1])
+		if r <= acc:
+			leader_charisma = float(b[0])
+			return
+
+
+## ============ 会议欺骗编排（2.5D planAlienDeception / planMateBus 同源） ============
+
+## 构陷编排（js/game.js:5759）：
+##   · 有确证的人类正在咬异形 → 该异形**反咬**（counter）；
+##   · 否则按 FRAME.chance(0.85) 掷骰，随机一只异形当说谎者；
+##   · 靶子：反咬 65% 打回指控者，否则按 SOCIAL.frameFollow(0.55) 顺水推舟泼向
+##     场上软靶（SOCIAL.hotMin=1 个公开指控者起算），没有就随机挑非队友；
+##   · COFRAME：人类占多数时 0.55 / 少数时 0.18 的概率发起**协同诬陷**——
+##     最多 COFRAME.maxAccusers-1 个附议异形共享同一靶子、票型强制统一；
+##   · 听众效应：没有确证的人才吃这一套 —— heard_frame 0.26×情境抽样；
+##     被拆谎的听众反过来给说谎者 0.24 矛盾嫌疑；真目击者免疫。
+func plan_alien_deception(kind: String, victim_i: int) -> Dictionary:
+	var out := {"frames": 0, "caught": 0}
+	if kind == "pre" or not enabled or mind == null:
+		return out
+	var pool: Array = []
+	var aliens: Array = []
+	for a: Dictionary in sim.agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		pool.append(a)
+		if bool(a.get("alien", false)):
+			# 2.5D planAlienDeception(js/game.js:5767)：已经先发制人的异形不再参与本轮构陷/反咬
+			# —— 它的靶子与口供已在会议开头定死，再被覆盖就成「嘴上说 A、票投 B」。
+			if bool((a.get("accuseWhy", {}) as Dictionary).get("opening", false)):
+				continue
+			aliens.append(a)
+	if aliens.is_empty():
+		return out
+	# sureAcc：第一个有确证的人类（他的确证目标若是异形 → 反咬）
+	var sure_acc := -1
+	var sure_kind := ""
+	for c: int in cands:
+		var ca: Dictionary = sim.agent(c)
+		if ca.is_empty() or bool(ca.get("alien", false)):
+			continue
+		var kn: Dictionary = mind.best_known_target(ca)
+		if not kn.is_empty():
+			sure_acc = c
+			sure_kind = String((sim.agent(int(kn["i"])) .get("known", {}) as Dictionary) \
+				.get(c, {}).get("kind", ""))
+			var kn2: Dictionary = (ca.get("known", {}) as Dictionary)
+			if not kn2.is_empty():
+				var first: Dictionary = kn2[kn2.keys()[0]] as Dictionary
+				sure_kind = String(first.get("kind", ""))
+			break
+	var liar := -1
+	var counter := false
+	var sure_tgt_i := -1
+	if sure_acc >= 0:
+		var ka: Dictionary = mind.best_known_target(sim.agent(sure_acc))
+		if not ka.is_empty():
+			sure_tgt_i = int(ka["i"])
+	if sure_tgt_i >= 0 and bool(sim.agent(sure_tgt_i).get("alien", false)):
+		liar = sure_tgt_i
+		counter = true
+	elif sim._rng.randf() < sim.rules.n("FRAME", "chance", 0.85):
+		liar = int(aliens[sim._rng.randi_range(0, aliens.size() - 1)].get("i", -1))
+	if liar < 0:
+		return out
+	var liar_a: Dictionary = sim.agent(liar)
+	# 靶子池：非队友、非 liar、非本夜受害者
+	var targets: Array = []
+	for t: Dictionary in pool:
+		var ti := int(t.get("i", -1))
+		if ti == liar or ti == victim_i:
+			continue
+		if _is_mate(liar_a, ti):
+			continue
+		targets.append(ti)
+	if targets.is_empty():
+		return out
+	var tgt := -1
+	if counter and sure_acc >= 0 and sim._rng.randf() < 0.65:
+		tgt = sure_acc
+	# 顺势构陷：往场上正在被咬的软靶身上泼（SOCIAL.frameFollow）
+	if tgt < 0:
+		var hot: Array = []
+		var top_n := 0
+		for t2: int in targets:
+			var n: int = mind.pub_accusers(t2).size()
+			if n < int(sim.rules.n("SOCIAL", "hotMin", 1.0)):
+				continue
+			if n > top_n:
+				top_n = n
+				hot = [t2]
+			elif n == top_n:
+				hot.append(t2)
+		if not hot.is_empty() and sim._rng.randf() < sim.rules.n("SOCIAL", "frameFollow", 0.55):
+			tgt = int(hot[sim._rng.randi_range(0, hot.size() - 1)])
+			sim._stat("alienFrameFollow", 1)
+	if tgt < 0:
+		tgt = int(targets[sim._rng.randi_range(0, targets.size() - 1)])
+	if tgt < 0:
+		return out
+	var tgt_a: Dictionary = sim.agent(tgt)
+	# COFRAME 协同诬陷
+	var humans_alive := 0
+	for a2: Dictionary in pool:
+		if not bool(a2.get("alien", false)):
+			humans_alive += 1
+	var co_rate: float = sim.rules.n("COFRAME", "chance", 0.55) \
+		if humans_alive > aliens.size() else sim.rules.n("COFRAME", "minorityChance", 0.18)
+	var co_on: bool = aliens.size() > 1 and sim._rng.randf() < co_rate
+	# 伪证种类：反咬优先复述对方"看见的"（更像现场目击），主动构陷说红光
+	var kd := "saw_red"
+	if counter:
+		if sure_kind == "saw_pipe":
+			kd = "saw_pipe" if sim._rng.randf() < 0.7 else "saw_red"
+		elif sure_kind == "saw_red":
+			kd = "saw_red" if sim._rng.randf() < 0.7 else "saw_pipe"
+		else:
+			kd = "saw_pipe" if sim._rng.randf() < 0.5 else "saw_red"
+	# 附议者
+	var allies: Array = []
+	if co_on:
+		for x: Dictionary in aliens:
+			var xi := int(x.get("i", -1))
+			if xi == liar or xi == tgt:
+				continue
+			if allies.size() >= maxi(0, int(sim.rules.n("COFRAME", "maxAccusers", 3.0)) - 1):
+				break
+			allies.append(xi)
+	else:
+		for x2: Dictionary in aliens:
+			var xi2 := int(x2.get("i", -1))
+			if xi2 == liar or xi2 == tgt:
+				continue
+			if _is_mate(x2, liar):
+				allies.append(xi2)
+				break
+	if co_on:
+		for ai3: int in allies:
+			var aa: Dictionary = sim.agent(ai3)
+			aa["accuse"] = tgt
+			aa["accuseWhy"] = {"kind": kd, "reason": "协同附议", "fake": true}
+			sim.note_accuse(ai3, tgt)
+	# 假口供文案（声称房间：saw_pipe 必须真有管道口）
+	var claim_room: String = sim.room_at(tgt_a.get("pos", Vector2.ZERO))
+	var liar_room: String = _claimed_room(liar_a)
+	if kd == "saw_pipe":
+		var pipe_rooms: Array = []
+		for q: Dictionary in (sim.map.get("pipes", []) as Array):
+			var rid := String(q.get("room", ""))
+			if rid != "" and not pipe_rooms.has(rid):
+				pipe_rooms.append(rid)
+		if not pipe_rooms.has(claim_room):
+			claim_room = String(pipe_rooms[sim._rng.randi_range(0, pipe_rooms.size() - 1)]) \
+				if not pipe_rooms.is_empty() else "走廊"
+	if claim_room == "":
+		claim_room = "走廊"
+	var tname := String(tgt_a.get("name", "他"))
+	# 反咬时先说一句“我没干过”，再复述自己编的现场（2.5D denial）。
+	var denial := ""
+	if counter:
+		match sure_kind:
+			"saw_pipe":
+				denial = "我没钻过管道。"
+			"saw_red":
+				denial = "我没出过刀。"
+			"saw_knife":
+				denial = "我没杀过人。"
+			"saw_sabotage":
+				denial = "我没破坏过设备。"
+			"saw_bot":
+				denial = "我没碰过机器人。"
+			_:
+				denial = "我没动过手。"
+	var rebut := ""
+	if kd == "saw_pipe":
+		rebut = denial + "我%s在%s，亲眼看见%s在%s钻进了管道。" % [
+			_when_word(), liar_room, tname, claim_room]
+	else:
+		rebut = denial + "我%s在%s，亲眼看见%s身上带着刚出刀的红光。" % [
+			_when_word(), liar_room, tname]
+	# 拆谎：听众自己的目击记忆与说谎者声称的房间对不上 → 矛盾
+	var caught_i := -1
+	var caught_room := ""
+	for w: Dictionary in sim.agents:
+		var wi := int(w.get("i", -1))
+		if wi == liar or wi == tgt or wi == sure_acc or not bool(w.get("alive", false)):
+			continue
+		if bool(w.get("downed", false)) or bool(w.get("alien", false)):
+			continue
+		var r: String = _alibi_caught(w, liar, _claimed_room(liar_a))
+		if r == "":
+			continue
+		caught_i = wi
+		caught_room = r
+		break
+	# 听众效应
+	var hearers: Array = []
+	for w2: Dictionary in sim.agents:
+		var wi2 := int(w2.get("i", -1))
+		if wi2 == liar or wi2 == tgt or wi2 == sure_acc:
+			continue
+		if not bool(w2.get("alive", false)) or bool(w2.get("downed", false)):
+			continue
+		if not (w2.get("known", {}) as Dictionary).is_empty():
+			continue
+		hearers.append(wi2)
+	var hbase: float = mind._witness_ctx_mul(liar_a.get("pos", Vector2.ZERO), hearers.size())
+	for w3: int in hearers:
+		var listener: Dictionary = sim.agent(w3)
+		if caught_i == w3:
+			mind.sus_add_contradiction(listener, liar, 0.24, "contradiction_lie",
+				{"kind": "contradiction", "src": "speech", "actor": liar})
+		else:
+			var jit: float = maxf(0.72, minf(1.10, hbase * (0.94 + sim._rng.randf() * 0.12)))
+			mind.sus_add(listener, tgt, 0.26 * jit, "heard_frame",
+				{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": liar})
+			for k3: int in allies.size():
+				var ally_i: int = allies[k3]
+				var wgt := 0.08
+				if k3 > 0:
+					wgt = sim.rules.n("COFRAME", "extraWgt", 0.16) \
+						* pow(sim.rules.n("COFRAME", "extraWgtDecay", 0.72), float(k3 - 1))
+				var jit2: float = maxf(0.72, minf(1.10, hbase * (0.94 + sim._rng.randf() * 0.12)))
+				mind.sus_add(listener, tgt, wgt * jit2,
+					"heard_frame_ally" if k3 == 0 else "heard_frame_co",
+					{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": ally_i})
+	# 说谎者与附议者的票跟假口供保持一致
+	liar_a["accuse"] = tgt
+	# 2.5D：假口供的具体伪证在听众眼里是传闻证据（heard_frame），
+	# 但 `accuseWhy` **不标 solid** —— 2.5D planAlienDeception 只写 kind/reason，
+	# 不能被结算追责当成硬指控。3D 之前多写了 solid:true，本批去掉。
+	liar_a["accuseWhy"] = {"kind": kd, "reason": "反咬", "fake": true}
+	# 2.5D 的构陷 `accuseWhy` 没有 solid → 不进 ctx.lead，也不进 pub_solid_accusers。
+	# 这里不再调 note_accuse（3D 之前多记了一次带头追责）。
+	# 台词：说谎者 → 附议者 → 靶子否认 → 拆谎者 → 真目击者重申
+	_emit_raw(liar, rebut)
+	for ai4: int in allies:
+		var ar: String = sim.room_at(sim.agent(ai4).get("pos", Vector2.ZERO))
+		var act := "钻进了管道" if kd == "saw_pipe" else "身上带着刚出刀的红光"
+		_emit_raw(ai4, "我在%s，我也看见了：%s%s。%s没撒谎。" % [
+			ar, tname, act, String(liar_a.get("name", "他"))])
+	# 2.5D：替已被确证为异形的靶子帮腔 → 人类听众反过来怀疑附议者（0.1）。
+	if not allies.is_empty():
+		var ally0 := int(allies[0])
+		for w4: Dictionary in sim.agents:
+			if bool(w4.get("alien", false)) or bool(w4.get("downed", false)) \
+					or not bool(w4.get("alive", false)):
+				continue
+			if (w4.get("known", {}) as Dictionary).has(tgt):
+				mind.sus_add(w4, ally0, 0.1, "defended_suspect",
+					{"kind": "defended_suspect", "src": "speech"})
+	# 反咬目标如果不是证人，让它自己回应（不读阵营，谁被点名谁说话）
+	var tgt_is_me: bool = tgt == int(sim.me_idx) and not sim.spectator
+	if tgt != sure_acc and not tgt_is_me:
+		var tro: String = sim.room_at(tgt_a.get("pos", Vector2.ZERO))
+		var trn: String = sim.room_name(tro) if tro != "" else "走廊"
+		var resp := "我没钻过管道。那会儿我在%s，谁能给我作证？" % trn
+		if kd != "saw_pipe":
+			resp = "我身上没有红光。那会儿我在%s，别只凭一句话。" % trn
+		_emit_raw(tgt, resp)
+	if caught_i >= 0:
+		out["caught"] = 1
+		var cw := String(sim.agent(caught_i).get("name", "有人"))
+		_emit_raw(caught_i, "我%s在%s看见%s了。你说你在%s？对不上。" % [
+			mind.alibi_time_word(absf(float(sim.t))),
+			sim.room_name(caught_room), String(liar_a.get("name", "他")), liar_room])
+	# 真目击者不吃这一套：重申自己看见的是谁
+	if counter and sure_acc >= 0:
+		var sa: Dictionary = sim.agent(sure_acc)
+		if bool(sa.get("alive", false)) and not bool(sa.get("downed", false)) \
+				and (sure_acc != int(sim.me_idx) or sim.spectator):
+			var wroom: String = sim.room_name(_claimed_room(sa))
+			var act2 := "钻管道" if kd == "saw_pipe" else "带着红光"
+			var tail := "。" if tgt == sure_acc else "，不是%s。" % tname
+			_emit_raw(sure_acc, "我没看错，%s。我%s在%s，亲眼看见%s的就是你%s" % [
+				String(liar_a.get("name", "他")), _when_word(), wroom, act2, tail])
+	sim._stat("frames", 1)
+	out["frames"] = 1
+	out["by"] = liar
+	out["co"] = allies.duplicate()
+	return out
+
+
+## 大义灭亲（2.5D planMateBus，js/game.js:6001）：
+## MISLEAD.busChance 0.20 / 会议：异形指控一个**已认出的队友**换取听众信任。
+## 只用 mates（亲眼确认），绝不写 known；听众只限人类。
+func plan_mate_bus(deception: Dictionary) -> void:
+	if not enabled or mind == null:
+		return
+	if sim._rng.randf() >= sim.rules.n("MISLEAD", "busChance", 0.20):
+		return
+	var alive_aliens: Array = []
+	for a: Dictionary in sim.agents:
+		if bool(a.get("alien", false)) and bool(a.get("alive", false)) \
+				and not bool(a.get("downed", false)):
+			alive_aliens.append(a)
+	# 2.5D used：本场构陷的说谎者与附议者不再参与大义灭亲，避免同一异形
+	# 既附议又卖队友（js/game.js:6066-6069）。
+	var used: Dictionary = {}
+	if not deception.is_empty():
+		used[int(deception.get("by", -1))] = true
+		for x: int in (deception.get("co", []) as Array):
+			used[x] = true
+	# 找一个本场还没被构陷占用、且有认出队友的异形
+	var liar_a: Dictionary = {}
+	for x: Dictionary in alive_aliens:
+		if used.has(int(x.get("i", -1))):
+			continue
+		var mates: Dictionary = x.get("mates", {}) as Dictionary
+		if mates.is_empty():
+			continue
+		liar_a = x
+		break
+	if liar_a.is_empty():
+		return
+	var liar := int(liar_a.get("i", -1))
+	var mate_pool: Array = []
+	for k: int in (liar_a.get("mates", {}) as Dictionary).keys():
+		var m: Dictionary = sim.agent(k)
+		if not m.is_empty() and bool(m.get("alien", false)) and bool(m.get("alive", false)) \
+				and not bool(m.get("downed", false)) and k != liar:
+			mate_pool.append(k)
+	if mate_pool.is_empty():
+		return
+	var mate := int(mate_pool[sim._rng.randi_range(0, mate_pool.size() - 1)])
+	var mate_a: Dictionary = sim.agent(mate)
+	var kd := "saw_pipe" if sim._rng.randf() < 0.5 else "saw_red"
+	var claim_room: String = sim.room_at(mate_a.get("pos", Vector2.ZERO))
+	var liar_room: String = _claimed_room(liar_a)
+	if kd == "saw_pipe":
+		var pipe_rooms: Array = []
+		for q: Dictionary in (sim.map.get("pipes", []) as Array):
+			var rid := String(q.get("room", ""))
+			if rid != "" and not pipe_rooms.has(rid):
+				pipe_rooms.append(rid)
+		if not pipe_rooms.has(claim_room):
+			claim_room = String(pipe_rooms[sim._rng.randi_range(0, pipe_rooms.size() - 1)]) \
+				if not pipe_rooms.is_empty() else "走廊"
+	if claim_room == "":
+		claim_room = "走廊"
+	var mname := String(mate_a.get("name", "他"))
+	var text := ""
+	if kd == "saw_pipe":
+		text = "我%s在%s，亲眼看见%s在%s钻进了管道。" % [
+			_when_word(), liar_room, mname, claim_room]
+	else:
+		text = "我%s在%s，亲眼看见%s身上带着刚出刀的红光。" % [
+			_when_word(), liar_room, mname]
+	# 传闻嫌疑：只给人类听众（2.5D bus 分支排除 alien）
+	for w: Dictionary in sim.agents:
+		var wi := int(w.get("i", -1))
+		if wi == liar or wi == mate or bool(w.get("alien", false)):
+			continue
+		if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+			continue
+		# 2.5D：有确证目标的听众不进入这段传闻嫌疑（bestKnownTarget(w)）。
+		if not mind.best_known_target(w).is_empty():
+			continue
+		mind.sus_add(w, mate, 0.22, "heard_frame",
+			{"kind": "heard_frame", "src": "speech", "actor": mate, "by": liar, "bus": 1})
+	liar_a["accuse"] = mate
+	# 2.5D planMateBus 的 accuseWhy 没有 solid → 不进 ctx.lead；这里也不 note_accuse。
+	liar_a["accuseWhy"] = {"kind": kd, "reason": "队友洗白", "fake": true, "bus": true}
+	liar_a["_busTarget"] = mate
+	_emit_raw(liar, text)
+	sim._stat("busAccusals", 1)
+
+
+## 领袖指令（2.5D scheduleLeaderOrders，js/game.js:5367）：
+## 领袖当众下 1~2 条安排（**不区分阵营** —— 可能是人类组织，也可能是异形带偏）；
+## 听众对领袖 +LEADER.warmGain(0.06) warm；被点名者记 mind.order（本夜有效）。
+## 预估不照办且掷中 refuseSpeakP(0.5) → 当场说"我去不了"（纯台词）。
+func schedule_leader_orders(kind: String) -> void:
+	if leader_i < 0 or not enabled:
+		return
+	var L: Dictionary = sim.agent(leader_i)
+	if L.is_empty() or not bool(L.get("alive", false)) or bool(L.get("downed", false)):
+		return
+	var n_orders := 2 if (sim._rng.randf() < 0.4) else 1
+	for k in n_orders:
+		var rooms: Array = (sim.map.get("rooms", []) as Array)
+		if rooms.is_empty():
+			return
+		var rm: Dictionary = rooms[sim._rng.randi_range(0, rooms.size() - 1)]
+		var rid := String(rm.get("id", ""))
+		var pool: Array = []
+		for x: Dictionary in sim.agents:
+			if int(x.get("i", -1)) == leader_i:
+				continue
+			if bool(x.get("alive", false)) and not bool(x.get("downed", false)):
+				pool.append(int(x.get("i", -1)))
+		if pool.is_empty():
+			return
+		var tgt_i := int(pool[sim._rng.randi_range(0, pool.size() - 1)])
+		var tgt: Dictionary = sim.agent(tgt_i)
+		var tname := String(tgt.get("name", "大家"))
+		_emit_raw(leader_i, "我安排一下：%s，你去%s看看。" % [tname, sim.room_name(rid)])
+		sim._stat("orders", 1)
+		tgt["order"] = {"room": rid, "night": int(sim.night), "by": leader_i}
+		# 预估服从（与夜里同一套判据）：不照办就说"我去不了"
+		if not bool(tgt.get("alien", false)):
+			var will := _will_obey(tgt, rid)
+			if not will and sim._rng.randf() < sim.rules.n("LEADER", "refuseSpeakP", 0.5):
+				_emit_raw(tgt_i, "我去不了%s，我手上还有任务。" % sim.room_name(rid))
+		# 听众对领袖 warm +0.06（2.5D 2026-11-03 起不再给被点名者记嫌疑）
+		for w: Dictionary in sim.agents:
+			if int(w.get("i", -1)) == leader_i:
+				continue
+			if not bool(w.get("alive", false)) or bool(w.get("downed", false)):
+				continue
+			mind.warm_add(w, leader_i, sim.rules.n("LEADER", "warmGain", 0.06))
+
+
+## 服从预估（2.5D aiHuman 的服从判据同一套）：obeyP = 号召力 × (cred(领袖)/trustObeyGate)
+func _will_obey(tgt: Dictionary, rid: String) -> bool:
+	var tasks: Array = tgt.get("tasks", []) as Array
+	var tIdx := int(tgt.get("tIdx", 0))
+	var idx := -1
+	for k in range(tIdx, tasks.size()):
+		var p: Dictionary = sim.point(int(tasks[k]))
+		if String(p.get("room", "")) == rid:
+			idx = k
+			break
+	if idx == tIdx:
+		return true
+	if idx < 0:
+		return false
+	var gate: float = maxf(0.01, mind.trust_obey_gate())
+	var obey_p: float = leader_charisma * clampf(mind.cred_of(tgt, leader_i) / gate, 0.0, 1.0)
+	return sim._rng.randf() < obey_p
+
+
+## 说谎者声称的房间与听众目击记忆对不上 → 返回对不上的房间（拆谎）
+## 2.5D checkAlibi 量词：窗口内**有一条对得上就不算说谎**；没记录（checked=0）闭嘴。
+func _alibi_caught(listener: Dictionary, liar: int, claim_room: String) -> String:
+	if claim_room == "":
+		return ""
+	var why: Dictionary = listener.get("why", {}) as Dictionary
+	var mem: Array = (why.get(liar, []) as Array)
+	var now: float = mind.ev_now()
+	var best_room := ""
+	var best_age := 1.0e9
+	var checked := 0
+	for e: Variant in mem:
+		if not (e is Dictionary):
+			continue
+		var rec := e as Dictionary
+		var kd := String(rec.get("kind", ""))
+		if not kd.begins_with("saw_"):
+			continue
+		if int(rec.get("night", -1)) != int(sim.night):
+			continue
+		var room := String(rec.get("room", ""))
+		if room == "" or room == claim_room:
+			continue
+		var t := float(rec.get("t", 0.0))
+		if now - t > 45.0:
+			continue
+		checked += 1
+		# 走廊/未知不算「在某个舱室」（2.5D checkAlibi 的排除项）
+		if room == "corridor" or room == "unknown":
+			continue
+		if t < best_age:
+			best_age = t
+			best_room = room
+	if checked == 0:
+		return ""
+	return best_room
+
+
+## 人类互相辩护（2.5D decideHumanDefend，js/game.js:5958）：
+## 只替「人类 + 正被普通指控」的人开口；自己手上有对该人确证 / 准-确证时绝不辩护。
+## 意愿由性格决定：defendChance = min(0.92, 0.55 + 0.30×b(soc) + 0.10×b(aggr))。
+## 效应：被保者对辩护者 +0.45 情绪信任（之后更愿意跟他的票）；
+## defenseNote 记账（被保者日后翻出是异形 → 保人被回溯算账，见 settle_accountability F2）。
+func decide_human_defend() -> Dictionary:
+	if not enabled or mind == null:
+		return {}
+	for a0: Dictionary in sim.agents:
+		var acc := int(a0.get("accuse", -1))
+		if acc < 0 or bool(a0.get("alien", false)):
+			continue
+		var tgt: Dictionary = sim.agent(acc)
+		if tgt.is_empty() or not bool(tgt.get("alive", false)) or bool(tgt.get("downed", false)):
+			continue
+		var pool: Array = []
+		for x: Dictionary in sim.agents:
+			if bool(x.get("alien", false)) or x == a0 or int(x.get("i", -1)) == acc:
+				continue
+			if not bool(x.get("alive", false)) or bool(x.get("downed", false)):
+				continue
+			if (x.get("known", {}) as Dictionary).has(acc):
+				continue
+			if ((x.get("almost", {}) as Dictionary).get("foe", {}) as Dictionary).has(acc):
+				continue
+			pool.append(x)
+		if pool.is_empty():
+			continue
+		var defender: Dictionary = pool[sim._rng.randi_range(0, pool.size() - 1)]
+		var soc: float = float((defender.get("trait", {}) as Dictionary).get("soc", 50))
+		var aggr: float = float((defender.get("trait", {}) as Dictionary).get("aggr", 50))
+		var b_soc := (soc - 50.0) / 50.0 * 0.45
+		var b_aggr := (aggr - 50.0) / 50.0 * 0.45
+		var defend_p: float = minf(0.92, 0.55 + 0.30 * b_soc + 0.10 * b_aggr)
+		if sim._rng.randf() > defend_p:
+			continue
+		sim._stat("humanDefends", 1)
+		var by_i := int(defender.get("i", -1))
+		# 2.5D trustAdd（js/game.js:6420）：被当众保下的人记辩护者一笔恩（trust 通道）。
+		# 3D 之前用 warm 顶替；第 16 批起按真源写 trust，isPatron 才有消费口。
+		mind.trust_add(tgt, by_i, 0.45)
+		# 元推理记账：被保的人日后翻出是异形 → 保人被回溯算账（F2 / META 软联盟）
+		var dl: Dictionary = sim.meeting.get("defenseLog", {}) as Dictionary
+		var rec: Dictionary = dl.get(by_i, {}) as Dictionary
+		rec[acc] = {"night": int(sim.night)}
+		dl[by_i] = rec
+		sim.meeting["defenseLog"] = dl
+		var ally: Dictionary = (defender.get("ally", {}) as Dictionary).duplicate()
+		ally[acc] = minf(float(sim.rules.n("META", "noteCap", 3.0)),
+			float(ally.get(acc, 0.0)) + 1.0)
+		defender["ally"] = ally
+		var dname := String(defender.get("name", "有人"))
+		var tname := String(tgt.get("name", "他"))
+		_emit_raw(by_i, "我不觉得%s有问题，我%s还在旁边，别急着定罪。"
+			% [tname, sim.room_at(defender.get("pos", Vector2.ZERO))])
+		return {"by": by_i, "target": acc}
+	return {}
+
+
+## 裸台词（只进发言流与事件，不走 note_testimony —— 构陷的听众效应已单独结算）
+func _emit_raw(speaker_i: int, text: String) -> void:
+	var a: Dictionary = sim.agent(speaker_i)
+	if a.is_empty() or text == "":
+		return
+	feed.append({"who": String(a.get("name", "?")), "text": text, "cat": "frame",
+		"sys": false, "me": false, "alien": bool(a.get("alien", false)),
+		"target": -1, "kind": "frame"})
+	sim._log("chat", {"actor": speaker_i, "text": text, "cat": "frame", "ev": "frame"})
+
+
+## 当众背书（2.5D pushEndorse，信任聚焦 2026-11-03）：
+## cred ≥ trustEndorseAt 的人才敢公开背书；听众对被背书者 +WARM.defended。
+## 背书是正向信任的"多做动作"出口（cred 只能少做坏事是旧病灶）。
+func push_endorse(kind: String) -> void:
+	if kind == "pre" or not enabled or mind == null:
+		return
+	for a: Dictionary in sim.agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		var ai := int(a.get("i", -1))
+		var cred: Dictionary = a.get("cred", {}) as Dictionary
+		for k: int in cred.keys():
+			if float(cred[k]) < mind.trust_endorse_at():
+				continue
+			var t: Dictionary = sim.agent(k)
+			if t.is_empty() or not bool(t.get("alive", false)) or bool(t.get("downed", false)):
+				continue
+			if not (a.get("known", {}) as Dictionary).is_empty():
+				continue
+			var tname := String(t.get("name", "他"))
+			_emit_raw(ai, "我信得过%s，%s一直在干正经事。" % [tname, tname])
+			sim._stat("endorses", 1)
+			# 听众收到背书：对被背书者 +warm（2.5D vouchHeard 的 warm 通道）
+			for l: Dictionary in sim.agents:
+				if int(l.get("i", -1)) == ai:
+					continue
+				if not bool(l.get("alive", false)) or bool(l.get("downed", false)):
+					continue
+				mind.warm_add(l, k, sim.rules.n("WARM", "defended", 0.12))
+			return
+
+
+## 2.5D causeName（js/game.js:389）：死因 → 播报用语。
+func _cause_name(c: String) -> String:
+	match c:
+		"knife": return "刀伤"
+		"shot": return "枪伤"
+		"bled": return "失血过多"
+		"vote": return "被驱逐出舱"
+	return "未知"
+
+
+## 2.5D bodyWound（js/game.js:2091）：尸体/伤员的伤情描述。
+## 3D 没有 woundCause 字段（濒死原因没落库），所以活着的濒死者统一走「重伤」档；
+## 这一档在真源里本来就存在，不是自造文案。
+func _wound_text(b: Dictionary) -> String:
+	if b.is_empty():
+		return "未知"
+	if bool(b.get("alive", false)) and bool(b.get("downed", false)):
+		return "重伤 · 仍在渗血"
+	if not bool(b.get("alive", false)):
+		return _cause_name(String(b.get("deathCause", "")))
+	return "无伤"
+
+
+## 2.5D victimInfo（js/game.js:5000）：报案播报与开场台词共用的受害者视图。
+func _victim_info(victim_i: int) -> Dictionary:
+	if victim_i < 0 or victim_i >= sim.agents.size():
+		return {}
+	var v: Dictionary = sim.agent(victim_i)
+	if v.is_empty():
+		return {}
+	var bp: Vector2 = v.get("bodyPos", v.get("pos", Vector2.ZERO))
+	var rid := String(v.get("deathRoom", ""))
+	if rid == "":
+		rid = sim.room_at(bp)
+	return {"i": victim_i, "name": String(v.get("name", "")),
+		"room": sim.room_name(rid), "dead": not bool(v.get("alive", false)),
+		"cause": _wound_text(v).replace(" · 仍在渗血", ""),
+		"moved": bool(v.get("bodyMoved", false)),
+		"searched": bool(v.get("searched", false))}
+
+
+## 2.5D openingLine（js/game.js:5625）：报案句 / 无死亡句走语料池，
+## 末尾按尸体状态补「尸体被移动过」「我已经检查过伤口」。
+func _opening_line(speaker_i: int, vi: Dictionary, kind: String) -> String:
+	var a: Dictionary = sim.agent(speaker_i)
+	if a.is_empty():
+		return ""
+	var cat := "open_body_dead" if bool(vi.get("dead", false)) else "open_body_alive"
+	if vi.is_empty():
+		cat = "open_nobody" if kind == "day" else "open_nobody_night"
+	var tpl := _pick(cat, speaker_i)
+	if tpl == "":
+		return ""
+	line_used[tpl] = int(line_used.get(tpl, 0)) + 1
+	var mine: Dictionary = (meet_used.get(speaker_i, {}) as Dictionary).duplicate()
+	mine[tpl] = true
+	meet_used[speaker_i] = mine
+	var ctx := {"r": String(vi.get("room", "")), "t": String(vi.get("name", "")),
+		"k": String(vi.get("cause", "")), "when": lines.when_word(kind == "day")}
+	var out: String = lines.fill(tpl, a, ctx, sim._rng)
+	if not vi.is_empty():
+		if bool(vi.get("moved", false)):
+			out += " 尸体被移动过。"
+		if bool(vi.get("searched", false)):
+			out += " 我已经检查过伤口。"
+	return out
+
+
+## 2.5D openMeeting:6205-6260 的开场段（此前 3D 整段缺失，只有一句标题）：
+##   · 报案人是 AI → 由他说 openingLine；
+##   · 报案人是玩家本人 → 系统播报事实（不替玩家编台词）；
+##   · 没尸体 → 系统播报「天亮了 / 有人按了会议铃」。
+func _opening_broadcast(reporter_i: int, victim_i: int, kind: String) -> void:
+	var vi := _victim_info(victim_i)
+	var has_rep: bool = reporter_i >= 0 and reporter_i < int(sim.agents.size())
+	var rep: Dictionary = sim.agent(reporter_i) if has_rep else {}
+	var rep_ok: bool = has_rep and bool(rep.get("alive", false)) \
+		and not bool(rep.get("downed", false))
+	if rep_ok and reporter_i != int(sim.me_idx):
+		var line: String = _opening_line(reporter_i, vi, kind)
+		if line != "":
+			_emit(reporter_i, "open", {}, -1, "open", line)
+		return
+	if vi.is_empty():
+		if kind == "day":
+			sys_say("系统", "天亮了，全员回中央会议室集合。")
+		else:
+			sys_say("系统", "没有尸体，但有人按下了会议铃。")
+		return
+	var who: String = "在" + String(vi.get("room", "")) + "发现" + String(vi.get("name", ""))
+	if reporter_i == int(sim.me_idx) and not bool(sim.spectator):
+		who = String(rep.get("name", "我")) + " " + who
+	var tail := "，人已经没了。" if bool(vi.get("dead", false)) \
+		else "，还有呼吸——先救人，但动手的人就在我们中间。"
+	sys_say("系统", who + "，" + String(vi.get("cause", "")) + tail)
+
+
+## 先发制人（2.5D FIRST，2026-11-08 用户裁定）：
+## 「异形会率先进行指控……甚至有可能是第一句话说出来的」。
+## 每场会议 FIRST.chance(0.45) 概率由一只异形**抢在人类之前定调**；
+## 假口供只进传闻嫌疑（FIRST.wgt 0.22），绝不写 known。
+## 与 plan_alien_deception 互斥（同一场会议二者只走其一，避免双重构陷）。
+func plan_first_accusation(kind: String) -> void:
+	if kind == "pre" or not enabled or mind == null:
+		return
+	if sim._rng.randf() >= sim.rules.n("FIRST", "chance", 0.45):
+		return
+	var pool: Array = []
+	for a: Dictionary in sim.agents:
+		if bool(a.get("alien", false)) and bool(a.get("alive", false)) \
+				and not bool(a.get("downed", false)):
+			pool.append(a)
+	if pool.is_empty():
+		return
+	var liar: Dictionary = pool[sim._rng.randi_range(0, pool.size() - 1)]
+	var liar_i := int(liar.get("i", -1))
+	# 靶子：非队友活人里随机（FIRST 不做顺势选择，定调优先）
+	var targets: Array = []
+	for t: Dictionary in sim.agents:
+		var ti := int(t.get("i", -1))
+		if ti == liar_i or not bool(t.get("alive", false)) or bool(t.get("downed", false)):
+			continue
+		if _is_mate(liar, ti):
+			continue
+		targets.append(ti)
+	if targets.is_empty():
+		return
+	var tgt := int(targets[sim._rng.randi_range(0, targets.size() - 1)])
+	var tgt_a: Dictionary = sim.agent(tgt)
+	var tname := String(tgt_a.get("name", "他"))
+	var kd := "saw_red" if sim._rng.randf() < 0.7 else "saw_pipe"
+	# 2.5D planFirstAccuse:7217-7219：说「出刀冒红光 / 钻管道」，舱室用**靶子的公开自述舱室**；
+	# 台词走语料池 alien_open_accuse（此前 3D 把这句硬写死在调用处）。
+	var kd_room := _claimed_room(tgt_a)
+	var ctx_o := {"r": sim.room_name(kd_room), "t": tname,
+		"when": lines.when_word(false)}
+	_emit(liar_i, "alien_open_accuse", ctx_o, tgt, "opening")
+	liar["accuse"] = tgt
+	liar["accuseWhy"] = {"kind": kd, "reason": "opening", "fake": true, "opening": true,
+		"solid": true}
+	sim.note_accuse(liar_i, tgt)
+	sim._stat("firstAccusations", 1)
+	# 听众（无确证者）+FIRST.wgt 传闻嫌疑
+	for l: Dictionary in sim.agents:
+		var li := int(l.get("i", -1))
+		if li == liar_i or li == tgt or bool(l.get("alien", false)) \
+				or not bool(l.get("alive", false)) or bool(l.get("downed", false)):
+			continue
+		if not (l.get("known", {}) as Dictionary).is_empty():
+			continue
+		mind.sus_add(l, tgt, sim.rules.n("FIRST", "wgt", 0.22), "heard_frame",
+			{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": liar_i,
+			"opening": 1})
+
+	# 2.5D planFirstAccuse:7220-7227 + buildMeetCtx:5266-5273：附议者。
+	# 最多 FIRST.maxAccusers-1 个（优先已认出的队友），共享同一靶子、票型统一；
+	# 听众嫌疑按 extraWgt × extraWgtDecay^(k-1) 递减（COFRAME 的声势口径）。
+	var others: Array = []
+	for a2: Dictionary in sim.agents:
+		if int(a2.get("i", -1)) == liar_i:
+			continue
+		if not bool(a2.get("alien", false)):
+			continue
+		if not bool(a2.get("alive", false)) or bool(a2.get("downed", false)):
+			continue
+		others.append(a2)
+	others.sort_custom(func(p: Dictionary, q: Dictionary) -> bool:
+		return _is_mate(liar, int(p.get("i", -1))) \
+			and not _is_mate(liar, int(q.get("i", -1))))
+	var max_allies := maxi(0, int(sim.rules.n("FIRST", "maxAccusers", 3)) - 1)
+	var k := 0
+	for x: Dictionary in others:
+		if k >= max_allies:
+			break
+		k += 1
+		var xi := int(x.get("i", -1))
+		var ctx_e := {"r": sim.room_name(kd_room), "t": tname,
+			"when": lines.when_word(false)}
+		_emit(xi, "alien_open_echo", ctx_e, -1, "open_echo")
+		x["accuse"] = tgt
+		x["accuseWhy"] = {"kind": kd, "reason": "协同附议", "fake": true, "opening": true}
+		sim.note_accuse(xi, tgt)
+		var ew: float = sim.rules.n("FIRST", "extraWgt", 0.14) \
+			* pow(sim.rules.n("FIRST", "extraWgtDecay", 0.72), float(k - 1))
+		for l2: Dictionary in sim.agents:
+			var li2 := int(l2.get("i", -1))
+			if li2 == xi or li2 == tgt or bool(l2.get("alien", false)):
+				continue
+			if not bool(l2.get("alive", false)) or bool(l2.get("downed", false)):
+				continue
+			if not (l2.get("known", {}) as Dictionary).is_empty():
+				continue
+			mind.sus_add(l2, tgt, ew, "heard_frame",
+				{"kind": "heard_frame", "src": "speech", "actor": tgt, "by": xi, "co": k})
+
+
+## 2.5D alibiOf 的 roomId 口径：异形本夜作案 → 用编造的房间；否则用真实所在。
+func _claimed_room(a: Dictionary) -> String:
+	var lie: Dictionary = a.get("_lie", {}) as Dictionary
+	if not lie.is_empty() and String(lie.get("roomId", "")) != "":
+		return String(lie["roomId"])
+	return sim.room_at(a.get("pos", Vector2.ZERO))
+
+
+func _is_mate(a: Dictionary, other_i: int) -> bool:
+	return (a.get("mates", {}) as Dictionary).has(other_i)
+
+
+## 会议开场：排发言权、建排期。讨论时长从 MEET.discussNight 读，不写死。
+## kind ∈ {pre, day, night}：2.5D openMeeting 的三种会议。
+## pre 会是开局公开讨论，day 会是天亮后的全员会议 —— 两者都要发言。
+func on_meeting_open(reporter_i: int, victim_i: int, kind: String = "night") -> void:
+	if not enabled:
+		return
+	meet_used.clear()
+	# 异形假口供决策（2.5D buildMeetCtx:5128，每场会议重算）：
+	# 只有**本夜真的动过手**才需要编（_killAt > 0）——没杀人的那夜说真话。
+	# 65% 说自己实际所在的舱室（别人也见过它在这，时间线对得上），
+	# 撑不住时才随口编一间没去过的 —— 一旦自述进对质就可能穿帮。
+	var used_rooms: Dictionary = {}
+	for a: Dictionary in sim.agents:
+		if not bool(a.get("alien", false)) or not bool(a.get("alive", false)):
+			a["_lie"] = {}
+			continue
+		var kill_at := float(a.get("_killAt", 0.0))
+		if kill_at > 0.0:
+			# 2.5D：here=当前舱室且未被别人占用 → 65% 说真位置；否则编一间没被占用的
+			var here: String = sim.room_at(a.get("pos", Vector2.ZERO))
+			var pick := ""
+			if here != "" and not used_rooms.has(here) and sim._rng.randf() < 0.65:
+				pick = here
+			else:
+				var pool: Array = []
+				for r: Dictionary in (sim.map.get("rooms", []) as Array):
+					var rid := String(r.get("id", ""))
+					if rid != "bridge" and not used_rooms.has(rid):
+						pool.append(rid)
+				pick = String(pool[sim._rng.randi_range(0, pool.size() - 1)]) \
+					if not pool.is_empty() else here
+			if pick != "":
+				used_rooms[pick] = true
+				a["_lie"] = {"room": sim.room_name(pick), "roomId": pick}
+			else:
+				a["_lie"] = {}
+		else:
+			a["_lie"] = {}
+	agenda.clear()
+	for a: Dictionary in sim.agents:
+		a["accuse"] = -1
+	_alien_lines = 0
+	_hard_lines = 0
+	_last_who = -1
+	_streak = 0
+	_t = 0.0
+	var alive: Array = []
+	for a: Dictionary in sim.agents:
+		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
+			continue
+		if int(a.get("i", -1)) == int(sim.me_idx) and not bool(sim.spectator):
+			continue
+		alive.append(int(a.get("i", -1)))
+	# talkScore：有料的人先开口，异形整体降权（2026-11-08 用户裁定）
+	var scored: Array = []
+	for i: int in alive:
+		var a: Dictionary = sim.agent(i)
+		# 2.5D startChatter#talkScore 逐项同源（rules.json#dispatch.talkScore）
+		var sc: float = sim._rng.randf()
+		if not (a.get("known", {}) as Dictionary).is_empty():
+			sc += sim.rules.disp_sub("talkScore", "known", 2.0)
+		if not (a.get("almost", {}) as Dictionary).is_empty():
+			sc += sim.rules.disp_sub("talkScore", "almost", 1.2)
+		if a.get("_retract") != null:
+			sc += sim.rules.disp_sub("talkScore", "retract", 1.5)
+		var top := _top_suspect(a)
+		if top >= 0:
+			sc += sim.rules.disp_sub("talkScore", "accuse", 1.0)
+		sc += minf(1.0, float((a.get("why", {}) as Dictionary).size()) *
+			sim.rules.disp_sub("talkScore", "why", 0.12))
+		sc += sim.rules.disp_sub("talkScore", "talkN", 0.6) * minf(1.0,
+			float(a.get("talkN", 0)) / maxf(1.0, sim.rules.disp_sub("talkScore", "talkScoreN", 6.0)))
+		if bool(a.get("alien", false)):
+			sc -= sim.rules.disp_sub("talkScore", "alienBias", 1.15)
+		scored.append([sc, i])
+	scored.sort_custom(func(x, y): return float(x[0]) > float(y[0]))
+	cands = []
+	for s: Array in scored:
+		cands.append(int(s[1]))
+	# minHumanSpeakers：前 3 个自述者里至少 2 个人类
+	var min_h := int(_r("SPEECH", "minHumanSpeakers", 2))
+	var head: Array = cands.slice(0, 3)
+	var humans := 0
+	for i: int in head:
+		if not bool(sim.agent(i).get("alien", false)):
+			humans += 1
+	if humans < min_h:
+		for i: int in cands:
+			if head.has(i) or bool(sim.agent(i).get("alien", false)):
+				continue
+			# 把这个人类提到第 3 位
+			cands.erase(i)
+			var at := mini(2, cands.size())
+			cands.insert(at, i)
+			break
+
+	var discuss := float(sim.meeting.get("t", 0.0))
+	var end_pad := _r("MEET", "endPad", 2.2)
+	var span := maxf(_r("MEET", "minPlan", 5.2), discuss - end_pad)
+	var n := maxi(1, cands.size())
+	var gap := span / float(n)
+	var at: float = _d("agendaStart", 0.4)
+	for i: int in cands:
+		agenda.append({"t": at, "i": i})
+		at += gap
+	for i: int in cands:
+		sim.log_account(i)
+	# 2.5D 跨会议口供（js/game.js:6315-6327）：**只记只说不判**，不产生任何 sus。
+	# 说一句"你上次说的可不是这里"只是语料；口供史留最近 3 场。
+	for i: int in cands:
+		var ca: Dictionary = sim.agent(i)
+		if ca.is_empty():
+			continue
+		var rid: String = _claimed_room(ca)
+		var h: Array = ca.get("claimHist", []) as Array
+		if not h.is_empty():
+			var prev: Dictionary = h[h.size() - 1] as Dictionary
+			if String(prev.get("roomId", "")) != rid:
+				var other := -1
+				for x: int in cands:
+					if x != i:
+						other = x
+						break
+				if other >= 0:
+					var ctx2: Dictionary = _ctx_for(sim.agent(other), i)
+					ctx2["r"] = sim.room_name(rid) if rid != "" else "走廊"
+					ctx2["r2"] = String(prev.get("room", "上次"))
+					var tpl := _pick("claim_recall", other)
+					if tpl != "":
+						_emit_raw(other, lines.fill(tpl, sim.agent(other), ctx2, sim._rng))
+					sim._stat("claimRecall", 1)
+		sim.mind.record_claim(ca, rid)
+	# 2.5D openMeeting:6205-6260：开场播报先于一切编排
+	# （报案人第一句 / 玩家报案的系统播报 / 无死亡播报）。
+	_opening_broadcast(reporter_i, victim_i, kind)
+	# 2.5D startChatter 的先后顺序（js/game.js:5077 → 5098+）：**先**先发制人定调，
+	# **再**算构陷/反咬 —— 构陷会跳过已 opening 的异形，两者因此天然互斥（不会一句话两张票）。
+	if kind != "pre":
+		plan_first_accusation(kind)
+		var deception := plan_alien_deception(kind, victim_i)
+		plan_mate_bus(deception)
+	# 人类互相辩护（2.5D startChatter 同步段：决策 + 记账都在开会时定下来）
+	decide_human_defend()
+	push_endorse(kind)
+	schedule_leader_orders(kind)
+	# 开场系统行（2.5D openMeeting 的标题口径）
+	var title := "第 %d 夜 · 发现尸体 · 公开讨论" % int(sim.night)
+	if kind == "pre":
+		title = "第 1 天 · 开局公开讨论"
+	elif kind == "day":
+		title = "第 %d 天 · 全员会议" % int(sim.night)
+	feed.append({"who": "系统", "text": title,
+		"sys": true, "cat": "sys", "me": false, "alien": false})
+
+
+## 讨论相位每帧推进；到点发一条。返回本次新增了几条发言（UI 用它判断是否要滚动）。
+func tick(dt: float) -> int:
+	if not enabled or sim.meeting.is_empty():
+		return 0
+	if String(sim.meeting.get("phase", "")) != "discuss":
+		return 0
+	_t += dt
+	var n := 0
+	while not agenda.is_empty() and float((agenda[0] as Dictionary).get("t", 0.0)) <= _t:
+		var item: Dictionary = agenda.pop_front() as Dictionary
+		_ai_line(int(item.get("i", -1)))
+		n += 1
+	return n
+
+
+func _top_suspect(a: Dictionary) -> int:
+	var best := -1
+	var bs := _r("MIND", "hypMinTop", 0.34)
+	for k: int in (a.get("sus", {}) as Dictionary).keys():
+		var v := float((a.get("sus", {}) as Dictionary)[k])
+		if v > bs:
+			bs = v
+			best = int(k)
+	return best
+
+
+func _ctx_for(a: Dictionary, target_i: int) -> Dictionary:
+	var pos: Vector2 = a.get("pos", Vector2.ZERO)
+	var rid: String = sim.room_at(pos)
+	var rname: String = sim.room_name(rid)
+	var tasks: Array = a.get("tasks", []) as Array
+	var ti := mini(int(a.get("tIdx", 0)), maxi(0, tasks.size() - 1))
+	var kname := "任务"
+	if not tasks.is_empty():
+		kname = String(sim.point(int(tasks[ti])).get("label", "任务"))
+	var tname := "他"
+	if target_i >= 0:
+		tname = String(sim.agent(target_i).get("name", "他"))
+	return {
+		"t": tname, "r": rname, "r2": "现场", "u": String(sim.me().get("name", "他")),
+		"k": kname, "when": _when_word(),
+		"why": lines.evidence("unknown", sim._rng),
+	}
+
+
+## 选一条模板：hot/cold 按性格；三成概率走 combo；同场硬去重 + 整局降权。
+func _pick(cat: String, speaker_i: int) -> String:
+	var a: Dictionary = sim.agent(speaker_i)
+	var tn: String = lines.tone_of(a, 0.0)
+	var pool: Array = lines.pool(cat, tn)
+	if pool.is_empty():
+		pool = lines.pool(cat, "cold")
+	if pool.is_empty():
+		return ""
+	var combo: Array = lines.pool(cat, "combo")
+	if not combo.is_empty() and sim._rng.randf() < _d("comboChance", 0.3):
+		pool = combo
+	var mine: Dictionary = meet_used.get(speaker_i, {}) as Dictionary
+	var fallback := ""
+	for tries in int(_d("linePickTries", 6)):
+		var cand := String(pool[sim._rng.randi_range(0, pool.size() - 1)])
+		if bool(mine.get(cand, false)):
+			if fallback == "":
+				fallback = cand
+			continue
+		var used := int(line_used.get(cand, 0))
+		# 2.5D pickLine：同场同人硬去重（上面的 mine 已做），整局按 1/(1+K·n) 降权，
+		# 没有"同模板最多 2 次"这条 3D 自造规则 —— 已删除。
+		var w: float = 1.0 / (1.0 + _d("lineDecayK", 3.0) * float(used))
+		if used > 0 and sim._rng.randf() > w:
+			if fallback == "":
+				fallback = cand
+			continue
+		return cand
+	return fallback
+
+
+func _emit(speaker_i: int, cat: String, ctx: Dictionary, target_i: int,
+		kind: String, text: String = "") -> void:
+	var a: Dictionary = sim.agent(speaker_i)
+	if a.is_empty():
+		return
+	var raw := text
+	if raw == "":
+		var tpl := _pick(cat, speaker_i)
+		if tpl == "":
+			return
+		line_used[tpl] = int(line_used.get(tpl, 0)) + 1
+		var mine: Dictionary = (meet_used.get(speaker_i, {}) as Dictionary).duplicate()
+		mine[tpl] = true
+		meet_used[speaker_i] = mine
+		raw = lines.fill(tpl, a, ctx, sim._rng)
+	a["talkN"] = int(a.get("talkN", 0)) + 1
+	# 连说让位：同一个人连到第 3 句起不播（2.5D sayStreakOK）
+	if speaker_i == _last_who:
+		_streak += 1
+	else:
+		_streak = 1
+		_last_who = speaker_i
+	if _streak > int(_d("streakCap", 2)):
+		return
+	if bool(a.get("alien", false)):
+		_alien_lines += 1
+	# 2.5D：公开点过名就留下票权，"说了却不投等于打自己脸"。
+	# 之前只写进发言流，投票时读不到，导致人人弃权、4 票门槛形同虚设。
+	if target_i >= 0 and (cat == "accuse" or cat == "known_accuse_hard" or cat == "almost" \
+			or cat == "evidence" or cat == "confront" or cat == "known_echo"):
+		a["accuse"] = target_i
+		# 2.5D 情绪：被公开咬的人记说话人一笔仇（js/game.js:6372 grudgeAdd(tgt,a.i,0.40)）。
+		var gt: Dictionary = sim.agent(target_i)
+		if not gt.is_empty() and bool(gt.get("alive", false)) and mind != null:
+			mind.grudge_add(gt, speaker_i, 0.40)
+		# 带头追责（2.5D js/game.js:5292-5294）：只有**有依据**的指控才算带节奏；
+		# 纯情绪指控不进 lead，否则追责会误伤。硬证据类目一律算 solid。
+		var why: Dictionary = (a.get("accuseWhy", {}) as Dictionary).duplicate()
+		var solid: bool = bool(why.get("solid", false)) \
+			or cat == "known_accuse_hard" or cat == "almost" or cat == "evidence" \
+			or cat == "confront" or cat == "known_echo"
+		if solid:
+			if not bool(why.get("solid", false)):
+				why["solid"] = true
+				a["accuseWhy"] = why
+			sim.note_accuse(speaker_i, target_i)
+	var entry := {"who": String(a.get("name", "?")), "text": raw, "cat": cat,
+		"sys": false, "me": false, "alien": bool(a.get("alien", false)),
+		"target": target_i, "kind": kind}
+	feed.append(entry)
+	# 注意：data 里绝不能再放 "kind" —— 2.5D logEvent 的 data.kind 会覆盖事件信封，
+	# 历史坑：业务种类改叫 ev，别再混用。
+	sim._log("chat", {"actor": speaker_i, "text": raw, "cat": cat,
+		"target": target_i, "ev": kind})
+	# 公开点名之后，听众可能改票（2.5D reconsiderVotes，js/game.js:7345）。
+	# 3D 原先只在投票相位一次性落票，等于没有「听完改票」这回事。
+	if target_i >= 0 and not sim.meeting.is_empty():
+		sim.reconsider_votes(speaker_i)
+	# 说出去的话会被活人听见：走 mind 的注意力窗口与可信度权重。
+	# 指控/证据类发言携带"目标所在房间"作为声称房间（供 DESC 描述失真与拆谎用）。
+	var claim_room := ""
+	if target_i >= 0:
+		var tpos: Vector2 = sim.agent(target_i).get("pos", Vector2.ZERO)
+		claim_room = sim.room_at(tpos)
+	for l: Dictionary in sim.agents:
+		if int(l.get("i", -1)) == speaker_i or not bool(l.get("alive", false)):
+			continue
+		if bool(l.get("downed", false)):
+			continue
+		mind.note_testimony(int(l.get("i", -1)), speaker_i, target_i, kind, -1.0, claim_room)
+	# 自述位置要进听众的口供记忆，供 check_alibi 拆谎
+	if cat == "identity" or cat == "selfcite" or cat == "extra_self":
+		var rid: String = _claimed_room(a)
+		for l2: Dictionary in sim.agents:
+			if int(l2.get("i", -1)) == speaker_i:
+				continue
+			var m2: Dictionary = {}
+			if l2.get("alibi", {}) is Dictionary:
+				m2 = (l2.get("alibi", {}) as Dictionary).duplicate()
+			m2[speaker_i] = rid
+			l2["alibi"] = m2
+		mind.check_alibi(speaker_i, rid)
+
+
+## 一条 AI 台词：按"确证 / 准-确证 / 有嫌疑 / 被指 / 自述"挑类别。
+func _ai_line(i: int) -> void:
+	var a: Dictionary = sim.agent(i)
+	if a.is_empty() or not bool(a.get("alive", false)):
+		return
+	if bool(a.get("alien", false)) and _alien_lines >= int(_r("SPEECH", "alienLineCap", 6)):
+		return
+	var known: Dictionary = a.get("known", {}) as Dictionary
+	var almost: Dictionary = (a.get("almost", {}) as Dictionary).get("foe", {}) as Dictionary
+	var top := _top_suspect(a)
+	var target := top
+	var cat := "identity"
+	var kind := "identity"
+	if not known.is_empty():
+		target = int(known.keys()[sim._rng.randi_range(0, known.size() - 1)])
+		if _hard_lines < 2:
+			cat = "known_accuse_hard"
+			kind = "known"
+			_hard_lines += 1
+		else:
+			var alts: Array = ["evidence", "confront", "endorse", "follow_accuse", "ask"]
+			cat = String(alts[sim._rng.randi_range(0, alts.size() - 1)])
+			kind = "known_echo"
+	elif not almost.is_empty():
+		target = int(almost.keys()[0])
+		cat = "almost"
+		kind = "almost"
+	elif top >= 0:
+		cat = "accuse"
+		kind = "accuse"
+	elif _was_accused(i):
+		cat = "defend"
+		kind = "defend"
+		target = -1
+	else:
+		var pool: Array = ["identity", "selfcite", "ask", "call", "hedge"]
+		cat = String(pool[sim._rng.randi_range(0, pool.size() - 1)])
+		kind = "identity"
+		target = -1
+	var ctx := _ctx_for(a, target)
+	if cat == "known_accuse_hard":
+		ctx["k"] = String(lines.claim_act.get("saw_knife", "出刀"))
+		ctx["why"] = lines.evidence("saw_knife", sim._rng)
+	elif cat == "accuse" or cat == "evidence":
+		ctx["why"] = lines.evidence("unknown", sim._rng)
+	_emit(i, cat, ctx, target, kind)
+
+
+func _was_accused(i: int) -> bool:
+	for e: Dictionary in feed:
+		if int(e.get("target", -1)) == i and String(e.get("kind", "")) == "accuse":
+			return true
+	return false
+
+
+## ---- 玩家自由发言 ----
+## 解析槽位 → 记自己的证词 → 广播给听众 → 按 2.5D playerTalk 的分支择池回应。
+## 关键口径（2026-11-11 对齐）：
+##   · 作证 / 否认的回应**不能**被当成对目标的证词写进听众 sus；
+##   · 证据被指者的否认必须用 player_claim_deny，`{k}` 是动作而不是他的任务名；
+##   · 玩家说"不是我"不降低自己的可信度（2.5D emptyAccuse 是未接通的死配置）。
+func player_say(text: String) -> Dictionary:
+	var result := {"ok": false, "slots": {}, "responses": 0}
+	if not enabled:
+		return result
+	var s := text.substr(0, 80)
+	if s.strip_edges() == "":
+		return result
+	var slots: Dictionary = lines.parse_speech(s, sim)
+	result["slots"] = slots
+	var me: Dictionary = sim.me()
+	var me_i := int(sim.me_idx)
+	var me_name := String(me.get("name", "你"))
+	feed.append({"who": me_name, "text": s, "cat": "player",
+		"sys": false, "me": true, "alien": bool(me.get("alien", false)),
+		"target": -1, "kind": "player"})
+	sim._log("chat", {"actor": me_i, "text": s, "cat": "player"})
+	me["talkN"] = int(me.get("talkN", 0)) + 1
+
+	var claim: Dictionary = slots.get("claim", {}) as Dictionary
+	var accuse := int(slots.get("accuse", -1))
+	var support := int(slots.get("support", -1))
+	var vote := int(slots.get("vote", -1))
+	var where := String(slots.get("where", ""))
+	var deny := bool(slots.get("deny", false))
+	var claim_target := int(claim.get("target", -1)) if not claim.is_empty() else -1
+	if not claim.is_empty():
+		# 2.5D playerTalk：目标已死/濒死时整条证词直接返回，不写听众 sus。
+		# 解析器现在按 2.5D 会认出死者名字，这里必须补同样的早退，否则会给死者记证词。
+		if not _player_alive(claim_target):
+			result["ok"] = true
+			return result
+		var croom := String(claim.get("room", ""))
+		var pos: Vector2 = me.get("pos", Vector2.ZERO)
+		mind.note_sight(me_i, claim_target, String(claim.get("kind", "heard_claim")), pos)
+		# 玩家声称亲眼看见：对听众只是**听来的证词**，不是他们的目击。
+		for l: Dictionary in sim.agents:
+			if int(l.get("i", -1)) == me_i or not bool(l.get("alive", false)):
+				continue
+			mind.note_testimony(int(l.get("i", -1)), me_i, claim_target,
+				String(claim.get("kind", "heard_claim")), -1.0, croom)
+	elif accuse >= 0:
+		# 2.5D playerTalk 的普通指控**不加目标嫌疑**（只走被指者辩护 / 旁人带票）；
+		# 这里原先写了一条 empty_accuse 证词，等于玩家点「怀疑」就白送 0.3 嫌疑。
+		# 2.5D 的 RELIA.emptyAccuse 至今是未接通配置，不在这里另造规则。
+		var at: Dictionary = sim.agent(accuse)
+		if not at.is_empty() and bool(at.get("alive", false)):
+			mind.grudge_add(at, me_i, 0.45)
+	elif support >= 0:
+		if _player_alive(support):
+			mind.warm_add(me, support, _r("WARM", "defended", 0.12))
+	if vote >= 0:
+		var vt: Dictionary = sim.agent(vote)
+		if not vt.is_empty() and bool(vt.get("alive", false)):
+			mind.grudge_add(vt, me_i, 0.30)
+		if String(sim.meeting.get("phase", "")) == "vote":
+			sim.cast_vote(me_i, vote)
+		else:
+			sim.meeting["player_intent"] = vote
+	if where != "":
+		for l3: Dictionary in sim.agents:
+			if int(l3.get("i", -1)) == me_i:
+				continue
+			var m3: Dictionary = {}
+			if l3.get("alibi", {}) is Dictionary:
+				m3 = (l3.get("alibi", {}) as Dictionary).duplicate()
+			m3[me_i] = where
+			l3["alibi"] = m3
+		mind.check_alibi(me_i, where)
+	# 2.5D playerTalk：当众保人（不是异形/别投/我保/他没错/不可能是他）→ 被保者记恩。
+	if s.find("不是异形") >= 0 or s.find("别投") >= 0 or s.find("我保") >= 0 \
+			or s.find("他没错") >= 0 or s.find("不可能是他") >= 0:
+		for a2: Dictionary in sim.agents:
+			if int(a2.get("i", -1)) == me_i or not bool(a2.get("alive", false)) \
+					or bool(a2.get("downed", false)) or bool(a2.get("alien", false)):
+				continue
+			var nm := String(a2.get("name", ""))
+			if nm != "" and s.find(nm) >= 0:
+				mind.trust_add(a2, me_i, 0.40)
+	result["ok"] = true
+
+	# ① 直接证据：被指者当场否认 → 有独立确证的人公开背书。
+	if not claim.is_empty():
+		var ct: Dictionary = sim.agent(claim_target)
+		var act := String(lines.claim_act.get(String(claim.get("kind", "")), "动手"))
+		if claim_target >= 0 and claim_target != me_i and _player_alive(claim_target):
+			var ctx := _ctx_for(ct, -1)
+			ctx["u"] = me_name
+			ctx["k"] = act
+			ctx["r"] = sim.room_name(sim.room_at(ct.get("pos", Vector2.ZERO)))
+			_emit(claim_target, "player_claim_deny", ctx, -1, "deny_claim")
+			result["responses"] = int(result["responses"]) + 1
+			var solid: Array = mind.pub_solid_accusers(claim_target)
+			for wi: int in solid:
+				if wi == me_i or wi == claim_target or not _player_alive(wi):
+					continue
+				var w: Dictionary = sim.agent(wi)
+				if bool(w.get("alien", false)):
+					continue
+				var ctx2 := _ctx_for(w, claim_target)
+				ctx2["u"] = me_name
+				ctx2["t"] = String(ct.get("name", "他"))
+				var cr := String(claim.get("room", ""))
+				ctx2["r"] = sim.room_name(cr) if cr != "" \
+					else sim.room_name(sim.room_at(ct.get("pos", Vector2.ZERO)))
+				ctx2["k"] = act
+				_emit(wi, "known_endorse_player", ctx2, claim_target, "heard_claim")
+				result["responses"] = int(result["responses"]) + 1
+				break
+		return result
+
+	# ② 作证：有疑心的人追问；否则被保者道谢。两者都不写听众 sus。
+	if support >= 0 and _player_alive(support):
+		var st: Dictionary = sim.agent(support)
+		var skeptic := -1
+		for i: int in cands:
+			if i == me_i or i == support or not _player_alive(i):
+				continue
+			var a: Dictionary = sim.agent(i)
+			if bool(a.get("alien", false)):
+				continue
+			if float(mind.env_estimate(a, support).get("score", 0.0)) >= 0.3:
+				skeptic = i
+				break
+		if skeptic >= 0:
+			var ctx := _ctx_for(sim.agent(skeptic), support)
+			ctx["u"] = me_name
+			ctx["t"] = String(st.get("name", "他"))
+			ctx["r"] = sim.room_name(sim.room_at(st.get("pos", Vector2.ZERO)))
+			_emit(skeptic, "skeptic_ask", ctx, -1, "support_reply")
+		else:
+			var ctx := _ctx_for(st, -1)
+			ctx["u"] = me_name
+			ctx["r"] = sim.room_name(sim.room_at(st.get("pos", Vector2.ZERO)))
+			_emit(support, "player_support_thanks", ctx, -1, "support_reply")
+		result["responses"] = 1
+		return result
+
+	# ③ 点名指控：被指者辩护；有 >0.4 把握的人带票。
+	if accuse >= 0 and _player_alive(accuse):
+		var at: Dictionary = sim.agent(accuse)
+		var def_ctx := _ctx_for(at, -1)
+		def_ctx["u"] = me_name
+		def_ctx["t"] = me_name
+		_emit(accuse, "defend", def_ctx, -1, "defend")
+		result["responses"] = int(result["responses"]) + 1
+		for i: int in cands:
+			if i == me_i or i == accuse or not _player_alive(i):
+				continue
+			var a: Dictionary = sim.agent(i)
+			if bool(a.get("alien", false)):
+				continue
+			if float(mind.env_estimate(a, accuse).get("score", 0.0)) >= 0.4:
+				var c2 := _ctx_for(a, accuse)
+				c2["u"] = me_name
+				c2["t"] = String(at.get("name", "他"))
+				_emit(i, "call", c2, accuse, "heard_accuse")
+				result["responses"] = int(result["responses"]) + 1
+				break
+		return result
+
+	# ④ 否认：有疑心的人追问；否则有人简短接受（2.5D press_deny / ack_short）。
+	# 放在自述位置之前：模板「不是我，我在 X」同时命中 where/deny，
+	# 2.5D playerTalk 在同一句里也先接否认，不能被自述位置分支截走。
+	if deny:
+		var press := -1
+		for i: int in cands:
+			if i == me_i or not _player_alive(i):
+				continue
+			var a: Dictionary = sim.agent(i)
+			if bool(a.get("alien", false)) \
+					or float(mind.env_estimate(a, me_i).get("score", 0.0)) >= 0.3:
+				press = i
+				break
+		if press >= 0:
+			var ctx := _ctx_for(sim.agent(press), -1)
+			var mroom := String(sim.meeting.get("room", ""))
+			ctx["r"] = sim.room_name(mroom) if mroom != "" else "案发那会儿"
+			_emit(press, "press_deny", ctx, -1, "press_deny")
+		else:
+			var ri := _first_player_responder(me_i, -1)
+			if ri >= 0:
+				_emit(ri, "ack_short", _ctx_for(sim.agent(ri), -1), -1, "ack_short")
+		result["responses"] = 1
+		return result
+
+	# ⑤ 自述位置：同舱室的人可以追问；否则有人报自己的位置。
+	if where != "":
+		var there := -1
+		for i: int in cands:
+			if i == me_i or not _player_alive(i):
+				continue
+			var a: Dictionary = sim.agent(i)
+			if bool(a.get("alien", false)):
+				continue
+			if sim.room_at(a.get("pos", Vector2.ZERO)) == where:
+				there = i
+				break
+		if there >= 0:
+			var ctx := _ctx_for(sim.agent(there), -1)
+			ctx["t"] = me_name
+			ctx["r"] = sim.room_name(where)
+			_emit(there, "ask", ctx, -1, "where_reply")
+		else:
+			var ri := _first_player_responder(me_i, -1)
+			if ri >= 0:
+				_emit(ri, "identity", _ctx_for(sim.agent(ri), -1), -1, "where_reply")
+		result["responses"] = 1
+		return result
+
+	# ⑥ 投票意向：有把握的人跟票；否则追问证据。
+	if vote >= 0 and _player_alive(vote):
+		var vt2: Dictionary = sim.agent(vote)
+		var follower := -1
+		for i: int in cands:
+			if i == me_i or i == vote or not _player_alive(i):
+				continue
+			var a: Dictionary = sim.agent(i)
+			if bool(a.get("alien", false)) or int(a.get("accuse", -1)) >= 0:
+				continue
+			if float(mind.env_estimate(a, vote).get("score", 0.0)) >= 0.25:
+				follower = i
+				break
+		if follower >= 0:
+			var fa: Dictionary = sim.agent(follower)
+			fa["accuse"] = vote
+			sim.note_accuse(follower, vote)
+			var ctx := _ctx_for(fa, vote)
+			ctx["u"] = me_name
+			ctx["t"] = String(vt2.get("name", "他"))
+			_emit(follower, "follow_accuse", ctx, vote, "follow_accuse")
+		else:
+			var ri := _first_player_responder(me_i, vote)
+			if ri >= 0:
+				var ctx := _ctx_for(sim.agent(ri), -1)
+				ctx["u"] = me_name
+				ctx["t"] = String(vt2.get("name", "他"))
+				ctx["r"] = sim.room_name(sim.room_at(vt2.get("pos", Vector2.ZERO)))
+				_emit(ri, "skeptic_ask", ctx, -1, "vote_reply")
+		result["responses"] = 1
+		return result
+	# ⑦ 兜底：没抽到槽位的自由聊天（2.5D playerTalk 分支 6），至少有人接话。
+	var ri := _first_player_responder(me_i, -1)
+	if ri >= 0:
+		var a: Dictionary = sim.agent(ri)
+		var f_room: String = String(sim.room_name(sim.room_at(a.get("pos", Vector2.ZERO))))
+		var tasks: Array = a.get("tasks", []) as Array
+		var f_task := "任务"
+		if not tasks.is_empty():
+			var ti := mini(int(a.get("tIdx", 0)), tasks.size() - 1)
+			f_task = String(sim.point(int(tasks[ti])).get("label", "任务"))
+		var line := ""
+		if s.find("在哪") >= 0 or s.find("哪里") >= 0 or s.find("位置") >= 0 or s.find("哪边") >= 0:
+			line = "我在%s，把%s搞定了。" % [f_room, f_task]
+		elif s.find("谁") >= 0 or s.find("怀疑") >= 0 or s.find("投") >= 0 or s.find("凶手") >= 0:
+			var ac := int(a.get("accuse", -1))
+			line = ("我怀疑%s。" % String(sim.agent(ac).get("name", "他"))) if ac >= 0 \
+				else "我还没定。你先说说你看到了什么。"
+		elif s.find("任务") >= 0 or s.find("修") >= 0 or s.find("进度") >= 0:
+			line = "我修了%d个，还剩%d个。" % [int(a.get("tIdx", 0)),
+				maxi(0, 4 - int(a.get("tIdx", 0)))]
+		elif s.find("看见") >= 0 or s.find("看到") >= 0 or s.find("发现") >= 0:
+			line = "我这一路没碰上人。"
+		else:
+			line = "「%s」我记下了。你继续说，我听着。" % s.substr(0, 20)
+		_emit(ri, "identity", _ctx_for(a, -1), -1, "chat_reply", line)
+		result["responses"] = 1
+	return result
+
+
+func _player_alive(i: int) -> bool:
+	var a: Dictionary = sim.agent(i)
+	return i >= 0 and not a.is_empty() and bool(a.get("alive", false)) \
+		and not bool(a.get("downed", false))
+
+
+## 2.5D pickResponder 的等价物：按 talkScore 排序的 cands 里取第一个活人。
+func _first_player_responder(me_i: int, skip: int) -> int:
+	for i: int in cands:
+		if i == me_i or i == skip or not _player_alive(i):
+			continue
+		return i
+	return -1
+
+
+func feed_tail(n: int = 12) -> Array:
+	if feed.size() <= n:
+		return feed.duplicate()
+	return feed.slice(feed.size() - n, feed.size())
+
+
+## 会议系统行（2.5D openMeeting 的幽灵/旁观提示，js/game.js:6971）。
+## 只进发言流与事件流，不写任何人的 sus / known / 台词排期。
+func sys_say(who: String, text: String) -> void:
+	if not enabled:
+		return
+	feed.append({"who": who, "text": text, "cat": "sys", "sys": true, "me": false,
+		"alien": false, "target": -1, "kind": "sys"})
+	if sim != null:
+		sim._log("chat", {"actor": -1, "text": text, "cat": "sys"})

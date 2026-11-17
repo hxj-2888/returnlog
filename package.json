@@ -1,0 +1,15 @@
+{
+  "name": "returnlog-3d",
+  "displayName": "新返航录 3D 版",
+  "version": "0.3.0",
+  "x-3d-version": "V1P-0.3",
+  "description": "《新返航录》Godot 4.6 Web 版：与 2.5D 共用玩法规则、地图数据与数值。",
+  "author": "hxj-2888",
+  "license": "MIT",
+  "private": true,
+  "homepage": "https://github.com/hxj-2888/returnlog/tree/3d",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hxj-2888/returnlog.git"
+  }
+}
