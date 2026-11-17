@@ -491,7 +491,7 @@ node tools/ship.cjs --only=web,apk --msg "feat: ..."
 **实现要点**（改这个脚本前先读）：
 - `playwright-core` 不在本仓时，`ensurePlaywright()` 自动找常见位置并设 `PLAYWRIGHT_CORE`；
 - `git commit` / `gh` 一律走 **no-shell** 的 `args()`：中文、括号、带空格的路径走 `cmd /c` 会被拆散
-  （踩过两次：提交信息被当成 pathspec、gh 报 `no matches found for "C:\...apk"`）；
+  （踩过两次：提交信息被当成 pathspec、gh 报 `no matches found for "<本地路径>apk"`）；
 - 提交判据看 `git diff --cached --name-only`，**不要**看 `git status`——作品集仓库里常有别人的未跟踪文件；
 - 作品集只 `git add` 那 4 个素材，绝不 `-A`。
 

@@ -36,32 +36,32 @@
 
 | 工具 | 绝对路径 / 说明 |
 |---|---|
-| Blender | **`E:\SteamLibrary\steamapps\common\Blender\blender.exe`**（Blender 5.2.2 LTS，Steam 版，**唯一权威渲染版本**） |
-| 无头渲染 | `"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test` |
-| 本地 SDXL（**已退役**） | `D:\ai-models\sdxl-base`（fp16）+ `D:\ai-models\vae-fp16-fix`；2026-11-09 起不再新增出图，仅留历史产物回退 |
-| 本地千问（**唯一出图模型**） | `E:\ai-models\qwen-image-2.1` + `E:\ai-tools\sdcpp\vulkan\sd-cli.exe`（Qwen-Image 2.1 Turbo，768² / 8 步 / CFG 1.0）；入口在 **3d 副分支** `3d/tools/gen-qwen-room-skins.ps1` / `gen-art-refs.ps1`（主仓不再保留美术管线），**必须 pwsh 7** |
-| Python | `C:\Python314\python.exe`（3.14.5，torch 2.11+cu128 / diffusers 0.42 / transformers） |
+| Blender | **`<Blender 安装目录>\blender.exe`**（Blender 5.2.2 LTS，Steam 版，**唯一权威渲染版本**） |
+| 无头渲染 | `"<Blender 安装目录>/blender.exe" -b -P tools/blender-ship.py -- --test` |
+| 本地 SDXL（**已退役**） | `<SDXL 模型目录>`（fp16）+ `<VAE 模型目录>`；2026-11-09 起不再新增出图，仅留历史产物回退 |
+| 本地千问（**唯一出图模型**） | `<Qwen-Image 模型目录>` + `<sdcpp 目录>\sd-cli.exe`（Qwen-Image 2.1 Turbo，768² / 8 步 / CFG 1.0）；入口在 **3d 副分支** `3d/tools/gen-qwen-room-skins.ps1` / `gen-art-refs.ps1`（主仓不再保留美术管线），**必须 pwsh 7** |
+| Python | `%PYTHON_HOME%\python.exe`（3.14.5，torch 2.11+cu128 / diffusers 0.42 / transformers） |
 | Playwright | 本仓 `node_modules/playwright-core`（devDependency `^1.64.1`；`node_modules/` 不入库，`npm i` 复现，驱动系统 Edge） |
 | GPU | RTX 5060 Laptop **8GB**；出图统一千问本地（768² / 8 步），SDXL 已退役 |
-| 本地 MCP 工具链 | **`F:\AI-MCP\`**：uv 0.13.7 / mcp-for-blender 2.2.7 / `@coding-solo/godot-mcp` 0.1.1；客户端配置 `~\.workbuddy-ai\mcp.json`；GUI 启动 `pwsh -NoProfile -File F:\AI-MCP\scripts\Start-BlenderMCP.ps1` |
+| 本地 MCP 工具链 | **`<AI-MCP 目录>\`**：uv 0.13.7 / mcp-for-blender 2.2.7 / `@coding-solo/godot-mcp` 0.1.1；客户端配置 `mcp.json`（客户端配置目录）；GUI 启动 `pwsh -NoProfile -File <AI-MCP 目录>\scripts\Start-BlenderMCP.ps1` |
 
-> Blender **不在 PATH 上**，也不在 `C:\Program Files` 下 —— 它在 E 盘 Steam 库里。
-> 搜索时务必带上 `E:\SteamLibrary\steamapps\common\`，否则会误判“未安装”。
+> Blender **不在 PATH 上**，也不在 `%ProgramFiles%` 下 —— 它在非系统盘 Steam 库里。
+> 搜索时务必带上 `<Steam 库>\`，否则会误判“未安装”。
 
 ### Blender 权威渲染版本（2026-11-01 定稿，只准用这一个）
 
 | 项 | 值 |
 |---|---|
-| 路径 | `E:\SteamLibrary\steamapps\common\Blender\blender.exe` |
+| 路径 | `<Blender 安装目录>\blender.exe` |
 | 版本 | **Blender 5.2.2 LTS**，build hash `d13f752e3b9c`，build date 2026-09-15 |
 | 内置 Python | 3.13.13 |
-| 权威来源 | 桌面 `C:\Users\ASUS\Desktop\Blender.lnk` 指向此路径 |
+| 权威来源 | 桌面 `Blender.lnk` 指向此路径 |
 | Steam 依赖 | **免登录**：无 `steam_api64.dll` / `steam_appid.txt`，Steam 未运行也可直接跑 |
 
 渲染前先过版本校验（正斜杠路径在 bash / cmd / pwsh 里都能直接用）：
 
 ```text
-"E:/SteamLibrary/steamapps/common/Blender/blender.exe" --version   # 期望：Blender 5.2.2 LTS
+"<Blender 安装目录>/blender.exe" --version   # 期望：Blender 5.2.2 LTS
 ```
 
 **禁止事项（违反即视为基线污染）**
@@ -75,9 +75,9 @@
 **标准调用模板**
 
 ```text
-"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py -- --test   # 预览：960×901，约 5s
-"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b -P tools/blender-ship.py             # 正式底图：4704×4413，约 11s
-"E:/SteamLibrary/steamapps/common/Blender/blender.exe" -b --factory-startup -P tools/blender-ship.py   # 完全可复现
+"<Blender 安装目录>/blender.exe" -b -P tools/blender-ship.py -- --test   # 预览：960×901，约 5s
+"<Blender 安装目录>/blender.exe" -b -P tools/blender-ship.py             # 正式底图：4704×4413，约 11s
+"<Blender 安装目录>/blender.exe" -b --factory-startup -P tools/blender-ship.py   # 完全可复现
 ```
 
 **渲染规范**

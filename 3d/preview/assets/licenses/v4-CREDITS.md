@@ -33,7 +33,7 @@
   `tools/align-tex-style.py`、`tools/fuse-tex-detail.py`；老图备份在
   `tools/_bak/tex-hires-20261107162523/`。SDXL 本地生成，随仓库 MIT。
 - `assets/textures/panel/01..26`（任务面板，768²）：来自本机
-  `E:/ai-models/qwen-image-2.1/output/task-refs/<同名>_768.png`，是同一批图原先
+  `<Qwen-Image 模型目录>/output/task-refs/<同名>_768.png`，是同一批图原先
   512² 缩小版的**原生高分辨率原图**（实测 MAE 0.15 / 相关性 1.000），非重新出图。
   模型 Qwen-Image 2.1 Turbo，许可 **Qwen Research License · 非商用**；
   本项目为不发行的个人试玩版，按 2026-11-07 裁定可用于游戏内。
@@ -58,7 +58,7 @@
 - **出图**：`3d/tools/gen-qwen-room-skins.ps1`（本地 sdcpp Vulkan，
   Qwen-Image 2.1 Turbo Q4_K_M + Qwen3-VL-8B-Instruct UD-Q4_K_XL，
   768² / Turbo 8 步 / CFG 1.0 / euler / seed 20261107 起），
-  6 舱 × 墙面 + 地板 = 12 张，产物 `E:/ai-models/qwen-image-2.1/output/room-skins/`，
+  6 舱 × 墙面 + 地板 = 12 张，产物 `<Qwen-Image 模型目录>/output/room-skins/`，
   留档素材层 `returnlog_assets/unreferenced/qwen21/2.5d/room-skins/`（含 manifest）；仓库内不再保留。脚本内硬守卫拒绝铁板 4 舱。
 - **加工**：`3d/tools/bake-qwen-room-skins.py`。千问概念图带光照与透视边缘，
   按 `bake-refs.py` 红线**裁中心 88%** 去掉踢脚线 / 地面 / 顶部光斑，

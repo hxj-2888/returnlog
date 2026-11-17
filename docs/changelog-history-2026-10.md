@@ -767,7 +767,7 @@
 
 ### 美术 · 掩体/家具与环境的融合度
 
-- 新增 `tools/gen-materials.py`：用本地 **SDXL**（`D:\ai-models\sdxl-base`）生成 5 张家具表面材质
+- 新增 `tools/gen-materials.py`：用本地 **SDXL**（`<SDXL 模型目录>`）生成 5 张家具表面材质
   （`panel-metal` / `crate-steel` / `fabric-weave` / `table-composite` / `panel-white`）
   与 2 张程序化贴图（`hazard-stripe` 警戒斜纹、`ao-soft` 接地软阴影）。
   出图后统一「降饱和 → 冷调 → 四向镜像拼贴 → 回缩 1024」，`REPEAT` 平铺无接缝，色温与既有地板/墙面一致。

@@ -26,7 +26,7 @@
   5. `npm run 3d:export:rules` 重导规则快照（`3d/preview/data/rules.json`），消除改行后的 C6 源哈希漂移。
   6. 清理 11 个一次性调试产物（约 62.5 MB）按 `docs/ASSET_GOVERNANCE.md` §9 六步：
      冻结 → 完整备份 → 系统回收站 → 每批 ≤10 → 逐批校验 → 台账；备份按用户裁定落在
-     **`F:\returnlog_cleanup_20261115\backup\新返航录\`**；常设工具与已入库历史报告保留。
+     **`<仓外备份目录>`**；常设工具与已入库历史报告保留。
      台账见 `docs/ASSET_CLEANUP_LOG.md`，清单与性质见 `docs/ENGINEERING-SLIM-PLAN.md` §5。
 - **读数变化**（2026-11-15 本机实跑）：
   - `node tests/test-v3.cjs`：**971 通过 / 0 失败**（拆分前后断言数不变，控制台零报错）。
