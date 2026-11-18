@@ -308,6 +308,8 @@
         <button data-tpl="accuse">怀疑</button>
         <button data-tpl="vote">投他</button>
         <button data-tpl="support">作证</button>
+        <button data-tpl="wronglead">他反复带节奏</button>
+        <button data-tpl="grateful">我为他背过书</button>
         <button data-tpl="pipe">看见钻管道</button>
         <button data-tpl="red">看见红光</button>
         <button data-tpl="knife">看见出刀</button>
