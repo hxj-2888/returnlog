@@ -26,20 +26,23 @@
      不再只是"按舱室归类复用"。高难 8 个保持 2.5D 的独特玩法；
      普通任务从 10 型里选最贴任务语义的一型，并给出独立配置。 */
   const TASKS = {
-    '引擎组同步': { k:'sync', n:3, hold:0.6, targets:[[16,28],[46,60],[33,49]], color:'#F5A64A',
-      hint:'三条引擎通道各自调进亮带，并同时保持 0.6 秒' },
+    /* 高难=简单动作×更多次数，且单次不比 normal 简单：3 路/0.8s > 温控 2 路/0.6s。
+       每步都只是"拖进亮带"，可反复练；不靠收窄窗口。 */
+    '引擎组同步': { k:'sync', n:3, hold:0.8, targets:[[16,28],[46,60],[33,49]], color:'#F5A64A',
+      hint:'三条引擎通道各自调进亮带，并同时保持 0.8 秒' },
     '零件台': { k:'place', n:4, shapes:['▲','●','■','◆','✦','✚'], color:'#73A7FF',
       hint:'把四种零件按形状放回对应槽位；放错不重置' },
     '工具架': { k:'place', n:4, shapes:['✦','✚','◈','◇','▲','■'], color:'#5AD1C0',
       hint:'工具按形状归位；注意有一个诱饵槽' },
     '备用配电盘': { k:'wire', n:2, color:'#F0C674',
       hint:'接回配电盘上的两处断线；接错不重置' },
-    '氧气循环': { k:'pour', lo:58, hi:72, rate:32, color:'#57DB70',
-      hint:'把氧气注到 58~72 的亮带内再松手' },
-    '培养罐补液': { k:'pour', lo:44, hi:56, rate:44, color:'#00E5B0',
+    /* 高难=简单动作×3 杯（每杯判据同 normal：落进亮带即可）；窗口不收窄，只加次数。 */
+    '氧气循环': { k:'pour', cups:3, lo:58, hi:72, rate:38, color:'#57DB70',
+      hint:'连续配比 3 杯氧气，每杯注到 58~72 的亮带内再松手' },
+    '培养罐补液': { k:'pour', cups:1, lo:44, hi:56, rate:44, color:'#00E5B0',
       hint:'补液到 44~56 之间再松手；溢出或不足可重注' },
-    '温控面板': { k:'sync', n:2, hold:0.8, targets:[[25,40],[55,70]], color:'#3DC7F2',
-      hint:'两路温控同时进入亮带并保持 0.8 秒' },
+    '温控面板': { k:'sync', n:2, hold:0.6, targets:[[25,40],[55,70]], color:'#3DC7F2',
+      hint:'两路温控同时进入亮带并保持 0.6 秒' },
     '电路维修': { k:'wire', n:3, color:'#E0574F',
       hint:'直接操控面板图里的三处断线；接错不重置' },
     '变压器换芯': { k:'swap', color:'#B07CFF',
@@ -60,15 +63,19 @@
       hint:'翻两瓶药，图标相同即配对；配错不重置' },
     '消毒循环': { k:'valve', n:3, color:'#00E5B0',
       hint:'把三个阀门转到各自的刻度线；每点一次转 45°' },
-    '靶道校准': { k:'aim', hits:3, speed:56, zone:9, color:'#E0574F',
-      hint:'准星进亮带时点击，连中 3 次；这次准星更快' },
+    /* 2026-11-18 难度适配：hits 3→4（难在"连续命中"的执行稳定度），
+       窗口保持 zone9/speed56≈161ms —— 那是 11-15 登记的可完成性下界，不越线。 */
+    '靶道校准': { k:'aim', hits:4, speed:56, zone:9, color:'#E0574F',
+      hint:'准星进亮带时点击，连中 4 次；窗口没变，要的是稳' },
     '工作台': { k:'place', n:5, shapes:['✦','✚','◈','◇','▣','▲'], color:'#F5A64A',
       hint:'把五件工具按形状归位；槽位里有一个诱饵' },
     '弹药清点': { k:'sort', n:5, bins:['子弹','弹壳'], items:['5.56','9mm','.45','壳','箱'],
       assign:[0,0,0,1,1], color:'#F0C674',
       hint:'把子弹和弹壳分开清点' },
+    /* 2026-11-18 用户裁定：难度靠**多次对齐/精度/节奏**排，**不靠记忆力**。
+       线索常驻（玩家随时可看），难点是五位编号的一次次校准输入：比 normal 的三位多两位。 */
     '监控墙重连': { k:'code', code:'4271', clue:'屏幕角落的旧编号：4 - 2 - 7 - 1',
-      color:'#3DC7F2', hint:'按旧编号重连监控墙；输错不重置' },
+      color:'#3DC7F2', hint:'照旧编号逐位对齐重连监控墙；线索常驻，输错不重置' },
     '操作台': { k:'sequence', n:4, symbols:['▣','▤','◐','◑'], color:'#73A7FF',
       hint:'按屏幕上的按键顺序依次按下；按错不重置' },
     '录像归档': { k:'code', code:'317', clue:'档案盒侧面：A - 3 - 7',
@@ -152,8 +159,14 @@
   #mg svg.ln{position:absolute;inset:0;pointer-events:none}
   #mg .grid{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,46px);gap:7px}
   #mg .slot{border:1px dashed #3A4454;border-radius:7px;display:flex;align-items:center;
-    justify-content:center;color:#5C6678;font-size:16px;cursor:pointer}
+    justify-content:center;color:#5C6678;font-size:16px;cursor:pointer;position:relative}
+  /* 槽位画形状水印：旧版答案藏在 dataset.s 不画出来，玩家只能点错反推（信息缺失≠难度）。 */
+  #mg .slot::before{content:attr(data-s);position:absolute;color:#4E5B70;font-size:14px;opacity:.55}
+  #mg .slot.sel-hint{border-color:#F0C674;background:rgba(240,198,116,.10)}
+  #mg .slot.sel-hint::before{color:#F0C674;opacity:1}
   #mg .slot.filled{border-style:solid;border-color:#4A3C1E;background:rgba(240,198,116,.08);color:#F0C674}
+  #mg .slot.filled::before{content:none}
+  #mg .slot.decoy::before{color:#8A6A4A}
   #mg .tray{display:flex;gap:7px}
   #mg .blk{width:56px;height:30px;border-radius:7px;border:1px solid #313B4B;background:#0D1117;
     color:#DDE3EC;font-size:15px;cursor:pointer}
@@ -611,17 +624,23 @@
     const wrap = el('div', null);
     const grid = el('div', 'grid'), tray = el('div', 'tray');
     let sel = null, placed = 0;
-    setProg(0, N, '共 ' + N + ' 个零件：先点下方零件，再点形状相符的槽位（有一个槽是诱饵）');
+    /* 槽位水印 + 选中高亮：把"点错反推"变成"看清楚再点"的执行挑战；诱饵仍要辨认。 */
+    setProg(0, N, '共 ' + N + ' 个零件：槽位上标着形状，先点下方零件，再点同一个形状的槽（有一个诱饵槽）');
+    const clearSlotHints = function () {
+      Array.prototype.forEach.call(grid.children, function (d) { d.classList.remove('sel-hint'); });
+    };
     slots.forEach(function (s) {
       const d = el('div', 'slot'); d.dataset.s = s;
+      if (s === decoy) d.classList.add('decoy');
       d.onclick = function () {
         if (api.done || !sel || d.classList.contains('filled')) return;
         if (d.dataset.s !== sel.dataset.s) {
-          sel.classList.remove('sel', 'hint'); sel = null;
+          sel.classList.remove('sel', 'hint'); sel = null; clearSlotHints();
           tip('形状不符 · 已放的保留，每个零件只认一个槽', true); return;
         }
         d.classList.add('filled'); d.textContent = sel.dataset.s;
-        sel.classList.add('used'); sel.classList.remove('sel', 'hint'); sel = null; placed++;
+        sel.classList.add('used'); sel.classList.remove('sel', 'hint'); sel = null; clearSlotHints();
+        placed++;
         setProg(placed, N, placed === N ? '全部归位' : '已放置 ' + placed + ' / ' + N + '，继续');
         if (placed === N) settle(true, '放置完成 · 任务成功');
       };
@@ -633,7 +652,11 @@
         if (api.done || b.classList.contains('used')) return;
         if (sel) hintEl(sel, false);
         sel = b; b.classList.add('sel'); hintEl(b, true);
-        tip('已选零件「' + s + '」：点形状相符的槽位');
+        clearSlotHints();
+        Array.prototype.forEach.call(grid.children, function (d) {
+          if (!d.classList.contains('filled') && d.dataset.s === s) d.classList.add('sel-hint');
+        });
+        tip('已选零件「' + s + '」：点高亮的同形状槽位');
       };
       tray.appendChild(b);
     });
@@ -727,6 +750,9 @@
     const bin = el('div', 'pourbin');
     const vessel = el('div', 'vessel'), fill = el('i', 'fill'), zone = el('i', 'zone');
     const lo = cfg('lo', 52), hi = cfg('hi', 68), rate = cfg('rate', 38);
+    /* 高难=简单动作×更多次数：cups 为连续注满杯数，每杯判据相同，只加次数不收窗口。 */
+    const cups = Math.max(1, cfg('cups', 1));
+    let done = 0;
     zone.style.bottom = lo + '%';
     zone.style.height = (hi - lo) + '%';
     vessel.appendChild(fill); vessel.appendChild(zone);
@@ -735,7 +761,10 @@
     const hold = el('button', null, '按住注液 · 松开确认');
     bin.appendChild(vessel); bin.appendChild(ticks);
     bd.appendChild(bin); bd.appendChild(hold);
-    setProg(0, 1, '按住注液，落在 ' + lo + '~' + hi + ' 之间再松手');
+    const label = function () { return cups > 1
+      ? '已配 ' + done + ' / ' + cups + ' 杯 · 按住注液，落在 ' + lo + '~' + hi + ' 之间再松手'
+      : '按住注液，落在 ' + lo + '~' + hi + ' 之间再松手'; };
+    setProg(0, cups, label());
     let v = 0, held = false, last = 0;
     hold.addEventListener('pointerdown', function (e) {
       e.preventDefault(); held = true;
@@ -747,7 +776,13 @@
       held = false;
       if (v > hi) { v = 0; fill.style.height = '0%'; tip('注过头了 · 倒掉重注这一杯，任务不重置', true); }
       else if (v < lo) { v = 0; fill.style.height = '0%'; tip('注得不够 · 重新按住注液', true); }
-      else settle(true, '配比到位 · 任务成功');
+      else {
+        done++;
+        if (done >= cups) { settle(true, '配比到位 · ' + cups + ' 杯全部完成'); return; }
+        v = 0; fill.style.height = '0%';
+        setProg(done, cups, label());
+        tip('第 ' + done + ' 杯到位 · 再来一杯（共 ' + cups + ' 杯）', 'good');
+      }
     });
     hold.addEventListener('pointercancel', function () { held = false; });
     function loop(ts) {
@@ -1091,6 +1126,8 @@
   function buildCode(bd) {
     const code = String(cfg('code', '4271'));
     let entered = '';
+    /* 线索常驻：2026-11-18 用户裁定，难度不靠"藏线索考记忆"。
+       编号位数（normal 3 位 / hard 4 位）才是差异，逐位对齐输入可反复练习。 */
     bd.appendChild(el('div', 'tip', cfg('clue', '按提示编号输入')));
     const box = el('div', 'codebox');
     const cells = [];
