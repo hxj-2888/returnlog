@@ -30,6 +30,105 @@
     return v * SK.CARRY.nightReadSec;
   }
 
+  /* ---------------- 统一身份轴（2026-11-06 用户裁定 · 2026-11-18 从 js/game.js 归位） ----------------
+     h = identityAxis(a,t) ∈ [0,1]：a 认为 t 是**人类**的程度。一张表两个导出：
+       人类 AI 敌对 = 1−h（怀疑 / 指控 / 投票 / 开枪）；异形 AI 敌对 = h（出刀 / 选靶）。
+     搬过来的原因有两条，都不是整洁癖：
+       1) 数值表 `IDENTITY` 按红线 14 必须住在 js/ai/sanity.js，函数留在 game.js 就够不着；
+       2) 本文件的 topSus 现在要读它（R12.8「人类侧改读统一轴」），
+          而经典脚本的加载顺序是 t2/ai.js 早于 game.js —— 反向依赖会直接拿不到函数。
+     函数体与搬家前逐行一致，只改了三处取值方式：G → _t.G()、IDENTITY → SKSanity.IDENTITY、
+     SKSanity → SK。game.js 用同名局部别名直调，所有调用点零改动。 */
+  const IDENTITY = SK.IDENTITY;
+  const ID_EVIDENCE = {saw_knife:1,saw_pipe:1,saw_sabotage:1,saw_bot:1,saw_red:1,saw_breaker:1};
+  function hasIdEvidence(x){
+    return !!(x&&x.kinds&&x.kinds.some(k=>ID_EVIDENCE[k]));
+  }
+  function identityPrior(a){
+    const G=global.SKV3._t.G();
+    if(!a||!G)return 0.5;
+    const others=G.agents.filter(x=>x.alive&&x!==a).length;
+    if(others<=0)return 0.5;
+    const H0=a.alien?11:10;   /* 除自己外的人类数：异形看 11，人类看 10 */
+    const A0=a.alien?3:4;     /* 除自己外的异形数：异形看 3，人类看 4 */
+    /* 先验条件化：已认出的队友（异形 a.mates）/ 已确证的异形（人类 mind.known）
+       只从“其他异形”里扣，且只扣活着的人。不读系统阵营表。 */
+    let knownA=0,knownDeadA=0;
+    const kn=a.alien?(a.mates||{}):((a.mind&&a.mind.known)||{});
+    for(const k in kn){
+      const x=G.agents[+k];
+      if(!x||x===a)continue;
+      if(x.alive)knownA++;
+      else if(x.deathCause!=='vote')knownDeadA++;   /* 已知的异形死了，不再按未知分摊 */
+    }
+    let hx=0,ax=0,unknown=0;
+    for(const x of G.agents){
+      if(x===a||x.alive)continue;
+      if(x.deathCause==='vote'){ if(x.alien)ax++; else hx++; }
+      else if(!kn[x.i])unknown++;          /* 已知异形的死不算未知 */
+    }
+    const H=Math.max(0,H0-hx), A=Math.max(0,A0-ax-knownA-knownDeadA);
+    const denom=Math.max(1e-6,H+A);
+    const hAlive=Math.max(0,H-unknown*H/denom);
+    const pool=Math.max(1,others-knownA);
+    return Math.max(IDENTITY.priorMin,Math.min(IDENTITY.priorMax,hAlive/pool));
+  }
+  function identityAxis(a,t){
+    const G=global.SKV3._t.G();
+    if(!a||!t||!G)return 0.5;
+    if(a.mind&&a.mind.known&&a.mind.known[t.i])return 0;
+    if(a.alien&&a.mates&&a.mates[t.i])return 0;
+    const af=a.mind&&a.mind.almost;
+    if(af&&af.foe&&af.foe[t.i]&&hasIdEvidence(af.foe[t.i]))return IDENTITY.almostAlien;
+    if(af&&af.friend&&af.friend[t.i])return IDENTITY.almostHuman;
+    /* 终结者时刻的身份公开是**公开事件**（R2.9），不是"谁偷看了阵营表"：
+       规则把每个人的阵营广播给全场，两侧读同一份、判据一致（一张表两个导出）。
+       ⚠ 2026-11-18 补：此前 `G.revealAll` 只点亮漂浮名牌，**没有喂进任何 AI 判定** ——
+       所以"亮身份"之后残局里两个 AI 仍然互相客气、不把对方当敌人，用户据此报的 bug 成立。
+       硬锚（known / 队友 / almost）排在它前面，保持不变：亲眼所见与已认出的队友
+       不该被一次广播改写方向。 */
+    if(G.revealAll)return t.alien?0:0.99;
+    /* h 只吃“人类诊断性行为”（cred）。普通 sus 走原来的嫌疑链，
+       不再从 h 里减：人类也会开枪/拖尸/被拘留，减掉会把真人类误判成同类。
+       2026-11-18：cred 已是双极轴（R12.6），所以这一项可正可负 ——
+       正端把人推向"像人类"，负端推向"像异形"，仍然只有一条轴。 */
+    const cred=(a.mind&&a.mind.cred&&a.mind.cred[t.i])||0;
+    return Math.max(0.01,Math.min(0.99,
+      identityPrior(a)+IDENTITY.evidenceW*Math.max(-0.5,Math.min(0.5,cred))));
+  }
+  function identityAlien(a,t){
+    if(!a||!t||!global.SKV3._t.G())return null;
+    return 1-identityAxis(a,t);
+  }
+  function hostileProb(a,t){
+    if(!a||!t)return 0;
+    const h=identityAxis(a,t);
+    return a.alien ? h : (1-h);
+  }
+  function trustProb(a,t){ return 1-hostileProb(a,t); }
+  function hostileTo(a,t){ return hostileProb(a,t)>0.5; }
+
+  /* 立场轴对"敌对"的贡献（R12.8）：只读 cred 的**偏离先验**那一段，
+     并且按阵营取相反的一半 —— 人类看负端（带节奏带错过人 ⇒ 像异形），
+     异形看正端（咬得真准 ⇒ 像人类对手）。这是同一条轴的第二个导出，不是第二张表。
+     硬锚一律不参与：known / 队友有自己的分支，混进来就是重复计数。
+     量纲：sus 与这一段同为 0~1 的"怀疑强度"，先验本身不计（否则残局人人 0.48 起步，
+     激进档门槛 0.36 会变成见人就开枪）。 */
+  function axisThreat(a,i){
+    const m=a&&a.mind;
+    if(!m||i==null)return 0;
+    if(m.known&&m.known[i])return 0;
+    if(a.alien&&a.mates&&a.mates[i])return 0;
+    const c=(m.cred&&m.cred[i])||0;
+    const d=Math.max(-0.5,Math.min(0.5,c));
+    return a.alien?Math.max(0,d):Math.max(0,-d);
+  }
+  /* 人类侧软证据合流：手里有实证用实证，只有"这人总在带节奏"这种立场印象时用立场轴。
+     开枪 / 会议点名 / 投票兜底三条链共用它 ⇒ 不新增第二套门槛。 */
+  function beliefOf(a,i,forNight){
+    return Math.max(susOf(a,i,forNight),axisThreat(a,i));
+  }
+
   function topSus(a, min, forNight) {
     if (!a || !a.mind) return null;
     let best = null, bi = null, bestEnv = -1;
@@ -38,9 +137,26 @@
        环境读数（自己记着的目击 / 当众指认 / 看得见的红光或拖尸）不另立一套权重，
        因此不会变成「按环境分数定罪」，也仍然不读任何人的私有 mind。 */
     const eps = (SK.MIND && SK.MIND.envTieEps) || 0.06;
+    const th = (min == null ? 0.5 : min);
+    /* 2026-11-18（用户裁定「改读统一轴」）：候选池不再只有 mind.sus。
+       一条实证都没有、但反复带头把无辜者投出去的人，cred 已经在负端 ——
+       他必须能被人类的开枪 / 点名 / 投票兜底读到，否则"扩散追责"就只是账面数字。
+       分数一律走 beliefOf（嫌疑与立场取较强的一条），**门槛仍是原来那一条**。 */
+    const seen = {};
+    for (const k in a.mind.sus) seen[k] = 1;
     for (const k in a.mind.sus) {
-      const i = +k, s = susOf(a, i, forNight);
-      if (s < (min == null ? 0.5 : min)) continue;
+      const i = +k, s = beliefOf(a, i, forNight);
+      if (s < th) continue;
+      const e = envEstimate(a, i);
+      const env = e.score * e.conf;
+      if (best == null || s > best + eps || (Math.abs(s - best) <= eps && env > bestEnv)) {
+        best = s; bi = i; bestEnv = env;
+      }
+    }
+    for (const k in (a.mind.cred || {})) {
+      if (seen[k]) continue;
+      const i = +k, s = beliefOf(a, i, forNight);
+      if (s < th) continue;
       const e = envEstimate(a, i);
       const env = e.score * e.conf;
       if (best == null || s > best + eps || (Math.abs(s - best) <= eps && env > bestEnv)) {
@@ -209,8 +325,15 @@
     /* cred（正向信任）跨夜保留，按 SKSanity.CRED.decay 慢衰减 ——
        洗白是长期投资，一夜做好事第二天就清零的话，伪装就没有意义了。 */
     const keepCred=(o)=>{
-      const out={},d=SKSanity.CRED.decay,cap=SKSanity.CRED.cap;
-      for(const k in (o||{})){const v=o[k]*d;if(v>0.04)out[k]=Math.min(cap,v);}
+      /* 2026-11-18：cred 是双极轴（R12.6），负端同样按 ×decay 往回收、按 floor 夹紧。
+         原来只留 `v>0.04`，等于每晚把"这人很像异形"的印象悄悄抹平 —— 正向能攒、负向留不住，
+         一条轴就变成了单向。 */
+      const out={},d=SKSanity.CRED.decay,cap=SKSanity.CRED.cap,floor=SKSanity.CRED.floor;
+      for(const k in (o||{})){
+        const v=o[k]*d;
+        if(Math.abs(v)<=0.04)continue;
+        out[k]=Math.max(floor,Math.min(cap,v));
+      }
       return out;
     };
     /* ---- 嫌疑跨夜衰减（2026-11-01）----
@@ -792,6 +915,11 @@
     sequenceCue: sequenceCue,
     statementRelation: statementRelation,
     hypotheses: hypotheses, refreshHyps: refreshHyps,
-    hypothesisSpread: hypothesisSpread, hypothesisEvidence: hypothesisEvidence
+    hypothesisSpread: hypothesisSpread, hypothesisEvidence: hypothesisEvidence,
+    /* 2026-11-18：统一身份轴从 js/game.js 归位到这里（数值真源仍是 SKSanity.IDENTITY） */
+    hasIdEvidence: hasIdEvidence, identityPrior: identityPrior,
+    identityAxis: identityAxis, identityAlien: identityAlien,
+    hostileProb: hostileProb, trustProb: trustProb, hostileTo: hostileTo,
+    axisThreat: axisThreat, beliefOf: beliefOf
   });
 })(typeof window !== 'undefined' ? window : globalThis);

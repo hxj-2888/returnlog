@@ -2,11 +2,11 @@
   "schema_version": 1,
   "note": "2.5D / 3D 推理与发言的唯一规则真源快照。勿手改；改 js/ 后重跑 npm run 3d:export:rules，check-parity 会拦截漂移。玩家输入映射、地形/A*/碰撞/LOS、美术允许各自实现。",
   "sources": {
-    "js/ai/sanity.js": "51041664e640",
+    "js/ai/sanity.js": "1c42d3308520",
     "js/ai/traits.js": "a6395c194def",
-    "js/t2/ai.js": "fd39ce44403e",
+    "js/t2/ai.js": "fa16a2bcd30c",
     "js/t2/decision.js": "0c4635aba966",
-    "js/game.js": "55a30dce6688",
+    "js/game.js": "f6caeb17997a",
     "js/data/lines.js": "8affa9a757be"
   },
   "tables": {
@@ -15,11 +15,11 @@
       "KNIFE": {
         "witnessCap": 3,
         "minConceal": 0.34,
-        "crowdR": 9,
-        "crowdN": 3,
         "boldBase": 0.5,
         "boldSpan": 0.16,
-        "lockAtStart": 0
+        "lockAtStart": 0,
+        "victimSus": 0.9,
+        "victimGrudge": 0.7
       },
       "RED_BODY": {
         "dur": 1.5
@@ -42,22 +42,20 @@
         }
       },
       "HUNT": {
-        "memorySec": 25
+        "memorySec": 25,
+        "repickSec": 8,
+        "incumbentPen": 6,
+        "jitter": 4
       },
       "SABOTAGE": {
         "witnessCap": 1,
-        "minConceal": 0.58,
-        "crowdR": 10,
-        "crowdN": 3
+        "minConceal": 0.58
       },
       "BREAKER": {
         "witnessCap": 1,
-        "minConceal": 0.45,
-        "crowdR": 10,
-        "crowdN": 3
+        "minConceal": 0.45
       },
       "DISGUISE": {
-        "audienceR": 8,
         "base": 1,
         "timeCost": 0.02,
         "riskCost": 1.2,
@@ -114,6 +112,7 @@
         },
         "decay": 0.92,
         "cap": 1.2,
+        "floor": -0.5,
         "accuseShieldAt": 0.35,
         "voteShield": 0.55,
         "testimony": 0.6,
@@ -125,6 +124,17 @@
           "fakeTask": "fakeWork"
         }
       },
+      "IDENTITY": {
+        "evidenceW": 1,
+        "almostAlien": 0.05,
+        "almostHuman": 0.95,
+        "targetMulMin": 0.5,
+        "targetMulMax": 1.25,
+        "alienPow": 2,
+        "alienExplore": 0.08,
+        "priorMin": 0.02,
+        "priorMax": 0.98
+      },
       "ACCOUNT": {
         "correct": {
           "cred": 0.1
@@ -133,8 +143,13 @@
           "cred": -0.14,
           "sus": 0.09
         },
+        "wrongLead": {
+          "grudge": 0.35
+        },
         "leadMul": 2.2,
-        "voterMul": 0.55
+        "voterMul": 0.55,
+        "spamAt": 3,
+        "spamMul": 1.6
       },
       "FRAME": {
         "chance": 0.85,
@@ -147,6 +162,11 @@
         "minWarm": 0.22,
         "range": 14,
         "followChance": 0.45
+      },
+      "GRATITUDE": {
+        "revive": 0.55,
+        "dragToMed": 0.35,
+        "defended": 0.45
       },
       "TESTIFY": {
         "dirtySus": 0.3,
@@ -392,7 +412,7 @@
         "confLoss": 0.78
       },
       "FIRST": {
-        "chance": 0.45,
+        "chance": 0.25,
         "firstLine": 0.6,
         "wgt": 0.22,
         "leadMul": 1.35,
@@ -410,8 +430,8 @@
         "nudgeGapMs": 5000
       },
       "COFRAME": {
-        "chance": 0.55,
-        "minorityChance": 0.18,
+        "chance": 0.25,
+        "minorityChance": 0.1,
         "maxAccusers": 3,
         "extraWgt": 0.16,
         "extraWgtDecay": 0.72
@@ -430,6 +450,7 @@
       "MEET": {
         "perNight": 2,
         "reportsPerAgent": 2,
+        "reportR": 2.4,
         "pauseClock": true,
         "discussDay": 60,
         "discussPre": 50,
@@ -460,7 +481,7 @@
         "busChance": 0.2
       },
       "TERMINATOR": {
-        "night": 10,
+        "night": 8,
         "bullets": 1,
         "reveal": true
       },
@@ -940,7 +961,16 @@
       "hypotheses",
       "refreshHyps",
       "hypothesisSpread",
-      "hypothesisEvidence"
+      "hypothesisEvidence",
+      "hasIdEvidence",
+      "identityPrior",
+      "identityAxis",
+      "identityAlien",
+      "hostileProb",
+      "trustProb",
+      "hostileTo",
+      "axisThreat",
+      "beliefOf"
     ],
     "SKT2Decision": [
       "seatNo",
@@ -1089,11 +1119,11 @@
       ]
     },
     "SKSanity.credTestimony": {
-      "sha": "11581f7e4855",
+      "sha": "8ed7ee59b80a",
       "nums": [
         1,
         0,
-        0,
+        0.35,
         0.6
       ]
     },
@@ -1134,7 +1164,7 @@
       ]
     },
     "SKT2AI.topSus": {
-      "sha": "9f9db5ad6444",
+      "sha": "612c8e26d8b5",
       "nums": [
         1,
         2026,
@@ -1142,6 +1172,10 @@
         5,
         0.06,
         0.5,
+        2026,
+        11,
+        18,
+        1,
         3,
         4
       ]
@@ -1186,12 +1220,17 @@
       ]
     },
     "SKT2AI.mindReset": {
-      "sha": "c3776ca08275",
+      "sha": "b4ceb02b5b50",
       "nums": [
         20,
         0.05,
         0.05,
         0.8,
+        2026,
+        11,
+        18,
+        2.6,
+        0.04,
         0.04,
         2026,
         11,
@@ -1595,6 +1634,102 @@
         0.01
       ]
     },
+    "SKT2AI.hasIdEvidence": {
+      "sha": "a323f1bf6963",
+      "nums": []
+    },
+    "SKT2AI.identityPrior": {
+      "sha": "edb03ffa96eb",
+      "nums": [
+        0.5,
+        0,
+        0.5,
+        11,
+        10,
+        11,
+        10,
+        3,
+        4,
+        3,
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        6,
+        0,
+        1
+      ]
+    },
+    "SKT2AI.identityAxis": {
+      "sha": "2042734fbcf8",
+      "nums": [
+        0.5,
+        0,
+        0,
+        9,
+        2026,
+        11,
+        18,
+        0,
+        0.99,
+        2026,
+        11,
+        18,
+        2.6,
+        0,
+        0.01,
+        0.99,
+        0.5,
+        0.5
+      ]
+    },
+    "SKT2AI.identityAlien": {
+      "sha": "0a65932ca254",
+      "nums": [
+        1
+      ]
+    },
+    "SKT2AI.hostileProb": {
+      "sha": "dea265eae4f2",
+      "nums": [
+        0,
+        1
+      ]
+    },
+    "SKT2AI.trustProb": {
+      "sha": "7cdbec525655",
+      "nums": [
+        1
+      ]
+    },
+    "SKT2AI.hostileTo": {
+      "sha": "1f080d32db69",
+      "nums": [
+        0.5
+      ]
+    },
+    "SKT2AI.axisThreat": {
+      "sha": "b09c7abfde15",
+      "nums": [
+        0,
+        0,
+        0,
+        0,
+        0.5,
+        0.5,
+        0,
+        0
+      ]
+    },
+    "SKT2AI.beliefOf": {
+      "sha": "bec4a4c25db9",
+      "nums": []
+    },
     "SKT2Decision.seatNo": {
       "sha": "19e4d79860be",
       "nums": [
@@ -1793,12 +1928,12 @@
   },
   "stats": {
     "modules": 4,
-    "table_keys": 50,
-    "functions": 73,
+    "table_keys": 52,
+    "functions": 82,
     "fn_count": {
       "SKSanity": 16,
       "SKTrait": 3,
-      "SKT2AI": 41,
+      "SKT2AI": 50,
       "SKT2Decision": 13
     }
   }

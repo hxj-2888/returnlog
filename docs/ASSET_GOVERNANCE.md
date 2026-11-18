@@ -426,6 +426,35 @@
 | 交互元素与连续输入（检索 2026-11-15） | https://gameaccessibilityguidelines.com/full-list/ | Game Accessibility Guidelines | 公开指南 | 「Ensure interactive elements / virtual controls are large and well spaced, particularly on small or touch screens」；「Avoid repeated inputs (button-mashing/quick time events)」 | 阀门每点 15° 需 27 次点击；靶道亮带窗口 121ms；配对 4 对需记忆 8 张牌 |
 | 隐藏身份与部分观察（检索 2026-11-15） | https://arxiv.org/abs/1906.02330 | Jack Serrino 等（NeurIPS 2019） | arXiv 预印本（见站点） | 隐藏身份游戏中，智能体只能依据**部分观察**维护对他人身份的信念；公开行为/发言是证据，不是身份真值 | 开枪声只给方位；AI 不能读死者阵营，只能用自己的目击/已确知信息推断 |
 | 公开证词与指控（检索 2026-11-15） | https://boardgamegeek.com/boardgame/128882/resistance-avalon | Bezier Games / BoardGameGeek 公开规则页 | 公开规则页（见站点） | 集会中的公开指控、作证与投票是核心证据通道；隐藏身份玩家可以说谎，信息天然不对称 | 开枪目击 → 会议证词；听见枪声 → 弱证词；异形可编造“看见他开枪” |
+| 指控者自身的信念更新（检索 2026-11-18） | https://arxiv.org/abs/2609.12446 | arXiv 预印本《Do LLMs Trust the Accuser or the Accusation? Measuring Belief Shifts…》 | arXiv 预印本（见站点） | 原文：「Models become more suspicious of the accused target and less suspicious of the accuser.」；「Larger models better resist accusations from accusers they already distrust.」——听者**同时**维护「对被告的怀疑」与「对指控者的怀疑」两条账，且对已被不信任的指控者，其后续指控会被抵抗 | 本批「带头冤枉人 → 全场对发起者扣分并记情绪」；以及「他的后续证言不带人」 |
+| 协同欺骗的可检测性（检索 2026-11-18） | https://arxiv.org/abs/2504.04072 | S. Golechha 等（NeurIPS 2025） | arXiv 预印本 / 会议论文（见站点） | 把 Among Us 作为「度量与检测代理式欺骗」的沙盒，欺骗行为（含扎堆指控）属**可检测、可度量**的信号，玩家会用行为模式而非单句内容读阵营 | 「多人同时指控同一人」被玩家反推成异形团伙信号 —— 本批只压协同触发**频率**，不拆机制 |
+| 内鬼制造互相指控的公开战术（检索 2026-11-18） | https://among-us.fandom.com/wiki/Guide:Impostor | Among Us Wiki（Fandom 社区） | CC-BY-SA（见站点） | 公开指南把「让在场的人互相指控 / 借势踩人」列为内鬼常规打法，即协同指控是类型片公认战术，不是本作自造 | 保留 `COFRAME/FIRST.maxAccusers = 3`（人数上限不动），只降概率 |
+| 2D 可见性 = 遮挡 ∩ 距离 ∩ 朝向（检索 2026-11-18） | https://www.redblobgames.com/articles/visibility/ | Amit Patel（Red Blob Games） | 公开教程（见站点） | 先按墙/遮挡求出可见集，再与**距离圆**或**角度锥**求交来限制视野；原文把它描述成「手电效应」——前面看得远、身后看不见 ⇒ 单用半径不是可见性判据 | 行凶 / 假装做任务 / 被追击四处判定废弃纯格数（`crowdAt`、`audienceR`、固定 6 格），统一走 `observerVisionAt` |
+| AI 视锥 + 遮挡的两步判据（检索 2026-11-18） | https://discussions.unity.com/t/how-do-you-create-a-line-of-sight-for-ai/64949 | Unity 官方论坛公开问答 | 公开问答（见站点） | 「A solid first step is to perform a frustum test…」——先用角度/视锥粗筛，再做遮挡射线；两步都缺就会把背后与墙外的人算成目击者 | 同上（第二独立来源；本作对应 `aiCanSee → observerVisionAt`） |
+
+> **2026-11-18 登记（AI 社交追责扩散 / 统一身份轴 / 感知视野制）**：上 6 条一律按 §14.2 第②条作为
+> **方法论与技术指导**吸收，未下载、未引用任何代码或素材文件。
+> **比对**：公开口径是「听者同时维护对被告与对指控者的两条信念，且指控者的信誉会反过来抑制他后续指控的效力」
+> ＋「协同扎堆指控是公开公认的内鬼战术，属可检测信号」＋「可见性必须先过遮挡，再用距离圆与角度锥求交」。
+> 本项目现状是：① `settleAccountability` 只对**投票者**回写 cred/grudge，且带头者判定读了一个从未赋值的
+> `m.lead`（真值写在 `ctx.lead`），×2.2 恒落在第一个投票的人身上；② `cred` 被 `Math.max(0, …)` 夹成单向轴，
+> 「越像异形」这一半在数据上不存在，人类侧的开枪 / 点名只读 `sus`、不读统一身份轴；
+> ③ 异形扎堆同指的触发概率（`COFRAME 0.55` / `FIRST 0.45`，各带 3 人附议）高到让玩家一句「三个人咬同一个就是异形」
+> 直接反推阵营；④ `crowdAt` / `DISGUISE.audienceR` / `noticeAction` 仍按固定格数数"有几个人看着我"，
+> 违反已写定的 R5.3「视野玩家与 AI 完全一致」。
+> **采纳**：① 追责扩散到**发起者对全场**（人类侧 −cred 且 +grudge，咬对时反向 +cred；异形侧读同一条轴，
+> 不另写规则）；② `cred` 改**双极**轴，下限 −0.5（更深只由 `known` 硬锚给出），人类开枪/点名/投票兜底
+> 与嫌疑分取较强的一条 `max(sus, −cred)`，**不新增第二套门槛**；③ 协同诬陷与先发制人**只降触发概率**
+> （0.55→0.25 / 0.18→0.10 / 0.45→0.25），`maxAccusers` 保持 3，人类的同指与跟票链（R14.4、`SOCIAL.pileOn`）
+> 一行不动 —— 多人同指本来就是人类也会做的事，拆掉它是把类型片战术当缺陷；
+> ④ 行凶 / 伪装 / 被追击四类改走 `observerVisionAt` 单一判据，废弃 `crowdAt` 与残留的死参数 `SIGHT.aiCapR`。
+> **不采纳**：把「指控次数」做成新的全局计数器或发言额度（`ARCHITECTURE.md §10` 硬红线「不新增实体 / 池 / 配额」）
+> ——改为复用已有的整局 `mind.heard` 滑窗（R11.7），并顺带修掉玩家证词绕过 `deliverTestimony` 的那处缺陷；
+> 把 `sus` 并进身份轴（2026-11-05 裁定明写「普通 sus 走原来的嫌疑链，不从 h 里减」，本批只在**人类软层**取二者较强，
+> 不改 h 的定义）；给异形加"识别带节奏者"的新阈值（红线 11 的"不读阵营表"）。
+> **判据**：同 seed 蒙特卡洛两臂 —— 带头冤枉者的全场 cred 必须能落到 0 以下并被人类枪口读到；
+> 玩家在同一场会议里重复点同一条「亲眼看见」模板，第二次起不得再加嫌疑分；
+> 异形扎堆同指的每场触发率下降而**人数上限仍为 3**；亮舱观众不再被 8 格截断。
 
 > **2026-11-14 登记（2.5D 运行时卡顿复测）**：上 4 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件。

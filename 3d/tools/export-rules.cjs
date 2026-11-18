@@ -136,7 +136,10 @@ function buildRules() {
     MEM_MAX: grabNumber(texts.ai, /const MEM_MAX\s*=\s*([\d.]+)/, 'SKT2AI.MEM_MAX'),
     SEEN_WORD: grabObject(texts.ai, 'SEEN_WORD', 'SKT2AI.SEEN_WORD'),
     EV_W: grabObject(texts.game, 'EV_W', 'game.js EV_W'),
-    ID_EVIDENCE: grabObject(texts.game, 'ID_EVIDENCE', 'game.js ID_EVIDENCE'),
+    /* 2026-11-18：ID_EVIDENCE 随身份轴整条判据链从 game.js 归位到 js/t2/ai.js
+       （经典脚本加载顺序禁止 t2/ai.js 反向依赖 game.js，见交接台账 §2.2）。
+       真源换了地方，导出链必须跟着换 —— 否则 3D 拿不到身份级证据表。 */
+    ID_EVIDENCE: grabObject(texts.ai, 'ID_EVIDENCE', 't2/ai.js ID_EVIDENCE'),
     MEET_SCHED_note: 'MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值',
   };
 

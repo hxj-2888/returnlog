@@ -10,6 +10,96 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · AI 社交追责扩散 / 统一身份轴 / 感知视野制 / 报告公平 / 被击倒者认人] — 2026-11-18
+
+- **动机**（用户裁定，10 条原文口径见交接台账）：
+  1. 团伙指控「**只降概率，保留 3 人**」——人类 AI 也会一起指控一个人，**不为修复团伙指控而移除**；
+  2. 刷屏「**采用会议内去重**」，不新增发言额度；
+  3. 追责「**扩散化**」：反复带节奏 ⇒ 全场更怀疑你、对你有情绪、**连出刀出枪都更容易指向你**；
+  4. 「全场都采用**统一积分制**……**改读统一轴**」；
+  5. 感知「**不再以固定距离为准，而是视野范围加手电锥**」；
+  6. 「**不允许 AI 隔空报告，必须和玩家一样贴着报告**」；
+  7. 感恩分「**和 CRED 的统一分数要区别开来，仅作用于个人分数**」；
+  8. 终结者「**第二个终结者时刻可以提前到第 8 夜**」；「只剩两个人还不把对方当敌人」；
+  9. 「被击倒不一定看得见攻击者，只能在视野范围内看到时能看见，而且有 20% 概率认错」；
+  10. 「暂时忽略吉伦（棘轮）」。
+- **本批改动**：
+  1. **数值真源 `js/ai/sanity.js`**（+159）：`HUNT` 目标黏性三参数（`repickSec:8` / `incumbentPen:6` / `jitter:4`）；
+     `KNIFE`/`SABOTAGE`/`BREAKER` 删除 `crowdR/crowdN`（视野制下与 `observerVisionAt` 同一条判据，
+     留两份即多份定义）；`DISGUISE` 删 `audienceR`；`CRED` 增 `floor:-0.5` 与 `decay:0.92` 双极衰减；
+     **新表 `IDENTITY`**（原散写在 `game.js` 闭包里，本批归位）；`ACCOUNT` 增 `wrongLead.grudge:0.35`、
+     `spamAt:3`、`spamMul:1.6`；**新表 `GRATITUDE`**（0.45 两处硬编码收进来）；`MEET.reportR:2.4`
+     提为报告距离唯一真源；`TERMINATOR.night:10→8`；`KNIFE` 增 `victimSus:0.90` / `victimGrudge:0.70`（裁定 #9）。
+  2. **身份轴归位 `js/t2/ai.js`**（+138）：`hasIdEvidence` / `identityPrior` / `identityAxis` /
+     `identityAlien` / `hostileProb` / `trustProb` / `hostileTo` 整条判据链从 `game.js` 搬入
+     （经典脚本顺序禁止 `t2/ai.js` 反向依赖 `game.js`，过去 `topSus` 因此读不到这张表）；
+     新增 `axisThreat(a,i)` —— **只取 cred 偏离先验的那半**（人类看负端、异形看正端，`known`/`mates` 返回 0；
+     ⚠ 绝不能用原始 `1−h`，先验≈0.5 会让人类见人就开枪）；新增 `beliefOf = max(susOf, axisThreat)`，
+     `topSus` 改按 `beliefOf` 统一打分；`keepCred` 按 `±cap/floor` 对称夹取。
+  3. **执行层 `js/game.js`**：`settleAccountability` 改读 `m.ctx.lead`（旧实现读从未赋值的 `m.lead`，
+     ×2.2 恒落在第一个投票的人身上）；`spamMul` 读听众 `mind.heard` 整局滑窗（**不新增计数器**）；
+     误逐人类时对全场 `grudgeAdd`；`credAdd` 对称夹取且 `w<0` 时即时让 `almost.friend` 票盾失效；
+     `aiAlien` 挑靶按 `repickSec` 重估 + 在位目标吃 `incumbentPen` + 每个候选加 `Math.random()*jitter`
+     （不做 argmax）；删除 `crowdAt()` 与 3 处 `crowdR/crowdN` 闸门，`noticeAction` 三个异形循环去掉
+     `>rad` 截断，`alienAudienceInfo` 只用 `aiCanSee`，`taskThreat` 去掉 `d>7`；
+     `tryReport` 与 `aiScanBodies` 同读 `MEET.reportR`，新增唯一负责人 `aiReportApproach`；
+     `playerTalk` 的 claim 分支按 `(target,kind)` 会议内去重，`pushHeard` 从 `deliverTestimony` 提出为
+     唯一投递点并被玩家证词复用；新增 `seenRoomOf` / `roomSafePool`，没有地点依据就过滤掉含 `{r}` 的句式；
+     医疗包施救 / 医疗无人机救起 / 两处辩护硬编码改读 `GRATITUDE`。
+  4. **收尾补做（本批自修，用户现场反馈后）**：
+     - **人机超高速移动**：`aiReportApproach` 与 `aiHuman/aiAlien` 在同一帧各调一次 `stepMove`，
+       报告赶路期间 AI 2 倍速且两套 path 互相覆盖造成抽搐。改为「报告赶路优先且独占该帧移动」：
+       `aiReportApproach` 返回是否接管，`true` 则跳过常规 AI；`_reportGo==null` 时调用顺序与旧版完全一致
+       （不改变常规帧随机流）。确定性探针：单帧位移 0.2 格 = `MOVE_SPEED×dt` 的 1.00 倍（修复前叠加为 2 倍）。
+     - **裁定 #9 被击倒者认人**：过去 `knife()` 先置 `victim.downed=true` 再广播，而 `noticeAction` 的
+       观察者循环 `if(w.downed)continue` 把受害者自己排除在外 ⇒ 永远记不到「谁打的我」。
+       现在受害者单开一条账：`observerVisionAt(我)` + `MISID.chance` 20% 认错 ⇒ 写 `mind`
+       （`sus` / `grudge`，**不写 `known`**）。三处顺序约束写进代码注释（受击动画前 / downed 置位前 / 不写 known）。
+     - **3D 导出链**：`3d/tools/export-rules.cjs` 的 `ID_EVIDENCE` 仍从 `game.js` 抠，随身份轴归位已漂移；
+       改从 `t2/ai.js` 抠并补注释（真源换地方，导出链必须跟着换）。
+     - **AR2 夹具前提**：旧夹具把报告者放 5.2 格外，本批视野制下该距离**根本发现不了尸体**
+       （裁定 #5 的正确行为），夹具卡在源头而非迈步。改为 3.0 格（视野内、报告距离 2.4 外），
+       仍能抓住「旧实现在 3.0 格直接拉铃」的回归（`d1≤2.4` 断言）。
+  5. **规范与条文**：`docs/CORE_RULES.md`（+69）R12.6（cred 双极、下限 −0.5）/ **R12.7（感恩记仇对称，纯个人账，新立）**
+     / **R12.8（统一轴软证据，`belief=max(sus, max(0,−cred))`，不另开第二套门槛，新立）** /
+     R13.6+13.7（团伙指控与先发制人降频、人数上限不动）/ **R14.8（扩散化 + `ctx.lead` + spam 递进，新立）** /
+     R10.1（`MEET.reportR` 真源、两侧同一条）/ R2.9（第 8 夜 + 公开事件进身份轴）；R5.3 / R11.7 标实现已对齐。
+  6. **门禁 `tests/test-v3.cjs`**（+179）：改写 ACC 夹具（改用 `g.meet.ctx.lead`）；TERM 增 3 条
+     （`revealAll` 使 `hostileProb` 双向 >0.9、异形之间 <0.1）；SIM3 把 `FIRST.chance` 钉到 1；
+     B3CFG 去掉钉死 0.45（改数值不该被夹具锁住）；新增 **ACC2** 9 条 / **SPAM** 7 条 / **AR2** 3 条 /
+     **VIC** 4 条（被击倒者认人：正对认得 / 认出≠确证 / 背对不记 / 夹具前提）。
+- **读数变化**（2026-11-18 本机实跑，单一现值只在此处声明）：
+  - `node tests/test-v3.cjs`：**1000 通过 / 0 失败**（2026-11-18 17:32 本机，日志 `tools/_gate-vic3.log`，
+    该文件命中 `.gitignore` 的 `tools/_gate-*.log`）。本批起点为 994/2（2 条 AR2 失败），
+    修 AR2 后 996/0，修超高速 + 裁定 #9 后 **1000/0**。
+  - **同 seed A/B 蒙特卡洛：本批未跑**（用户 2026-11-18 16:38 明确指示「不要跑蒙特卡洛模拟」）。
+    因此本批三处平衡改动（`COFRAME/FIRST` 降频、`HUNT` 减黏性、`beliefOf` 合流）**没有本批读数**，
+    不得引用任何历史胜率作对照，也不得跨批相减；下次跑 `npm run sim` 时以同批双臂为准。
+  - `npm run t3:check`：**10 PASS / 3 WARN / 0 FAIL**（C4/C5 为历史批次缺段与无当批读数，C9 为本批未提交；
+    常规模式 WARN 不阻断）。
+  - `npm run agent:contract` **PASS**（14 条 / `802d0376d2b50f29`）；`npm run guard` **PASS**
+    （发布包 282 文件 / 47.39 MB，上限 50 MB）；`npm run file:check:js` **OK**
+    （24 文件 / 21,032 行 / 函数 1,040 / 最大 `js/game.js` 12,225 行 / 11 个历史超长函数待拆）。
+  - `npm run 3d:export:rules` **成功**：`rules.json` 34.2 KB · 模块 4 / 表 52 键 / 函数 82 个
+    · `ID_EVIDENCE` 6 项（改从 `t2/ai.js` 抠后恢复）。
+- **行数棘轮**（用户裁定 #10「暂时忽略」）：`js/game.js` 12,089 → **12,225**（+136），
+  `js/ai/sanity.js` 1,200 → **1,217**（+17，新表归位）；`docs/file-budgets-js.json` 同步锁到当批实跑值，
+  并按「上调须同时下调别处」把 `js/engine/body.js` 额度 100 → **75**（实际 75 行）。
+  削减留待阶段 B 按族外提，不在本批做。
+- **边界**：未改版本号（仍 返航录V3.7 / `package.json` 3.7.0）；未跑蒙特卡洛（用户裁定）；
+  3D 客户端未动，只重导 `3d/preview/data/rules.json` 快照；未新增实体 / 池 / 配额。
+- **公开依据**（按 `docs/ASSET_GOVERNANCE.md` §14 登记，改参数前已检索比对）：
+  1. arXiv 2609.12446《社会辩论中的指控可信度》—— 指控可信度随来源信誉衰减，对应 `cred` 双极与 `credTestimony` 下限放开；
+  2. arXiv 2504.04072 —— 多智能体社交推理中的群体从众与「带节奏者」追责，对应 `ACCOUNT.wrongLead` 扩散化；
+  3. Among Us 官方攻略站 impostor 组队口径 —— 多人同指同一目标属正常社交行为，对应 `maxAccusers` 保持 3；
+  4. redblobgames《2D Visibility》—— 视野多边形 / 手电锥与 LOS 的标准做法，对应 `observerVisionAt` 单一判据；
+  5. Unity 论坛 AI LOS 问答 —— AI 视野应与玩家共用同一套可见性判定，对应删除 `crowdR/crowdN` 第二套距离；
+  6. 续用 arXiv 1906.02330（社交推理游戏中的欺骗与信任）与 Avalon BGG（角色隐藏信息设计），
+     对应「被击倒者只知道凶手、不确证阵营」。
+- **下一批立项依据**：P2 语料层同步新机制（带头记仇 / 感恩 / 统一轴目前只在判断层兑现，`lines.js` 还没有对应句子）；
+  救人音与三音区分（**先公开检索 ≥2 来源再改**）；假位置残留（`fillTpl` 的 `{r}` 缺省值、`aiHear` 的 `subjRoom`、
+  `WHY.heard_shot` 两条）；3D 副分支 `baseline:sync` + `3d:parity:check`（本批 `sanity.js`/`t2/ai.js` 新增函数需登记对账表）。
+
 ## [未发布 · 工程化精简第一批：尸体/物资纯函数外提 + 一次性调试产物清理] — 2026-11-15
 
 - **动机**（用户裁定）：`docs/ENGINEERING-SLIM-PLAN.md` 提出后，用户要求「删除，并且执行一下大文件的拆分任务」；

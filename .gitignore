@@ -99,3 +99,8 @@ tools/tex-detail-fusion-report.json
 # ---- 2026-11-11 治理规范：L2 生成过程配图（新增不入库）----
 # 2026-11-12 起两仓 docs/qwen21/ 全部移入素材层 returnlog_assets/qwen21/；此规则仅防重新落仓
 docs/qwen21/
+
+# ---- 2026-11-18 批次交接台账 / 参赛流程台账（不入库、不发布）----
+# 依据 AGENTS.md「公开物脱敏规范」：交接台账属开发内部件，不随公开仓发布。
+# tools/ship.cjs 走 `git add -A`，所以必须在这里排除，不能只靠"不手动 add"。
+docs/_worklog/
