@@ -591,6 +591,28 @@
 >   所以同时约束「hard 次数 > normal」且「hard 单次 ≥ normal」，两条都满足才算高难。
 > **不采纳**：取消保底（沿用 2026-11-05 裁定）；下调 `points[].dur`（AI 站桩真源，
 >   改它动判定）；把信息隐藏包装成"探索乐趣"（本项目是船上维修，不是解谜探索）。
+
+> **2026-11-18 登记（亮区视野 = 玩家屏幕视口）**：以下 3 条按 §14.4 第②条作为
+> **方法论与技术指导**吸收，未下载或引入任何代码、素材。
+> **来源**：
+> ① Netherware《How to Implement a Basic Fog of War》——「Does the fog of war affect the AI?
+>    Yes. The AI should behave like the player: it should not have information about hidden
+>    areas unless it explores them.」
+> ② ernest.dev《Fog of War: Separating What Exists from What the Player Knows》——
+>    「An AI should not automatically know every enemy unit on the map … otherwise the AI
+>    silently cheats」；可见性必须是**领域模型**，不能只在渲染层盖一层黑。
+> ③ Android Developers《Design for large screens》—— 无迷雾时扩大视口会「reveal portions of
+>    the map the player shouldn't see」，因此可见范围必须由**视口**界定。
+> **比对**：本项目 `VIEW_TILES=21`（屏幕宽 21 格，1280×800 下纵向约 13.1 格），
+> 但 `observerVisionAt` 的「同亮舱整间可见」没有距离上限，`sightRangeAt` 甚至返回
+> `max(宽,高)×1.15`（42×16 会议室 = 48 格）。实测 `visibleAt` 在会议室覆盖 654/672 格（97.3%），
+> 其中 338 格在 11 格半径之外 —— 玩家屏幕根本看不到，AI 却能看见，正是来源②说的静默作弊。
+> **采纳**：① 亮区可见范围改为以观察者为中心的 **21×13 格矩形**
+>   （`SIGHT.litViewHalfW=10.5` / `litViewHalfH=6.5`）；② `sightRangeAt` 亮房分支同步收敛，
+>   不再返回 48 格；③ 玩家 `visibleAt` 与 AI `aiCanSee` 走同一条判据，两侧同时生效。
+>   实测会议室可见面积 97.3% → 40.6%（273 格，正好是视口），18×12 医疗间仍 100%（整间在屏内）。
+> **不采纳**：把迷雾当纯渲染层（那不会约束 AI，见来源②）；给 AI 单独保留更大视野
+>   （违反 R20 配置平等红线与来源①）。
 > **判据**：听觉者只有在自己的 `saw_agent` 记忆命中时才产生弱受体；无目击者只有噪声/去现场；
 > 玩家“我听见枪声”可被解析为 heard 槽；异形可编造 `saw_shot`；异形打医疗无人机/保安机器人有独立小概率。
 
