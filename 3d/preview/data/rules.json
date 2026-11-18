@@ -5,9 +5,9 @@
     "js/ai/sanity.js": "fa1f433cc67b",
     "js/ai/traits.js": "a6395c194def",
     "js/t2/ai.js": "fa16a2bcd30c",
-    "js/t2/decision.js": "0c4635aba966",
-    "js/game.js": "f8b97befaf82",
-    "js/data/lines.js": "fd3da2c642ca"
+    "js/t2/decision.js": "ff0b7283e6fe",
+    "js/game.js": "355a3cd8690c",
+    "js/data/lines.js": "c291bf14b3d5"
   },
   "tables": {
     "SKSanity": {
@@ -1771,7 +1771,7 @@
       ]
     },
     "SKT2Decision.parseSpeech": {
-      "sha": "57c2397011b1",
+      "sha": "96a4c971ecf9",
       "nums": [
         0,
         80,
@@ -1809,6 +1809,9 @@
         0,
         0,
         0,
+        2026,
+        11,
+        18,
         0
       ]
     },
