@@ -157,6 +157,11 @@
   .inp input{flex:1;background:#0D1117;border:1px solid #313B4B;border-radius:8px;
     color:#DDE3EC;padding:8px 10px;font-size:13px;font-family:inherit;outline:none}
   .inp input:focus{border-color:#F0C674}
+  /* 发言冷却（2026-11-18）：2 秒内输入框与发送按钮整体置灰，
+     placeholder 显示剩余秒数 —— 让"不能发"是看得见的，而不是发出去没反应。 */
+  .inp input:disabled{opacity:.45;border-color:#2A3542;cursor:not-allowed;
+    background:#0A0E13;color:#8A94A3}
+  .inp button:disabled{opacity:.45;cursor:not-allowed}
   .vote .who{flex:0 0 auto;max-height:52%;overflow-y:auto}
   .vote #m-tally{flex:1;overflow-y:auto;margin-top:10px}
   #m-tally{margin-top:12px}
@@ -308,6 +313,8 @@
         <button data-tpl="accuse">怀疑</button>
         <button data-tpl="vote">投他</button>
         <button data-tpl="support">作证</button>
+        <button data-tpl="wronglead">他反复带节奏</button>
+        <button data-tpl="grateful">我为他背过书</button>
         <button data-tpl="pipe">看见钻管道</button>
         <button data-tpl="red">看见红光</button>
         <button data-tpl="knife">看见出刀</button>

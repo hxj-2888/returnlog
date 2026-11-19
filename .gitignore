@@ -1,4 +1,113 @@
+# 依赖与工具产物
+node_modules/
+tools/screenshots/
+*.log
+*.err
+# 一次性门禁 / 模拟 / 渲染日志（显式列出便于审计，上方 *.log 已兜底）
+tools/_gate-*.log
+tools/_mc-*.log
+tools/_hires-*.log
+tools/_sdxl-*.log
+tools/_qwen-rooms-*.log
+# 本轮调试截图 / 一次性诊断脚本（保留在磁盘上，不入库）
+tools/_shot*.png
+tools/_zoom*.png
+tools/_*.cjs
+# 体检脚本的一次性输出（正式工具 tools/survey-speech.cjs 入库，它的落盘读数不入库）
+tools/_survey-*.txt
+tools/_mc-*.json
+tools/_mc-*.md
+# AI 走动体检（tools/track-ai*.cjs 已入库）：采样与报告是本地产物，不入库
+tools/track-ai*.json
+tools/track-ai*.html
+tools/probe-caller.json
+3d/preview/scripts/_*.gd
+3d/preview/scripts/_*.gd.uid
+# 2026-11-10 真源清洁：字节码 / 工具备份不入库（2.5D main 与 3D 副分支同口径）
+__pycache__/
+*.pyc
+*_bak/
+_bak/
+*.blend1
+
+# 系统垃圾文件
 .DS_Store
 Thumbs.db
-node_modules/
-*.log
+desktop.ini
+
+# 安卓打包（密钥库与产物不入库）
+android/release.keystore
+android/ReturnLog.apk
+.env
+android/assets/www/
+
+# SDXL 候选原图（正式图 assets/scene/v4/facility/*.png 会入库）
+assets/scene/v4/facility/_raw/
+# Blender 渲染的原始帧（正式图由 tools/fx-post.py 合成）
+assets/scene/v4/facility/_raw_fx/
+
+# ---- 2026-11-04 载荷改造 ----
+# 烘焙源材质：js/ 里零引用，deploy-pages.cjs 的 SKIP 也把它们排除在上传之外，
+# 只在本机磁盘留着供 Blender/SDXL 复用。唯一例外 door-panel.png 被 js/game.js
+# 的 drawDoors 采样，是运行时依赖，继续入库。
+assets/scene/v4/tex/*
+!assets/scene/v4/tex/door-panel.png
+# 3D 预演的贴图是 v4/tex 的逐字节副本（sha1 相同），Godot 工程要本地文件，
+# 但仓库不必为同一份内容记两遍。
+3d/preview/assets/textures/
+# 同上（2026-11-18）：`npm run 3d:export:minigames` 会把 `js/data/plates.js` 引用的
+# 板图整份拷进 `3d/preview/assets/plates/`（实测 panel-fix.png 1.27 MB，与源文件逐字节同 mtime）。
+# 主仓只保留 `3d/preview/data/` 快照与 `3d/tools/export-*.cjs` 导出链（红线 13），
+# 3D 客户端素材属副分支本地；同一份 PNG 不在 main 记第二遍。
+3d/preview/assets/plates/
+# 蒙特卡洛原始局：改为 .json.gz 入库（实测 2.61 MB -> 0.16 MB，省 94%），
+# 未压缩 .json 降为本地工作文件，`npm run sim` 随时可复现。
+# 记录仍成对保留（F 与 E 基线各一份压缩档），只是不再屯原始字节。
+tools/mc-results.json
+tools/mc-results-E.json
+
+# ---- 层外目录：一切层均进库（2026-11-04 用户裁定）----
+# docs/_reference/（参考层 R）与 docs/_planned/（预增层 P）不再排除。
+# 只排除敏感信息：.env（上）、android/release.keystore（上）、
+# android/assets/www/（APK 打包副本，上）等既有条目保持有效。
+# 入库前须复核：不写 API key / token / 口令 / 私钥 / 凭据明文。
+# Blender 自动备份 .blend1 已在上方「依赖与工具产物」段声明，此处不重复
+
+# 2026-11-09 铁板掩体暂关前的实际素材备份（GLB/blend/检查板/截图/高度表，175.7 MB）
+# 只在本机留档，不入库；恢复口径见 3d/CHANGELOG.md 同日条目。
+_backup/
+
+# ---- 2026-11-10 千问素材库载荷改造（沿用贴图出仓约定）----
+# 素材库 PNG 体积大，只在本机 + assets/MANIFEST.json 兜底，不入库；
+# README 与 素材库清单.json 入库（说明来源/许可）。
+assets/qwen-lib/*.png
+# 色调对齐参考（bake 用，本机留档）
+tools/_qwen_refs/
+tools/_sfx/
+tools/plate-demo.html
+# T3 可执行测试（tests/）的生成物与默认输出
+tests/screenshots/
+tests/_gate-ci.log
+tests/_mc-*.json
+tests/_mc-*.md
+tests/_*.log
+tests/_*.err
+tests/mc-results.json
+tests/plate-demo.html
+tests/reports/mc-results.csv
+# Python 字节码不入库
+3d/tools/__pycache__/
+# 一次性 bench / 对齐临时产物
+3d/preview/bench-result.json
+tools/bench-*.json
+tools/style-align-report.json
+tools/tex-detail-fusion-report.json
+
+# ---- 2026-11-11 治理规范：L2 生成过程配图（新增不入库）----
+# 2026-11-12 起两仓 docs/qwen21/ 全部移入素材层 returnlog_assets/qwen21/；此规则仅防重新落仓
+docs/qwen21/
+
+# ---- 2026-11-18 批次交接台账 / 参赛流程台账（不入库、不发布）----
+# 依据 AGENTS.md「公开物脱敏规范」：交接台账属开发内部件，不随公开仓发布。
+# tools/ship.cjs 走 `git add -A`，所以必须在这里排除，不能只靠"不手动 add"。
+docs/_worklog/

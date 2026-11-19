@@ -12,7 +12,7 @@
 | 模型 | Qwen-Image 2.1 Turbo（`unsloth/Qwen-Image-2.1-Turbo-GGUF` · Q4_K_M） |
 | 文本编码器 | Qwen3-VL-8B-Instruct（`unsloth` · UD-Q4_K_XL） |
 | VAE | `Comfy-Org/Qwen-Image-2.1` |
-| 运行器 | stable-diffusion.cpp（Vulkan，本地 GPU） |
+| 运行器 | stable-diffusion.cpp（Vulkan，本机 RTX 5060 Laptop） |
 | 规格 | 768×768 PNG，Turbo 8 步 / CFG 1.0 |
 
 实测参数与观感记录见 `docs/Qwen2.1_生图测试_20261103.md`；

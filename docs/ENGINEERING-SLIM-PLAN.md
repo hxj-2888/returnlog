@@ -105,7 +105,7 @@
 
 #### A 组里 5 个 JSON 的性质（2026-11-15 只读解析）
 
-- 生成链：**已入库的常设工具** `tools/track-ai.cjs` 用浏览器自动化打开 `index.html?test`、选旁观者进局，
+- 生成链：**已入库的常设工具** `tools/track-ai.cjs` 用 Playwright 打开 `index.html?test`、选旁观者进局，
   以假时钟（`clock=virtual` / `raf=25`）**逐帧采样 15 个 AI 的坐标 / 房间 / 路径 / 卡死计时 / 计划**；
   `tools/track-ai-report.cjs` 读 `track-ai.json` 判定并渲染 HTML 报告；`tools/probe-caller.cjs` 在
   `js/game.js` 的 `a._pathCD=1.2` 行下条件断点抓 `walkTo` 失败时的调用栈。三者均**只读、不改游戏状态**。
@@ -121,7 +121,7 @@
 - 与 `tests/reports/mc-*.csv/md` 的区别：后者是**蒙特卡洛 1000 局 sim** 的原始/汇总结果，
   属于另一条验收线；A 组把两条线合并列出只是因为都属「一次性产物」，数据源并不相同。
 - **可再生**：工具脚本保留在 B 组，`node tools/track-ai.cjs --sessions 6 --sec 120 --conc 4 --raf 25`
-  → `node tools/track-ai-report.cjs` 即可重新采样（需浏览器自动化依赖与浏览器）。
+  → `node tools/track-ai-report.cjs` 即可重新采样（需 `playwright-core` 与浏览器）。
   删除不影响游戏运行、不影响门禁；唯一损失是那轮「修复前 25 次发呆 / 166.5 秒 → 修复后 0 次」的
   原始现场证据，读数已写入 `CHANGELOG.md`。若想留痕，**建议保留体积最小的 `track-ai-report.html`（84 KB）**，
   4 个大轨迹 JSON 与空结果 `_ai-callers.json` 可删。

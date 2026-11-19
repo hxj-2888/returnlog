@@ -165,7 +165,7 @@
     return { checks: checks, fails: fails };
   }
 
-  /* 保留 MAX_PROG 导出名以保持调用兼容；改为读取量化表的 getter。
+  /* 保留 MAX_PROG 导出名以守 AGENTS.md 公共契约；改为读取量化表的 getter。
      模块内不再保留任何胜利分字面量或兜底：SKSanity 未加载时读它会抛错，不静默回退。 */
   global.SKInvariants = { check: check };
   Object.defineProperty(global.SKInvariants, 'MAX_PROG', {

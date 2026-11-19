@@ -185,7 +185,7 @@
 3. **只进回收站**：使用系统回收站机制，**禁止** `rm` / `del /F` / `shutil.rmtree` 等永久删除，禁止通配符批量删。
 4. **小批执行**：每批 ≤ 10 个文件，逐批核对路径。
 5. **逐批校验**：数量、体积、抽样哈希；任一失败立即停止。
-6. **记录**：写入**仓外**本地台账 `仓外本地台账`（**不入库**；字段：时间、批次、层级、路径清单、体积、备份位置、恢复方式、执行人）。台账含本机路径与执行痕迹，放进公开仓等于把它们一并发布。
+6. **记录**：写入**仓外**本地台账 `~/.returnlog-cleanup/<repo>-ASSET_CLEANUP_LOG.md`（**不入库**；字段：时间、批次、层级、路径清单、体积、备份位置、恢复方式、执行人）。台账含本机路径与执行痕迹，放进公开仓等于把它们一并发布。
 
 ### 回滚路径（三重）
 
@@ -298,7 +298,7 @@
 | `tools/asset-guard.cjs` | 发布体积 / 白名单污染 / 大图 / 超期批次门禁（主仓） |
 | `tools/deploy-pages.cjs` | 发布白名单 SKIP（主仓已修；3D 版待基线同步） |
 
-**工作区扫描件（不入库，仅作基线证据）**：`清洁清单_*.md/.csv`、`专项检查_*.md/.csv`、配置改动前的备份 `backups/2026-11-11/`、清理执行台账 `仓外本地台账`（含本机路径与执行人，2026-11-16 起移出仓库）。
+**工作区扫描件（不入库，仅作基线证据）**：`清洁清单_*.md/.csv`、`专项检查_*.md/.csv`、配置改动前的备份 `backups/2026-11-11/`、清理执行台账 `~/.returnlog-cleanup/<repo>-ASSET_CLEANUP_LOG.md`（含本机路径与执行人，2026-11-16 起移出仓库）。
 
 ## 附录 B：数据口径说明
 
@@ -426,6 +426,73 @@
 | 交互元素与连续输入（检索 2026-11-15） | https://gameaccessibilityguidelines.com/full-list/ | Game Accessibility Guidelines | 公开指南 | 「Ensure interactive elements / virtual controls are large and well spaced, particularly on small or touch screens」；「Avoid repeated inputs (button-mashing/quick time events)」 | 阀门每点 15° 需 27 次点击；靶道亮带窗口 121ms；配对 4 对需记忆 8 张牌 |
 | 隐藏身份与部分观察（检索 2026-11-15） | https://arxiv.org/abs/1906.02330 | Jack Serrino 等（NeurIPS 2019） | arXiv 预印本（见站点） | 隐藏身份游戏中，智能体只能依据**部分观察**维护对他人身份的信念；公开行为/发言是证据，不是身份真值 | 开枪声只给方位；AI 不能读死者阵营，只能用自己的目击/已确知信息推断 |
 | 公开证词与指控（检索 2026-11-15） | https://boardgamegeek.com/boardgame/128882/resistance-avalon | Bezier Games / BoardGameGeek 公开规则页 | 公开规则页（见站点） | 集会中的公开指控、作证与投票是核心证据通道；隐藏身份玩家可以说谎，信息天然不对称 | 开枪目击 → 会议证词；听见枪声 → 弱证词；异形可编造“看见他开枪” |
+| 指控者自身的信念更新（检索 2026-11-18） | https://arxiv.org/abs/2609.12446 | arXiv 预印本《Do LLMs Trust the Accuser or the Accusation? Measuring Belief Shifts…》 | arXiv 预印本（见站点） | 原文：「Models become more suspicious of the accused target and less suspicious of the accuser.」；「Larger models better resist accusations from accusers they already distrust.」——听者**同时**维护「对被告的怀疑」与「对指控者的怀疑」两条账，且对已被不信任的指控者，其后续指控会被抵抗 | 本批「带头冤枉人 → 全场对发起者扣分并记情绪」；以及「他的后续证言不带人」 |
+| 协同欺骗的可检测性（检索 2026-11-18） | https://arxiv.org/abs/2504.04072 | S. Golechha 等（NeurIPS 2025） | arXiv 预印本 / 会议论文（见站点） | 把 Among Us 作为「度量与检测代理式欺骗」的沙盒，欺骗行为（含扎堆指控）属**可检测、可度量**的信号，玩家会用行为模式而非单句内容读阵营 | 「多人同时指控同一人」被玩家反推成异形团伙信号 —— 本批只压协同触发**频率**，不拆机制 |
+| 内鬼制造互相指控的公开战术（检索 2026-11-18） | https://among-us.fandom.com/wiki/Guide:Impostor | Among Us Wiki（Fandom 社区） | CC-BY-SA（见站点） | 公开指南把「让在场的人互相指控 / 借势踩人」列为内鬼常规打法，即协同指控是类型片公认战术，不是本作自造 | 保留 `COFRAME/FIRST.maxAccusers = 3`（人数上限不动），只降概率 |
+| 2D 可见性 = 遮挡 ∩ 距离 ∩ 朝向（检索 2026-11-18） | https://www.redblobgames.com/articles/visibility/ | Amit Patel（Red Blob Games） | 公开教程（见站点） | 先按墙/遮挡求出可见集，再与**距离圆**或**角度锥**求交来限制视野；原文把它描述成「手电效应」——前面看得远、身后看不见 ⇒ 单用半径不是可见性判据 | 行凶 / 假装做任务 / 被追击四处判定废弃纯格数（`crowdAt`、`audienceR`、固定 6 格），统一走 `observerVisionAt` |
+| AI 视锥 + 遮挡的两步判据（检索 2026-11-18） | https://discussions.unity.com/t/how-do-you-create-a-line-of-sight-for-ai/64949 | Unity 官方论坛公开问答 | 公开问答（见站点） | 「A solid first step is to perform a frustum test…」——先用角度/视锥粗筛，再做遮挡射线；两步都缺就会把背后与墙外的人算成目击者 | 同上（第二独立来源；本作对应 `aiCanSee → observerVisionAt`） |
+
+> **2026-11-18 登记（AI 社交追责扩散 / 统一身份轴 / 感知视野制）**：上 6 条一律按 §14.2 第②条作为
+> **方法论与技术指导**吸收，未下载、未引用任何代码或素材文件。
+> **比对**：公开口径是「听者同时维护对被告与对指控者的两条信念，且指控者的信誉会反过来抑制他后续指控的效力」
+> ＋「协同扎堆指控是公开公认的内鬼战术，属可检测信号」＋「可见性必须先过遮挡，再用距离圆与角度锥求交」。
+> 本项目现状是：① `settleAccountability` 只对**投票者**回写 cred/grudge，且带头者判定读了一个从未赋值的
+> `m.lead`（真值写在 `ctx.lead`），×2.2 恒落在第一个投票的人身上；② `cred` 被 `Math.max(0, …)` 夹成单向轴，
+> 「越像异形」这一半在数据上不存在，人类侧的开枪 / 点名只读 `sus`、不读统一身份轴；
+> ③ 异形扎堆同指的触发概率（`COFRAME 0.55` / `FIRST 0.45`，各带 3 人附议）高到让玩家一句「三个人咬同一个就是异形」
+> 直接反推阵营；④ `crowdAt` / `DISGUISE.audienceR` / `noticeAction` 仍按固定格数数"有几个人看着我"，
+> 违反已写定的 R5.3「视野玩家与 AI 完全一致」。
+> **采纳**：① 追责扩散到**发起者对全场**（人类侧 −cred 且 +grudge，咬对时反向 +cred；异形侧读同一条轴，
+> 不另写规则）；② `cred` 改**双极**轴，下限 −0.5（更深只由 `known` 硬锚给出），人类开枪/点名/投票兜底
+> 与嫌疑分取较强的一条 `max(sus, −cred)`，**不新增第二套门槛**；③ 协同诬陷与先发制人**只降触发概率**
+> （0.55→0.25 / 0.18→0.10 / 0.45→0.25），`maxAccusers` 保持 3，人类的同指与跟票链（R14.4、`SOCIAL.pileOn`）
+> 一行不动 —— 多人同指本来就是人类也会做的事，拆掉它是把类型片战术当缺陷；
+> ④ 行凶 / 伪装 / 被追击四类改走 `observerVisionAt` 单一判据，废弃 `crowdAt` 与残留的死参数 `SIGHT.aiCapR`。
+> **不采纳**：把「指控次数」做成新的全局计数器或发言额度（`ARCHITECTURE.md §10` 硬红线「不新增实体 / 池 / 配额」）
+> ——改为复用已有的整局 `mind.heard` 滑窗（R11.7），并顺带修掉玩家证词绕过 `deliverTestimony` 的那处缺陷；
+> 把 `sus` 并进身份轴（2026-11-05 裁定明写「普通 sus 走原来的嫌疑链，不从 h 里减」，本批只在**人类软层**取二者较强，
+> 不改 h 的定义）；给异形加"识别带节奏者"的新阈值（红线 11 的"不读阵营表"）。
+> **判据**：同 seed 蒙特卡洛两臂 —— 带头冤枉者的全场 cred 必须能落到 0 以下并被人类枪口读到；
+> 玩家在同一场会议里重复点同一条「亲眼看见」模板，第二次起不得再加嫌疑分；
+> 异形扎堆同指的每场触发率下降而**人数上限仍为 3**；亮舱观众不再被 8 格截断。
+
+> **2026-11-18 登记（会议发言反同质化 · 信息优先级）**：以下 4 条按 §14.2 第②条作为**方法论与技术指导**
+> 吸收，未下载、未引用任何代码或素材文件。
+> ① Werewolf Strategy（bubbleappstudio，讨论口径）——原文「Join discussions, **give reasons for your votes**
+> and avoid automatically defending your teammates.」「Use **events that actually happened in the game**:
+> "You suspected Leah, then voted for Sam. What changed?"」「"I lean towards Sam because of that vote" is
+> easier to explain than absolute certainty **with no public evidence behind it**」「**Answer the specific
+> accusation first**: a vote, a statement or a change of mind.」
+> ② Among Us Crew Strategy Guide（BlueStacks）——「**Tasks** … are your **strongest alibi**.」
+> ③ Among Us Wiki `Guide:Impostor`——「Crewmates **cannot use alibis if they are not together**.」
+> ④ arXiv 2408.17177《Optimal Strategy in Werewolf Game》——多数既有工作把白天投票建成**随机/均匀**策略，
+> 讨论内容与发言顺序不进入模型；即"说什么"这一层在公开文献里只剩人类玩家的口径可参照。
+> **比对**（本项目 2026-11-18 实测，`_t.simSpeechBatch(40)` = 40 局同 seed 完整对局、6,819 条真实台词）：
+> 实质推理句 **33.6%**、`我+时间+舱室` 自述开头 **29.5%**、含人名 89.0%、前 5 人话轮占比 38.8%、
+> 异形份额 27.3%、整句字面重复 22.2%。逐条对不上公开口径的地方：
+> ① 要求"指控与投票必须给理由"，而 `startChatter` 的指控轮是 `accusers…slice(0,2)` ——
+> 第三个及以后**有 `accuse` 的人根本不开口**，玩家因此听到的指控天然稀薄；
+> ② 要求"口供的主体是任务"，而 `alibiLine` 固定用 `stem_room`（位置）开头，任务与同位子句只能排在后半；
+> ③ 要求"分开就不算 alibi"，`mate_clause` 同位子句虽有，但同样被压在位置词干之后；
+> ④ `endorse` / `selfcite` / 补充池里存在**只表态不给内容**的句子（「就{r}这一段，我可以详细说明。」
+> 「{t}我这里能为他补一句。」「我愿意为{t}的位置补一句。」），字面含人名却没有任何可被复核的事实，
+> 是"实质推理 33.6%"里最直接的稀释项。
+> **采纳**：开场自述设名额上限并按「有确证/目击 > 有指控 > 无信息」排发言优先级
+> （`SPEECH.alibiOpenMax` / `SPEECH.accuseSpeakers`，只动**排期与上限**，不动任何判据）；
+> 指控轮开口上限 2 → 3（复用既有 accusers 排序，只放宽截断）；
+> 自述词序按证据强弱重排为**同路人 > 已完成任务 > 位置**，**全部复用现有三个池，不新建语料类别**；
+> 6 条空转句改写成带具体事实的句子，槽位仍只能来自既有诚实来源（`seenRoomOf` / `alibiOf`），
+> 且继续受 `roomSafePool`（没有地点依据就不许说地点）约束。
+> **不采纳**：照搬真人赛的"发言权 / 计时麦"制度（等于新增配额，触 `ARCHITECTURE.md §10` 硬红线，
+> 也与用户 2026-11-18 裁定「刷屏只做会议内去重、不做额度」同向）；为"推理浓度"新设分数或计数器
+> （优先级直接用既有的 `mind.known` / `mind.almost` / `a.accuse` 三档，不另立）；
+> 把 `sus` 高低做成开口门槛（话术反噬判断层，违背 R12「判断力 vs 说服力」的分工）；
+> 按 ①里"绝对确信"的说法给 AI 加第四档确信语气（本项目 known / almost / 怀疑三档已定，
+> 且公开来源自己就强调"没有公开证据支撑的绝对结论更不可信"）。
+> **判据**：同一 seed 批复跑 `_survey-speech.cjs`——实质推理句占比自 33.6% 显著上升、
+> `我+时间+舱室` 开头占比自 29.5% 下降、含人名不低于 85%；
+> 异形发言份额不因优先级改动回升（仍约 ≤30%）；
+> `talkScore` / `alienLineCap` / `sayStreakOK` 三条既有节流一条都不许绕过；门禁 1029 基线不回归。
 
 > **2026-11-14 登记（2.5D 运行时卡顿复测）**：上 4 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件。
@@ -514,6 +581,76 @@
 > “听见枪声”槽、异形 shot 伪证；④ 目击链保持 `saw_shot=0.55`，不写 `known`，保留 R11.4 处决口径。
 > **不采纳**：直接读死者真实阵营（违反 R11.1）；听声直接等于开枪者（无观察依据）；
 > 把开枪本身升级为身份级证据（R11.3）。
+
+> **2026-11-18 登记（医疗无人机救援音 / 三音区分）**：以下 3 条按 §14.4 第②条作为
+> **方法论与技术指导**吸收，未下载或引入任何音频文件。
+> **来源**：
+> ① IEC 60601-1-8（医疗设备报警系统）—— 不同设备 / 不同紧急度**必须**可听辨区分，
+>    同一音型复用会造成"报警疲劳"与误判（转引自 motif sound design 的医疗章节）；
+> ② Falcon《Sound design》—— 告警必须分层：故障告警与状态提示是两种声音，
+>    "critical cues get lost when nothing prioritizes them"；
+> ③ 通用 UI 音频做法（datacalculus 等）—— 音高上行表达"进展 / 安全"，下行、
+>    方波与金属噪声表达"故障 / 危险"。
+> **比对**：本项目原状是医疗无人机救人复用 `robot` 类别 —— 声纹橙红、音效为
+> 下行方波（240→180）+ 金属采样 + 噪声，与"机器人停摆 / 拉闸 / 破坏"**完全同形**；
+> 玩家听不出是好事还是坏事，AI 侧 `EV_W.heard_robot` 还会把它记成"有人弄停了机器人"。
+> **采纳**：① 新增独立听觉类别 `medbot`（声纹环医疗绿 `63,191,140`）；
+> ② 新增 `SND.medbot()`：上行三连正弦（620→880→1180），音色 / 走向 / 节奏三处与 `robot` 分开；
+> ③ `hear` / `aiHear` / `SND` 三处同步改类别，`heard_medbot` 不设嫌疑权重（救人是中性事件）。
+> **不采纳**：直接引入外部音频文件（零依赖红线 + 素材须逐项批准）；把救人声也当成异形证据。
+
+> **2026-11-18 登记（任务难度适配 · 提示可见性）**：以下 3 条按 §14.4 第②条作为
+> **方法论与技术指导**吸收，未下载或引入任何代码、素材文件。
+> **来源**：
+> ① DataField.Dev《Challenge, Mastery, and the Joy of Getting Good》—— 公平难度六要素中
+>    **information access / no invisible mechanics / readability**：玩家要知道自己需要知道什么，
+>    决定结果的东西要么可见、要么可观察学到；"猜游戏在干什么"的难度不是想要的难度。
+> ② EZToolSet《How to Tell Whether a Game Is Challenging or Just Poorly Explained》——
+>    **legible challenge vs explanation failure** 诊断：目标 / 相关操作 / 适用规则 / 失败原因
+>    四者是否可辨识；"重复尝试不产生新信息"即为信息问题，不是挑战。并引 Xbox 无障碍指南 108
+>    指出难度是主观构念。
+> ③ Game Developer《How Hyper Light Drifter balances difficulty with fairness》——
+>    Heart Machine 的 fair/unfair 判据：信息少时更要用**清晰的视觉线索**传达规则，
+>    高难可以，但不能靠隐藏前提。
+> **比对**（浏览器实机截图，见本批临时截图脚本，跑完即删）：军械库"工作台"与"零件台"
+> 同为 `place` 型、normal 难度 —— 6 个槽位**全是空白虚线**，而 `buildPlace` 把答案
+> `dataset.s` 藏在 DOM 里不画出来，提示却让玩家"点形状相符的槽位"。玩家没有任何信息
+> 可预测，只能靠试错反推 ⇒ 命中来源②的 explanation failure。反过来 hard 的"靶道校准"
+> （准星进带点击）与"监控墙重连"（线索 4-2-7-1 直接写在屏幕上）把规则写得一清二楚，
+> 实际是**低难度**，属于来源①说的"难度标签与实际执行挑战脱节"。
+> **采纳**：① `place` 槽位**直接显示形状轮廓**（虚线底 + 淡形状水印），
+>   选中零件时给对应槽位高亮提示；诱饵槽保留但要可辨认；② **用户当场推翻"记忆型"方案**：
+>   难度必须靠"**简单动作 × 更多次数**"，**绝不靠单次加难、更不靠记忆力**。据此 hard 档只做：
+>   "靶道校准"连中 3→4 次（窗口保持 11-15 登记的 161ms 可完成性下界，不靠收窄）；
+>   "氧气循环"由 1 杯改为**连续 3 杯**（每杯判据与 normal 一样，只加次数）；
+>   "引擎组同步"3 路保持 0.8s ≥ normal 温控 2 路 0.6s（次数与单次都不比 normal 简单）；
+>   其余 hard 沿用各自的多次对齐（货架 5 层 / 手术台 3 探针）。"监控墙重连"线索**常驻**。
+>   用户进一步明确：**这个"简单"是相对的 —— 高难的每一步仍要比普通任务多一层复杂度**，
+>   所以同时约束「hard 次数 > normal」且「hard 单次 ≥ normal」，两条都满足才算高难。
+> **不采纳**：取消保底（沿用 2026-11-05 裁定）；下调 `points[].dur`（AI 站桩真源，
+>   改它动判定）；把信息隐藏包装成"探索乐趣"（本项目是船上维修，不是解谜探索）。
+
+> **2026-11-18 登记（亮区视野 = 玩家屏幕视口）**：以下 3 条按 §14.4 第②条作为
+> **方法论与技术指导**吸收，未下载或引入任何代码、素材。
+> **来源**：
+> ① Netherware《How to Implement a Basic Fog of War》——「Does the fog of war affect the AI?
+>    Yes. The AI should behave like the player: it should not have information about hidden
+>    areas unless it explores them.」
+> ② ernest.dev《Fog of War: Separating What Exists from What the Player Knows》——
+>    「An AI should not automatically know every enemy unit on the map … otherwise the AI
+>    silently cheats」；可见性必须是**领域模型**，不能只在渲染层盖一层黑。
+> ③ Android Developers《Design for large screens》—— 无迷雾时扩大视口会「reveal portions of
+>    the map the player shouldn't see」，因此可见范围必须由**视口**界定。
+> **比对**：本项目 `VIEW_TILES=21`（屏幕宽 21 格，1280×800 下纵向约 13.1 格），
+> 但 `observerVisionAt` 的「同亮舱整间可见」没有距离上限，`sightRangeAt` 甚至返回
+> `max(宽,高)×1.15`（42×16 会议室 = 48 格）。实测 `visibleAt` 在会议室覆盖 654/672 格（97.3%），
+> 其中 338 格在 11 格半径之外 —— 玩家屏幕根本看不到，AI 却能看见，正是来源②说的静默作弊。
+> **采纳**：① 亮区可见范围改为以观察者为中心的 **21×13 格矩形**
+>   （`SIGHT.litViewHalfW=10.5` / `litViewHalfH=6.5`）；② `sightRangeAt` 亮房分支同步收敛，
+>   不再返回 48 格；③ 玩家 `visibleAt` 与 AI `aiCanSee` 走同一条判据，两侧同时生效。
+>   实测会议室可见面积 97.3% → 40.6%（273 格，正好是视口），18×12 医疗间仍 100%（整间在屏内）。
+> **不采纳**：把迷雾当纯渲染层（那不会约束 AI，见来源②）；给 AI 单独保留更大视野
+>   （违反 R20 配置平等红线与来源①）。
 > **判据**：听觉者只有在自己的 `saw_agent` 记忆命中时才产生弱受体；无目击者只有噪声/去现场；
 > 玩家“我听见枪声”可被解析为 heard 槽；异形可编造 `saw_shot`；异形打医疗无人机/保安机器人有独立小概率。
 
@@ -627,3 +764,19 @@
 ```
 
 登记时一并确认四处同步：两仓 `.gitignore`、两仓 `tools/deploy-pages.cjs`、`assets/MANIFEST.json`、`BASELINE.sha256.json`（见 §7）。
+
+### 2026-11-19 · 六张图内任务板（tank-gauge / galley / rec-table / surgery / target-lane / shelf）
+
+红线 12 / §14 四步留痕。**只取设计方法，不直接引用任何公开素材文件**；成品全部由本机
+本机 Qwen-Image 2.1 Turbo GGUF（Qwen Research License 非商用）
+经本地 stable-diffusion.cpp 命令行工具生成，8 步 / CFG 1.0 / euler / 768×768。
+
+| 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
+|---|---|---|---|---|---|
+| 飞船生活舱 / 医疗舱 / 货舱的空间分区 | http://thedaemon.com/deltav_design.html | The Delta-v Project（小说配套设计页） | 公开设计参考页（仅取布局方法，不取图） | 2026-11-19 | 采纳「厨房/储物/医疗相邻、铝合金内胆分隔」的分区法；对应 galley / surgery / shelf |
+| 暗色科幻货舱的配色与材质层级 | https://www.summerengine.com/asset-store/alien-escape-cargo-bay-background-99992d54 | Tatu Kuru / Summer Engine | CC0 1.0（仅作设计参照，未下载未使用其图） | 2026-11-19 | 采纳「近黑钢蓝底 + 琥珀/青窄条灯 + 铆钉格栅」；与既有 facility 贴图冷调一致 |
+| 任务面板的信息呈现 | https://among-us.fandom.com/wiki/Security_(location) | Among Us Wiki / Fandom | CC-BY-SA（仅读文字描述，未取图） | 2026-11-19 | 采纳「同房间多种可点设备、屏幕常亮、状态一眼可读」；对应 rec-table / target-lane |
+
+**比对**：公开方案是「整间舱室插画」；本项目是**裁切到 768×768 的单设备面板**（热点要压在具体物件上），
+因此只吸收分区 / 配色 / 信息层级三条方法论，不照搬整间构图。六张板坐标均须用
+`tools/plate-overlay.cjs` 叠图核准，不得目测。

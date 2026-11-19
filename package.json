@@ -1,9 +1,9 @@
 {
   "name": "returnlog",
   "displayName": "新返航录",
-  "version": "3.7.0",
-  "gameVersion": "返航录V3.7",
-  "description": "11 人类 vs 4 异形的实时太空船社交推理网页游戏；零依赖前端，file:// 可直接运行。",
+  "version": "0.1.0",
+  "gameVersion": "返航录V0.1",
+  "description": "《新返航录》2.5D 正式版 V0.1——11 人类 vs 4 异形的实时太空船对抗游戏（零依赖前端，file:// 可直接运行）",
   "author": "hxj-2888",
   "license": "MIT",
   "private": true,
@@ -11,5 +11,35 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/hxj-2888/returnlog.git"
+  },
+  "scripts": {
+    "start": "node tools/serve.cjs",
+    "dev": "node tools/serve.cjs",
+    "guard": "node tools/asset-guard.cjs",
+    "guard:expired": "node tools/asset-guard.cjs --expired",
+    "agent:contract": "node tests/check-agent-contract.cjs",
+    "agent:contract:write": "node tests/check-agent-contract.cjs --write",
+    "t3:check": "node tests/check-t3.cjs",
+    "t3:check:strict": "node tests/check-t3.cjs --strict",
+    "test": "node tests/test-v3.cjs",
+    "ci:gate": "node tests/ci-gate.cjs",
+    "sim": "node tests/monte-carlo.cjs",
+    "ship": "node tools/ship.cjs",
+    "ship:fast": "node tools/ship.cjs --fast",
+    "ship:web": "node tools/ship.cjs --only=web,portfolio",
+    "plate:build": "node tests/plate/build.cjs",
+    "plate:check": "node tests/plate/validate.cjs",
+    "file:map": "node tools/filemap-js.cjs",
+    "file:check:js": "node tools/filemap-js.cjs --check",
+    "3d:export:map": "node 3d/tools/export-map.cjs",
+    "3d:export:minigames": "node 3d/tools/export-minigames.cjs",
+    "3d:export:space": "node 3d/tools/export-space.cjs",
+    "3d:export:sim": "node 3d/tools/export-sim.cjs",
+    "3d:export:lines": "node 3d/tools/export-lines.cjs",
+    "3d:export:version": "node 3d/tools/export-version.cjs",
+    "3d:export:rules": "node 3d/tools/export-rules.cjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
   }
 }

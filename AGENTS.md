@@ -5,7 +5,7 @@
 > 现行架构为**三层**：T1 工程大层（AI 拟人化 ‖ 空间与资源 ‖ 玩家决策）→ T2 机制与执行层（原 L2+L3 合并同类）→ T3 验收层；层外参考层 R 与预增层 P 已于 2026-11-12 收口归档（不占层号、不进依赖链），待办只记 `CHANGELOG.md`；体验层移出架构图，见 `docs/00-先导-游戏体验.md`。
 > §三文件地图的「层」列将在档 1 重构时换为 `T1/T2/T3 + domain`；**§一红线原文保留**；命令与改动流程见 `docs/workflow.md`，历史踩坑记录保留为附录。
 
-> **当前版本**：返航录V3.7（2026-11-11）· `package.json` 3.7.0
+> **当前版本**：返航录V0.1（2026-11-19）· `package.json` 0.1.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：本文件 → README（一页）→ `CHANGELOG.md` 最新批次；历史分卷按需读。
 > **权威口径（2026-11-12 校正 · T3 验收层规范落地）**：
@@ -49,11 +49,18 @@
    `config/version → data/map → data/plates → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → engine/assets → engine/body → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V0.1'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
-4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tests/test-v3.cjs`，失败一律按回归处理；
+4. **门禁必须全绿。** 改任何逻辑/数据后按改动规模跑门禁，失败一律按回归处理；
    报告里必须写本次实跑的「X 通过 / Y 失败」，不得沿用旧读数。
+   - **默认全量**：本次改动 **≥3 点**，或触及跨模块 / 红线 / 契约 / 数值基线时，
+     跑 `node tests/test-v3.cjs`，全绿方可收口。
+   - **小改动只跑对应门禁**（2026-11-19 用户裁定）：用户本次修改要求 **< 3 点**时，
+     可不重跑全量门禁，只跑与改动内容直接对应的门禁子集（改板 → `npm run plate:check`、
+     改读数 / 台账 → `npm run t3:check`、改红线 → `npm run agent:contract` 等），
+     报告写明本次实跑项与读数即可；**对应门禁同样必须全绿**，失败一律按回归处理，
+     不得借本条跳过验收层。
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
    `replay()`、`litZone()` 等被 test-v3.cjs 直接依赖）。
@@ -123,11 +130,35 @@
     - 3D 子项目工程不占根层号（边界见 3D 仓 `3d/ARCHITECTURE.md`），但**仍服从本条真源/归层/验收约束**：
       规则/数值/语料一律自 `js/` 导出移植，不在 GDScript 另立真源。
     - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
+15. **AI 与玩家配置平等，不得出现性能差异。**（2026-11-18 用户裁定，红线级；规则正文见 `docs/CORE_RULES.md` R20）
+    - **唯一允许的差异是决策系统**：玩家由人的输入驱动，AI 由启发式与概率驱动；除此之外
+      同配置、同判据、同数值、同时间预算。玩家有的 AI 必须有，AI 有的玩家必须有：
+      视野（含濒死与被拖动期间）、移动速度、搜查 / 尸检、拖尸、报告、开枪、破坏、拉闸、
+      领取补给、维修、任务、会议发言与投票、暂停与恢复。
+    - **判据只能有一份定义**：视野 `observerVisionAt`、速度 `moveSpeed`、报告距离 `MEET.reportR`、
+      搜查时长 `LOOT.aiSearchTime` / `STAND.search`。禁止为 AI 另写距离 / 半径 / 概率，
+      也不得为玩家另开一套。要改就改 `js/` 真源，双方同时生效。
+    - **同一事件两侧都要能看见**：尸体被拖动时不可搜查（`draggedBy==null` 对双方同一条）；
+      濒死与被拖期间保有视野；全屏遮罩只挡视线不挡听觉。
+    - **新增参数先过三问**：① 玩家有没有对应能力？② 这是不是同一判据的第二份定义？
+      ③ 是否写进 `js/` 真源？三问有一问答不上，不得动实现。
+    - 违反本条视为回归：回退改动并在 `CHANGELOG.md` 记录。
+16. **不显露个人信息、生成工具 / Agent 名称与密钥。**（2026-11-18 用户裁定，红线级）
+    - **不得出现**：真实邮箱（任何个人邮箱域名）、手机号、身份证号、真实姓名、住址、社交账号；
+      以及任何**生成工具 / Agent / 模型 / 平台的品牌名**。
+    - **本条文自身也不列举这些名称** —— 列举等于再写一遍，规则不能自己违规。
+      要判断某个词是否属于此类，只看一条标准：**它是"东西的名字"，还是"谁在替我干活"**。
+      前者保留（素材授权方、开源引擎、渲染与测试工具、`assets` 许可要求保留的署名），后者一律删除。
+    - 范围包括文档、注释、提交信息、`CREDITS`、交接文档、代码字符串与配置注释。
+    - **密钥、口令、keystore、`.env` 一律只留本机**，由 `.gitignore` 兜底（现有条目：
+      `.env`、`android/release.keystore`）；仓库内只写变量名（如 `secrets.PUBLISH_ASSETS_TOKEN`）。
+    - **提交身份用 noreply 邮箱**（`<用户名>@users.noreply.github.com`），提交信息不写工具名。
+    - 违反视为回归：清除内容、必要时重写受影响的历史，并在 `CHANGELOG.md` 记录清理范围。
 
 
 ## 二、硬约束（2026-11-11 治理规范，违反即回退）
 
-> 完整制度见 `docs/ASSET_GOVERNANCE.md`；层级登记见 `docs/ASSET_LAYERS.md`；清理台账为**仓外**本地文件（`仓外本地台账`，不入库）。
+> 完整制度见 `docs/ASSET_GOVERNANCE.md`；层级登记见 `docs/ASSET_LAYERS.md`；清理台账为**仓外**本地文件（`~/.returnlog-cleanup/<repo>-ASSET_CLEANUP_LOG.md`，不入库）。
 
 1. **三态声明**：新增任何资产必须显式声明「是否入库 / 是否发布 / 是否留在磁盘」三项状态，并同步四处规则：两仓 `.gitignore`、两仓发布白名单 `tools/deploy-config.cjs`、`assets/MANIFEST.json`、`BASELINE.sha256.json`。
 2. **白名单**：禁止在 `assets/`、`js/`、`audio/` 放置 L1–L4 资产；白名单目录下新增文件默认会发布，必须在 `tools/deploy-config.cjs` 的 `SKIP` 中显式排除。发布脚本与门禁共用同一份配置，不得两处各写一套。
@@ -156,3 +187,12 @@
 | `docs/workflow.md` | 命令、本机环境、Blender 权威版本、改动流程 | 需要跑工具 / 提交前 |
 
 > **口径优先级**：本文件与 `docs/ASSET_GOVERNANCE.md` 为现行口径；分册为历史原文逐字搬迁，仅供查阅，冲突时以现行口径为准并回写更新。
+
+## 公开物脱敏规范（2026-11-16 用户裁定 · 红线级；2026-11-17 改为「保留并脱敏」）
+
+公开仓、公开站点、比赛帖、Release、安装包和截图在发布前，必须逐项脱敏。默认禁止公开：本机绝对路径/用户名/设备信息、局域网 IP/端口、token/cookie/keystore/D1/KV/账号等资源 ID、私人邮箱/手机号、提示词/交接台账、各类 AI 工具痕迹、日志。只有用户逐项确认的「公开需要」可以保留；一次确认不扩展到其他条目、项目或批次。
+
+- **规范与文档随仓发布（2026-11-17 用户裁定）**：`AGENTS.md`、`ARCHITECTURE.md`、`docs/` 等规范/设计文档保留进公开仓，但必须先按本规范脱敏（剥除本机路径、个人信息、AI 工具痕迹），**不再以「整文件删除」的方式处理**。`tools/`、`tests/`、交接台账、`changelog-history-*` 等开发内部件仍不随公开仓发布。
+- 推送前必须跑本地脱敏检查器（`check-public-leaks.cjs`，本地私有工具、不随仓发布）；pre-push 已接入，禁止用 `--no-verify` 绕过。
+- 公开仓只放产品代码、运行素材、LICENSE、简短 README、必要部署配置，以及经脱敏的规范/设计文档。
+- 历史已泄露时按「单条纯净提交」重建并强推，删除旧分支、tag、Release、Actions 运行记录与缓存；有 fork 时另行处理。
