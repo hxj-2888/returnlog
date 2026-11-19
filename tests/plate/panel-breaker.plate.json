@@ -21,7 +21,11 @@
       "w": 68,
       "h": 116,
       "order": 1,
-      "role": "lever"
+      "role": "lever",
+      "fx": {
+        "k": "slide",
+        "dy": 0.22
+      }
     },
     {
       "id": "lever-2",
@@ -31,7 +35,11 @@
       "w": 68,
       "h": 116,
       "order": 2,
-      "role": "lever"
+      "role": "lever",
+      "fx": {
+        "k": "slide",
+        "dy": 0.22
+      }
     },
     {
       "id": "lever-3",
@@ -41,7 +49,11 @@
       "w": 68,
       "h": 116,
       "order": 3,
-      "role": "lever"
+      "role": "lever",
+      "fx": {
+        "k": "slide",
+        "dy": 0.22
+      }
     }
   ]
 }

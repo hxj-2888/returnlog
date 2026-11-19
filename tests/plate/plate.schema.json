@@ -100,6 +100,22 @@
         "r": { "type": "number", "minimum": 1 },
         "role": { "type": "string" },
         "order": { "type": "integer", "minimum": 1 },
+        "fx": {
+          "type": "object",
+          "description": "完成态的图内位移：把这个热点的一块贴图搬走 / 旋开 / 压下（dx、dy 是热点框宽高的比例）",
+          "additionalProperties": false,
+          "properties": {
+            "k": { "type": "string", "enum": ["press", "turn", "slide", "lit"] },
+            "clip": { "type": "string", "enum": ["rect", "circle"] },
+            "dx": { "type": "number", "minimum": -2, "maximum": 2 },
+            "dy": { "type": "number", "minimum": -2, "maximum": 2 },
+            "s": { "type": "number", "minimum": 0.1, "maximum": 2 },
+            "deg": { "type": "number", "minimum": -360, "maximum": 360 },
+            "dim": { "type": "number", "minimum": 0, "maximum": 1 },
+            "lit": { "type": "number", "minimum": 0.5, "maximum": 3 },
+            "glow": { "type": "boolean" }
+          }
+        },
         "reveals": { "type": "string" },
         "band": {
           "type": "array", "items": { "type": "number", "minimum": 0, "maximum": 100 },

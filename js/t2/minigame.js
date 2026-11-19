@@ -121,24 +121,29 @@
   #mg{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;
     background:rgba(3,6,11,.62);font-family:system-ui,"Microsoft YaHei",sans-serif}
   #mg.on{display:flex}
-  #mg .card{width:min(84vw,760px);height:min(82vh,540px);
-    background:linear-gradient(rgba(10,14,20,.84),rgba(10,14,20,.92)),
-      url("assets/minigame/task-frame.png") center/cover no-repeat,#12161E;
-    border:1px solid #2A3240;
-    border-radius:14px;display:flex;flex-direction:column;overflow:hidden;color:#DDE3EC;
-    box-shadow:0 18px 48px rgba(0,0,0,.55)}
-  #mg .hd{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;
-    border-bottom:1px solid #2A3240;font-size:13px;font-weight:600;color:#F0C674}
+  /* 2026-11-19 晚用户裁定：板图直接占满整张屏幕，不再露出背后的铁板与外框；
+     HUD 改为浮层（顶部标题+步骤、时间提示在任务栏上方、底部提示与中断）。 */
+  #mg .card{position:relative;width:100vw;height:100vh;border:0;border-radius:0;
+    background:#05080D;display:block;overflow:hidden;color:#DDE3EC;box-shadow:none}
+  #mg .hd{position:absolute;left:0;right:0;top:0;z-index:6;display:flex;align-items:center;
+    justify-content:space-between;padding:10px 14px 6px;border:0;font-size:13px;font-weight:600;
+    color:#F0C674;background:linear-gradient(rgba(5,8,13,.78),rgba(5,8,13,0));
+    text-shadow:0 1px 3px rgba(0,0,0,.85)}
+  #mg .tm{position:absolute;left:0;right:0;top:38px;z-index:6;text-align:center;font-size:12px;
+    color:#F0C674;font-variant-numeric:tabular-nums;text-shadow:0 1px 4px #000}
   #mg .hd span{font-size:11px;font-weight:400;color:#8FA6C0;font-variant-numeric:tabular-nums}
   #mg .hd strong{flex:1 1 auto}
   #mg .hd #mg-s{color:#F0C674;margin-right:10px}
-  #mg .bar{height:3px;background:#222833}
+  #mg .bar{position:absolute;left:0;right:0;top:60px;z-index:6;height:3px;background:rgba(34,40,51,.55)}
   #mg .bar i{display:block;height:100%;background:#F0C674;width:100%}
-  #mg .bd{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:14px;overflow:hidden}
-  #mg .tip{font-size:11.5px;color:#8FA6C0;min-height:17px;text-align:center}
+  #mg .bd{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;gap:12px;padding:0;overflow:hidden}
+  #mg .tip{position:absolute;left:0;right:0;bottom:46px;z-index:6;font-size:11.5px;color:#C9D3E1;
+    min-height:17px;text-align:center;text-shadow:0 1px 4px #000;pointer-events:none}
   #mg .tip.bad{color:#E08A86}#mg .tip.good{color:#F0C674}
-  #mg .ft{display:flex;justify-content:space-between;align-items:center;padding:7px 13px;
-    border-top:1px solid #2A3240;font-size:11px;color:#8FA6C0}
+  #mg .ft{position:absolute;left:0;right:0;bottom:0;z-index:6;display:flex;
+    justify-content:space-between;align-items:center;padding:8px 14px;border:0;font-size:11px;
+    color:#C9D3E0;background:linear-gradient(rgba(5,8,13,0),rgba(5,8,13,.82))}
   #mg button{background:#1D2530;color:#DDE3EC;border:1px solid #313B4B;border-radius:8px;
     padding:6px 12px;font-size:12px;font-family:inherit;cursor:pointer}
   #mg button:hover{border-color:#F0C674;color:#F0C674}
@@ -180,15 +185,14 @@
   #mg .spark{opacity:0}#mg .fire .spark{opacity:1}
   /* 图内要素板：两层都引用同一张图，断口是面层的 mask，不是新增线条 */
   #mg .plate-wrap{position:relative;width:min(330px,84%);aspect-ratio:1/1;flex:0 0 auto;
-    border:1px solid #2A3240;border-radius:10px;overflow:hidden;background:#05080D;
-    box-shadow:0 12px 34px rgba(0,0,0,.6)}
+    overflow:hidden;background:transparent}
   #mg .plate-svg{display:block;width:100%;height:100%}
   #mg .plate-under{filter:blur(7px) brightness(.34) saturate(.7)}
   #mg .cut-rect{transition:transform .42s cubic-bezier(.2,.8,.2,1)}
   #mg .ember-hit{cursor:pointer}
   @keyframes mghalo{0%{transform:scale(1);opacity:.5}70%{opacity:.12}100%{transform:scale(2.4);opacity:0}}
   #mg .plate-halo{transform-box:fill-box;transform-origin:center;animation:mghalo 1.7s ease-out infinite}
-  #mg button.plate-peek{padding:4px 10px;font-size:11px;margin-top:-4px}
+  #mg button.plate-peek{position:absolute;right:14px;bottom:52px;z-index:7;padding:4px 10px;font-size:11px}
   /* 图内任务热点（js/t2/plate-task.js）：点击层盖在贴图上，坐标是百分比；
      洞的收缩交给 .spot-hole 的过渡，原图像素自己长回来 */
   #mg .plate-spots{position:absolute;inset:0}
@@ -201,6 +205,13 @@
   #mg .spot-pop{transform-box:fill-box;transform-origin:center;
     animation:mgpop .52s ease-out forwards}
   @keyframes mgpop{0%{opacity:.9;transform:scale(.55)}100%{opacity:0;transform:scale(1.7)}}
+  /* 完成态的图内位移（js/t2/plate-task.js#fxDone）：整块贴图在热点里被搬走 / 旋开 / 压下，
+     底下露出的暗图就是空位；不新增图形，只动这张图的一块像素 */
+  #mg .plate-moved{pointer-events:none}
+  #mg .pmoved image{transform-box:fill-box;transform-origin:center;
+    transition:transform .46s cubic-bezier(.2,.8,.2,1),filter .46s ease}
+  #mg .pglow{filter:blur(7px);animation:mgGlow .9s ease-out forwards}
+  @keyframes mgGlow{0%{opacity:0}45%{opacity:.5}100%{opacity:.24}}
   /* 六动词的公共反馈：编号徽章 / 拖动 / 亮带 / 准星 / 顺序点错 */
   #mg .pspot.pdrag{cursor:grab;touch-action:none}
   #mg .pspot.pdrag.dragging{cursor:grabbing;z-index:3}
@@ -239,8 +250,8 @@
     node.id = 'mg';
     node.innerHTML =
       '<div class="card"><div class="hd"><strong id="mg-t">小游戏</strong>' +
-      '<span id="mg-s">—</span><span id="mg-c">—</span></div>' +
-      '<div class="bar"><i id="mg-p"></i></div><div class="bd" id="mg-b"></div>' +
+      '<span id="mg-s">—</span></div>' +
+      '<div class="tm" id="mg-tm">—</div><div class="bar"><i id="mg-p"></i></div><div class="bd" id="mg-b"></div>' +
       '<div class="ft"><span id="mg-f">—</span><button id="mg-a">中断（进度清零）</button></div></div>';
     /* 2026-11-06 补：这个按钮此前只有样子、没有绑定，点它不会中断。
        与 Esc 走同一条口径：不结算、进度清零、回调交回 game.js。 */
@@ -318,7 +329,7 @@
     const el2 = (performance.now() - api.t0) / 1000;
     const left = api.limit - el2;
     if (left <= 0) { settle(true, '保底时间到 · 任务自动完成'); return; }
-    node.querySelector('#mg-c').textContent = '保底 ' + Math.ceil(left) + 's';
+    node.querySelector('#mg-tm').textContent = '保底 ' + Math.ceil(left) + 's';
     node.querySelector('#mg-p').style.width = Math.min(100, el2 / api.limit * 100).toFixed(1) + '%';
     api.raf = requestAnimationFrame(tick);
   }
@@ -389,6 +400,13 @@
     }
 
     const wrap = el('div', 'plate-wrap');
+    /* 与 plate-task 同一口径：板图满屏 cover，不留余量（2026-11-19 晚裁定） */
+    const cw = crop[2], ch = crop[3];
+    const availW = bd.clientWidth || 720, availH = bd.clientHeight || 440;
+    const sc = Math.max(availW / cw, availH / ch);
+    wrap.style.width = (cw * sc).toFixed(1) + 'px';
+    wrap.style.height = (ch * sc).toFixed(1) + 'px';
+    wrap.style.aspectRatio = cw + ' / ' + ch;
     const svg = s('svg', { 'class': 'plate-svg', viewBox: crop.join(' '),
       preserveAspectRatio: 'xMidYMid meet' });
     const defs = s('defs', {});
@@ -732,7 +750,7 @@
     node.querySelector('#mg-t').textContent = opts.title || '任务';
     node.querySelector('#mg-f').textContent = (task && task.hint) || HINT[kind];
     node.querySelector('#mg-s').textContent = '—';
-    node.querySelector('#mg-c').textContent = '保底 ' + api.limit + 's';
+    node.querySelector('#mg-tm').textContent = '保底 ' + api.limit + 's';
     node.querySelector('#mg-p').style.width = '0%';
     const bd = node.querySelector('#mg-b');
     bd.innerHTML = '';

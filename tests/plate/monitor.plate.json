@@ -21,7 +21,11 @@
       "w": 56,
       "h": 36,
       "order": 1,
-      "role": "channel"
+      "role": "channel",
+      "fx": {
+        "k": "lit",
+        "lit": 1.35
+      }
     },
     {
       "id": "scr1-b",
@@ -31,7 +35,11 @@
       "w": 56,
       "h": 34,
       "order": 2,
-      "role": "channel"
+      "role": "channel",
+      "fx": {
+        "k": "lit",
+        "lit": 1.35
+      }
     },
     {
       "id": "scr2-t",
@@ -41,7 +49,11 @@
       "w": 74,
       "h": 36,
       "order": 3,
-      "role": "channel"
+      "role": "channel",
+      "fx": {
+        "k": "lit",
+        "lit": 1.35
+      }
     },
     {
       "id": "scr2-b",
@@ -51,7 +63,11 @@
       "w": 74,
       "h": 34,
       "order": 4,
-      "role": "channel"
+      "role": "channel",
+      "fx": {
+        "k": "lit",
+        "lit": 1.35
+      }
     },
     {
       "id": "key-1",

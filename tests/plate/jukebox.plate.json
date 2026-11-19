@@ -21,7 +21,15 @@
       "w": 76,
       "h": 76,
       "order": 1,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "clip": "circle",
+        "dy": 0.02,
+        "s": 0.95,
+        "lit": 1.18,
+        "glow": true
+      }
     },
     {
       "id": "key-2",
@@ -31,7 +39,15 @@
       "w": 76,
       "h": 76,
       "order": 2,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "clip": "circle",
+        "dy": 0.02,
+        "s": 0.95,
+        "lit": 1.18,
+        "glow": true
+      }
     },
     {
       "id": "key-3",
@@ -41,7 +57,15 @@
       "w": 76,
       "h": 76,
       "order": 3,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "clip": "circle",
+        "dy": 0.02,
+        "s": 0.95,
+        "lit": 1.18,
+        "glow": true
+      }
     },
     {
       "id": "key-4",
@@ -51,7 +75,15 @@
       "w": 76,
       "h": 76,
       "order": 4,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "clip": "circle",
+        "dy": 0.02,
+        "s": 0.95,
+        "lit": 1.18,
+        "glow": true
+      }
     }
   ]
 }
