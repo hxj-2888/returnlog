@@ -33,6 +33,8 @@
 - **读数变化**（本机实跑）：`npm test` **1056 通过 / 1 失败**（唯一失败「异形会用申请单在军械补给点换子弹」= 已登记抖动，独立探针 30/30）；`plate:check` 0 错误（18 张板）；
   `t3:check` PASS；`agent:contract` PASS；`file:check:js` OK（`js/game.js` **12,767 ≤ 12,773**，
   `js/t2/plate-task.js` **650 ≤ 650**）。面板与完成态经浏览器实测截图核对（点唱机 / 变压器 / 闸刀 / 通风口 / 电路维修）。
+  3D 快照重导：`3d:export:rules`（game.js 源哈希 + 55 键表）与 `3d:export:minigames`（18 板 / 26 任务，含 fx 字段），
+  `t3:check` 由「源哈希漂移」WARN 回到 **PASS 10 / WARN 3 / FAIL 0**（余下 3 条为既有存量债）。
 - **下一批立项依据**：其余板（tank-gauge / galley / surgery / supply 等）热点尚未声明 `fx`，可按同一机制补；
   AI 的 `_rest`（开枪后 1.5~2.5 秒、松手后 0.6~1.0 秒）属有意恢复动作，未动；
   medbot 孤儿板与三处「任务名 vs 板图语义」仍待用户裁定。
