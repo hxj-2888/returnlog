@@ -60,7 +60,7 @@
         { id: 'slot-blue', shape: 'point', x: 431, y: 499, w: 46, h: 46, order: 1, role: 'slot' },
         { id: 'slot-red', shape: 'point', x: 466, y: 502, w: 46, h: 46, order: 2, role: 'slot' },
         { id: 'slot-amber', shape: 'point', x: 368, y: 588, w: 46, h: 46, order: 3, role: 'slot' },
-        /* 零件台的三个零件：拖到上面三个缺口；洞开在缺口上，零件原位不动 */
+        /* 零件车的三个零件：拖到上面三个缺口；洞开在缺口上，零件原位不动 */
         { id: 'part-1', shape: 'rect', x: 296, y: 420, w: 44, h: 44, order: 4, role: 'part', to: [431, 499], toR: 36, hole: { x: 409, y: 477, w: 44, h: 44 } },
         { id: 'part-2', shape: 'rect', x: 300, y: 596, w: 44, h: 44, order: 5, role: 'part', to: [368, 588], toR: 36, hole: { x: 346, y: 566, w: 44, h: 44 } },
         { id: 'part-3', shape: 'rect', x: 486, y: 430, w: 44, h: 44, order: 6, role: 'part', to: [466, 502], toR: 36, hole: { x: 444, y: 480, w: 44, h: 44 } }
@@ -275,6 +275,33 @@
         { id: 'key-8', shape: 'rect', x: 435, y: 305, w: 70, h: 60, order: 8, role: 'key' }
       ]
     },
+    /* ---------- 点唱机：四个音键（2026-11-19 Qwen-Image 2.1 本地出图，登记见 ASSET_GOVERNANCE §14）---------- */
+    jukebox: {
+      id: 'jukebox',
+      label: '点唱机 · 四个音键',
+      image: 'assets/scene/v4/facility/jukebox.png',
+      size: [512, 512],
+      crop: [30, 110, 460, 300],
+      spots: [
+        { id: 'key-1', shape: 'rect', x: 84, y: 214, w: 76, h: 76, order: 1, role: 'key' },
+        { id: 'key-2', shape: 'rect', x: 162, y: 214, w: 76, h: 76, order: 2, role: 'key' },
+        { id: 'key-3', shape: 'rect', x: 245, y: 212, w: 76, h: 76, order: 3, role: 'key' },
+        { id: 'key-4', shape: 'rect', x: 329, y: 214, w: 76, h: 76, order: 4, role: 'key' }
+      ]
+    },
+    /* ---------- 变压器：三个芯仓螺栓（2026-11-19 Qwen-Image 2.1 本地出图）---------- */
+    transformer: {
+      id: 'transformer',
+      label: '变压器 · 三枚芯螺栓',
+      image: 'assets/scene/v4/facility/transformer.png',
+      size: [512, 512],
+      crop: [40, 100, 450, 330],
+      spots: [
+        { id: 'bolt-1', shape: 'rect', x: 129, y: 199, w: 72, h: 72, order: 1, role: 'bolt' },
+        { id: 'bolt-2', shape: 'rect', x: 247, y: 196, w: 72, h: 72, order: 2, role: 'bolt' },
+        { id: 'bolt-3', shape: 'rect', x: 359, y: 201, w: 72, h: 72, order: 3, role: 'bolt' }
+      ]
+    },
     surgery: {
       id: 'surgery',
       label: '手术台 · 探针校准',
@@ -318,21 +345,23 @@
      3D 端要复用同一套「哪块板配哪个任务」时读这张表，不要再抄一份。 */
   var byLabel = {
     '电路维修': 'panel-fix',
-    '备用配电盘': 'panel-fix',
-    '零件台': 'panel-fix',
-    '变压器换芯': 'panel-fix',
+    '保险盘接线': 'panel-fix',
+    '零件车': 'panel-fix',
+    /* 变压器换芯用专用变压器板（tapSeq 顺序拆三枚芯螺栓）——
+       旧映射先落在断线板上（看起来在连电线），后改扳手螺栓板（视觉不贴），现在有专门板。 */
+    '变压器换芯': 'transformer',
     '弹药清点': 'supply-ammo',
     '库存盘点': 'shelf',
     '靶道校准': 'target-lane',
-    '后厨盘点': 'galley',
+    '配餐台盘点': 'galley',
     '引擎组同步': 'breaker',
     '温控面板': 'breaker',
-    '氧气循环': 'tank-gauge',
+    '氧气循环': 'pipe-port-ecosys',
     '培养罐补液': 'tank-gauge',
     '药柜': 'supply-med',
     '餐台清洁': 'galley',
     '手术台校准': 'surgery',
-    '工具架': 'tool-wrench',
+    '工具台': 'tool-wrench',
     '工作台': 'tool-wrench',
     '消毒循环': 'panel-breaker',
     '货箱封条': 'door-panel',
@@ -342,7 +371,7 @@
     '操作台': 'monitor',
     '录像归档': 'monitor',
     '娱乐桌': 'rec-table',
-    '点唱机': 'rec-table'
+    '点唱机': 'jukebox'
   };
 
   var api = {

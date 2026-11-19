@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-15T06:18:58.193Z",
+  "generated_at": "2026-11-19T11:09:20.882Z",
   "note": "本文件由 3d/tools/export-sim.cjs 生成，勿手改。只含\"一局怎么开始、多少分算赢、天亮怎么推进\"的非发言规则；台词另见 data/lines.json（S 轨，2026-11-08 已接）。",
   "sources": {
-    "js/ai/sanity.js": "51041664e640",
-    "js/t2/space.js": "b9c59b5ea93b",
+    "js/ai/sanity.js": "0e7eea81c039",
+    "js/t2/space.js": "ea88c60eb922",
     "js/data/names.js": "96414d4fb89c",
-    "3d/preview/data/map_v2.json": "87b0a25b967b",
-    "3d/preview/data/minigames.json": "0d0e0004f6c6"
+    "3d/preview/data/map_v2.json": "de0cffa0899b",
+    "3d/preview/data/minigames.json": "3c0b3caf9284"
   },
   "roles": {
     "agents": 15,
@@ -39,6 +39,7 @@
     "MEET": {
       "perNight": 2,
       "reportsPerAgent": 2,
+      "reportR": 2.4,
       "pauseClock": true,
       "discussDay": 60,
       "discussPre": 50,
@@ -73,6 +74,8 @@
       "aiCapR": 8,
       "corrR": 12,
       "litRoomMul": 1.15,
+      "litViewHalfW": 10.5,
+      "litViewHalfH": 6.5,
       "fog": {
         "roomMask": 0.87,
         "corridorMask": 0.5
@@ -80,24 +83,20 @@
     },
     "BREAKER": {
       "witnessCap": 1,
-      "minConceal": 0.45,
-      "crowdR": 10,
-      "crowdN": 3
+      "minConceal": 0.45
     },
     "SABOTAGE": {
       "witnessCap": 1,
-      "minConceal": 0.58,
-      "crowdR": 10,
-      "crowdN": 3
+      "minConceal": 0.58
     },
     "KNIFE": {
       "witnessCap": 3,
       "minConceal": 0.34,
-      "crowdR": 9,
-      "crowdN": 3,
       "boldBase": 0.5,
       "boldSpan": 0.16,
-      "lockAtStart": 0
+      "lockAtStart": 0,
+      "victimSus": 0.9,
+      "victimGrudge": 0.7
     },
     "RED_BODY": {
       "dur": 1.5
@@ -108,7 +107,18 @@
       "alienOnly": true
     },
     "HUNT": {
-      "memorySec": 25
+      "memorySec": 25,
+      "repickSec": 8,
+      "incumbentPen": 6,
+      "chaseCap": 6,
+      "chaseGiveUp": 14,
+      "witSwapCD": 3,
+      "witSwapMargin": 2,
+      "stalkRate": 0.12,
+      "stalkSec": 14,
+      "stalkGap": 5,
+      "stalkMin": 0.08,
+      "jitter": 4
     },
     "SHOT": {
       "range": 9,
@@ -163,7 +173,7 @@
       "nightCap": 1
     },
     "TERMINATOR": {
-      "night": 10,
+      "night": 8,
       "bullets": 1,
       "reveal": true
     }
@@ -217,16 +227,16 @@
     ],
     "labels": [
       "引擎组同步",
-      "零件台",
-      "工具架",
-      "备用配电盘",
+      "零件车",
+      "工具台",
+      "保险盘接线",
       "氧气循环",
       "培养罐补液",
       "温控面板",
       "电路维修",
       "变压器换芯",
       "餐台清洁",
-      "后厨盘点",
+      "配餐台盘点",
       "娱乐桌",
       "点唱机",
       "手术台校准",

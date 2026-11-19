@@ -1,0 +1,57 @@
+{
+  "id": "jukebox",
+  "label": "点唱机 · 四个音键",
+  "image": "assets/scene/v4/facility/jukebox.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    30,
+    110,
+    460,
+    300
+  ],
+  "spots": [
+    {
+      "id": "key-1",
+      "shape": "rect",
+      "x": 84,
+      "y": 214,
+      "w": 76,
+      "h": 76,
+      "order": 1,
+      "role": "key"
+    },
+    {
+      "id": "key-2",
+      "shape": "rect",
+      "x": 162,
+      "y": 214,
+      "w": 76,
+      "h": 76,
+      "order": 2,
+      "role": "key"
+    },
+    {
+      "id": "key-3",
+      "shape": "rect",
+      "x": 245,
+      "y": 212,
+      "w": 76,
+      "h": 76,
+      "order": 3,
+      "role": "key"
+    },
+    {
+      "id": "key-4",
+      "shape": "rect",
+      "x": 329,
+      "y": 214,
+      "w": 76,
+      "h": 76,
+      "order": 4,
+      "role": "key"
+    }
+  ]
+}

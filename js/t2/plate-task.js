@@ -70,10 +70,14 @@
     var image = plate.image;
     var skin = SKIN[spec.skin] || SKIN[plate.skin] || SKIN.cut;
     var wrap = el('div', 'plate-wrap');
-    /* 卡片内可用区约 730×430；按板的宽高比算出「既放得下、又尽量大」的显示宽度。
-       竖长的板（闸刀 348×720）靠这条限高，不会被裁掉半截。 */
-    var dispW = Math.min(430, 340 * cw / ch);
-    wrap.style.width = 'min(' + dispW.toFixed(1) + 'px, 84%)';
+    /* 板图填满任务栏正文区（用户 2026-11-19 裁定）：以 .bd 可用区为准算最大内接矩形，
+       保持板自身宽高比、不裁切。旧写法固定 340px 高 / 430px 宽上限，四周留一大圈空白，
+       像是贴图浮在面板里；现在按正文区实际宽高等比放大到贴边。 */
+    var availW = (bd.clientWidth || 720) - 20, availH = (bd.clientHeight || 440) - 8;
+    var scale = Math.min(availW / cw, availH / ch);
+    var dispW = cw * scale, dispH = ch * scale;
+    wrap.style.width = dispW.toFixed(1) + 'px';
+    wrap.style.height = dispH.toFixed(1) + 'px';
     wrap.style.aspectRatio = cw + ' / ' + ch;
 
     var svg = svgEl('svg', {

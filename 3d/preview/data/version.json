@@ -12,12 +12,12 @@
     "gitee": "https://gitee.com/hxj-2888/returnlog"
   },
   "base": {
-    "version": "返航录V3.6",
-    "semver": "3.6.0"
+    "version": "返航录V0.1",
+    "semver": "0.1.0"
   },
   "sources": {
     "3d/version.json": "f3d919505aee",
-    "js/config/version.js": "62b53cefb53c",
-    "package.json": "9cd8d35f627d"
+    "js/config/version.js": "b3e8d50c8806",
+    "package.json": "a3c3d6bcde40"
   }
 }

@@ -1,0 +1,47 @@
+{
+  "id": "transformer",
+  "label": "变压器 · 三枚芯螺栓",
+  "image": "assets/scene/v4/facility/transformer.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    40,
+    100,
+    450,
+    330
+  ],
+  "spots": [
+    {
+      "id": "bolt-1",
+      "shape": "rect",
+      "x": 129,
+      "y": 199,
+      "w": 72,
+      "h": 72,
+      "order": 1,
+      "role": "bolt"
+    },
+    {
+      "id": "bolt-2",
+      "shape": "rect",
+      "x": 247,
+      "y": 196,
+      "w": 72,
+      "h": 72,
+      "order": 2,
+      "role": "bolt"
+    },
+    {
+      "id": "bolt-3",
+      "shape": "rect",
+      "x": 359,
+      "y": 201,
+      "w": 72,
+      "h": 72,
+      "order": 3,
+      "role": "bolt"
+    }
+  ]
+}

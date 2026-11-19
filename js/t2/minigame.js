@@ -40,20 +40,20 @@
     /* ---- 维修 · 电路板 / 扳手 ---- */
     '电路维修': { k:'wire', n:3, rounds:2, color:'#E0574F',
       hint:'直接操控面板图里的断线：每组三处、共两组；接错不重置' },
-    '备用配电盘': { k:'wire', n:2, color:'#F0C674',
-      hint:'接回配电盘上的两处断线；接错不重置' },
-    '零件台': { k:'plate', plate:'panel-fix', verb:'drag', use:'part', n:3,
+    '保险盘接线': { k:'wire', n:2, color:'#F0C674',
+      hint:'接回保险盘上的两处断线；接错不重置' },
+    '零件车': { k:'plate', plate:'panel-fix', verb:'drag', use:'part', n:3,
       color:'#73A7FF', hint:'把三个零件拖回电路板上的虚线缺口；拖歪不重置' },
-    '变压器换芯': { k:'plate', plate:'panel-fix', verb:'tapSeq', use:'slot', n:3,
-      color:'#B07CFF', hint:'按图上的 1→2→3 顺序取出三枚旧芯；点错不重置' },
-    '工具架': { k:'plate', plate:'tool-wrench', verb:'tapSeq', use:'bolt', n:3,
+    '变压器换芯': { k:'plate', plate:'transformer', verb:'tapSeq', use:'bolt', n:3,
+      color:'#B07CFF', hint:'按图上的 1→2→3 依次拆下三枚旧芯螺栓；点错不重置' },
+    '工具台': { k:'plate', plate:'tool-wrench', verb:'tapSeq', use:'bolt', n:3,
       color:'#5AD1C0', hint:'按 1→2→3 把工具挂回三个卡位' },
     '工作台': { k:'plate', plate:'tool-wrench', verb:'hold', use:'bolt', n:3, hold:1.1,
       color:'#F5A64A', hint:'按住三个螺栓拧紧，充满即到位' },
 
     /* ---- 生态 · 通风与补液 ---- */
-    '氧气循环': { k:'plate', plate:'tank-gauge', verb:'hold', use:'valve', n:2, hold:1.1,
-      color:'#57DB70', hint:'按图上的 1→2→3→4 依次打开四片通风叶' },
+    '氧气循环': { k:'plate', plate:'pipe-port-ecosys', verb:'tapSeq', use:'vent', n:4,
+      color:'#57DB70', hint:'按图上的 1→2→3→4 依次打开四片通风叶；点错不重置' },
     '培养罐补液': { k:'plate', plate:'tank-gauge', verb:'holdBand', use:'gauge', n:1, dur:2.6,
       color:'#00E5B0', hint:'按住注液，液面进入亮带再松手；过头会退回来' },
 
@@ -61,11 +61,11 @@
     '药柜': { k:'plate', plate:'supply-med', verb:'hold', use:['latch','lid'], n:3, hold:1.0,
       color:'#5AD1C0', hint:'按住三个锁扣直到充满，柜门才开' },
     '手术台校准': { k:'plate', plate:'surgery', verb:'drag', use:'probe', n:3,
-      color:'#00E5B0', hint:'把三根探针拖进无人机上的虚线接口；拖歪不重置' },
+      color:'#00E5B0', hint:'把三根探针拖回手术台的虚线接口；拖歪不重置' },
     '餐台清洁': { k:'plate', plate:'galley', verb:'tap', use:'dish', n:5,
       color:'#F5A64A', hint:'逐处点掉台面上的五处污渍' },
-    '后厨盘点': { k:'plate', plate:'galley', verb:'tapSeq', use:'dish', n:5,
-      color:'#F0C674', hint:'按编号 1→5 依次核对五个罐位' },
+    '配餐台盘点': { k:'plate', plate:'galley', verb:'tapSeq', use:'dish', n:5,
+      color:'#F0C674', hint:'按编号 1→5 依次核对五处餐位' },
 
     /* ---- 娱乐 · 监控台改的桌面 ---- */
     '娱乐桌': { k:'plate', plate:'rec-table', verb:'tap', use:'key', n:4,

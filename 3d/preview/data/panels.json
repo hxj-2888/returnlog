@@ -6,16 +6,16 @@
   "size": 512,
   "panels": {
     "引擎组同步": "res://assets/textures/qwen/engine/panel-01-engine-sync.png",
-    "零件台": "res://assets/textures/qwen/engine/panel-02-engine-place.png",
-    "工具架": "res://assets/textures/qwen/engine/panel-03-engine-place.png",
-    "备用配电盘": "res://assets/textures/qwen/engine/panel-04-engine-wire.png",
+    "零件车": "res://assets/textures/qwen/engine/panel-02-engine-place.png",
+    "工具台": "res://assets/textures/qwen/engine/panel-03-engine-place.png",
+    "保险盘接线": "res://assets/textures/qwen/engine/panel-04-engine-wire.png",
     "氧气循环": "res://assets/textures/qwen/ecosys/panel-05-ecosys-pour.png",
     "培养罐补液": "res://assets/textures/qwen/ecosys/panel-06-ecosys-pour.png",
     "温控面板": "res://assets/textures/qwen/ecosys/panel-07-ecosys-sync.png",
     "电路维修": "res://assets/textures/qwen/power/panel-08-power-wire.png",
     "变压器换芯": "res://assets/textures/qwen/power/panel-09-power-swap.png",
     "餐台清洁": "res://assets/textures/qwen/transit/panel-10-transit-sort.png",
-    "后厨盘点": "res://assets/textures/qwen/transit/panel-11-transit-sort.png",
+    "配餐台盘点": "res://assets/textures/qwen/transit/panel-11-transit-sort.png",
     "娱乐桌": "res://assets/textures/qwen/fun/panel-12-fun-sequence.png",
     "点唱机": "res://assets/textures/qwen/fun/panel-13-fun-sequence.png",
     "手术台校准": "res://assets/textures/qwen/med/panel-14-med-align.png",
@@ -43,7 +43,7 @@
       "ops": "resize only（面板是整块构图，不镜像）"
     },
     {
-      "task": "零件台",
+      "task": "零件车",
       "kind": "place",
       "accent": "#73A7FF",
       "file": "res://assets/textures/qwen/engine/panel-02-engine-place.png",
@@ -52,7 +52,7 @@
       "ops": "resize only（面板是整块构图，不镜像）"
     },
     {
-      "task": "工具架",
+      "task": "工具台",
       "kind": "place",
       "accent": "#5AD1C0",
       "file": "res://assets/textures/qwen/engine/panel-03-engine-place.png",
@@ -61,7 +61,7 @@
       "ops": "resize only（面板是整块构图，不镜像）"
     },
     {
-      "task": "备用配电盘",
+      "task": "保险盘接线",
       "kind": "wire",
       "accent": "#F0C674",
       "file": "res://assets/textures/qwen/engine/panel-04-engine-wire.png",
@@ -124,7 +124,7 @@
       "ops": "resize only（面板是整块构图，不镜像）"
     },
     {
-      "task": "后厨盘点",
+      "task": "配餐台盘点",
       "kind": "sort",
       "accent": "#F0C674",
       "file": "res://assets/textures/qwen/transit/panel-11-transit-sort.png",

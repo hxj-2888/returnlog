@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-12T11:53:09.569Z",
+  "generated_at": "2026-11-19T11:08:41.587Z",
   "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
   "sources": {
-    "js/ai/sanity.js": "a2dd222adc5c",
-    "js/t2/space.js": "b9c59b5ea93b",
-    "js/game.js": "2a2bd3149b36"
+    "js/ai/sanity.js": "0e7eea81c039",
+    "js/t2/space.js": "ea88c60eb922",
+    "js/game.js": "f38a0877c67e"
   },
   "grid": {
     "meters_per_cell": 1,

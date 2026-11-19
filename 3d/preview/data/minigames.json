@@ -2,8 +2,8 @@
   "schema_version": 1,
   "generatedBy": "3d/tools/export-minigames.cjs",
   "sources": {
-    "minigame": "dc5d25131212",
-    "plates": "b79bc0696ff9"
+    "minigame": "424f58e1138f",
+    "plates": "ba0d3141edeb"
   },
   "kinds": [
     "wire",
@@ -53,13 +53,13 @@
       "color": "#E0574F",
       "hint": "直接操控面板图里的断线：每组三处、共两组；接错不重置"
     },
-    "备用配电盘": {
+    "保险盘接线": {
       "k": "wire",
       "n": 2,
       "color": "#F0C674",
-      "hint": "接回配电盘上的两处断线；接错不重置"
+      "hint": "接回保险盘上的两处断线；接错不重置"
     },
-    "零件台": {
+    "零件车": {
       "k": "plate",
       "plate": "panel-fix",
       "verb": "drag",
@@ -70,14 +70,14 @@
     },
     "变压器换芯": {
       "k": "plate",
-      "plate": "panel-fix",
+      "plate": "transformer",
       "verb": "tapSeq",
-      "use": "slot",
+      "use": "bolt",
       "n": 3,
       "color": "#B07CFF",
-      "hint": "按图上的 1→2→3 顺序取出三枚旧芯；点错不重置"
+      "hint": "按图上的 1→2→3 依次拆下三枚旧芯螺栓；点错不重置"
     },
-    "工具架": {
+    "工具台": {
       "k": "plate",
       "plate": "tool-wrench",
       "verb": "tapSeq",
@@ -98,13 +98,12 @@
     },
     "氧气循环": {
       "k": "plate",
-      "plate": "tank-gauge",
-      "verb": "hold",
-      "use": "valve",
-      "n": 2,
-      "hold": 1.1,
+      "plate": "pipe-port-ecosys",
+      "verb": "tapSeq",
+      "use": "vent",
+      "n": 4,
       "color": "#57DB70",
-      "hint": "按图上的 1→2→3→4 依次打开四片通风叶"
+      "hint": "按图上的 1→2→3→4 依次打开四片通风叶；点错不重置"
     },
     "培养罐补液": {
       "k": "plate",
@@ -136,7 +135,7 @@
       "use": "probe",
       "n": 3,
       "color": "#00E5B0",
-      "hint": "把三根探针拖进无人机上的虚线接口；拖歪不重置"
+      "hint": "把三根探针拖回手术台的虚线接口；拖歪不重置"
     },
     "餐台清洁": {
       "k": "plate",
@@ -147,14 +146,14 @@
       "color": "#F5A64A",
       "hint": "逐处点掉台面上的五处污渍"
     },
-    "后厨盘点": {
+    "配餐台盘点": {
       "k": "plate",
       "plate": "galley",
       "verb": "tapSeq",
       "use": "dish",
       "n": 5,
       "color": "#F0C674",
-      "hint": "按编号 1→5 依次核对五个罐位"
+      "hint": "按编号 1→5 依次核对五处餐位"
     },
     "娱乐桌": {
       "k": "plate",
@@ -262,17 +261,17 @@
     "温控面板": "plate",
     "消毒循环": "plate",
     "电路维修": "wire",
-    "备用配电盘": "wire",
-    "零件台": "plate",
+    "保险盘接线": "wire",
+    "零件车": "plate",
     "变压器换芯": "plate",
-    "工具架": "plate",
+    "工具台": "plate",
     "工作台": "plate",
     "氧气循环": "plate",
     "培养罐补液": "plate",
     "药柜": "plate",
     "手术台校准": "plate",
     "餐台清洁": "plate",
-    "后厨盘点": "plate",
+    "配餐台盘点": "plate",
     "娱乐桌": "plate",
     "点唱机": "plate",
     "监控墙重连": "plate",
@@ -1572,6 +1571,112 @@
         ],
         "imageSource": "assets/scene/v4/facility/rec-table.png"
       },
+      "jukebox": {
+        "id": "jukebox",
+        "label": "点唱机 · 四个音键",
+        "image": "res://assets/plates/jukebox.png",
+        "size": [
+          512,
+          512
+        ],
+        "crop": [
+          30,
+          110,
+          460,
+          300
+        ],
+        "spots": [
+          {
+            "id": "key-1",
+            "shape": "rect",
+            "x": 84,
+            "y": 214,
+            "w": 76,
+            "h": 76,
+            "order": 1,
+            "role": "key"
+          },
+          {
+            "id": "key-2",
+            "shape": "rect",
+            "x": 162,
+            "y": 214,
+            "w": 76,
+            "h": 76,
+            "order": 2,
+            "role": "key"
+          },
+          {
+            "id": "key-3",
+            "shape": "rect",
+            "x": 245,
+            "y": 212,
+            "w": 76,
+            "h": 76,
+            "order": 3,
+            "role": "key"
+          },
+          {
+            "id": "key-4",
+            "shape": "rect",
+            "x": 329,
+            "y": 214,
+            "w": 76,
+            "h": 76,
+            "order": 4,
+            "role": "key"
+          }
+        ],
+        "imageSource": "assets/scene/v4/facility/jukebox.png"
+      },
+      "transformer": {
+        "id": "transformer",
+        "label": "变压器 · 三枚芯螺栓",
+        "image": "res://assets/plates/transformer.png",
+        "size": [
+          512,
+          512
+        ],
+        "crop": [
+          40,
+          100,
+          450,
+          330
+        ],
+        "spots": [
+          {
+            "id": "bolt-1",
+            "shape": "rect",
+            "x": 129,
+            "y": 199,
+            "w": 72,
+            "h": 72,
+            "order": 1,
+            "role": "bolt"
+          },
+          {
+            "id": "bolt-2",
+            "shape": "rect",
+            "x": 247,
+            "y": 196,
+            "w": 72,
+            "h": 72,
+            "order": 2,
+            "role": "bolt"
+          },
+          {
+            "id": "bolt-3",
+            "shape": "rect",
+            "x": 359,
+            "y": 201,
+            "w": 72,
+            "h": 72,
+            "order": 3,
+            "role": "bolt"
+          }
+        ],
+        "imageSource": "assets/scene/v4/facility/transformer.png"
+      },
       "surgery": {
         "id": "surgery",
         "label": "手术台 · 探针校准",
@@ -1772,21 +1877,21 @@
     },
     "byLabel": {
       "电路维修": "panel-fix",
-      "备用配电盘": "panel-fix",
-      "零件台": "panel-fix",
-      "变压器换芯": "panel-fix",
+      "保险盘接线": "panel-fix",
+      "零件车": "panel-fix",
+      "变压器换芯": "transformer",
       "弹药清点": "supply-ammo",
       "库存盘点": "shelf",
       "靶道校准": "target-lane",
-      "后厨盘点": "galley",
+      "配餐台盘点": "galley",
       "引擎组同步": "breaker",
       "温控面板": "breaker",
-      "氧气循环": "tank-gauge",
+      "氧气循环": "pipe-port-ecosys",
       "培养罐补液": "tank-gauge",
       "药柜": "supply-med",
       "餐台清洁": "galley",
       "手术台校准": "surgery",
-      "工具架": "tool-wrench",
+      "工具台": "tool-wrench",
       "工作台": "tool-wrench",
       "消毒循环": "panel-breaker",
       "货箱封条": "door-panel",
@@ -1796,7 +1901,7 @@
       "操作台": "monitor",
       "录像归档": "monitor",
       "娱乐桌": "rec-table",
-      "点唱机": "rec-table"
+      "点唱机": "jukebox"
     }
   }
 }
