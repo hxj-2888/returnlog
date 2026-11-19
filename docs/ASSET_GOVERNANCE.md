@@ -768,8 +768,8 @@
 ### 2026-11-19 · 六张图内任务板（tank-gauge / galley / rec-table / surgery / target-lane / shelf）
 
 红线 12 / §14 四步留痕。**只取设计方法，不直接引用任何公开素材文件**；成品全部由本机
-`E:\ai-models\qwen-image-2.1`（Qwen-Image 2.1 Turbo GGUF，Qwen Research License 非商用）
-经 `E:\ai-tools\sdcpp\vulkan\sd-cli.exe` 本地生成，8 步 / CFG 1.0 / euler / 768×768。
+本机 Qwen-Image 2.1 Turbo GGUF（Qwen Research License 非商用）
+经本地 stable-diffusion.cpp 命令行工具生成，8 步 / CFG 1.0 / euler / 768×768。
 
 | 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
 |---|---|---|---|---|---|
