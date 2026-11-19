@@ -7,32 +7,17 @@
  * flag      : N
  * note      : 图内任务通用引擎；板数据仍只放 js/data/plates.js
  * ============================================================== */
-/* 图内任务引擎 · 六动词（tap / tapSeq / hold / holdBand / drag / aim）
-   -------------------------------------------------------------
-   一张贴图 + 若干热点 + 一个动词：热点未完成时，面层贴图在热点处被
-   遮罩挖掉，玩家看到的是底下那层「模糊压暗 / 泛灰」的同一张图；
-   做完一处就把这个洞缩到 0，原图像素自己长回来。
-   全程不新增任何抽象图形，只动遮罩 —— 与 buildPlate 的接线手感同源。
-
-   六个动词都是点按 / 长按的变体，没有任何「先看后记」的记忆环节：
-     tap      点一下                      （清点、擦污渍、点亮）
-     tapSeq   图上带编号，按 1→2→3 点      （编号常驻可见，不靠记）
-     hold     按住到圆环充满               （压紧、拧紧、拉闸）
-     holdBand 按住推进，松手落在亮带        （注液、加热、顶到刻度）
-     drag     按住拖到目标位               （零件归位、探针校准、归档）
-     aim      准星进亮带时点               （靶道、扫描线）
-
-   约束：
-     · 本文件不定义任何坐标 / 数值；全部读 js/data/plates.js 与
-       js/t2/minigame.js#TASKS。
-     · 不读对局状态、不写分数；完成/中断通过 host 回调交回。
-     · 经典 <script> 加载，必须在 t2/minigame.js 之前。
-     · 贴图加载失败 / 动词不支持 → build() 返回 false，调用方回退旧 builder。 */
+/* 图内任务引擎 · 六动词（tap / tapSeq / hold / holdBand / drag / aim）——一张贴图 + 若干热点：
+   未完成的热点处，面层贴图被遮罩挖掉，露出底下「模糊压暗」的同一张图；做完一处把洞缩到 0，
+   原图像素自己长回来；声明了 fx 的热点改成把这块贴图搬走/旋开/压下，完成态留在图上。
+   动词：tap 点一下 · tapSeq 按编号点 · hold 按住充满 · holdBand 按住推进松手落在亮带 ·
+   drag 拖到目标位 · aim 准星进亮带时点（编号常驻可见，不靠记忆）。
+   约束：不定义坐标/数值（读 plates.js 与 minigame.js#TASKS）；不读对局状态、不写分数；经典 <script> 加载，排在 minigame.js 之前；贴图缺失/动词不支持 → build() 返回 false。 */
 (function (global) {
   'use strict';
 
   var NS = 'http://www.w3.org/2000/svg';
-
+  var clipSeq = 0;   /* 每块板的 clipPath id 序号 */
   /* 皮肤：只决定「未处理处」长什么样（底层副本的滤镜），不是板几何。 */
   var SKIN = {
     cut: { under: 'blur(7px) brightness(.34) saturate(.7)' },
@@ -62,18 +47,33 @@
     return ((v - origin) / len * 100).toFixed(3) + '%';
   }
 
+  /* 完成态的图内位移：dx/dy 是热点框宽高的比例，s 缩放、deg 旋转、dim 压暗、lit 提亮 */
+  function applyFx(S, st, accent) {
+    var f = st.p.fx, b = st.box, m = st.movedImg;
+    if (m) {
+      m.style.transform = 'translate(' + ((f.dx || 0) * b.w).toFixed(2) + 'px,' +
+        ((f.dy || 0) * b.h).toFixed(2) + 'px) rotate(' + (f.deg || 0) + 'deg) scale(' + (f.s == null ? 1 : f.s) + ')';
+      m.style.filter = f.dim != null ? 'brightness(' + f.dim + ')' :
+        f.lit != null ? 'brightness(' + f.lit + ') saturate(1.18)' : '';
+    }
+    if (st.moved) st.moved.setAttribute('opacity', '1');
+    if (f.glow) S.fx.appendChild(svgEl('ellipse', { cx: b.x + b.w / 2, cy: b.y + b.h / 2,
+      rx: b.w * 0.66, ry: b.h * 0.66, fill: accent, opacity: 0.38, 'class': 'pglow' }));
+  }
   /* 舞台：两层贴图 + 遮罩 + 三组反馈层 + 热点层 + 「按住看原图」。
      与判分无关，单独成函数是为了守住「单函数 ≤200 行」的棘轮。 */
   function stage(bd, plate, spec, el, crop) {
+    var uid = ++clipSeq, maskId = 'ptSpotMask_' + uid, gradId = 'ptSpotGrad_' + uid, srcId = 'ptSpotSrc_' + uid;
     var W = plate.size[0], H = plate.size[1];
     var cx0 = crop[0], cy0 = crop[1], cw = crop[2], ch = crop[3];
     var image = plate.image;
     var skin = SKIN[spec.skin] || SKIN[plate.skin] || SKIN.cut;
     var wrap = el('div', 'plate-wrap');
-    /* 卡片内可用区约 730×430；按板的宽高比算出「既放得下、又尽量大」的显示宽度。
-       竖长的板（闸刀 348×720）靠这条限高，不会被裁掉半截。 */
-    var dispW = Math.min(430, 340 * cw / ch);
-    wrap.style.width = 'min(' + dispW.toFixed(1) + 'px, 84%)';
+    /* 板图满屏 cover（2026-11-19 晚裁定）：取最大缩放、超出裁掉、不留余量；热点按 wrap 百分比定位 */
+    var availW = bd.clientWidth || 720, availH = bd.clientHeight || 440, scale = Math.max(availW / cw, availH / ch);
+    var dispW = cw * scale, dispH = ch * scale;
+    wrap.style.width = dispW.toFixed(1) + 'px';
+    wrap.style.height = dispH.toFixed(1) + 'px';
     wrap.style.aspectRatio = cw + ' / ' + ch;
 
     var svg = svgEl('svg', {
@@ -84,7 +84,7 @@
 
     var defs = svgEl('defs', {});
     var mask = svgEl('mask', {
-      id: 'ptSpotMask', maskUnits: 'userSpaceOnUse',
+      id: maskId, maskUnits: 'userSpaceOnUse',
       x: 0, y: 0, width: W, height: H
     });
     mask.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#fff' }));
@@ -92,32 +92,34 @@
     mask.appendChild(holes);
     defs.appendChild(mask);
 
-    var grad = svgEl('radialGradient', { id: 'ptSpotGrad' });
+    var grad = svgEl('radialGradient', { id: gradId });
     grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#000' }));
     grad.appendChild(svgEl('stop', { offset: '58%', 'stop-color': '#000' }));
     grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#fff' }));
     defs.appendChild(grad);
 
     var src = svgEl('image', {
-      id: 'ptSpotSrc', href: image, x: 0, y: 0, width: W, height: H
+      id: srcId, href: image, x: 0, y: 0, width: W, height: H
     });
     defs.appendChild(src);
     svg.appendChild(defs);
 
-    var under = svgEl('use', { href: '#ptSpotSrc', 'class': 'plate-under' });
+    var under = svgEl('use', { href: '#' + srcId, 'class': 'plate-under' });
     under.style.filter = skin.under;
     svg.appendChild(under);
     svg.appendChild(svgEl('use', {
-      href: '#ptSpotSrc', 'class': 'plate-face', mask: 'url(#ptSpotMask)'
+      href: '#' + srcId, 'class': 'plate-face', mask: 'url(#' + maskId + ')'
     }));
     /* 进度填充 / 亮带画在面层之上：它们是「这处正在被处理」的反馈，
        不是遮罩的一部分，也不能塞进 <defs>（那里不参与渲染）。 */
     var fills = svgEl('g', { 'class': 'plate-fills' });
     var rings = svgEl('g', { 'class': 'plate-rings' });
     var fx = svgEl('g', { 'class': 'plate-fx' });
+    var moved = svgEl('g', { 'class': 'plate-moved' });   /* 完成态位移层：底层暗图就是空位 */
     svg.appendChild(fills);
     svg.appendChild(rings);
     svg.appendChild(fx);
+    svg.appendChild(moved);
     wrap.appendChild(svg);
     var face = svg.querySelector('.plate-face');
 
@@ -126,7 +128,7 @@
 
     var peek = el('button', 'plate-peek', '按住看原图');
     function setPeek(on) {
-      face.setAttribute('mask', on ? 'none' : 'url(#ptSpotMask)');
+      face.setAttribute('mask', on ? 'none' : 'url(#' + maskId + ')');
       peek.textContent = on ? '原图' : '按住看原图';
     }
     peek.addEventListener('pointerdown', function (e) { e.preventDefault(); setPeek(true); });
@@ -136,7 +138,8 @@
 
     bd.appendChild(wrap);
     bd.appendChild(peek);
-    return { wrap: wrap, svg: svg, src: src, holes: holes, fills: fills, rings: rings, fx: fx, layer: layer };
+    return { wrap: wrap, svg: svg, src: src, holes: holes, fills: fills, rings: rings, fx: fx,
+      moved: moved, defs: defs, image: image, layer: layer, gradId: gradId };
   }
 
   /* 公共骨架：两层贴图 + 遮罩 + 热点层 + 进度/结算回调。 */
@@ -173,7 +176,7 @@
 
     var S = {
       el: el, wrap: st.wrap, layer: st.layer, svg: st.svg, holes: st.holes,
-      rings: st.rings, fx: st.fx, fills: st.fills,
+      rings: st.rings, fx: st.fx, fills: st.fills, moved: st.moved, defs: st.defs, image: st.image, gradId: st.gradId,
       W: W, img: { x: 0, y: 0, w: W, h: H }, crop: crop,
       cx0: cx0, cy0: cy0, cw: cw, ch: ch,
       accent: accent, spots: spots, states: [],
@@ -208,16 +211,18 @@
         S.raf = 0;
         if (host.settle) host.settle(true, msg || spec.win || '任务完成');
       },
-      /* 关掉某个洞：原图像素长回来 */
+      /* 无 fx：洞缩 0、原图长回；有 fx：把这块贴图搬走/旋开/压下，完成态留在图上 */
       close: function (st) {
         if (!st || st.closed) return;
         st.closed = true;
-        if (st.hole) st.hole.style.transform = 'scale(0)';
+        if (st.p && st.p.fx) S.fxDone(st);
+        else if (st.hole) st.hole.style.transform = 'scale(0)';
         if (st.ring && st.ring.parentNode) st.ring.parentNode.removeChild(st.ring);
         if (st.halo && st.halo.parentNode) st.halo.parentNode.removeChild(st.halo);
         if (st.node) st.node.classList.add('done');
         S.pop(st.holeBox || st.box);
       },
+      fxDone: function (st) { applyFx(S, st, accent); },
       pop: function (box) {
         var c = svgEl('circle', {
           cx: box.x + box.w / 2, cy: box.y + box.h / 2,
@@ -243,13 +248,24 @@
         var hole = svgEl('rect', {
           x: holeBox.x, y: holeBox.y, width: holeBox.w, height: holeBox.h,
           rx: Math.min(holeBox.w, holeBox.h) * 0.24,
-          fill: 'url(#ptSpotGrad)', 'class': 'spot-hole'
+          fill: 'url(#' + S.gradId + ')', 'class': 'spot-hole'
         });
         S.holes.appendChild(hole);
         var st = {
           i: i, p: p, box: b, holeBox: holeBox, node: node, hole: hole,
-          ring: null, halo: null, done: false, closed: false
+          ring: null, halo: null, done: false, closed: false, moved: null, movedImg: null
         };
+        if (p.fx) {
+          var cid = 'ptClip' + (clipSeq++), cp = svgEl('clipPath', { id: cid, clipPathUnits: 'userSpaceOnUse' });
+          cp.appendChild(p.fx.clip === 'circle'
+            ? svgEl('circle', { cx: b.x + b.w / 2, cy: b.y + b.h / 2, r: Math.min(b.w, b.h) * 0.46 })
+            : svgEl('rect', { x: b.x, y: b.y, width: b.w, height: b.h }));
+          S.defs.appendChild(cp);
+          st.moved = svgEl('g', { 'class': 'pmoved', opacity: '0', 'clip-path': 'url(#' + cid + ')' });
+          st.movedImg = svgEl('image', { href: S.image, x: 0, y: 0, width: W, height: H });
+          st.moved.appendChild(st.movedImg);
+          S.moved.appendChild(st.moved);
+        }
         if (p.role !== 'lane') {
           var ring = svgEl('rect', {
             x: b.x, y: b.y, width: b.w, height: b.h,

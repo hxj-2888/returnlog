@@ -313,7 +313,7 @@
         tasks:[hardPts[Math.floor(Math.random()*hardPts.length)]]
           .concat(shuffle(normalPts.slice()).slice(0,3)),
         tIdx:0,doing:0,progress:0,qual:0,qualPending:0,_q3:false,_q5:false,bullet:0,medkit:0,
-        knife:1,think:0,target:null,
+        knife:1,think:0,target:null,_tgtPos:null,_stalkPos:null,
         /* 幽灵 / 尸体 / 拖拽 / 搜查 */
         /* talkN：实际说出口的台词数（可观察的行为史，不是性格轴） */
         talkN:0,
@@ -438,7 +438,7 @@
         G.t=NIGHT;
         G.phase=SKClock.newPhase('night',performance.now(),NIGHT*1000);
       }else setTimeout(()=>openMeeting('pre',null,null),60);
-      /* 门禁探针是一次性的：无论正常开局还是探针，下一局都回到默认口径。 */
+      /* 门禁探针一次性：下一局回默认口径。 */
       SEAT_FORCE=null; ROSTER_FORCE=null;
     }
     function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -1710,13 +1710,10 @@
       }
       return best;
     }
-    /* ---- 追责机制（2026-11-01）----
-       投票结果公布后清算"带节奏"的人：
-         · 被驱逐的**真是异形** → 投对的人信誉上升（别人更信他的判断）
-         · 被驱逐的是**人类**   → 投错的人信誉下降，带头的人还被记一笔嫌疑
-       第一个公开指控的人（meet.lead）权重最高，跟票的按 voterMul 计。
-       这条给诬陷加了一个真实代价：诬陷成功收益极大，但一旦被证伪，
-       带头的人自己就变成下一个目标 —— 诬陷是要还的。 */
+    /* 追责（2026-11-01）：投票公布后清算带节奏的人。
+       逐出的是异形→投对的加信誉；逐出的是人类→投错的扣信誉，带头者还记嫌疑。
+       第一个公开指控者(meet.ctx.lead)权重最高，跟票按 voterMul；诬陷成功收益大，
+       但被证伪后带头者自己变下一个目标。玩家席位的公开点名同样写 ctx.lead。 */
     function settleAccountability(cand){
       if(!cand||!G.meet)return;
       const A=SKSanity.ACCOUNT, R=SKSanity.RELIA, m=G.meet, votes=m.votes||{};
@@ -2010,8 +2007,11 @@
       if(a===G.me&&!G.simMode&&!G.spectMode&&G.aimX!=null)
         return Math.atan2(G.aimY-a.y,G.aimX-a.x);
       if(a.act&&Number.isFinite(a.act.ang))return a.act.ang;
-      if(a.target&&a.target.alive)
-        return Math.atan2(a.target.y-a.y,a.target.x-a.x);
+      if(a.target&&a.target.alive){
+        /* 朝向只指"我知道的那格"：有快照用快照，无快照（夹具直写 target）退回实时坐标 */
+        const tp=a._tgtPos||a.target;
+        return Math.atan2(tp.y-a.y,tp.x-a.x);
+      }
       if(a.path&&a.path.length){
         const p=a.path[0];
         return Math.atan2(p[1]-a.y,p[0]-a.x);
@@ -2160,10 +2160,8 @@
           markMate(w,actor,kind);
         }
       }
-      /* 异形看见有人**合闸**：给他记一笔"人类可疑度"（humanT），
-         但**不写 mates、不写 known** —— 异形自己也会合闸伪装，
-         所以这只是一条不确定的倾向，只用来调整挑目标的优先度。
-         已认出是自己人的不加（合闸伪装不该反噬队友）。 */
+      /* 看见有人合闸：记一笔 humanT 倾向（不写 mates/known，异形也会合闸伪装），
+         只调挑目标优先度；已认出的自己人不加，避免伪装反噬队友。 */
       if(breakerOn){
         for(const w of G.agents){
           if(w===actor||!w.alien||!w.alive||w.downed||w.detained)continue;
@@ -2543,17 +2541,12 @@
       if(!G.simMode)syncHud();
     }
 
-    /* 无事可做时不要站着（2026-10-31 用户裁定）：
-       开局错峰（_delay）、硬控（濒死/被擒/被拖）与短暂恢复（_rest）之外，
-       AI 不允许出现"非任务/非维修/非领取"的呆站。任务修完后按
-       「去修亮着的故障 → 回圆桌领申请单 → 巡舱」继续移动；
-       移动不产生任何情报，站着不动才是白白浪费人类的时间窗口。
-       幽灵不参与修故障（2026-11-01 改），巡舱即可。 */
+    /* 无事可做不要站着（2026-10-31 裁定）：除开局错峰/硬控/短暂恢复外，
+       不允许"非任务非维修非领取"的呆站；修完按「修故障→领申请单→巡舱」继续走。
+       移动不产生情报，站着才是浪费人类时间。幽灵不修故障，巡舱即可。 */
     function aiIdleRoam(a,dt){
       if(!a)return;
-      /* A12 停留：走到锚点后先站 4~9 秒（看看仪表、等门），不要下一帧就抽新目标。
-         以前 path 一空就立刻再抽，于是每 2 秒换一个方向，看起来像在原地打转。 */
-      if(a._idleT>0){ a._idleT-=dt; if(a._idleT>0){ a.moving=false; return; } }
+      /* 2026-11-19 裁定：走路不留人为停顿，游荡到点即重抽（原 A12 站 4~9 秒已删） */
       if(!a.path||!a.path.length){
         let tg=null;
         if(!a.ghost&&G.dmg&&G.dmg.length){
@@ -2606,10 +2599,16 @@
           const r=SKT2Space.idleRoom(roomAt(a.x,a.y));
           tg=SKT2Space.idleSpot(r);
         }
+        const c0=a._pathCD||0;
         walkTo(a,tg[0],tg[1]);
+        /* 停顿治理（2026-11-19）：锚点走不到就同帧换一个，不站着等 1.2 秒寻路冷却 */
+        if(!a.path&&(a._pathCD||0)>c0){
+          const q=SKT2Space.idleSpot(SKT2Space.idleRoom(roomAt(a.x,a.y)));
+          a._pathCD=0; walkTo(a,q[0],q[1]);
+        }
       }
       if(a.path&&a.path.length)stepMove(a,dt,moveSpeed(a));
-      else { a.moving=false; if(!a._idleT)a._idleT=4+Math.random()*5; }
+      else a.moving=false;
     }
     /* 人类 AI 幽灵（2026-11-01 改）：**不再修故障**，全力做剩余任务；
        任务进度严格受 ghostPts 额度限制（每只幽灵最多 GHOST_TASK_CAP 分），额度耗尽进入游荡。 */
@@ -3104,18 +3103,11 @@
       return watchers.length>=1&&Math.random()>=SKTrait.C.knifeBold(a);
     }
 
-    /* ---- 突然回头（2026-11-19 用户裁定）----
-       用户原话：「异形现在从来不会突然回头刀人，给他加一个回头刀人的选项；
-       人类也是一样的，给他人类加一个突然回头枪人的选项；异形也加回头枪人的选项」。
-       为什么值得做：现在只有"正面直线追"一种进攻形状，尾随变成零风险侦察，
-       而且"被人一路跟着"几乎等于"他是异形"。回头一下同时解决三件事：
-         · 跟太紧有代价，尾随不再是白嫖；
-         · 异形有第二种进攻形状（不用一路小跑）；
-         · 人类带枪也会突然转身 —— 被跟不再等于被异形跟。
-       判据只读朝向 / 距离 / 手里的东西，不读心；冷却按人记，避免来回抽风。
-       数值在 SKSanity.TURN（增删只改那一处）。 */
+    /* 突然回头：异形回头刀/枪、人类回头枪。给进攻第二种形状，也让带枪者能突然转身。
+       只读朝向/距离/手持，不读心；冷却按人记；数值在 SKSanity.TURN。 */
     function turnBack(a,dt){
       if(G.meet||G.over||a.doing>0||a.drag!=null||!a.moving)return false;
+      if((a.stunT||0)>0)return false;   /* 被医疗无人机拉起的僵直期不能回头出手 */
       if((a._tbCD||0)>0){a._tbCD-=dt;return false;}
       const T=SKSanity.TURN;
       const F={right:[1,0],left:[-1,0],down:[0,1],up:[0,-1]}[a.dir]||[1,0];
@@ -3125,6 +3117,7 @@
         const dx=h.x-a.x,dy=h.y-a.y,d=Math.hypot(dx,dy);
         if(d<0.35||d>best)continue;
         if((dx*F[0]+dy*F[1])/d>T.dot)continue;      /* 只认身后 */
+        if(!losNow(a.x,a.y,h.x,h.y))continue;   /* R8.1/R8.3：回头也要 LOS，不隔墙感知 */
         best=d;v=h;
       }
       if(!v)return false;
@@ -3162,9 +3155,7 @@
       if(a.doing>0&&a._doing==='task'){
         const th=taskThreat(a,a.doing);
         if(th){fleeTask(a,th);return;}
-        /* 2026-11-19 用户裁定：人类也会**因为听到有人靠近而中断任务**。
-           与 taskThreat 的区别：那条要有「已认出的嫌疑人 + 看得见」；
-           这条只读听觉（脚步最近位置），所以背后有人摸过来也会先躲开。 */
+        /* 听到有人靠近也中断任务（与 taskThreat 区别：那条要认出+看见，这条只读脚步声） */
         if(a.mind&&a.mind.noise&&evNow()-a.mind.noise.t<2.5){
           const nz=a.mind.noise;
           if(Math.hypot(nz.x-a.x,nz.y-a.y)<7&&
@@ -3303,23 +3294,19 @@
       if(G.dmg.length){
         if(a._fixGo&&G.dmg.indexOf(a._fixGo)<0)a._fixGo=null;
         if(!a._fixGo){
-          /* 2026-11-19 用户裁定：故障刚出现时**不会立刻折返** ——
-             先把手上的事收个尾（FIX_REACT 秒 × 0.6~1.4），避免全船人同一秒掉头。 */
+          /* 故障刚出现不立刻折返：手上有事先收尾（FIX_REACT×0.6~1.4），避免全船同秒掉头 */
           if(a._fixWait==null){
-            /* 只有「手上正忙」才需要反应期；闲着的人看到故障可以立刻过去 */
             const busy=a.doing>0||a.drag!=null||!!(a.path&&a.path.length&&a._taskPt!=null);
             a._fixWait=busy?(G.playT||0)+SKTeam.FIX_REACT*(0.6+Math.random()*0.8):0;
           }
-          if((G.playT||0)<a._fixWait){ /* 还在反应期：继续走后面的跟踪 / 任务分支 */ }
+          if((G.playT||0)<a._fixWait){ /* 反应期：继续走跟踪/任务分支 */ }
           else {
           let best=null,bd=1e9;
           for(const d of G.dmg){
-            /* 团队量化表（SKTeam.FIX_CREW_CAP）：同一故障超过 3 人在赶/在修，
-               边际收益为负 —— 认定队友能修好，自己去做任务性价比更高（防踩踏） */
+            /* 同一故障超过 FIX_CREW_CAP 人在赶/在修，边际收益为负，自己去做任务（防踩踏） */
             const crew=G.agents.filter(x=>x!==a&&((x._doing==='fix'&&x._fix===d)||x._fixGo===d)).length;
             if(crew>=SKTeam.FIX_CREW_CAP)continue;
-            /* 2026-11-19 用户裁定：正在修的人若「我认为大概率是人类」，我不抢修、去做任务。
-               读的是**我自己的身份轴**（identityAxis.h = 我认为他是人类的概率），不读真值。 */
+            /* 正在修的人若我判断大概率是人类就不抢（读自己的 identityAxis.h，不读真值） */
             if(crew>0){
               let trust=0;
               for(const x of G.agents){
@@ -3341,25 +3328,30 @@
           if(!a.path||!a.path.length)walkTo(a,d.x,d.y);
           stepMove(a,dt,moveSpeed(a));return;
         }
-        /* ---- 人类 AI 跟踪（2026-11-18 用户裁定，R20 配置平等）----
-           异形能盯猎物，人类也该能盯"可疑的人"——不然人类永远只能等异形出刀，
-           没有主动取证的手段。口径：
-             · 小概率启用（`HUNT.stalkRate` 每秒密度，乘 dt 与帧率无关），
-               不是"只要怀疑就跟着跑"，否则全船人类都不做任务；
-             · 目标与重评估复用**同一份** HUNT 参数（repickSec / jitter / memorySec），
-               不另写距离或概率（R20.3）；
-             · 只做"保持距离 + 观察"：不攻击、不打断正在做的任务、不抢别人的靶子；
-             · 跟丢 / 到时限 / 目标倒下 就结束，并有冷却，整夜不会只干这一件事。 */
+      }
+      /* 人类 AI 跟踪（R11.9/R20.3）：与故障解耦，无故障也能取证。小概率启用(stalkRate×dt)，
+         复用同一份 HUNT；只观察不攻击。跟丢同异形索敌：看得见追实时并记格，看不见追格(memorySec)。 */
         if(a._stalkT>0){
           a._stalkT-=dt;
           const st=(a._stalkTarget!=null)?G.agents[a._stalkTarget]:null;
           if(!st||!st.alive||st.downed||st.detained||st===a){
-            a._stalkT=0;a._stalkTarget=null;a._stalkCD=SKSanity.HUNT.stalkGap;
+            a._stalkT=0;a._stalkTarget=null;a._stalkPos=null;a._stalkCD=SKSanity.HUNT.stalkGap;
           }else{
-            const sd=Math.hypot(st.x-a.x,st.y-a.y);
-            /* 5.5 格是"看得到但不贴脸"的跟踪距离；太近会像要出刀，太远会跟丢 */
-            if(sd>5.5&&(!a.path||!a.path.length))walkTo(a,st.x,st.y);
-            stepMove(a,dt,moveSpeed(a));return;
+            /* 同异形索敌(R11.9 共用 memorySec)：看得见追实时刷快照，看不见追快照，
+               到点没看见/超时才算跟丢；只观察不攻击 */
+            const seen=aiCanSee(a,st.x,st.y),H=SKSanity.HUNT;
+            let sx=st.x,sy=st.y;
+            if(seen)a._stalkPos={x:sx,y:sy,t:evNow()};
+            else if(a._stalkPos&&evNow()-a._stalkPos.t<=H.memorySec){sx=a._stalkPos.x;sy=a._stalkPos.y;}
+            else {a._stalkT=0;a._stalkTarget=null;a._stalkPos=null;a._stalkCD=H.stalkGap;}
+            if(a._stalkT>0&&!seen&&Math.hypot(sx-a.x,sy-a.y)<1.2){
+              a._stalkT=0;a._stalkTarget=null;a._stalkPos=null;a._stalkCD=H.stalkGap;   /* 到点没看见⇒线索用完 */
+            }
+            if(a._stalkT>0){
+              /* 保持 5.5 格观察距离；太近像要出刀，太远会跟丢 */
+              if(Math.hypot(sx-a.x,sy-a.y)>5.5&&(!a.path||!a.path.length))walkTo(a,sx,sy);
+              stepMove(a,dt,moveSpeed(a));return;
+            }
           }
         }
         if(a._stalkCD>0)a._stalkCD-=dt;
@@ -3368,9 +3360,8 @@
           let best=null,bs=0;
           for(const h of G.agents){
             if(h===a||!h.alive||h.downed||h.detained)continue;
-            /* 权重 = 已有的嫌疑分 + cred 负端（带错过节奏的人更值得盯）+ 随机扰动。
-               不用 hostileProb：那是给异形挑猎物的身份轴导出，人类读它会把
-               "看起来像自己人"当成可疑，方向正好反了。 */
+            /* 权重=嫌疑分+cred 负端+扰动；不用 hostileProb（那是异形身份轴，人类读会把
+               像自己人当成可疑，方向反了） */
             const negc=Math.max(0,-(credOf(a,h.i)||0));
             const s=(susOf(a,h.i)||0)+negc*0.6+Math.random()*H.jitter*0.02;
             if(s>bs){bs=s;best=h;}
@@ -3380,7 +3371,6 @@
             return;
           }
         }
-      }
       /* 2026-11-19：小幅提高做任务的欲望 —— 手上还有活时，三成半的概率不绕去翻尸 / 看热闹 */
       const sideSkip=a.tIdx<a.tasks.length&&Math.random()<SKSanity.TASK_FOCUS.skipSide;
       /* 尸体上有自己缺的子弹/医疗包/申请单 → 主动去翻尸（人类同样会搜尸取证） */
@@ -3792,9 +3782,7 @@
         /* 2026-11-19：不再只在「快做完」时停 —— 在 30%~100% 之间随机收手 */
         dur:(D.dur.fakeTask[0]+Math.random()*D.dur.fakeTask[1])*(0.3+Math.random()*0.7),pt:pick5.i,
         key:'pt:'+pick5.i,done:!(hotFresh||fresh),dist:pick5.dd,room:pick5.room});
-      /* 常客排前面：同分候选里"今晚见过人的舱室"优先（真实的一手是演给会来的人看）。
-         2026-11-05 G2：常客打平后再按 LENS.lr 排序 —— lr 只决定**先后顺序**，
-         不参与 disguiseScore 的任何权重（用户裁定 order only, no w=f(lr)）。 */
+      /* 常客排前：同分里今晚见过人的舱室优先；打平再按 LENS.lr 排序（只定先后，不进权重） */
       const LENS=SKSanity.LENS;
       out.sort((x,y)=>{
         const hot=(y.hot||0)-(x.hot||0); if(hot)return hot;
@@ -3836,8 +3824,7 @@
          （实测：计划选中 7.2% 的局，真正完成只有 1.1%）。贴脸有猎物时立即解锁。 */
       if(a._breakerGoal){
         const bg=a._breakerGoal;
-        const closeKill=a.knife>0&&a.target&&a.target.alive&&!a.target.downed&&
-          Math.hypot(a.target.x-a.x,a.target.y-a.y)<5;
+        const closeKill=a.knife>0&&a.target&&a.target.alive&&!a.target.downed&&td<5;
         if(G.lightState===2&&(G.playT||0)<(bg.until||0)&&!closeKill)return bg;
         a._breakerGoal=null;
       }
@@ -3964,9 +3951,10 @@
     }
     function alienSupport(a,dt){
       if(!a||!a.alien||a.doing>0||a.drag!=null)return false;
-      /* 贴脸有人可杀时先处理人；没刀时才搞伪装/补给 */
-      if(a.knife>0&&a.target&&a.target.alive&&!a.target.downed&&
-        Math.hypot(a.target.x-a.x,a.target.y-a.y)<5)return false;
+      /* 贴脸有人可杀先处理人；距离读最后目击快照，不读实时坐标（R11.1） */
+      const tp=a._tgtPos||a.target;
+      if(a.knife>0&&a.target&&a.target.alive&&!a.target.downed&&tp&&
+        Math.hypot(tp.x-a.x,tp.y-a.y)<5)return false;
       /* 自己刀倒的人如果已经失血死亡，记得回去收走物资 / 藏尸（不是杀完就永远不管） */
       if(a._killBody!=null&&evNow()-(a._killAt||0)<45){
         const kv=G.agents[a._killBody];
@@ -4024,11 +4012,9 @@
       }
       /* 翻尸体拿子弹/医疗包/申请单 */
       if(lootRun(a,dt))return true;
-      /* ---- 伪装不在这里（2026-11-03 移走）----
-         这里原本挂着两段 if 硬排的伪装：假装维修/假装做任务（带一个 close>8 的死条件，
-         与 alienAudienceCount 的 8 格观众数恒互斥，实际只有"刀用完"那条缝走得通）
-         和当众合闸（每秒掷骰）。三者现在统一在 alienPlan 效用表里按
-         planValue × disguiseScore − 路程秒 比分，风险走 SKSanity.disguiseRisk。 */
+      /* 伪装不在这里（2026-11-03 移走）：原两段硬排 if（close>8 与 8 格观众数恒互斥）
+         和当众合闸每秒掷骰，现统一进 alienPlan 效用表按
+         planValue×disguiseScore−路程秒 比分，风险走 SKSanity.disguiseRisk。 */
       /* 真做任务只为换申请单，是少数策略：每只异形整局最多 1 次；
          人类进度接近 45 时不做，避免替人类完成维修胜利。 */
       if(!a._supportGoal&&a.knife<=0&&a.bullet<1&&a.qual<1&&
@@ -4058,13 +4044,9 @@
     /* 管道机动：目标远、自己不在管道口时，先规划到能显著缩短距离的入口；
        站在口上就直接钻到离目标最近的出口。每夜最多 2 次、20 秒冷却。
        这是异形的核心位移能力，必须排在“没刀就游荡/补给”之前。 */
-    /* 看不见人 ≠ 知道船上没人（2026-11-03 取消全图锁敌后的必要补位）。
-       没有可打目标时，异形仍要知道"往哪边走去看看"：
-         ① 本夜最近一次亲眼见过的最后位置（哪怕已过追猎时效）；
-         ② 本夜见过人最多的舱室里的一个任务点；
-         ③ 都没有 ⇒ 随机挑一间舱室，巡逻式碰运气。
-       ⚠ 它**只服务位移与管道机动**，绝不进出刀 / 开枪判定 ——
-       否则等于换个名字把全图锁敌放回来。 */
+    /* 看不见人 ≠ 船上没人（取消全图锁敌的补位）：无可打目标时给"往哪走看看"——
+       ① 本夜最后目击点（哪怕过追猎时效）；② 见过人最多的舱室任务点；③ 随机舱室巡逻。
+       只服务位移与管道机动，绝不进出刀/开枪判定，否则等于换个名字把全图锁敌放回来。 */
     function huntSpotFor(a){
       const mem=(a&&a.mind&&a.mind.mem)||[];
       let last=null;
@@ -4174,8 +4156,7 @@
     function aiAlien(a,dt){
       if(G.meet||G.over)return;
       if(a.detained)return;
-      /* 追击中的「停一下」：断掉一条直线死盯的形状（数值见 HUNT.chaseStutter） */
-      if(a._stall>0){a._stall-=dt;a.moving=false;return;}
+      /* 行走不设人为冻结：追击途中、换靶超时都不再站住（2026-11-19 用户裁定） */
       if(a._pathCD>0)a._pathCD-=dt;
       dropStaleFix(a);
       if(a.doing>0){
@@ -4197,7 +4178,7 @@
             const nz=a.mind.noise;
             if(Math.hypot(nz.x-a.x,nz.y-a.y)<7&&Math.random()<SKSanity.DISGUISE.abortRate*dt){
               a.doing=0;a._doing=null;a._fakeKind=null;a._fakeCD=SKSanity.DISGUISE.cooldown;
-              a._stall=0.8+Math.random()*0.6;a.path=null;
+              a.path=null;   /* 提前收手后立刻改道，不再原地愣一下 */
               if(G.simMode&&G.simStats)G.simStats.fakeAborts=(G.simStats.fakeAborts||0)+1;
               return;
             }
@@ -4330,16 +4311,11 @@
       const repick=a.target&&a.target.alive&&!a.target.downed&&
         a._targetT!=null&&(evNow()-a._targetT)>HUNT.repickSec;
       if(!a.target||!a.target.alive||a.target.downed||repick){
-        /* 挑目标（2026-11-03 用户裁定：**取消异形全图锁敌**）
-           旧实现把所有活人的**实时坐标**直接拿来打分 ⇒ AI 异形知道全船谁在哪儿，
-           而玩家异形只有一只手电（7 格 / 60° 锥 + 近身 3.5 格）—— 两个阵营在玩两个游戏。
-           现在两边同一套信息，只有三档：
-             ① 现在看得见 → 用实时位置（"他正在站桩干活"这种信息也只有看得见才知道）；
-             ② 看不见但本夜亲眼见过 → 用**最后目击位置**，超过 HUNT.memorySec 秒就不信；
-             ③ 完全没印象 → 不进候选（不知道该往哪走，只能巡逻 / 钻管道 / 破坏）。
-           这是明确的平衡位移（异形找人变难），必须用 1000 局量，不要靠感觉说"更拟人"。
-           队友永不打；被围观的目标加风险；队友已在追的目标让给队友；被晾过的目标暂时不碰。 */
-        let best=null,bs=1e9,fallback=null,fs=1e9;
+        /* 挑目标（2026-11-03 取消全图锁敌）：玩家异形只有一只手电，AI 不能拿全船实时坐标。
+           三档信息：① 看得见→实时位置；② 本夜亲眼见过→最后目击位置，超 memorySec 不信；
+           ③ 没印象→不进候选。平衡位移（找人变难），要 1000 局量。队友不打、被围观加风险、
+           队友在追的让给队友、被晾过的暂时不碰。 */
+        let best=null,bs=1e9,bx=0,by=0,fallback=null,fs=1e9,fx=0,fy=0;
         const mem=(a.mind&&a.mind.mem)||[];
         const stale=SKSanity.HUNT.memorySec;
         for(const h of G.agents){
@@ -4390,13 +4366,18 @@
           s+=Math.random()*HUNT.jitter;
           const until=a._avoid&&(a._avoid[h.i]||0);
           if(until&&evNow()<until){
-            if(s<fs){fs=s;fallback=h;}
+            if(s<fs){fs=s;fallback=h;fx=hx;fy=hy;}
             continue;
           }
-          if(s<bs){bs=s;best=h;}
+          if(s<bs){bs=s;best=h;bx=hx;by=hy;}
         }
+        const prevT=a.target;
         a.target=best||fallback;
-        if(a.target)a._targetT=evNow();      /* 重估计时器从这一刻重新算 */
+        /* 换靶立即弃旧路径（2026-11-19 停顿治理）：不沿上一个人的路线走完再回头 */
+        if(a.target!==prevT){a.path=null;a._pathCD=0;}
+        /* 目标位置记"选择时看到/记得的那格"，不是实时坐标，否则追击仍是全图锁敌 */
+        if(a.target){a._targetT=evNow();a._tgtPos={x:best?bx:fx,y:best?by:fy,t:evNow()};}
+        else a._tgtPos=null;
       }
       /* 现场目击者优先：异形自己看见谁在视线里，就去处理谁；队友除外 */
       if(a.knife>0&&a.mind&&a.mind.seenBy){
@@ -4406,31 +4387,44 @@
           if(evNow()-e.t>SKSanity.HUNT.memorySec)continue;   /* 与挑目标同一份记忆时效 */
           const w=G.agents[+k];
           if(!w||!w.alive||w.downed||w.detained||w===a||isMate(a,w.i))continue;
+          /* 只处理此刻真的看得见的目击者；看不见的人只能留在记忆里，不能读实时坐标 */
+          if(!aiCanSee(a,w.x,w.y))continue;
           const d=Math.hypot(w.x-a.x,w.y-a.y);
           if(d<bd){bd=d;wit=w;}
         }
         if(wit&&a.target!==wit){
-          const cur=a.target?Math.hypot(a.target.x-a.x,a.target.y-a.y):1e9;
+          const cur=a.target&&a._tgtPos?
+            Math.hypot(a._tgtPos.x-a.x,a._tgtPos.y-a.y):1e9;
           const wd=Math.hypot(wit.x-a.x,wit.y-a.y);
-          /* 目击者优先，但不能为了远处证人放弃贴脸目标。
-             2026-11-18：原来那条 `wd<12` 是固定格数 —— 亮会议室另一头（整间可见、
-             距离早超 12）的目击者它够不着，而暗处 11 格外背光的人它又当成看得见。
-             现在判据换成"此刻真的看得见"（R5.3）。
-             2026-11-18 收尾再补两条节流：这条通道原先不受 repickSec 约束，而
-             `seenBy` 里"最近的目击者"会随移动每帧变 —— 目标每帧翻、还每帧重置
-             重估计时器，异形于是原地抽搐（实测 20 秒切 19 次、间隔短到 0.01 秒）。
-             现在必须「明显更近（≥witSwapMargin 格）」且「过了 witSwapCD 冷却」才换。 */
+          /* 目击者优先但不为远处证人放弃贴脸目标；判据是"此刻看得见"(R5.3)，非固定 wd<12。
+             seenBy 最近者随移动每帧变，曾一秒切十几次原地抽搐；现要明显更近且过冷却才换。 */
           if(aiCanSee(a,wit.x,wit.y)&&wd+HUNT.witSwapMargin<cur&&
             evNow()-(a._witSwapT||0)>HUNT.witSwapCD){
             a.target=wit;a._targetT=evNow();a._witSwapT=evNow();
+            a._tgtPos={x:wit.x,y:wit.y,t:evNow()};
           }
         }
       }
-      const tgt=a.target;
-      const td=tgt?Math.hypot(tgt.x-a.x,tgt.y-a.y):1e9;
+      let tgt=a.target,tx=0,ty=0,seenNow=false;
+      if(tgt){
+        seenNow=aiCanSee(a,tgt.x,tgt.y);
+        if(seenNow){tx=tgt.x;ty=tgt.y;a._tgtPos={x:tx,y:ty,t:evNow()};}
+        else if(a._tgtPos&&evNow()-a._tgtPos.t<=HUNT.memorySec){tx=a._tgtPos.x;ty=a._tgtPos.y;}
+        else if(a._tgtPos){
+          a._chaseCD=a._chaseCD||{};a._chaseCD[tgt.i]=evNow()+HUNT.chaseGiveUp;
+          a.target=null;tgt=null;a._tgtPos=null;
+        }
+        else {tx=tgt.x;ty=tgt.y;}   /* 夹具直写 target 无快照：退回实时坐标 */
+      }
+      /* 到了最后目击点还没看见人 ⇒ 线索用完转 huntSpotFor，并给冷却避免反复锁同格 */
+      if(tgt&&!seenNow&&Math.hypot(tx-a.x,ty-a.y)<1.2){
+        a._chaseCD=a._chaseCD||{};a._chaseCD[tgt.i]=evNow()+HUNT.chaseGiveUp;
+        a.target=null;tgt=null;a._tgtPos=null;
+      }
+      const td=tgt?Math.hypot(tx-a.x,ty-a.y):1e9;
       /* 位移目的地（看不见人时的"去找人"）：只给管道机动用，不进任何攻击判定 */
       const hunt=tgt?null:huntSpotFor(a);
-      const pipeTgt=tgt||hunt;
+      const pipeTgt=tgt?{x:tx,y:ty}:hunt;
       const pipeD=hunt&&!tgt?Math.hypot(hunt.x-a.x,hunt.y-a.y):td;
       /* 异形有子弹也会开枪：远距离/没刀时优先用枪，而不是永远只贴脸出刀 */
       if(a.bullet>0&&tgt&&!isMate(a,tgt.i)&&(td>SKSanity.REACH.knife||a.knife<=0)&&
@@ -4609,7 +4603,7 @@
             releaseDragBy(a,true);a._hideCD=8;a._hideSpot=null;a._hideRoom=null;a._rest=0.8;
             return;
           }
-          const danger=!!(tgt&&td<4.5&&aiCanSee(a,tgt.x,tgt.y,4.5));
+          const danger=!!(tgt&&seenNow&&td<4.5);
           if(!danger){
             const vp=bodyPos(v);
             const spot=a._hideSpot||hideSpotFor(a._hideRoom||roomIdAt(vp[0],vp[1]));
@@ -4651,21 +4645,25 @@
         }
       }
       if(a.knife<=0&&alienSupport(a,dt))return;
-      /* 有刀但附近没有可下手的目标：也会顺手翻尸/补给/装忙，
-         不是“有刀就只会直线追人”的单一行为。 */
+      /* 有刀但附近无可下手目标：也顺手翻尸/补给/装忙，不是只会直线追人 */
       if(a.knife>0&&td>12&&alienSupport(a,dt))return;
-      /* 管道是核心位移能力：排在补给/伪装之后、没刀游荡之前，
-         否则刀用完后永远走不到管道口。 */
+      /* 管道排在补给/伪装之后、没刀游荡之前，否则刀用完永远走不到管道口 */
       if(alienPipeMove(a,dt,pipeTgt,pipeD))return;
       if(a.knife<=0){ // 没刀了就游荡（先尝试补给/翻尸/假装维修/做任务换弹）
         if(!a.path||!a.path.length){const r=M.rooms[Math.floor(Math.random()*M.rooms.length)];const p=randIn(r);walkTo(a,p[0],p[1]);}
         stepMove(a,dt,moveSpeed(a)); return;
       }
-      if(!tgt)return;
-      /* ---- 追击硬上限（2026-11-19 用户裁定「压制一下异形追人的粘性」）----
-         repickSec 只是**重新打分**：只要没有更近的人，打完分还是他，体感就是一路粘着。
-         这里加一条与打分无关的硬线：连续追同一个人超过 chaseCap 秒就主动放弃，
-         冷却期间不再选他；追击途中还会小概率停一下，断掉直线死盯的形状。 */
+      if(!tgt){
+        /* 无目标也走：到最后目击点巡逻，到同一格还没线索就换舱，不站定 */
+        let h=huntSpotFor(a);
+        if(h&&Math.hypot(h.x-a.x,h.y-a.y)<1.5){
+          const p=randIn(M.rooms[Math.floor(Math.random()*M.rooms.length)]);h={x:p[0],y:p[1]};
+        }
+        if(h){if(!a.path||!a.path.length)walkTo(a,h.x,h.y);stepMove(a,dt,moveSpeed(a));}
+        return;
+      }
+      /* 追击硬上限：repick 只是重打分，这条是与打分无关的硬线——
+         连续追同一人超 chaseCap 秒主动放弃，冷却期不再选他；放弃/换靶都不停站 */
       const HC=SKSanity.HUNT;
       if(a._chaseId!==tgt.i){a._chaseId=tgt.i;a._chaseT=0;}
       if(!a.target)a._chaseT=0;
@@ -4674,24 +4672,15 @@
         a._chaseCD=a._chaseCD||{};
         a._chaseCD[tgt.i]=evNow()+HC.chaseGiveUp;
         a._chaseId=null;a._chaseT=0;a.target=null;a.path=null;
-        a._stall=0.6+Math.random()*0.8;
         return;
       }
-      if(td<SKTrait.C.knifeReach(a)){
+      if(seenNow&&td<SKTrait.C.knifeReach(a)){
         if(secbotWouldSee(a.x,a.y)){
           a._secAvoidT=2.5;a.target=null;a.path=null;return;
         }
-        /* ---- 理智兜底（2026-11-01 立，2026-11-18 收口成两条）----
-           先过两条**与性格无关**的硬线，过了才轮到性格微调。
-           用户原话："即使激进派也不会冒着三个人能够看到的风险出刀"。
-             ① 目击者数 ≥ KNIFE.witnessCap（3）→ 一律放弃
-             ② 隐蔽度 1-exposure < KNIFE.minConceal → 换时机（这条能抓住
-                "亮房里 10 格外有人"这种旧代码数不到的暴露）
-           原来的第三条「周围 crowdR 格内 ≥ crowdN 个非队友 = 在人群里」删掉：
-           它数的是"附近有人"，而①数的是"有人**看得见**这一下" ——
-           视野判据（R5.3）已经覆盖前者，留着就是两份互相打架的"有没有目击者"。
-           通过之后，性格只在 0.34~0.66 的冒险率区间里浮动（见 SKTrait.C.knifeBold）。 */
-        /* 目击者 / 隐蔽度 / 开夜锁 / 冒险率：与回头刀共用 knifeBlocked（2026-11-19 收口） */
+        /* 理智兜底：两条与性格无关的硬线先过——① 目击者≥witnessCap(3)放弃；
+           ② 隐蔽度 1-exposure<minConceal 换时机（抓"亮房 10 格外有人"）。
+           过后性格才在 0.34~0.66 浮动；与回头刀共用 knifeBlocked（2026-11-19）。 */
         if(knifeBlocked(a,tgt)){
           if(!a._avoid)a._avoid={};
           a._avoid[tgt.i]=evNow()+12;
@@ -4700,9 +4689,8 @@
         }
         knife(a,tgt); return;
       }
-      /* 停顿放在出刀判定之后：进了刀距就不再抽风停下（那会让「贴脸不杀」变成破绽） */
-      if(Math.random()<HC.chaseStutter*dt){a._stall=0.5+Math.random()*0.9;a.path=null;return;}
-      if(!a.path||!a.path.length) walkTo(a,tgt.x,tgt.y);
+      /* 追击全程连续移动：没有随机停顿，出刀判定不再被"抽风停下"打断 */
+      if(!a.path||!a.path.length) walkTo(a,tx,ty);
       stepMove(a,dt,moveSpeed(a));
     }
     
@@ -7280,7 +7268,12 @@
       const sl=parseSpeech(text);
       m.ctx.playerSays=m.ctx.playerSays||[];
       m.ctx.playerSays.push({t:evNow(),slots:sl});
-      if(sl.accuse!=null)m.ctx.playerAccuse=sl.accuse;
+      if(sl.accuse!=null){
+        m.ctx.playerAccuse=sl.accuse;
+        /* 玩家公开点名写进 ctx.lead（与 AI 同口径）。旧实现只写 playerAccuse 供回放，
+           追责读 ctx.lead，玩家便永远按"普通跟票"处理，拿不到 leadMul/wrong_accuse/grudge。 */
+        if(m.ctx.lead[sl.accuse]==null)m.ctx.lead[sl.accuse]=G.me.i;
+      }
       if(sl.vote!=null)m.ctx.playerVote=sl.vote;
       if(sl.where)m.ctx.playerClaimRoom=sl.where;
       /* 情绪层（2026-10-31）：玩家说的每句话都在 AI 心里留痕 ——
@@ -7388,6 +7381,7 @@
         m.ctx.playerClaims.push({t:evNow(),target:t.i,kind:sl.claim.kind,
           room:sl.claim.room||null});
         m.ctx.playerAccuse=t.i;
+        if(m.ctx.lead[t.i]==null)m.ctx.lead[t.i]=G.me.i;   /* 玩家的"亲眼目击"同样算带节奏 */
         const kindName={saw_pipe:'钻管道',saw_red:'身上带着红光',saw_knife:'出刀',
           saw_shot:'开枪',saw_sabotage:'破坏设备',saw_bot:'停摆机器人',saw_breaker:'拉闸'}[sl.claim.kind]||'动手';
         /* 读心清零（2026-11-05）：挑「当众硬指认过 t 的人」，不再翻 w.mind.known。 */
@@ -8599,10 +8593,10 @@
       if(G.simMode){G.simT=NIGHT;G.phase=null;}
       else G.phase=SKClock.newPhase('night',performance.now(),NIGHT*1000);
       for(const a of G.agents){
-        a.knife=1;a.path=null;a.doing=0;a.target=null;if(a.alive)a.reported=false;
+        a.knife=1;a.path=null;a.doing=0;a.target=null;a._tgtPos=null;if(a.alive)a.reported=false;
         a._doing=null;a.sabUsed=false;a.detained=false;a.detainedT=0;
         a._pipeCD=0;a._rv=null;a.sabRoom=null;a._fix=null;a._fixGo=null;a._taskPt=null;a._look=null;
-        a._stalkT=0;a._stalkCD=0;a._stalkTarget=null;   /* 人类 AI 跟踪（2026-11-18） */
+        a._stalkT=0;a._stalkCD=0;a._stalkTarget=null;a._stalkPos=null;   /* 人类 AI 跟踪（2026-11-18） */
       a._plan=null;a._planCD=0;   /* 行为效用表缓存一并重算 */
         /* 每夜重置认知：没有跨夜记忆，也不让上一夜的 suspect 自动带进新夜 */
         mindReset(a);a.suspect=null;a.accuseWhy=null;a._abstain=false;
@@ -10848,10 +10842,10 @@
       const x0=SX(cov.x+cov.w/2), y1=SY(cov.y+cov.h);
       const im=IMG['fu_'+furnSprite(cov.kind)];
       if(ready(im)){
-        const ar=im.naturalWidth/im.naturalHeight;
-        let w=cov.w*s, h=w/ar;
-        const maxH=(cov.h+0.9)*s;
-        if(h>maxH){h=maxH;w=h*ar;}
+        /* 红框按掩体矩形（家具占地）描边，不再按精灵宽高比缩放——
+           货架这类高瘦家具（1.4×6.9）配方正精灵时，旧算法只框到底部一小段，
+           任务点（常在货架中部）飘在框外，看起来"任务和红框离得远"。 */
+        const w=cov.w*s, h=cov.h*s;
         const lay=coverOutline(im,w,h,Math.max(2,Math.round(s*0.11)));
         ctx.save();
         ctx.globalAlpha=Math.max(0,Math.min(1,alpha));
@@ -12149,7 +12143,7 @@
         a._fakeCD=0;a._lastFake=null;a._noFake=false;
         a._realFixN=0;a._realReviveN=0;
         a.mates={};
-        a._look=null;a._fixGo=null;a.path=null;a.doing=0;a._doing=null;a.target=null;a._plan=null;a._planCD=0;
+        a._look=null;a._fixGo=null;a.path=null;a.doing=0;a._doing=null;a.target=null;a._tgtPos=null;a._stalkPos=null;a._plan=null;a._planCD=0;
         return a.i;},
       /* 伪装抑制位（2026-11-03）：旧版门禁靠"把 _fakeN 设成本夜"来排除伪装分支，
          每夜硬上限取消后那个写法失效，改用显式开关。 */
