@@ -1,0 +1,47 @@
+{
+  "id": "panel-breaker",
+  "label": "闸刀 · 三段行程",
+  "image": "assets/minigame/panel-breaker.png",
+  "size": [
+    768,
+    768
+  ],
+  "crop": [
+    214,
+    30,
+    348,
+    720
+  ],
+  "spots": [
+    {
+      "id": "lever-1",
+      "shape": "rect",
+      "x": 352,
+      "y": 150,
+      "w": 68,
+      "h": 116,
+      "order": 1,
+      "role": "lever"
+    },
+    {
+      "id": "lever-2",
+      "shape": "rect",
+      "x": 352,
+      "y": 292,
+      "w": 68,
+      "h": 116,
+      "order": 2,
+      "role": "lever"
+    },
+    {
+      "id": "lever-3",
+      "shape": "rect",
+      "x": 352,
+      "y": 434,
+      "w": 68,
+      "h": 116,
+      "order": 3,
+      "role": "lever"
+    }
+  ]
+}

@@ -587,6 +587,9 @@ tools/
   map-check.cjs           离线地图体检（可行走网格 / 掩体审计 / 巡逻线 / 任务点可达）
   monte-carlo.cjs         无渲染 AI 对 AI 批量模拟（默认 1000 局 · seed 可复现 · 产出本地 mc-results.json，不入库；历史汇总 mc-report.md 已废弃）
   lines-audit.cjs         会议语料体检（禁词 / 长度 / 槽位 / 骨架撞车 + 复现 pickLine 抽样口径模拟十局疲劳）
+  survey-speech.cjs       会议发言体检（同 seed n 局完整对局的全部台词：含人名 / 含舱室 /
+                          实质推理 / 自述开头占比 / 话轮集中度 / 分桶；R13.9 与 R13.10 的复现判据，
+                          走 `_t.simSpeechBatch`，不落盘产物）
   lines-report.md         lines-audit 生成的语料体检报告（工具产出，勿手改）
   ux-audit.cjs            游玩体验量测（真实 DOM 输入：点击起移延迟 / HUD 与会议 rect / 迷雾四态亮度 /
                           会议三段墙钟 / 代打墙钟占比 / 手机档几何 / FPS）；需先 npm start 起同源服务器
@@ -595,7 +598,15 @@ tools/
                            （3D 资产、美术工具、spec 与客户端在 3d 副分支）
 ```
 
-分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`。2026-11-15 工程化精简第一批新增 `js/engine/body.js`（尸体/物资 5 个纯函数，同一薄委托模式，`index.html` 在 `engine/assets` 之后加载）；`game.js` 现 **12,089** 行。
+> **上表的悬空条目（2026-11-18 逐个 `ls` 复核）**：`tools/lines-audit.cjs`、`tools/lines-report.md`、
+> `tools/ux-audit.cjs`、`tools/ux-report.md`、`tools/map-check.cjs` **磁盘与 git 里都不存在**，
+> `tools/test-v3.cjs` 是路径写错（门禁实际在 `tests/test-v3.cjs`）。
+> 处置口径：**要么补脚本、要么删本行**，不许留着当现行事实 —— 文档指向不存在的工具，
+> 下一个接手的人会照命令跑空。本批只登记不代答（`lines-audit.cjs` 是语料体检的欠账，
+> 与 R13.10「表态句必须带可复核事实」是同一条线上的活）。
+
+分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。2026-11-19 任务系统改造新增 `js/t2/plate-task.js`（图内任务通用引擎：贴图 + 热点 + tap/tapSeq/hold/holdBand/drag/aim；板数据仍只读 `js/data/plates.js`）；同日双分模型 P0 新增 `js/t2/trust.js`（只读派生信任分 T / 情绪分 E 的影子，不改任何决策，`_t.trustShadow` 探针）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`。2026-11-15 工程化精简第一批新增 `js/engine/body.js`（尸体/物资 5 个纯函数，同一薄委托模式，`index.html` 在 `engine/assets` 之后加载）；**行数现值只在 `CHANGELOG.md` 最新批次与
+`docs/file-budgets-js.json` 登记**，本处不再复制（旧写法停在 12,089 行，已过期两次批次）。
 所有脚本都是有顺序的经典脚本（IIFE + `window.SK*` 命名空间），不使用 ES Module 与构建步骤。
 
 ### 3D 预演（2.5D 的延伸，不是第二条产品线）

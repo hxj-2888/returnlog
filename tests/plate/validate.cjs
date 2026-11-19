@@ -88,12 +88,28 @@ function validate(v, sch, at, root) {
 
 /* ---- 3. 逐板校验 ---- */
 const ids = Object.keys(data.plates);
-let wires = 0;
+let wires = 0, spots = 0;
+/* 与 js/t2/plate-task.js#boxOf 同一口径：点状热点按命中区展开 */
+function spotBox(s) {
+  if (s.shape === 'circle') {
+    const r = Math.max(4, s.r || 14);
+    return { x: s.x - r, y: s.y - r, w: r * 2, h: r * 2 };
+  }
+  const w = Math.max(4, s.w != null ? s.w : 32);
+  const h = Math.max(4, s.h != null ? s.h : 32);
+  if (s.shape === 'point') return { x: s.x - w / 2, y: s.y - h / 2, w: w, h: h };
+  return { x: s.x, y: s.y, w: w, h: h };
+}
 ids.forEach(id => {
   const p = data.plates[id];
   const at = id;
   if (p.id !== id) err(at, 'id 与字典键不一致（' + p.id + '）');
   validate(p, schema, at, schema);
+
+  const isWire = Array.isArray(p.wires) && p.wires.length > 0;
+  const isSpot = Array.isArray(p.spots) && p.spots.length > 0;
+  if (!isWire && !isSpot) err(at, '既没有 wires 也没有 spots');
+  if (isWire && (!p.cut || !p.ember)) err(at, 'wires 板缺 cut / ember');
 
   if (Array.isArray(p.size) && Array.isArray(p.crop) && p.size.length === 2 && p.crop.length === 4) {
     const [W, H] = p.size, [cx, cy, cw, ch] = p.crop;
@@ -104,17 +120,65 @@ ids.forEach(id => {
         err(at + '.wires[' + i + ']', '断口不在 crop 显示区内（放大后点不到）');
       }
     });
+    (p.spots || []).forEach((s, i) => {
+      const b = spotBox(s);
+      if (b.x < cx - 1 || b.y < cy - 1 || b.x + b.w > cx + cw + 1 || b.y + b.h > cy + ch + 1) {
+        err(at + '.spots[' + i + ']', '热点不在 crop 显示区内（放大后点不到）');
+      }
+      /* 命中区下限：W3C 最小目标尺寸 28×28，触屏也点得到 */
+      if (b.w < 28 || b.h < 28) {
+        err(at + '.spots[' + i + ']', '命中区 ' + Math.round(b.w) + '×' + Math.round(b.h) + ' 小于 28×28');
+      }
+      /* 还要按**屏幕上的显示尺寸**算一遍：1536² 的板缩到 340px 显示时，
+         30px 的热点只剩 6px，图内像素达标也没用。口径与 plate-task 的
+         dispW = min(430, 340·cw/ch) 保持一致。 */
+      const sc = Math.min(430, 340 * cw / ch) / cw;
+      if (b.w * sc < 26 || b.h * sc < 26) {
+        err(at + '.spots[' + i + ']', '显示尺寸 ' + Math.round(b.w * sc) + '×' +
+          Math.round(b.h * sc) + ' 小于 26×26（贴图缩得太狠，热点要放大）');
+      }
+      if (!s.role) err(at + '.spots[' + i + ']', '缺 role（任务靠它挑热点）');
+      if (s.band) {
+        if (!(s.band[0] < s.band[1])) err(at + '.spots[' + i + '].band', '亮带下沿必须小于上沿');
+        if (s.band[0] < 0 || s.band[1] > 100) err(at + '.spots[' + i + '].band', '亮带越出 0~100%');
+      }
+      if (s.to) {
+        if (s.to[0] < cx || s.to[0] > cx + cw || s.to[1] < cy || s.to[1] > cy + ch) {
+          err(at + '.spots[' + i + '].to', '拖动目标不在 crop 显示区内');
+        }
+      }
+      if (s.hole) {
+        if (s.hole.x < 0 || s.hole.y < 0 ||
+          s.hole.x + s.hole.w > W + 1e-6 || s.hole.y + s.hole.h > H + 1e-6) {
+          err(at + '.spots[' + i + '].hole', '遮罩洞越出图片');
+        }
+      }
+      if (s.to && !s.hole) err(at + '.spots[' + i + ']', '拖动热点缺 hole（洞要开在缺口上）');
+    });
+    (p.lanes || []).forEach((l, i) => {
+      if (l.x < cx || l.y < cy || l.x + l.w > cx + cw + 1 || l.y + l.h > cy + ch + 1) {
+        err(at + '.lanes[' + i + ']', '轨道不在 crop 显示区内');
+      }
+      if (!(l.band[0] < l.band[1])) err(at + '.lanes[' + i + '].band', '亮带下沿必须小于上沿');
+      if (l.band[0] < 0 || l.band[1] > 1) err(at + '.lanes[' + i + '].band', '亮带越出 0~1');
+    });
   }
   const seen = new Set();
   (p.wires || []).forEach((w, i) => {
     if (seen.has(w.id)) err(at + '.wires[' + i + ']', '线 id 重复 ' + w.id);
     seen.add(w.id);
   });
+  (p.spots || []).forEach((s, i) => {
+    if (seen.has(s.id)) err(at + '.spots[' + i + ']', '热点 id 重复 ' + s.id);
+    seen.add(s.id);
+  });
   wires += (p.wires || []).length;
+  spots += (p.spots || []).length;
 
   const img = path.resolve(repo, p.image || '');
   if (!fs.existsSync(img)) err(at, '图片未落地 ' + p.image);
-  else notes.push('  ' + id + '  ' + (p.wires || []).length + ' 根线 · ' +
+  else notes.push('  ' + id + '  ' + ((p.wires || []).length) + ' 根线 / ' +
+    ((p.spots || []).length) + ' 热点 · ' +
     p.size.join('×') + ' · crop ' + p.crop.join(',') + ' · ' +
     (fs.statSync(img).size / 1048576).toFixed(2) + ' MB');
 });
@@ -144,8 +208,8 @@ ids.forEach(id => {
 /* ---- 6. 输出 ---- */
 console.log('== 图内要素板校验 ==');
 console.log('  真源      js/data/plates.js（schema ' + data.schema + '）');
-console.log('  板        ' + ids.length + ' 张 · 线 ' + wires + ' 根 · 任务映射 ' +
-  Object.keys(data.byLabel || {}).length + ' 条');
+console.log('  板        ' + ids.length + ' 张 · 线 ' + wires + ' 根 · 热点 ' + spots +
+  ' 个 · 任务映射 ' + Object.keys(data.byLabel || {}).length + ' 条');
 notes.forEach(n => console.log(n));
 if (errors.length) {
   errors.forEach(e => console.log('  ✗ ' + e));

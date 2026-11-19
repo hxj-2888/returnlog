@@ -10,8 +10,15 @@
 3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
-4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tests/test-v3.cjs`，失败一律按回归处理；
+4. **门禁必须全绿。** 改任何逻辑/数据后按改动规模跑门禁，失败一律按回归处理；
    报告里必须写本次实跑的「X 通过 / Y 失败」，不得沿用旧读数。
+   - **默认全量**：本次改动 **≥3 点**，或触及跨模块 / 红线 / 契约 / 数值基线时，
+     跑 `node tests/test-v3.cjs`，全绿方可收口。
+   - **小改动只跑对应门禁**（2026-11-19 用户裁定）：用户本次修改要求 **< 3 点**时，
+     可不重跑全量门禁，只跑与改动内容直接对应的门禁子集（改板 → `npm run plate:check`、
+     改读数 / 台账 → `npm run t3:check`、改红线 → `npm run agent:contract` 等），
+     报告写明本次实跑项与读数即可；**对应门禁同样必须全绿**，失败一律按回归处理，
+     不得借本条跳过验收层。
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
    `replay()`、`litZone()` 等被 test-v3.cjs 直接依赖）。

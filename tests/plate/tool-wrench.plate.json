@@ -1,0 +1,47 @@
+{
+  "id": "tool-wrench",
+  "label": "扳手 · 三个螺栓",
+  "image": "assets/scene/v4/facility/tool-wrench.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    8,
+    160,
+    496,
+    200
+  ],
+  "spots": [
+    {
+      "id": "bolt-1",
+      "shape": "rect",
+      "x": 288,
+      "y": 214,
+      "w": 48,
+      "h": 48,
+      "order": 1,
+      "role": "bolt"
+    },
+    {
+      "id": "bolt-2",
+      "shape": "rect",
+      "x": 192,
+      "y": 236,
+      "w": 48,
+      "h": 48,
+      "order": 2,
+      "role": "bolt"
+    },
+    {
+      "id": "bolt-3",
+      "shape": "rect",
+      "x": 78,
+      "y": 232,
+      "w": 48,
+      "h": 48,
+      "order": 3,
+      "role": "bolt"
+    }
+  ]
+}

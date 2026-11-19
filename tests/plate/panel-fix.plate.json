@@ -54,5 +54,100 @@
         "angle": -2
       }
     }
+  ],
+  "spots": [
+    {
+      "id": "slot-blue",
+      "shape": "point",
+      "x": 431,
+      "y": 499,
+      "w": 46,
+      "h": 46,
+      "order": 1,
+      "role": "slot"
+    },
+    {
+      "id": "slot-red",
+      "shape": "point",
+      "x": 466,
+      "y": 502,
+      "w": 46,
+      "h": 46,
+      "order": 2,
+      "role": "slot"
+    },
+    {
+      "id": "slot-amber",
+      "shape": "point",
+      "x": 368,
+      "y": 588,
+      "w": 46,
+      "h": 46,
+      "order": 3,
+      "role": "slot"
+    },
+    {
+      "id": "part-1",
+      "shape": "rect",
+      "x": 296,
+      "y": 420,
+      "w": 44,
+      "h": 44,
+      "order": 4,
+      "role": "part",
+      "to": [
+        431,
+        499
+      ],
+      "toR": 36,
+      "hole": {
+        "x": 409,
+        "y": 477,
+        "w": 44,
+        "h": 44
+      }
+    },
+    {
+      "id": "part-2",
+      "shape": "rect",
+      "x": 300,
+      "y": 596,
+      "w": 44,
+      "h": 44,
+      "order": 5,
+      "role": "part",
+      "to": [
+        368,
+        588
+      ],
+      "toR": 36,
+      "hole": {
+        "x": 346,
+        "y": 566,
+        "w": 44,
+        "h": 44
+      }
+    },
+    {
+      "id": "part-3",
+      "shape": "rect",
+      "x": 486,
+      "y": 430,
+      "w": 44,
+      "h": 44,
+      "order": 6,
+      "role": "part",
+      "to": [
+        466,
+        502
+      ],
+      "toR": 36,
+      "hole": {
+        "x": 444,
+        "y": 480,
+        "w": 44,
+        "h": 44
+      }
+    }
   ]
 }

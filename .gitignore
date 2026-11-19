@@ -13,6 +13,8 @@ tools/_qwen-rooms-*.log
 tools/_shot*.png
 tools/_zoom*.png
 tools/_*.cjs
+# 体检脚本的一次性输出（正式工具 tools/survey-speech.cjs 入库，它的落盘读数不入库）
+tools/_survey-*.txt
 tools/_mc-*.json
 tools/_mc-*.md
 # AI 走动体检（tools/track-ai*.cjs 已入库）：采样与报告是本地产物，不入库
@@ -53,6 +55,11 @@ assets/scene/v4/tex/*
 # 3D 预演的贴图是 v4/tex 的逐字节副本（sha1 相同），Godot 工程要本地文件，
 # 但仓库不必为同一份内容记两遍。
 3d/preview/assets/textures/
+# 同上（2026-11-18）：`npm run 3d:export:minigames` 会把 `js/data/plates.js` 引用的
+# 板图整份拷进 `3d/preview/assets/plates/`（实测 panel-fix.png 1.27 MB，与源文件逐字节同 mtime）。
+# 主仓只保留 `3d/preview/data/` 快照与 `3d/tools/export-*.cjs` 导出链（红线 13），
+# 3D 客户端素材属副分支本地；同一份 PNG 不在 main 记第二遍。
+3d/preview/assets/plates/
 # 蒙特卡洛原始局：改为 .json.gz 入库（实测 2.61 MB -> 0.16 MB，省 94%），
 # 未压缩 .json 降为本地工作文件，`npm run sim` 随时可复现。
 # 记录仍成对保留（F 与 E 基线各一份压缩档），只是不再屯原始字节。

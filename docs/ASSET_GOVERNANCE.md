@@ -456,6 +456,44 @@
 > 玩家在同一场会议里重复点同一条「亲眼看见」模板，第二次起不得再加嫌疑分；
 > 异形扎堆同指的每场触发率下降而**人数上限仍为 3**；亮舱观众不再被 8 格截断。
 
+> **2026-11-18 登记（会议发言反同质化 · 信息优先级）**：以下 4 条按 §14.2 第②条作为**方法论与技术指导**
+> 吸收，未下载、未引用任何代码或素材文件。
+> ① Werewolf Strategy（bubbleappstudio，讨论口径）——原文「Join discussions, **give reasons for your votes**
+> and avoid automatically defending your teammates.」「Use **events that actually happened in the game**:
+> "You suspected Leah, then voted for Sam. What changed?"」「"I lean towards Sam because of that vote" is
+> easier to explain than absolute certainty **with no public evidence behind it**」「**Answer the specific
+> accusation first**: a vote, a statement or a change of mind.」
+> ② Among Us Crew Strategy Guide（BlueStacks）——「**Tasks** … are your **strongest alibi**.」
+> ③ Among Us Wiki `Guide:Impostor`——「Crewmates **cannot use alibis if they are not together**.」
+> ④ arXiv 2408.17177《Optimal Strategy in Werewolf Game》——多数既有工作把白天投票建成**随机/均匀**策略，
+> 讨论内容与发言顺序不进入模型；即"说什么"这一层在公开文献里只剩人类玩家的口径可参照。
+> **比对**（本项目 2026-11-18 实测，`_t.simSpeechBatch(40)` = 40 局同 seed 完整对局、6,819 条真实台词）：
+> 实质推理句 **33.6%**、`我+时间+舱室` 自述开头 **29.5%**、含人名 89.0%、前 5 人话轮占比 38.8%、
+> 异形份额 27.3%、整句字面重复 22.2%。逐条对不上公开口径的地方：
+> ① 要求"指控与投票必须给理由"，而 `startChatter` 的指控轮是 `accusers…slice(0,2)` ——
+> 第三个及以后**有 `accuse` 的人根本不开口**，玩家因此听到的指控天然稀薄；
+> ② 要求"口供的主体是任务"，而 `alibiLine` 固定用 `stem_room`（位置）开头，任务与同位子句只能排在后半；
+> ③ 要求"分开就不算 alibi"，`mate_clause` 同位子句虽有，但同样被压在位置词干之后；
+> ④ `endorse` / `selfcite` / 补充池里存在**只表态不给内容**的句子（「就{r}这一段，我可以详细说明。」
+> 「{t}我这里能为他补一句。」「我愿意为{t}的位置补一句。」），字面含人名却没有任何可被复核的事实，
+> 是"实质推理 33.6%"里最直接的稀释项。
+> **采纳**：开场自述设名额上限并按「有确证/目击 > 有指控 > 无信息」排发言优先级
+> （`SPEECH.alibiOpenMax` / `SPEECH.accuseSpeakers`，只动**排期与上限**，不动任何判据）；
+> 指控轮开口上限 2 → 3（复用既有 accusers 排序，只放宽截断）；
+> 自述词序按证据强弱重排为**同路人 > 已完成任务 > 位置**，**全部复用现有三个池，不新建语料类别**；
+> 6 条空转句改写成带具体事实的句子，槽位仍只能来自既有诚实来源（`seenRoomOf` / `alibiOf`），
+> 且继续受 `roomSafePool`（没有地点依据就不许说地点）约束。
+> **不采纳**：照搬真人赛的"发言权 / 计时麦"制度（等于新增配额，触 `ARCHITECTURE.md §10` 硬红线，
+> 也与用户 2026-11-18 裁定「刷屏只做会议内去重、不做额度」同向）；为"推理浓度"新设分数或计数器
+> （优先级直接用既有的 `mind.known` / `mind.almost` / `a.accuse` 三档，不另立）；
+> 把 `sus` 高低做成开口门槛（话术反噬判断层，违背 R12「判断力 vs 说服力」的分工）；
+> 按 ①里"绝对确信"的说法给 AI 加第四档确信语气（本项目 known / almost / 怀疑三档已定，
+> 且公开来源自己就强调"没有公开证据支撑的绝对结论更不可信"）。
+> **判据**：同一 seed 批复跑 `_survey-speech.cjs`——实质推理句占比自 33.6% 显著上升、
+> `我+时间+舱室` 开头占比自 29.5% 下降、含人名不低于 85%；
+> 异形发言份额不因优先级改动回升（仍约 ≤30%）；
+> `talkScore` / `alienLineCap` / `sayStreakOK` 三条既有节流一条都不许绕过；门禁 1029 基线不回归。
+
 > **2026-11-14 登记（2.5D 运行时卡顿复测）**：上 4 条一律按 §14.4 第②条作为**方法论与技术指导**吸收，
 > 未下载、未采用其代码或素材文件。
 > **比对**：公开方案是「重复图元离屏预渲染 + 静态层分层画布 + 只画差异 + 16ms 帧预算内少做事」；
@@ -726,3 +764,19 @@
 ```
 
 登记时一并确认四处同步：两仓 `.gitignore`、两仓 `tools/deploy-pages.cjs`、`assets/MANIFEST.json`、`BASELINE.sha256.json`（见 §7）。
+
+### 2026-11-19 · 六张图内任务板（tank-gauge / galley / rec-table / surgery / target-lane / shelf）
+
+红线 12 / §14 四步留痕。**只取设计方法，不直接引用任何公开素材文件**；成品全部由本机
+`E:\ai-models\qwen-image-2.1`（Qwen-Image 2.1 Turbo GGUF，Qwen Research License 非商用）
+经 `E:\ai-tools\sdcpp\vulkan\sd-cli.exe` 本地生成，8 步 / CFG 1.0 / euler / 768×768。
+
+| 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
+|---|---|---|---|---|---|
+| 飞船生活舱 / 医疗舱 / 货舱的空间分区 | http://thedaemon.com/deltav_design.html | The Delta-v Project（小说配套设计页） | 公开设计参考页（仅取布局方法，不取图） | 2026-11-19 | 采纳「厨房/储物/医疗相邻、铝合金内胆分隔」的分区法；对应 galley / surgery / shelf |
+| 暗色科幻货舱的配色与材质层级 | https://www.summerengine.com/asset-store/alien-escape-cargo-bay-background-99992d54 | Tatu Kuru / Summer Engine | CC0 1.0（仅作设计参照，未下载未使用其图） | 2026-11-19 | 采纳「近黑钢蓝底 + 琥珀/青窄条灯 + 铆钉格栅」；与既有 facility 贴图冷调一致 |
+| 任务面板的信息呈现 | https://among-us.fandom.com/wiki/Security_(location) | Among Us Wiki / Fandom | CC-BY-SA（仅读文字描述，未取图） | 2026-11-19 | 采纳「同房间多种可点设备、屏幕常亮、状态一眼可读」；对应 rec-table / target-lane |
+
+**比对**：公开方案是「整间舱室插画」；本项目是**裁切到 768×768 的单设备面板**（热点要压在具体物件上），
+因此只吸收分区 / 配色 / 信息层级三条方法论，不照搬整间构图。六张板坐标均须用
+`tools/plate-overlay.cjs` 叠图核准，不得目测。

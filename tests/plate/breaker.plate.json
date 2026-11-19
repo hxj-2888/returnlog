@@ -1,0 +1,88 @@
+{
+  "id": "breaker",
+  "label": "电闸柜 · 加热管与拨钮",
+  "image": "assets/scene/v4/facility/breaker.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    24,
+    12,
+    464,
+    464
+  ],
+  "spots": [
+    {
+      "id": "tube-1",
+      "shape": "rect",
+      "x": 324,
+      "y": 148,
+      "w": 84,
+      "h": 42,
+      "order": 1,
+      "role": "tube",
+      "band": [
+        56,
+        76
+      ]
+    },
+    {
+      "id": "tube-2",
+      "shape": "rect",
+      "x": 324,
+      "y": 192,
+      "w": 84,
+      "h": 42,
+      "order": 2,
+      "role": "tube",
+      "band": [
+        56,
+        76
+      ]
+    },
+    {
+      "id": "tube-3",
+      "shape": "rect",
+      "x": 324,
+      "y": 236,
+      "w": 84,
+      "h": 42,
+      "order": 3,
+      "role": "tube",
+      "band": [
+        48,
+        68
+      ]
+    },
+    {
+      "id": "sw-1",
+      "shape": "rect",
+      "x": 166,
+      "y": 214,
+      "w": 40,
+      "h": 42,
+      "order": 4,
+      "role": "switch"
+    },
+    {
+      "id": "sw-2",
+      "shape": "rect",
+      "x": 162,
+      "y": 288,
+      "w": 40,
+      "h": 42,
+      "order": 5,
+      "role": "switch"
+    },
+    {
+      "id": "knob",
+      "shape": "circle",
+      "x": 450,
+      "y": 232,
+      "r": 19,
+      "order": 6,
+      "role": "knob"
+    }
+  ]
+}

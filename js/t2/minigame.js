@@ -25,70 +25,79 @@
      底层仍是可复用的交互原型，但每个任务有自己的步数 / 符号 / 颜色 / 规则参数 / 提示，
      不再只是"按舱室归类复用"。高难 8 个保持 2.5D 的独特玩法；
      普通任务从 10 型里选最贴任务语义的一型，并给出独立配置。 */
+  /* 26 个任务全部是「一张贴图 + 若干热点 + 一个动词」。
+     没有记忆型玩法：顺序点按的编号直接画在图上（.pord 徽章），不靠记。
+     难度只靠「简单动作 × 重复次数」，不收窄窗口、不藏线索（R4.5）。 */
   const TASKS = {
-    /* 高难=简单动作×更多次数，且单次不比 normal 简单：3 路/0.8s > 温控 2 路/0.6s。
-       每步都只是"拖进亮带"，可反复练；不靠收窄窗口。 */
-    '引擎组同步': { k:'sync', n:3, hold:0.8, targets:[[16,28],[46,60],[33,49]], color:'#F5A64A',
-      hint:'三条引擎通道各自调进亮带，并同时保持 0.8 秒' },
-    '零件台': { k:'place', n:4, shapes:['▲','●','■','◆','✦','✚'], color:'#73A7FF',
-      hint:'把四种零件按形状放回对应槽位；放错不重置' },
-    '工具架': { k:'place', n:4, shapes:['✦','✚','◈','◇','▲','■'], color:'#5AD1C0',
-      hint:'工具按形状归位；注意有一个诱饵槽' },
+    /* ---- 电力 · 电闸柜 ---- */
+    '引擎组同步': { k:'plate', plate:'breaker', verb:'holdBand', use:'tube', n:3, dur:2.2,
+      color:'#F5A64A', hint:'三根加热管各自按住升到亮带再松手；过头会自己退回来' },
+    '温控面板': { k:'plate', plate:'breaker', verb:'holdBand', use:'tube', n:2, dur:1.9,
+      band:[62,72], color:'#3DC7F2', hint:'两路温控按住升到亮带再松手；亮带更窄一格' },
+    '消毒循环': { k:'plate', plate:'panel-breaker', verb:'hold', use:'lever', n:3, hold:0.9,
+      color:'#00E5B0', hint:'把闸刀分三段按住推到底，每段充满即到位' },
+
+    /* ---- 维修 · 电路板 / 扳手 ---- */
+    '电路维修': { k:'wire', n:3, rounds:2, color:'#E0574F',
+      hint:'直接操控面板图里的断线：每组三处、共两组；接错不重置' },
     '备用配电盘': { k:'wire', n:2, color:'#F0C674',
       hint:'接回配电盘上的两处断线；接错不重置' },
-    /* 高难=简单动作×3 杯（每杯判据同 normal：落进亮带即可）；窗口不收窄，只加次数。 */
-    '氧气循环': { k:'pour', cups:3, lo:58, hi:72, rate:38, color:'#57DB70',
-      hint:'连续配比 3 杯氧气，每杯注到 58~72 的亮带内再松手' },
-    '培养罐补液': { k:'pour', cups:1, lo:44, hi:56, rate:44, color:'#00E5B0',
-      hint:'补液到 44~56 之间再松手；溢出或不足可重注' },
-    '温控面板': { k:'sync', n:2, hold:0.6, targets:[[25,40],[55,70]], color:'#3DC7F2',
-      hint:'两路温控同时进入亮带并保持 0.6 秒' },
-    '电路维修': { k:'wire', n:3, color:'#E0574F',
-      hint:'直接操控面板图里的三处断线；接错不重置' },
-    '变压器换芯': { k:'swap', color:'#B07CFF',
-      hint:'先取出旧芯，再插入同型号新芯' },
-    '餐台清洁': { k:'sort', n:5, bins:['餐具','垃圾'], items:['盘','杯','叉','纸','壳'],
-      assign:[0,0,0,1,1], color:'#F5A64A',
-      hint:'把餐台上的东西分进「餐具 / 垃圾」两个筐' },
-    '后厨盘点': { k:'sort', n:5, bins:['食材','器具'], items:['菜','肉','锅','刀','罐'],
-      assign:[0,0,1,1,0], color:'#F0C674',
-      hint:'按食材 / 器具分拣后厨物资' },
-    '娱乐桌': { k:'sequence', n:4, symbols:['◈','◇','▣','▤'], color:'#E052CC',
-      hint:'按屏幕上的符号顺序依次按下；按错不重置' },
-    '点唱机': { k:'sequence', n:5, symbols:['♪','♫','●','▲','■'], color:'#B07CFF',
-      hint:'按屏幕上的音符顺序依次按下；按错不重置' },
-    '手术台校准': { k:'align', n:3, tolPx:14, color:'#00E5B0',
-      hint:'把三个探针拖进虚线靶心；这次容差更小' },
-    '药柜': { k:'match', n:3, icons:['◈','◇','▣','▤','◐','◑'], color:'#5AD1C0',
-      hint:'翻两瓶药，图标相同即配对；配错不重置' },
-    '消毒循环': { k:'valve', n:3, color:'#00E5B0',
-      hint:'把三个阀门转到各自的刻度线；每点一次转 45°' },
-    /* 2026-11-18 难度适配：hits 3→4（难在"连续命中"的执行稳定度），
-       窗口保持 zone9/speed56≈161ms —— 那是 11-15 登记的可完成性下界，不越线。 */
-    '靶道校准': { k:'aim', hits:4, speed:56, zone:9, color:'#E0574F',
-      hint:'准星进亮带时点击，连中 4 次；窗口没变，要的是稳' },
-    '工作台': { k:'place', n:5, shapes:['✦','✚','◈','◇','▣','▲'], color:'#F5A64A',
-      hint:'把五件工具按形状归位；槽位里有一个诱饵' },
-    '弹药清点': { k:'sort', n:5, bins:['子弹','弹壳'], items:['5.56','9mm','.45','壳','箱'],
-      assign:[0,0,0,1,1], color:'#F0C674',
-      hint:'把子弹和弹壳分开清点' },
-    /* 2026-11-18 用户裁定：难度靠**多次对齐/精度/节奏**排，**不靠记忆力**。
-       线索常驻（玩家随时可看），难点是五位编号的一次次校准输入：比 normal 的三位多两位。 */
-    '监控墙重连': { k:'code', code:'4271', clue:'屏幕角落的旧编号：4 - 2 - 7 - 1',
-      color:'#3DC7F2', hint:'照旧编号逐位对齐重连监控墙；线索常驻，输错不重置' },
-    '操作台': { k:'sequence', n:4, symbols:['▣','▤','◐','◑'], color:'#73A7FF',
-      hint:'按屏幕上的按键顺序依次按下；按错不重置' },
-    '录像归档': { k:'code', code:'317', clue:'档案盒侧面：A - 3 - 7',
-      color:'#5AD1C0', hint:'把录像归到正确档号；输错不重置' },
-    '货架校准': { k:'level', n:5, tolPx:8, color:'#F0C674',
-      hint:'把五层货架拖到同一条虚线；靠近即吸附对齐' },
-    '库存盘点': { k:'match', n:3, icons:['▣','▤','◈','◇','◐','◑'], color:'#F5A64A',
-      hint:'翻两张库存卡，货单与实物相同即配对（与货箱封条玩法区分）' },
-    '货箱封条': { k:'place', n:4, shapes:['✚','✦','◈','●','▲','■'], color:'#F0C674',
-      hint:'选择正确形状的封条，封住四个货箱' },
-    '出库扫描': { k:'code', code:'8142', clue:'出库单号：8 - 1 - 4 - 2',
-      color:'#73A7FF', hint:'按出库单号完成扫描；输错不重置' }
+    '零件台': { k:'plate', plate:'panel-fix', verb:'drag', use:'part', n:3,
+      color:'#73A7FF', hint:'把三个零件拖回电路板上的虚线缺口；拖歪不重置' },
+    '变压器换芯': { k:'plate', plate:'panel-fix', verb:'tapSeq', use:'slot', n:3,
+      color:'#B07CFF', hint:'按图上的 1→2→3 顺序取出三枚旧芯；点错不重置' },
+    '工具架': { k:'plate', plate:'tool-wrench', verb:'tapSeq', use:'bolt', n:3,
+      color:'#5AD1C0', hint:'按 1→2→3 把工具挂回三个卡位' },
+    '工作台': { k:'plate', plate:'tool-wrench', verb:'hold', use:'bolt', n:3, hold:1.1,
+      color:'#F5A64A', hint:'按住三个螺栓拧紧，充满即到位' },
+
+    /* ---- 生态 · 通风与补液 ---- */
+    '氧气循环': { k:'plate', plate:'tank-gauge', verb:'hold', use:'valve', n:2, hold:1.1,
+      color:'#57DB70', hint:'按图上的 1→2→3→4 依次打开四片通风叶' },
+    '培养罐补液': { k:'plate', plate:'tank-gauge', verb:'holdBand', use:'gauge', n:1, dur:2.6,
+      color:'#00E5B0', hint:'按住注液，液面进入亮带再松手；过头会退回来' },
+
+    /* ---- 医疗 · 医疗箱 / 无人机 ---- */
+    '药柜': { k:'plate', plate:'supply-med', verb:'hold', use:['latch','lid'], n:3, hold:1.0,
+      color:'#5AD1C0', hint:'按住三个锁扣直到充满，柜门才开' },
+    '手术台校准': { k:'plate', plate:'surgery', verb:'drag', use:'probe', n:3,
+      color:'#00E5B0', hint:'把三根探针拖进无人机上的虚线接口；拖歪不重置' },
+    '餐台清洁': { k:'plate', plate:'galley', verb:'tap', use:'dish', n:5,
+      color:'#F5A64A', hint:'逐处点掉台面上的五处污渍' },
+    '后厨盘点': { k:'plate', plate:'galley', verb:'tapSeq', use:'dish', n:5,
+      color:'#F0C674', hint:'按编号 1→5 依次核对五个罐位' },
+
+    /* ---- 娱乐 · 监控台改的桌面 ---- */
+    '娱乐桌': { k:'plate', plate:'rec-table', verb:'tap', use:'key', n:4,
+      color:'#E052CC', hint:'点亮桌面上的四个位置，凑齐一局' },
+    '点唱机': { k:'plate', plate:'rec-table', verb:'tapSeq', use:'key', n:4,
+      color:'#B07CFF', hint:'按编号 1→4 依次按下四个音键' },
+
+    /* ---- 监控 · 双屏与键盘 ---- */
+    '监控墙重连': { k:'plate', plate:'monitor', verb:'tapSeq', use:'channel', n:4,
+      color:'#3DC7F2', hint:'按编号 1→4 依次重连四个通道格' },
+    '操作台': { k:'plate', plate:'monitor', verb:'tap', use:'key', n:5,
+      color:'#73A7FF', hint:'逐格点按五个按键，把操作台跑一遍' },
+    '录像归档': { k:'plate', plate:'monitor', verb:'drag', use:'tape', n:3,
+      color:'#5AD1C0', hint:'把三盘录像拖进屏幕上的虚线档位' },
+
+    /* ---- 军械 · 弹药箱 ---- */
+    '弹药清点': { k:'plate', plate:'supply-ammo', verb:'tap', use:'bullet', n:5,
+      color:'#F0C674', hint:'逐颗点按箱里的子弹，清点 5 颗' },
+    '靶道校准': { k:'plate', plate:'target-lane', verb:'aim', n:4,
+      color:'#E0574F', hint:'准星扫进亮带时点击，连中 4 次；脱靶不扣进度' },
+
+    /* ---- 仓储 · 舱门板与货位 ---- */
+    '库存盘点': { k:'plate', plate:'shelf', verb:'tap', use:'deck', n:4,
+      color:'#F5A64A', hint:'逐格点按，清点五个库存位' },
+    '货架校准': { k:'plate', plate:'shelf', verb:'holdBand', use:'deck', n:4, dur:2.4,
+      color:'#F0C674', hint:'四层货架各自按住顶到亮线；过头会退回来' },
+    '货箱封条': { k:'plate', plate:'door-panel', verb:'hold', use:'strip', n:4, hold:0.8,
+      color:'#F0C674', hint:'按住四条封条压紧，充满即封好' },
+    '出库扫描': { k:'plate', plate:'door-panel', verb:'tapSeq', use:'strip', n:4,
+      color:'#73A7FF', hint:'按 1→4 顺序扫过四条灯带' }
   };
+
   const BY_LABEL = {};
   for (const k in TASKS) BY_LABEL[k] = TASKS[k].k;
   /* 动作兜底：摸不到具体点位时按动作类型选 */
@@ -97,21 +106,12 @@
     task: 'place', search: 'place', qual: 'place', ammo: 'place', med: 'place',
     breaker: 'lever'
   };
+  /* 图内任务的通用兜底提示；每个任务自己的提示在 TASKS[label].hint。 */
   const HINT = {
     wire: '点断口这头 → 再点那头，直接把图里的线接回去；接错线不重置',
     place: '零件 → 槽位，形状要对上；放错不重置',
     lever: '按住不放直到充满；松手保持进度',
-    sync: '把三条通道都调进亮带并保持 0.6 秒',
-    pour: '注到亮带内再松手；溢出或不足可重注',
-    swap: '先取出旧芯，再插入同型号新芯',
-    align: '把三个探针拖到虚线靶心',
-    aim: '准星进带时点击，连中 3 次；脱靶不重置',
-    match: '翻两张，图标相同即配对；配错不重置',
-    level: '拖动货架，靠近虚线即吸附；全部对齐即完成',
-    sequence: '按屏幕显示的顺序依次按下；按错不重置',
-    sort: '先点物品，再点它应该去的筐；分错不重置',
-    valve: '点阀门旋转，把指针转到刻度线；三个都到位即完成',
-    code: '按提示编号在键盘上输入；输错不重置'
+    plate: '点按 / 长按 / 拖动贴图上标出的位置；做错不重置，进度不清零'
   };
 
   const CSS = `
@@ -178,55 +178,6 @@
   #mg .lever svg{width:126px;height:140px;overflow:visible}
   #mg .arm{transition:transform .06s linear;transform-origin:63px 116px}
   #mg .spark{opacity:0}#mg .fire .spark{opacity:1}
-  #mg .rows{display:flex;flex-direction:column;gap:12px;width:78%}
-  #mg .rrow{display:flex;align-items:center;gap:10px}
-  #mg .rlab{width:54px;font-size:11px;color:#8FA6C0;flex:0 0 auto}
-  #mg .rtrack{position:relative;flex:1;height:24px;display:flex;align-items:center}
-  #mg .rtrack .band{position:absolute;top:3px;bottom:3px;background:rgba(240,198,116,.16);
-    border:1px solid #4A3C1E;border-radius:4px}
-  #mg .rtrack .ln{position:absolute;left:0;right:0;height:2px;background:#222833}
-  #mg .rtrack input[type=range]{position:relative;width:100%;margin:0;accent-color:#F0C674;background:transparent}
-  #mg .pourbin{display:flex;align-items:flex-end;gap:14px}
-  #mg .vessel{width:58px;height:150px;border:1px solid #313B4B;border-radius:6px;background:#0D1117;
-    position:relative;overflow:hidden}
-  #mg .vessel .fill{position:absolute;left:0;right:0;bottom:0;height:0;
-    background:linear-gradient(180deg,rgba(240,198,116,.75),rgba(240,198,116,.22))}
-  #mg .vessel .zone{position:absolute;left:0;right:0;border-top:1px dashed rgba(240,198,116,.7);
-    border-bottom:1px dashed rgba(240,198,116,.7);background:rgba(240,198,116,.07)}
-  #mg .ticks{font-size:10px;color:#8FA6C0;display:flex;flex-direction:column;justify-content:space-between;height:150px}
-  #mg .swap{display:flex;align-items:center;gap:16px}
-  #mg .socket{width:70px;height:90px;border:1px solid #313B4B;border-radius:8px;background:#0D1117;
-    display:flex;align-items:center;justify-content:center}
-  #mg .core{width:54px;height:74px;border-radius:6px;display:flex;align-items:center;justify-content:center;
-    font-size:10px;color:#0A0D13;font-weight:600}
-  #mg .core.old{background:#6B7280}#mg .core.c1{background:#00E5B0}
-  #mg .core.c2{background:#E0574F}#mg .core.c3{background:#73A7FF}
-  #mg .board{position:relative;width:76%;height:168px;border:1px solid #2A3240;border-radius:8px;touch-action:none;
-    background:repeating-linear-gradient(0deg,transparent 0 21px,rgba(255,255,255,.04) 21px 22px),
-      repeating-linear-gradient(90deg,transparent 0 21px,rgba(255,255,255,.04) 21px 22px)}
-  #mg .probe{position:absolute;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;
-    border:2px solid #F0C674;background:rgba(240,198,116,.15);cursor:grab}
-  #mg .tgt{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;
-    border:1px dashed rgba(0,229,176,.7)}
-  #mg .range{position:relative;width:78%;height:112px;border:1px solid #2A3240;border-radius:8px;
-    background:#0D1117;overflow:hidden;cursor:crosshair}
-  #mg .range .zone{position:absolute;top:0;bottom:0;left:46%;width:8%;
-    background:rgba(240,198,116,.16);border-left:1px solid #4A3C1E;border-right:1px solid #4A3C1E}
-  #mg .range .mk{position:absolute;top:0;bottom:0;width:2px;background:#F0C674;left:0}
-  #mg .cards{display:grid;grid-template-columns:repeat(4,58px);gap:7px}
-  #mg .cd{height:58px;border:1px solid #313B4B;border-radius:8px;background:#0D1117;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;font-size:17px;color:#3B4658}
-  #mg .cd.up{color:#F0C674;border-color:#4A3C1E;background:rgba(240,198,116,.07)}
-  #mg .cd.done{color:#00E5B0;border-color:#1F5A49;background:rgba(0,229,176,.06);cursor:default}
-  #mg .shelf{position:relative;width:76%;height:176px;border:1px solid #2A3240;border-radius:8px;
-    background:#0D1117;touch-action:none}
-  #mg .shelf .tline{position:absolute;left:0;right:0;border-top:1px dashed rgba(240,198,116,.55)}
-  #mg .lv{position:absolute;left:0;right:0;height:12px;background:#1B2432;border-top:2px solid #8FA6C0;
-    cursor:ns-resize}
-  #mg .lv i{position:absolute;right:6px;top:-9px;font-size:9px;color:#8FA6C0;font-style:normal}
-  /* 已对齐的层锁住并让出点击，避免层叠后抓不到被压住的下一层 */
-  #mg .lv.ok{border-top-color:var(--mg-accent);pointer-events:none;
-    box-shadow:0 0 0 1px rgba(240,198,116,.35)}
   /* 图内要素板：两层都引用同一张图，断口是面层的 mask，不是新增线条 */
   #mg .plate-wrap{position:relative;width:min(330px,84%);aspect-ratio:1/1;flex:0 0 auto;
     border:1px solid #2A3240;border-radius:10px;overflow:hidden;background:#05080D;
@@ -238,43 +189,43 @@
   @keyframes mghalo{0%{transform:scale(1);opacity:.5}70%{opacity:.12}100%{transform:scale(2.4);opacity:0}}
   #mg .plate-halo{transform-box:fill-box;transform-origin:center;animation:mghalo 1.7s ease-out infinite}
   #mg button.plate-peek{padding:4px 10px;font-size:11px;margin-top:-4px}
+  /* 图内任务热点（js/t2/plate-task.js）：点击层盖在贴图上，坐标是百分比；
+     洞的收缩交给 .spot-hole 的过渡，原图像素自己长回来 */
+  #mg .plate-spots{position:absolute;inset:0}
+  #mg .pspot{position:absolute;border-radius:8px;background:transparent;cursor:pointer;
+    transition:background .15s}
+  #mg .pspot:hover{background:rgba(240,198,116,.10)}
+  #mg .pspot.done{pointer-events:none}
+  #mg .spot-hole{transition:transform .42s cubic-bezier(.2,.8,.2,1);
+    transform-box:fill-box;transform-origin:center}
+  #mg .spot-pop{transform-box:fill-box;transform-origin:center;
+    animation:mgpop .52s ease-out forwards}
+  @keyframes mgpop{0%{opacity:.9;transform:scale(.55)}100%{opacity:0;transform:scale(1.7)}}
+  /* 六动词的公共反馈：编号徽章 / 拖动 / 亮带 / 准星 / 顺序点错 */
+  #mg .pspot.pdrag{cursor:grab;touch-action:none}
+  #mg .pspot.pdrag.dragging{cursor:grabbing;z-index:3}
+  #mg .pspot.idle{pointer-events:none;opacity:.32}
+  #mg .pspot.holding{background:rgba(240,198,116,.16)}
+  #mg .pord{position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;
+    background:rgba(10,14,20,.84);color:var(--mg-accent);font-size:10px;font-style:normal;
+    line-height:16px;text-align:center;pointer-events:none;border:1px solid var(--mg-accent)}
+  #mg .ptarget{position:absolute;border-radius:50%;border:2px dashed var(--mg-accent);
+    opacity:.8;pointer-events:none;box-sizing:border-box}
+  #mg .pfill,#mg .pband{pointer-events:none}
+  #mg .pspot.shake{animation:mgshake .28s ease-in-out}
+  @keyframes mgshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+  #mg .pspot.paim{cursor:crosshair}
+  #mg .paim-band{position:absolute;top:0;bottom:0;background:rgba(240,198,116,.20);
+    border-left:1px solid var(--mg-accent);border-right:1px solid var(--mg-accent);pointer-events:none}
+  #mg .paim-mk{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;
+    background:var(--mg-accent);box-shadow:0 0 8px var(--mg-accent);pointer-events:none}
+  #mg .pspot.paim.hit{background:rgba(240,198,116,.22)}
   /* 2026-11-06：每任务独立主题色；只改强调色，不改卡片骨架 */
   #mg{--mg-accent:#F0C674}
   #mg .hd strong,#mg .hd #mg-s{color:var(--mg-accent)}
   #mg .bar i{background:var(--mg-accent)}
   #mg .tip.good{color:var(--mg-accent)}
   #mg button:hover{border-color:var(--mg-accent);color:var(--mg-accent)}
-  /* 顺序记忆 */
-  #mg .seq{display:flex;gap:10px;align-items:center;justify-content:center}
-  #mg .seq .s{width:54px;height:46px;border:1px solid #313B4B;border-radius:8px;background:#0D1117;
-    display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--mg-accent)}
-  #mg .seq .s.on{border-color:var(--mg-accent);background:rgba(240,198,116,.10)}
-  #mg .seqrow{display:flex;gap:8px;justify-content:center}
-  /* 分拣 */
-  #mg .sortrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:520px}
-  #mg .sortitem{min-width:62px;height:38px;border:1px solid #313B4B;border-radius:8px;background:#0D1117;
-    color:#DDE3EC;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer}
-  #mg .sortitem.sel{border-color:var(--mg-accent);color:var(--mg-accent)}
-  #mg .sortitem.used{opacity:.25;cursor:default}
-  #mg .bins{display:flex;gap:12px;justify-content:center}
-  #mg .bin{min-width:120px;height:46px;border:1px dashed #3A4454;border-radius:9px;background:#0D1117;
-    color:#8FA6C0;font-size:12px;cursor:pointer}
-  #mg .bin:hover{border-color:var(--mg-accent);color:var(--mg-accent)}
-  /* 阀门 */
-  #mg .valves{display:flex;gap:26px;justify-content:center;align-items:center}
-  #mg .valve{width:92px;height:92px;border-radius:50%;border:2px solid #313B4B;background:#0D1117;
-    position:relative;cursor:pointer;flex:0 0 auto}
-  #mg .valve .needle{position:absolute;left:50%;top:9px;width:3px;height:32px;background:var(--mg-accent);
-    border-radius:2px;transform-origin:50% 100%;transform:translateX(-50%) rotate(var(--ang,0deg))}
-  #mg .valve .tick{position:absolute;left:50%;top:2px;width:7px;height:4px;background:#8FA6C0;
-    transform-origin:50% 44px;transform:translateX(-50%) rotate(var(--tgt,0deg))}
-  #mg .valve.ok{border-color:var(--mg-accent);box-shadow:0 0 0 2px rgba(240,198,116,.18)}
-  /* 密码 */
-  #mg .codebox{display:flex;gap:10px;align-items:center;justify-content:center}
-  #mg .coded{width:42px;height:48px;border:1px solid #313B4B;border-radius:8px;background:#0D1117;
-    display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--mg-accent)}
-  #mg .keypad{display:grid;grid-template-columns:repeat(5,42px);gap:7px;justify-content:center}
-  #mg .keypad button{width:100%;height:36px;padding:0;font-size:13px}
   `;
 
   let node = null, api = null;
@@ -323,6 +274,7 @@
   }
 
   function close() {
+    if (api && !api.done) (global.__SK_CLOSE = global.__SK_CLOSE || []).push(new Error().stack);
     if (api) {
       api.done = true;
       if (api.raf) cancelAnimationFrame(api.raf);
@@ -334,6 +286,9 @@
 
   function settle(ok, msg) {
     if (!api || api.done) return;
+    if (ok && api.need > 0 && (api.have || 0) < api.need) {
+      (global.__SK_PREMATURE = global.__SK_PREMATURE || []).push(msg + "\n" + new Error().stack);
+    }
     api.done = true;
     if (api.raf) cancelAnimationFrame(api.raf);
     if (api.anim) cancelAnimationFrame(api.anim);
@@ -415,6 +370,11 @@
     const wires = pick.map(function (i) { return plate.wires[i]; });
     const state = wires.map(function () { return { held: -1, done: false }; });
     let heldWire = -1;
+    /* 2026-11-19 难度提升（R4.5）：电路维修 cfg.rounds=2，其它板默认 1 组。
+       多组 = 同一组断口重接：判据 / 线头位置 / 原图线索全不变（对标「注液 3 杯」），
+       只增加重复次数。板数据不碰，所以门禁读到的仍是 3 处断口 / 6 个线头 / 进度 0 / 3。 */
+    const ROUNDS = Math.max(1, cfg('rounds', 1));
+    let round = 1;
 
     function s(tag, attrs) {
       const e = document.createElementNS(NS, tag);
@@ -519,8 +479,21 @@
       }
       setEmbers();
       const done = state.filter(function (st) { return st.done; }).length;
+      if (done === wires.length && round < ROUNDS) {
+        /* 这一组接完、还没到总组数：断口复位重接（同一张图、同样的线头位置），
+           只重复次数变多。进度条仍按「当前组」的 3 处走（门禁读 0/3），组数靠文案说明。 */
+        round++;
+        state.forEach(function (st) { st.held = -1; st.done = false; });
+        heldWire = -1;
+        cuts.innerHTML = ''; pulses.innerHTML = '';
+        setCuts(); setEmbers();
+        setProg(0, wires.length,
+          '第 ' + round + ' / ' + ROUNDS + ' 组：断口已复位，再把三处接一遍');
+        return;
+      }
       setProg(done, wires.length,
-        done === wires.length ? '全部接通' : '接上了 · 还有 ' + (wires.length - done) + ' 处断口');
+        done === wires.length ? (ROUNDS > 1 ? '第 ' + round + ' / ' + ROUNDS + ' 组 · 全部接通' : '全部接通')
+          : '接上了 · 还有 ' + (wires.length - done) + ' 处断口');
       if (done === wires.length) settle(true, '接线完成 · 任务成功');
     }
     function onEnd(i, k) {
@@ -552,8 +525,9 @@
 
     setCuts();
     setEmbers();
-    setProg(0, wires.length,
-      '共 ' + wires.length + ' 处断口：点断口这头 → 再点那头，接错线不重置');
+    setProg(0, wires.length, ROUNDS > 1
+      ? '共 ' + ROUNDS + ' 组、每组 ' + wires.length + ' 处断口：点一头 → 再点另一头，接一组复位再接下一组'
+      : '共 ' + wires.length + ' 处断口：点断口这头 → 再点那头，接错线不重置');
   }
 
   /* ---------- 接线 · 旧版（无板数据时的降级玩法） ---------- */
@@ -704,467 +678,29 @@
   }
 
   /* ---------- 三通道同步 ---------- */
-  function buildSync(bd) {
-    const targets = cfg('targets', [[18, 32], [48, 62], [34, 50]]);
-    const N = Math.max(1, Math.min(cfg('n', 3), targets.length));
-    const holdSec = cfg('hold', 0.6);
-    const init = cfg('init', [12, 74, 26]);
-    const rows = el('div', 'rows'), inputs = [];
-    for (let i = 0; i < N; i++) {
-      const r = el('div', 'rrow'), lab = el('span', 'rlab', '通道 ' + (i + 1));
-      const tr = el('div', 'rtrack'), band = el('i', 'band'), ln = el('i', 'ln');
-      band.style.left = targets[i][0] + '%';
-      band.style.width = (targets[i][1] - targets[i][0]) + '%';
-      tr.appendChild(ln); tr.appendChild(band);
-      const inp = document.createElement('input');
-      inp.type = 'range'; inp.min = '0'; inp.max = '100';
-      inp.value = String(init[i] == null ? 20 : init[i]);
-      tr.appendChild(inp);
-      inputs.push(inp);
-      r.appendChild(lab); r.appendChild(tr); rows.appendChild(r);
-    }
-    bd.appendChild(rows);
-    setProg(0, N, '共 ' + N + ' 条通道：调进亮带并同时保持 ' + holdSec + ' 秒');
-    let hold = 0, last = 0;
-    function loop(ts) {
-      if (!api || api.done) return;
-      if (!last) last = ts;
-      const dt = Math.min(.05, (ts - last) / 1000); last = ts;
-      let inside = 0;
-      inputs.forEach(function (inp, i) {
-        const v = +inp.value;
-        if (v >= targets[i][0] && v <= targets[i][1]) inside++;
-      });
-      const all = inside === N;
-      hold = all ? hold + dt : 0;
-      if (all) tip('保持 ' + hold.toFixed(1) + ' / ' + holdSec + ' s', 'good');
-      setProg(inside, N, '');
-      if (hold >= holdSec) { settle(true, '通道同步 · 任务成功'); return; }
-      api.anim = requestAnimationFrame(loop);
-    }
-    api.anim = requestAnimationFrame(loop);
-  }
 
   /* ---------- 注液 / 注气 ---------- */
-  function buildPour(bd) {
-    const bin = el('div', 'pourbin');
-    const vessel = el('div', 'vessel'), fill = el('i', 'fill'), zone = el('i', 'zone');
-    const lo = cfg('lo', 52), hi = cfg('hi', 68), rate = cfg('rate', 38);
-    /* 高难=简单动作×更多次数：cups 为连续注满杯数，每杯判据相同，只加次数不收窗口。 */
-    const cups = Math.max(1, cfg('cups', 1));
-    let done = 0;
-    zone.style.bottom = lo + '%';
-    zone.style.height = (hi - lo) + '%';
-    vessel.appendChild(fill); vessel.appendChild(zone);
-    const ticks = el('div', 'ticks');
-    ['100', '75', '50', '25', '0'].forEach(function (t) { ticks.appendChild(el('span', null, t)); });
-    const hold = el('button', null, '按住注液 · 松开确认');
-    bin.appendChild(vessel); bin.appendChild(ticks);
-    bd.appendChild(bin); bd.appendChild(hold);
-    const label = function () { return cups > 1
-      ? '已配 ' + done + ' / ' + cups + ' 杯 · 按住注液，落在 ' + lo + '~' + hi + ' 之间再松手'
-      : '按住注液，落在 ' + lo + '~' + hi + ' 之间再松手'; };
-    setProg(0, cups, label());
-    let v = 0, held = false, last = 0;
-    hold.addEventListener('pointerdown', function (e) {
-      e.preventDefault(); held = true;
-      /* 捕获指针：按住后移出按钮再松手也能正常结算，不会卡在「一直注液」 */
-      if (hold.setPointerCapture) { try { hold.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件无指针捕获 */ } }
-    });
-    hold.addEventListener('pointerup', function () {
-      if (!held || !api || api.done) return;
-      held = false;
-      if (v > hi) { v = 0; fill.style.height = '0%'; tip('注过头了 · 倒掉重注这一杯，任务不重置', true); }
-      else if (v < lo) { v = 0; fill.style.height = '0%'; tip('注得不够 · 重新按住注液', true); }
-      else {
-        done++;
-        if (done >= cups) { settle(true, '配比到位 · ' + cups + ' 杯全部完成'); return; }
-        v = 0; fill.style.height = '0%';
-        setProg(done, cups, label());
-        tip('第 ' + done + ' 杯到位 · 再来一杯（共 ' + cups + ' 杯）', 'good');
-      }
-    });
-    hold.addEventListener('pointercancel', function () { held = false; });
-    function loop(ts) {
-      if (!api || api.done) return;
-      if (!last) last = ts;
-      const dt = Math.min(.05, (ts - last) / 1000); last = ts;
-      if (held && v < 100) v = Math.min(100, v + dt * rate);
-      fill.style.height = v.toFixed(0) + '%';
-      api.anim = requestAnimationFrame(loop);
-    }
-    api.anim = requestAnimationFrame(loop);
-  }
 
   /* ---------- 换芯 ---------- */
-  function buildSwap(bd) {
-    const box = el('div', 'swap'), sock = el('div', 'socket');
-    const colors = ['c1', 'c2', 'c3'];
-    const target = colors[rnd(3)];
-    function coreName(c) { return c === 'c1' ? 'A 型' : c === 'c2' ? 'B 型' : 'C 型'; }
-    const oldc = el('div', 'core old', coreName(target) + '旧芯');   // 必须标型号，否则「同型号」只能盲猜 1/3
-    sock.appendChild(oldc);
-    const tray = el('div', 'tray');
-    let removed = false;
-    oldc.onclick = function () {
-      if (!api || api.done || removed) return;
-      removed = true; oldc.remove();
-      tip('旧芯已取出，选一枚同型号新芯');
-    };
-    shuffled(colors).forEach(function (c) {
-      const b = el('button', 'core ' + c, coreName(c));
-      b.style.width = '56px'; b.style.height = '32px'; b.style.border = '1px solid #313B4B'; b.style.cursor = 'pointer';
-      b.onclick = function () {
-        if (!api || api.done || !removed) return;
-        if (c !== target) { tip('型号不对 · 旧芯已取出，另选同型号新芯', true); return; }
-        sock.appendChild(el('div', 'core ' + c, '新芯'));
-        settle(true, '换芯完成 · 任务成功');
-      };
-      tray.appendChild(b);
-    });
-    box.appendChild(sock); box.appendChild(tray);
-    bd.appendChild(box);
-    setProg(0, 2, '第一步：点「' + coreName(target) + '旧芯」把它取出来');
-  }
 
   /* ---------- 三点对准 ---------- */
-  function buildAlign(bd) {
-    const board = el('div', 'board'), probes = [], tgts = [];
-    const N = Math.max(1, Math.min(4, cfg('n', 3)));
-    const TOL = cfg('tolPx', tierN(20, 14, 14));   // 像素容差：板高约 168px，按百分比纵向只有 3~4px
-    for (let i = 0; i < N; i++) {
-      const tx = 16 + rnd(62), ty = 14 + rnd(56);
-      const t = el('div', 'tgt');
-      t.style.left = tx + '%'; t.style.top = ty + '%';
-      board.appendChild(t); tgts.push({ x: tx, y: ty });
-    }
-    for (let j = 0; j < N; j++) {
-      const p = el('div', 'probe');
-      p.style.left = (8 + j * 32) + '%';
-      p.style.top = (72 - j * 16) + '%';
-      board.appendChild(p); probes.push(p);
-    }
-    bd.appendChild(board);
-    setProg(0, N, '把 ' + N + ' 个金色探针拖进虚线圆圈，全部进才算过');
-    let drag = null;
-    function pos(e) {
-      const bb = board.getBoundingClientRect();
-      return { x: (e.clientX - bb.left) / bb.width * 100, y: (e.clientY - bb.top) / bb.height * 100 };
-    }
-    board.addEventListener('pointerdown', function (e) {
-      const t = e.target;
-      if (!t.classList.contains('probe')) return;
-      drag = t;
-      if (t.setPointerCapture) { try { t.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件无指针捕获 */ } }
-      e.preventDefault();
-    });
-    board.addEventListener('pointermove', function (e) {
-      if (!drag || !api || api.done) return;
-      const p = pos(e);
-      drag.style.left = Math.max(0, Math.min(100, p.x)) + '%';
-      drag.style.top = Math.max(0, Math.min(100, p.y)) + '%';
-      check();
-    });
-    board.addEventListener('pointerup', function () { drag = null; });
-    board.addEventListener('pointercancel', function () { drag = null; });
-    function check() {
-      const bb = board.getBoundingClientRect();
-      const near = probes.map(function (p, k) {
-        const dx = (parseFloat(p.style.left) - tgts[k].x) / 100 * bb.width;
-        const dy = (parseFloat(p.style.top) - tgts[k].y) / 100 * bb.height;
-        return Math.hypot(dx, dy) < TOL;
-      });
-      const got = near.filter(Boolean).length;
-      setProg(got, N, '对准 ' + got + ' / ' + N + ' —— 拖到虚线圆圈里');
-      if (near.every(Boolean)) settle(true, '评定通过 · 任务成功');
-    }
-  }
 
   /* ---------- 准星保持 ---------- */
-  function buildAim(bd) {
-    const rng = el('div', 'range'), zone = el('div', 'zone'), mk = el('div', 'mk');
-    const need = cfg('hits', 3), speed = cfg('speed', 46), zw = cfg('zone', 8);
-    const zlo = 50 - zw / 2, zhi = 50 + zw / 2;
-    zone.style.left = zlo + '%';
-    zone.style.width = zw + '%';
-    rng.appendChild(zone); rng.appendChild(mk);
-    bd.appendChild(rng);
-    setProg(0, need, '准星进亮带时点击，连中 ' + need + ' 次');
-    let hits = 0, dir = 1, x = 0, last = 0;
-    function loop(ts) {
-      if (!api || api.done) return;
-      if (!last) last = ts;
-      const dt = Math.min(.05, (ts - last) / 1000); last = ts;
-      x += dir * dt * speed;
-      if (x > 96) { x = 96; dir = -1; }
-      if (x < 0) { x = 0; dir = 1; }
-      mk.style.left = x + '%';
-      api.anim = requestAnimationFrame(loop);
-    }
-    rng.onclick = function () {
-      if (!api || api.done) return;
-      if (x >= zlo && x <= zhi) {
-        hits++; setProg(hits, need, '命中 ' + hits + ' / ' + need);
-        if (hits >= need) settle(true, '靶道校准完成 · 任务成功');
-      } else { tip('脱靶 · 已中的保留，等准星进带再点', true); }
-    };
-    api.anim = requestAnimationFrame(loop);
-  }
 
   /* ---------- 图标配对 ---------- */
-  function buildMatch(bd) {
-    /* 配对数按任务配置 */
-    const icons = cfg('icons', ['◈', '◇', '▣', '▤', '◐', '◑']);
-    const N = Math.max(2, Math.min(cfg('n', tierN(4, 5, 5)), icons.length));
-    const pool = icons.slice(0, N);
-    const deck = shuffled(pool.concat(pool));
-    const grid = el('div', 'cards');
-    let open = [], lock = false, pairs = 0, miss = 0;
-    setProg(0, N, '共 ' + N + ' 对：翻两张，图案相同即配对（配错不重置）');
-    deck.forEach(function (ic) {
-      const c = el('div', 'cd', '·');
-      c.dataset.ic = ic;
-      c.onclick = function () {
-        if (!api || api.done || lock || c.classList.contains('done') || c.classList.contains('up')) return;
-        c.classList.add('up'); c.textContent = ic; open.push(c);
-        if (open.length < 2) return;
-        const a = open[0], b = open[1];
-        if (a.dataset.ic === b.dataset.ic) {
-          a.classList.add('done'); b.classList.add('done'); open = []; pairs++;
-          setProg(pairs, N, pairs === N ? '全部匹配' : '已配对 ' + pairs + ' / ' + N + '，继续');
-          if (pairs === N) settle(true, '全部接通 · 任务成功');
-        } else {
-          lock = true; miss++;
-          setTimeout(function () {
-            if (!api || api.done) return;
-            a.classList.remove('up'); b.classList.remove('up');
-            a.textContent = '·'; b.textContent = '·';
-            open = []; lock = false;
-            tip('配错了 · 已配对的保留，记一下位置再翻', true);
-          }, 420);
-        }
-      };
-      grid.appendChild(c);
-    });
-    bd.appendChild(grid);
-  }
 
   /* ---------- 层高对齐 ---------- */
-  function buildLevel(bd) {
-    const shelf = el('div', 'shelf'), line = el('div', 'tline');
-    const target = 42;
-    const tol = cfg('tolPx', tierN(10, 8, 8));
-    line.style.top = target + '%';
-    shelf.appendChild(line);
-    const n = Math.max(2, Math.min(5, cfg('n', tierN(4, 5, 5))));
-    const base = n === 5 ? [14, 30, 48, 66, 84] : (n === 4 ? [20, 34, 58, 72] : [22, 46, 70]);
-    const bars = [];
-    base.forEach(function (v, i) {
-      const b = el('div', 'lv'), g = el('i', null, 'L' + (i + 1));
-      b.style.top = v + '%'; b.appendChild(g); shelf.appendChild(b); bars.push(b);
-    });
-    bd.appendChild(shelf);
-    setProg(0, bars.length, '把 ' + bars.length + ' 层货架拖到同一条虚线（±' + tol + '%）');
-    let drag = null;
-    function pct(e) {
-      const bb = shelf.getBoundingClientRect();
-      return (e.clientY - bb.top) / bb.height * 100;
-    }
-    shelf.addEventListener('pointerdown', function (e) {
-      const t = e.target.closest ? e.target.closest('.lv') : null;
-      if (!t) return;
-      drag = t; t.style.zIndex = '2';
-      if (t.setPointerCapture) { try { t.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件无指针捕获 */ } }
-      e.preventDefault();
-    });
-    shelf.addEventListener('pointermove', function (e) {
-      if (!drag || !api || api.done) return;
-      const bb = shelf.getBoundingClientRect();
-      let top = Math.max(0, Math.min(92, pct(e)));
-      /* 靠近虚线就吸附到目标，避免触屏在 4px 级容差里反复微调 */
-      if (Math.abs(top - target) / 100 * bb.height <= tol) top = target;
-      drag.style.top = top + '%';
-      check();
-    });
-    shelf.addEventListener('pointerup', function () {
-      if (drag) drag.style.zIndex = '';
-      drag = null;
-    });
-    shelf.addEventListener('pointercancel', function () {
-      if (drag) drag.style.zIndex = '';
-      drag = null;
-    });
-    function check() {
-      const bb = shelf.getBoundingClientRect();
-      const ok = bars.map(function (b) {
-        return Math.abs(parseFloat(b.style.top) - target) / 100 * bb.height <= tol;
-      });
-      bars.forEach(function (b, i) { b.classList.toggle('ok', ok[i]); });
-      const got = ok.filter(Boolean).length;
-      setProg(got, bars.length, '齐平 ' + got + ' / ' + bars.length + ' 层 —— 拖到同一条虚线');
-      if (ok.every(Boolean)) settle(true, bars.length + ' 层齐平 · 任务成功');
-    }
-  }
 
   /* ---------- 顺序记忆（2026-11-06 新增） ---------- */
-  function buildSequence(bd) {
-    const all = cfg('symbols', ['◈', '◇', '▣', '▤', '◐', '◑']);
-    const n = Math.max(2, Math.min(cfg('n', 4), all.length));
-    const seq = shuffled(all.slice(0, n));
-    const show = el('div', 'seq');
-    const targets = [];
-    seq.forEach(function (s) {
-      const d = el('div', 's', s);
-      show.appendChild(d); targets.push(d);
-    });
-    const row = el('div', 'seqrow');
-    let idx = 0;
-    shuffled(all.slice(0, n)).forEach(function (s) {
-      const b = el('button', 'blk', s);
-      b.onclick = function () {
-        if (!api || api.done) return;
-        if (s !== seq[idx]) {
-          tip('顺序错了 · 已按的保留，再按当前这格', true);
-          return;
-        }
-        targets[idx].classList.add('on');
-        idx++;
-        setProg(idx, n, idx === n ? '顺序正确' : '已按 ' + idx + ' / ' + n);
-        if (idx >= n) settle(true, '顺序校验通过 · 任务成功');
-      };
-      row.appendChild(b);
-    });
-    bd.appendChild(el('div', 'tip', '亮起的顺序就是答案；按错不重置'));
-    bd.appendChild(show);
-    bd.appendChild(row);
-    setProg(0, n, '按提示顺序依次按下 ' + n + ' 个符号');
-  }
 
   /* ---------- 分拣（2026-11-06 新增） ---------- */
-  function buildSort(bd) {
-    const bins = cfg('bins', ['合格', '废料']);
-    const items = cfg('items', ['A', 'B', 'C', 'D', 'E']);
-    const assign = cfg('assign', items.map(function (_, i) { return i % bins.length; }));
-    const n = Math.min(items.length, assign.length);
-    let sel = -1, placed = 0, miss = 0;
-    const row = el('div', 'sortrow');
-    const itemBtns = [];
-    items.slice(0, n).forEach(function (s, i) {
-      const b = el('button', 'sortitem', s);
-      b.onclick = function () {
-        if (!api || api.done || b.classList.contains('used')) return;
-        itemBtns.forEach(function (x) { x.classList.remove('sel'); });
-        b.classList.add('sel'); sel = i;
-        tip('已选中「' + s + '」：点它应该去的筐');
-      };
-      row.appendChild(b); itemBtns.push(b);
-    });
-    const binsRow = el('div', 'bins');
-    const binBtns = bins.map(function (name, bi) {
-      const b = el('button', 'bin', name);
-      b.onclick = function () {
-        if (!api || api.done || sel < 0) return;
-        if (assign[sel] !== bi) {
-          tip('分错了 · 已分拣的保留，再想想它该去哪筐', true);
-          return;
-        }
-        itemBtns[sel].classList.add('used');
-        itemBtns[sel].classList.remove('sel');
-        sel = -1; placed++;
-        setProg(placed, n, placed === n ? '全部分拣完成' : '已分拣 ' + placed + ' / ' + n);
-        if (placed === n) settle(true, '分拣完成 · 任务成功');
-      };
-      binsRow.appendChild(b);
-      return b;
-    });
-    bd.appendChild(el('div', 'tip', '先点物品，再点筐；分错不重置'));
-    bd.appendChild(row);
-    bd.appendChild(binsRow);
-    setProg(0, n, '把 ' + n + ' 件物品分进「' + bins.join(' / ') + '」');
-  }
 
   /* ---------- 阀门（2026-11-06 新增） ---------- */
-  function buildValve(bd) {
-    const n = Math.max(2, Math.min(4, cfg('n', 3)));
-    const angles = cfg('angles', [45, 135, 225, 315]).slice(0, n);
-    const cur = new Array(n).fill(0);
-    const row = el('div', 'valves');
-    const nodes = [];
-    for (let i = 0; i < n; i++) {
-      const v = el('div', 'valve');
-      const tick = el('i', 'tick');
-      tick.style.setProperty('--tgt', angles[i] + 'deg');
-      const needle = el('i', 'needle');
-      v.appendChild(tick); v.appendChild(needle);
-      v.onclick = function () {
-        if (!api || api.done) return;
-        cur[i] = (cur[i] + 45) % 360;
-        needle.style.setProperty('--ang', cur[i] + 'deg');
-        update();
-      };
-      row.appendChild(v); nodes.push(v);
-    }
-    function diff(a, b) {
-      return Math.abs((a - b + 540) % 360 - 180);
-    }
-    function update() {
-      let ok = 0;
-      nodes.forEach(function (v, i) {
-        const hit = diff(cur[i], angles[i]) <= 12;
-        v.classList.toggle('ok', hit);
-        if (hit) ok++;
-      });
-      setProg(ok, n, '阀门到位 ' + ok + ' / ' + n);
-      if (ok === n) settle(true, '管路压力稳定 · 任务成功');
-    }
-    bd.appendChild(el('div', 'tip', '点阀门每次转 45°；把指针转到刻度线'));
-    bd.appendChild(row);
-    setProg(0, n, '校准 ' + n + ' 个阀门');
-  }
 
   /* ---------- 密码 / 编号（2026-11-06 新增） ---------- */
-  function buildCode(bd) {
-    const code = String(cfg('code', '4271'));
-    let entered = '';
-    /* 线索常驻：2026-11-18 用户裁定，难度不靠"藏线索考记忆"。
-       编号位数（normal 3 位 / hard 4 位）才是差异，逐位对齐输入可反复练习。 */
-    bd.appendChild(el('div', 'tip', cfg('clue', '按提示编号输入')));
-    const box = el('div', 'codebox');
-    const cells = [];
-    for (let i = 0; i < code.length; i++) {
-      const c = el('div', 'coded', '·');
-      box.appendChild(c); cells.push(c);
-    }
-    const pad = el('div', 'keypad');
-    function reset(msg) {
-      entered = '';
-      cells.forEach(function (c) { c.textContent = '·'; });
-      setProg(0, code.length, msg || '从头开始');
-    }
-    for (let d = 0; d <= 9; d++) {
-      const b = el('button', 'blk', String(d));
-      b.onclick = function () {
-        if (!api || api.done) return;
-        if (!code.startsWith(entered + String(d))) { tip('编号不对 · 已输入的保留，再试这位', true); return; }
-        entered += String(d);
-        cells[entered.length - 1].textContent = String(d);
-        setProg(entered.length, code.length, '已输入 ' + entered.length + ' / ' + code.length);
-        if (entered.length === code.length) settle(true, '编号正确 · 任务成功');
-      };
-      pad.appendChild(b);
-    }
-    const clr = el('button', 'blk', '清空');
-    clr.onclick = function () { if (api && !api.done) reset('已清空'); };
-    pad.appendChild(clr);
-    bd.appendChild(box);
-    bd.appendChild(pad);
-    setProg(0, code.length, '输入 ' + code.length + ' 位编号');
-  }
 
   const BUILD = {
-    wire: buildWire, place: buildPlace, lever: buildLever, sync: buildSync, pour: buildPour,
-    swap: buildSwap, align: buildAlign, aim: buildAim, match: buildMatch, level: buildLevel,
-    sequence: buildSequence, sort: buildSort, valve: buildValve, code: buildCode
+    wire: buildWire, place: buildPlace, lever: buildLever
   };
 
   function kindOf(action, label) {
@@ -1202,6 +738,33 @@
     bd.innerHTML = '';
     node.classList.add('on');
     bd.appendChild(el('div', 'tip', HINT[kind]));
+    /* 图内任务（k:'plate'）：板数据唯一真源在 js/data/plates.js，
+       引擎是 js/t2/plate-task.js；引擎接不了（贴图缺失 / 动词未实现）就回退旧玩法。 */
+    if (kind === 'plate') {
+      const P = global.SKPlateTask;
+      const plate = global.SKPlates ? global.SKPlates.forLabel(opts.label) : null;
+      if (plate && P && P.build) {
+        const host = {
+          el: el, cfg: cfg, setProg: setProg, settle: settle, tip: tip, api: api,
+          fallback: function () {
+            if (api && api.done) return;
+            bd.innerHTML = '';
+            bd.appendChild(el('div', 'tip', HINT.place));
+            buildPlace(bd);
+          }
+        };
+        if (P.build(bd, plate, task || {}, host) !== false) {
+          api.raf = requestAnimationFrame(tick);
+          return kind;
+        }
+      }
+      /* 降级：贴图缺失时仍可玩，只是不在图上作业（file:// 无图也不卡死） */
+      bd.innerHTML = '';
+      bd.appendChild(el('div', 'tip', HINT.place));
+      buildPlace(bd);
+      api.raf = requestAnimationFrame(tick);
+      return kind;
+    }
     (BUILD[kind] || buildPlace)(bd);
     api.raf = requestAnimationFrame(tick);
     return kind;
@@ -1230,7 +793,9 @@
       arch: ARCH,
       hint: HINT,
       fallback: FALLBACK,
-      kinds: Object.freeze(Object.keys(BUILD))
+      /* plate 不进 BUILD（它由 js/t2/plate-task.js 引擎接），但它是合法的
+         任务玩法，必须出现在只读数据出口里，否则 3D 导出会判「未知玩法」。 */
+      kinds: Object.freeze(Object.keys(BUILD).concat(['plate']))
     })
   });
 })(typeof window !== 'undefined' ? window : globalThis);

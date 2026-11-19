@@ -1,0 +1,102 @@
+{
+  "id": "supply-med",
+  "label": "医疗箱 · 锁扣与补液",
+  "image": "assets/scene/v4/facility/supply-med.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    20,
+    16,
+    470,
+    470
+  ],
+  "skin": "dirty",
+  "spots": [
+    {
+      "id": "latch-top",
+      "shape": "rect",
+      "x": 56,
+      "y": 50,
+      "w": 400,
+      "h": 44,
+      "order": 1,
+      "role": "latch"
+    },
+    {
+      "id": "latch-bot",
+      "shape": "rect",
+      "x": 56,
+      "y": 338,
+      "w": 400,
+      "h": 46,
+      "order": 2,
+      "role": "latch"
+    },
+    {
+      "id": "lid",
+      "shape": "rect",
+      "x": 190,
+      "y": 148,
+      "w": 128,
+      "h": 146,
+      "order": 3,
+      "role": "lid",
+      "band": [
+        42,
+        58
+      ]
+    },
+    {
+      "id": "stain-1",
+      "shape": "rect",
+      "x": 78,
+      "y": 104,
+      "w": 72,
+      "h": 62,
+      "order": 4,
+      "role": "stain"
+    },
+    {
+      "id": "stain-2",
+      "shape": "rect",
+      "x": 252,
+      "y": 96,
+      "w": 72,
+      "h": 62,
+      "order": 5,
+      "role": "stain"
+    },
+    {
+      "id": "stain-3",
+      "shape": "rect",
+      "x": 352,
+      "y": 196,
+      "w": 72,
+      "h": 62,
+      "order": 6,
+      "role": "stain"
+    },
+    {
+      "id": "stain-4",
+      "shape": "rect",
+      "x": 104,
+      "y": 238,
+      "w": 72,
+      "h": 62,
+      "order": 7,
+      "role": "stain"
+    },
+    {
+      "id": "stain-5",
+      "shape": "rect",
+      "x": 276,
+      "y": 252,
+      "w": 72,
+      "h": 62,
+      "order": 8,
+      "role": "stain"
+    }
+  ]
+}

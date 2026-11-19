@@ -1,0 +1,91 @@
+{
+  "id": "supply-ammo",
+  "label": "弹药清点 · 逐颗点按",
+  "image": "assets/scene/v4/facility/supply-ammo.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    66,
+    50,
+    380,
+    380
+  ],
+  "skin": "dirty",
+  "spots": [
+    {
+      "id": "ammo-1",
+      "shape": "rect",
+      "x": 75,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 1
+    },
+    {
+      "id": "ammo-2",
+      "shape": "rect",
+      "x": 138,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 2
+    },
+    {
+      "id": "ammo-3",
+      "shape": "rect",
+      "x": 201,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 3
+    },
+    {
+      "id": "ammo-4",
+      "shape": "rect",
+      "x": 264,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 4
+    },
+    {
+      "id": "ammo-5",
+      "shape": "rect",
+      "x": 327,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 5
+    },
+    {
+      "id": "ammo-6",
+      "shape": "rect",
+      "x": 390,
+      "y": 162,
+      "w": 46,
+      "h": 156,
+      "role": "bullet",
+      "order": 6
+    }
+  ],
+  "lanes": [
+    {
+      "x": 70,
+      "y": 155,
+      "w": 372,
+      "h": 190,
+      "band": [
+        0.55,
+        0.67
+      ],
+      "period": 1.55
+    }
+  ]
+}

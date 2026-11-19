@@ -1,0 +1,130 @@
+{
+  "id": "door-panel",
+  "label": "舱门板 · 灯带与封条",
+  "image": "assets/scene/v4/tex/door-panel.png",
+  "size": [
+    1536,
+    1536
+  ],
+  "crop": [
+    0,
+    0,
+    1536,
+    1536
+  ],
+  "skin": "off",
+  "spots": [
+    {
+      "id": "strip-lt",
+      "shape": "rect",
+      "x": 0,
+      "y": 148,
+      "w": 126,
+      "h": 232,
+      "order": 1,
+      "role": "strip",
+      "band": [
+        58,
+        78
+      ]
+    },
+    {
+      "id": "strip-rt",
+      "shape": "rect",
+      "x": 1000,
+      "y": 144,
+      "w": 126,
+      "h": 232,
+      "order": 2,
+      "role": "strip",
+      "band": [
+        58,
+        78
+      ]
+    },
+    {
+      "id": "strip-lb",
+      "shape": "rect",
+      "x": 0,
+      "y": 674,
+      "w": 126,
+      "h": 136,
+      "order": 3,
+      "role": "strip",
+      "band": [
+        54,
+        74
+      ]
+    },
+    {
+      "id": "strip-rb",
+      "shape": "rect",
+      "x": 1000,
+      "y": 674,
+      "w": 126,
+      "h": 136,
+      "order": 4,
+      "role": "strip",
+      "band": [
+        54,
+        74
+      ]
+    },
+    {
+      "id": "deck-1",
+      "shape": "rect",
+      "x": 150,
+      "y": 150,
+      "w": 840,
+      "h": 152,
+      "order": 5,
+      "role": "shelf",
+      "band": [
+        58,
+        72
+      ]
+    },
+    {
+      "id": "deck-2",
+      "shape": "rect",
+      "x": 150,
+      "y": 330,
+      "w": 840,
+      "h": 160,
+      "order": 6,
+      "role": "shelf",
+      "band": [
+        58,
+        72
+      ]
+    },
+    {
+      "id": "deck-3",
+      "shape": "rect",
+      "x": 150,
+      "y": 520,
+      "w": 840,
+      "h": 160,
+      "order": 7,
+      "role": "shelf",
+      "band": [
+        58,
+        72
+      ]
+    },
+    {
+      "id": "deck-4",
+      "shape": "rect",
+      "x": 150,
+      "y": 710,
+      "w": 840,
+      "h": 160,
+      "order": 8,
+      "role": "shelf",
+      "band": [
+        58,
+        72
+      ]
+    }
+  ]
+}

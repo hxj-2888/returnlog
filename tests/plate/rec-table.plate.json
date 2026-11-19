@@ -1,0 +1,97 @@
+{
+  "id": "rec-table",
+  "label": "娱乐桌 · 发光键位",
+  "image": "assets/scene/v4/facility/rec-table.png",
+  "size": [
+    768,
+    768
+  ],
+  "crop": [
+    50,
+    120,
+    660,
+    510
+  ],
+  "spots": [
+    {
+      "id": "key-1",
+      "shape": "rect",
+      "x": 215,
+      "y": 360,
+      "w": 70,
+      "h": 60,
+      "order": 1,
+      "role": "key"
+    },
+    {
+      "id": "key-2",
+      "shape": "rect",
+      "x": 295,
+      "y": 320,
+      "w": 70,
+      "h": 60,
+      "order": 2,
+      "role": "key"
+    },
+    {
+      "id": "key-3",
+      "shape": "rect",
+      "x": 300,
+      "y": 410,
+      "w": 70,
+      "h": 60,
+      "order": 3,
+      "role": "key"
+    },
+    {
+      "id": "key-4",
+      "shape": "rect",
+      "x": 370,
+      "y": 285,
+      "w": 70,
+      "h": 60,
+      "order": 4,
+      "role": "key"
+    },
+    {
+      "id": "key-5",
+      "shape": "rect",
+      "x": 430,
+      "y": 235,
+      "w": 70,
+      "h": 60,
+      "order": 5,
+      "role": "key"
+    },
+    {
+      "id": "key-6",
+      "shape": "rect",
+      "x": 425,
+      "y": 200,
+      "w": 70,
+      "h": 60,
+      "order": 6,
+      "role": "key"
+    },
+    {
+      "id": "key-7",
+      "shape": "rect",
+      "x": 495,
+      "y": 240,
+      "w": 70,
+      "h": 60,
+      "order": 7,
+      "role": "key"
+    },
+    {
+      "id": "key-8",
+      "shape": "rect",
+      "x": 435,
+      "y": 305,
+      "w": 70,
+      "h": 60,
+      "order": 8,
+      "role": "key"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "id": "pipe-port-ecosys",
+  "label": "生态通风口 · 四片通风叶",
+  "image": "assets/scene/v4/facility/pipe-port-ecosys.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    40,
+    90,
+    432,
+    320
+  ],
+  "spots": [
+    {
+      "id": "vent-1",
+      "shape": "rect",
+      "x": 94,
+      "y": 156,
+      "w": 38,
+      "h": 180,
+      "order": 1,
+      "role": "vent"
+    },
+    {
+      "id": "vent-2",
+      "shape": "rect",
+      "x": 156,
+      "y": 156,
+      "w": 38,
+      "h": 180,
+      "order": 2,
+      "role": "vent"
+    },
+    {
+      "id": "vent-3",
+      "shape": "rect",
+      "x": 218,
+      "y": 156,
+      "w": 38,
+      "h": 180,
+      "order": 3,
+      "role": "vent"
+    },
+    {
+      "id": "vent-4",
+      "shape": "rect",
+      "x": 280,
+      "y": 156,
+      "w": 38,
+      "h": 180,
+      "order": 4,
+      "role": "vent"
+    }
+  ]
+}

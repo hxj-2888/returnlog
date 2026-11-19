@@ -117,6 +117,35 @@
   }
   function k1(p){return p<0.35?p/0.35*0.6:(0.6+(p-0.35)/0.65*0.4);}
 
+  /* ---- 空闲锚点与邻舱（2026-11-19 · A12 徘徊修复）----------------
+     用户口径：「有时候会莫名其妙跑到角落然后走回来，尽量减少徘徊」。
+     根因两条：
+       ① randIn 在房间矩形里**均匀取点**，贴墙与四个角都会被抽到；
+       ② 到了之后 path 一空就立刻再抽一个**全船随机房间**，于是「角落→另一个角落」。
+     这里给两件纯函数：idleSpot 取内缩锚点，idleRoom 只在本舱/邻舱里挑。
+     坐标是地图世界坐标（格），与 M.rooms[].rect 同一口径。 */
+  function idleSpot(r){
+    const g = global.SKGeo;
+    const [x0, y0, w, h] = r.rect;
+    const inset = Math.min(2.4, w / 4, h / 4);
+    for (let k = 0; k < 16; k++) {
+      const x = x0 + inset + Math.random() * Math.max(0.2, w - inset * 2);
+      const y = y0 + inset + Math.random() * Math.max(0.2, h - inset * 2);
+      if (g.free(x, y) && g.inPoly(x, y, r.poly)) return [x, y];
+    }
+    /* 小房间 / 摆满家具：退回房间中心附近的可走点，不再贴墙站 */
+    return g.nearestFree(x0 + w / 2, y0 + h / 2);
+  }
+  function idleRoom(cur){
+    const M = global.SKMapData;
+    if (!cur) return M.rooms[0];
+    if (Math.random() < 0.72) return cur;          /* 七成留在本舱 */
+    const cx = cur.rect[0] + cur.rect[2] / 2, cy = cur.rect[1] + cur.rect[3] / 2;
+    const near = M.rooms.filter(q => q !== cur &&
+      Math.hypot(q.rect[0] + q.rect[2] / 2 - cx, q.rect[1] + q.rect[3] / 2 - cy) < 20);
+    return near.length ? near[Math.floor(Math.random() * near.length)] : cur;
+  }
+
   global.SKT2Space = Object.freeze({
     /* 第一批：运行常量（拆分前与 game.js 一致）
        2026-11-07 用户裁定：全体移动速度 4.2 → 4.0，拖尸 2.7 → 2.5。
@@ -138,6 +167,8 @@
     botDead: botDead, botHp: botHp,
     corridorLampPos: corridorLampPos, corrJoinsRoom: corrJoinsRoom,
     ready: ready, rowForAng: rowForAng, dirAng: dirAng, workStyle: workStyle,
-    pipeTint: pipeTint, k1: k1
+    pipeTint: pipeTint, k1: k1,
+    /* 2026-11-19 A12：空闲走位的锚点与邻舱选择（纯函数，不读对局状态） */
+    idleSpot: idleSpot, idleRoom: idleRoom
   });
 })(typeof window !== 'undefined' ? window : globalThis);

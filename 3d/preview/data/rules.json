@@ -2,12 +2,12 @@
   "schema_version": 1,
   "note": "2.5D / 3D 推理与发言的唯一规则真源快照。勿手改；改 js/ 后重跑 npm run 3d:export:rules，check-parity 会拦截漂移。玩家输入映射、地形/A*/碰撞/LOS、美术允许各自实现。",
   "sources": {
-    "js/ai/sanity.js": "5e0fdf37b6dc",
-    "js/ai/traits.js": "a6395c194def",
-    "js/t2/ai.js": "fa16a2bcd30c",
+    "js/ai/sanity.js": "689f1eea858a",
+    "js/ai/traits.js": "e3df0186bf52",
+    "js/t2/ai.js": "735fed065855",
     "js/t2/decision.js": "ff0b7283e6fe",
-    "js/game.js": "c6e34de11444",
-    "js/data/lines.js": "c291bf14b3d5"
+    "js/game.js": "7689cdf45a5c",
+    "js/data/lines.js": "3a0af2a4a85c"
   },
   "tables": {
     "SKSanity": {
@@ -47,13 +47,28 @@
         "memorySec": 25,
         "repickSec": 8,
         "incumbentPen": 6,
+        "chaseCap": 6,
+        "chaseGiveUp": 14,
+        "chaseStutter": 0.35,
         "witSwapCD": 3,
         "witSwapMargin": 2,
-        "stalkRate": 0.05,
-        "stalkSec": 12,
-        "stalkGap": 6,
-        "stalkMin": 0.15,
+        "stalkRate": 0.12,
+        "stalkSec": 14,
+        "stalkGap": 5,
+        "stalkMin": 0.08,
         "jitter": 4
+      },
+      "TURN": {
+        "reach": 3.4,
+        "dot": -0.25,
+        "rate": 0.55,
+        "cd": 9
+      },
+      "TASK_ABORT": {
+        "hearRate": 0.12
+      },
+      "TASK_FOCUS": {
+        "skipSide": 0.35
       },
       "SABOTAGE": {
         "witnessCap": 1,
@@ -69,6 +84,8 @@
         "riskCost": 1.2,
         "minScore": 0.25,
         "maxAudience": 4,
+        "abortRate": 0.06,
+        "turnReal": 0.15,
         "cooldown": 18,
         "breakerChance": 0.1,
         "multiAudience": 2,
@@ -435,7 +452,9 @@
         "alienBias": 1.15,
         "minHumanSpeakers": 2,
         "alienLineCap": 6,
-        "nudgeGapMs": 5000
+        "nudgeGapMs": 5000,
+        "alibiOpenMax": 2,
+        "accuseSpeakers": 3
       },
       "COFRAME": {
         "chance": 0.25,
@@ -1228,7 +1247,7 @@
       ]
     },
     "SKT2AI.mindReset": {
-      "sha": "b4ceb02b5b50",
+      "sha": "e4fd134fb17b",
       "nums": [
         20,
         0.05,
@@ -1272,6 +1291,9 @@
         11,
         5,
         0,
+        1,
+        1,
+        1,
         0,
         0,
         2
@@ -1939,7 +1961,7 @@
   },
   "stats": {
     "modules": 4,
-    "table_keys": 52,
+    "table_keys": 55,
     "functions": 82,
     "fn_count": {
       "SKSanity": 16,

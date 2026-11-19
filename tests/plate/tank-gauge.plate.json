@@ -1,0 +1,80 @@
+{
+  "id": "tank-gauge",
+  "label": "生命维持罐 · 表盘与阀轮",
+  "image": "assets/scene/v4/facility/tank-gauge.png",
+  "size": [
+    768,
+    768
+  ],
+  "crop": [
+    100,
+    110,
+    560,
+    540
+  ],
+  "skin": "dirty",
+  "spots": [
+    {
+      "id": "gauge-1",
+      "shape": "rect",
+      "x": 362,
+      "y": 347,
+      "w": 66,
+      "h": 66,
+      "order": 1,
+      "role": "gauge",
+      "band": [
+        44,
+        62
+      ]
+    },
+    {
+      "id": "gauge-2",
+      "shape": "rect",
+      "x": 362,
+      "y": 422,
+      "w": 66,
+      "h": 66,
+      "order": 2,
+      "role": "gauge",
+      "band": [
+        44,
+        62
+      ]
+    },
+    {
+      "id": "gauge-3",
+      "shape": "rect",
+      "x": 362,
+      "y": 497,
+      "w": 66,
+      "h": 66,
+      "order": 3,
+      "role": "gauge",
+      "band": [
+        40,
+        58
+      ]
+    },
+    {
+      "id": "valve-1",
+      "shape": "rect",
+      "x": 485,
+      "y": 360,
+      "w": 80,
+      "h": 80,
+      "order": 4,
+      "role": "valve"
+    },
+    {
+      "id": "valve-2",
+      "shape": "rect",
+      "x": 580,
+      "y": 280,
+      "w": 80,
+      "h": 80,
+      "order": 5,
+      "role": "valve"
+    }
+  ]
+}

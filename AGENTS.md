@@ -5,7 +5,7 @@
 > 现行架构为**三层**：T1 工程大层（AI 拟人化 ‖ 空间与资源 ‖ 玩家决策）→ T2 机制与执行层（原 L2+L3 合并同类）→ T3 验收层；层外参考层 R 与预增层 P 已于 2026-11-12 收口归档（不占层号、不进依赖链），待办只记 `CHANGELOG.md`；体验层移出架构图，见 `docs/00-先导-游戏体验.md`。
 > §三文件地图的「层」列将在档 1 重构时换为 `T1/T2/T3 + domain`；**§一红线原文保留**；命令与改动流程见 `docs/workflow.md`，历史踩坑记录保留为附录。
 
-> **当前版本**：返航录V3.7（2026-11-11）· `package.json` 3.7.0
+> **当前版本**：返航录V0.1（2026-11-19）· `package.json` 0.1.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：本文件 → README（一页）→ `CHANGELOG.md` 最新批次；历史分卷按需读。
 > **权威口径（2026-11-12 校正 · T3 验收层规范落地）**：
@@ -49,11 +49,18 @@
    `config/version → data/map → data/plates → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → engine/assets → engine/body → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V3.7'`）。**
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V0.1'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
-4. **门禁必须全绿。** 改任何逻辑/数据后跑 `node tests/test-v3.cjs`，失败一律按回归处理；
+4. **门禁必须全绿。** 改任何逻辑/数据后按改动规模跑门禁，失败一律按回归处理；
    报告里必须写本次实跑的「X 通过 / Y 失败」，不得沿用旧读数。
+   - **默认全量**：本次改动 **≥3 点**，或触及跨模块 / 红线 / 契约 / 数值基线时，
+     跑 `node tests/test-v3.cjs`，全绿方可收口。
+   - **小改动只跑对应门禁**（2026-11-19 用户裁定）：用户本次修改要求 **< 3 点**时，
+     可不重跑全量门禁，只跑与改动内容直接对应的门禁子集（改板 → `npm run plate:check`、
+     改读数 / 台账 → `npm run t3:check`、改红线 → `npm run agent:contract` 等），
+     报告写明本次实跑项与读数即可；**对应门禁同样必须全绿**，失败一律按回归处理，
+     不得借本条跳过验收层。
 5. **`window.SKV3._t` 调试 API 是门禁契约。** 可以新增方法，但不得删除/改名/改变现有方法语义
    （`state()`、`inv()`、`newGame()`、`kill()`、`tp()`、`openMeeting()`、`events()`、`frames()`、
    `replay()`、`litZone()` 等被 test-v3.cjs 直接依赖）。

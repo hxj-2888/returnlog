@@ -37,7 +37,7 @@ const [W, H] = plate.size;
 const crop = plate.crop || [0, 0, W, H];
 const mime = /\.jpe?g$/i.test(imgPath) ? 'image/jpeg' : 'image/png';
 const b64 = fs.readFileSync(imgPath).toString('base64');
-const wires = plate.wires.map(w => ({
+const wires = (plate.wires || []).map(w => ({
   id: w.id, color: w.color, width: w.width, path: w.path, cut: w.cut,
 }));
 
@@ -55,7 +55,7 @@ const vars = {
   '{{CUT_H}}': String((plate.cut && plate.cut.h) || 40),
   '{{EMBER_R}}': String((plate.ember && plate.ember.r) || 7),
   '{{EMBER_HIT}}': String((plate.ember && plate.ember.hit) || 18),
-  '{{COUNT}}': String(wires.length),
+  '{{COUNT}}': String(wires.length + ((plate.spots || []).length)),
 };
 
 let out = tpl;

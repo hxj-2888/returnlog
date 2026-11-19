@@ -69,7 +69,12 @@ for (const [label, kind] of Object.entries(mini.byLabel)) {
 for (const kind of Object.values(mini.arch)) {
   if (!mini.kinds.includes(kind)) errors.push(`动作兜底映射到未知玩法 ${kind}`);
 }
-if (mini.kinds.length < 10) errors.push(`玩法数量应 ≥10，实际 ${mini.kinds.length}`);
+/* 2026-11-19 全量图内化：玩法从 14 型收敛成 4 个 kind（wire / place / lever / plate），
+   手感差异改由图内动词表达 —— 所以这里改成「kind ≥4 + 六动词齐备」两条。 */
+if (mini.kinds.length < 4) errors.push(`玩法数量应 ≥4（wire/place/lever/plate），实际 ${mini.kinds.length}`);
+const VERBS = ['tap', 'tapSeq', 'hold', 'holdBand', 'drag', 'aim'];
+const usedVerbs = new Set(Object.values(mini.tasks || {}).map(t => t.verb).filter(Boolean));
+for (const v of VERBS) if (!usedVerbs.has(v)) errors.push(`六动词缺 ${v}`);
 const tasks = mini.tasks || {};
 if (Object.keys(tasks).length !== 26) errors.push(`任务定制数应为 26，实际 ${Object.keys(tasks).length}`);
 for (const [label, cfg] of Object.entries(tasks)) {

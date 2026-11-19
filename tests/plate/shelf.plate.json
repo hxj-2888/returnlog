@@ -1,0 +1,74 @@
+{
+  "id": "shelf",
+  "label": "货架 · 四层校准",
+  "image": "assets/scene/v4/facility/shelf.png",
+  "size": [
+    768,
+    768
+  ],
+  "crop": [
+    140,
+    80,
+    480,
+    600
+  ],
+  "skin": "dirty",
+  "spots": [
+    {
+      "id": "deck-1",
+      "shape": "rect",
+      "x": 220,
+      "y": 235,
+      "w": 300,
+      "h": 70,
+      "order": 1,
+      "role": "deck",
+      "band": [
+        58,
+        74
+      ]
+    },
+    {
+      "id": "deck-2",
+      "shape": "rect",
+      "x": 220,
+      "y": 345,
+      "w": 300,
+      "h": 70,
+      "order": 2,
+      "role": "deck",
+      "band": [
+        58,
+        74
+      ]
+    },
+    {
+      "id": "deck-3",
+      "shape": "rect",
+      "x": 220,
+      "y": 460,
+      "w": 300,
+      "h": 70,
+      "order": 3,
+      "role": "deck",
+      "band": [
+        58,
+        74
+      ]
+    },
+    {
+      "id": "deck-4",
+      "shape": "rect",
+      "x": 220,
+      "y": 555,
+      "w": 300,
+      "h": 70,
+      "order": 4,
+      "role": "deck",
+      "band": [
+        58,
+        74
+      ]
+    }
+  ]
+}

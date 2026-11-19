@@ -380,6 +380,10 @@
       noise:null,seenBy:{},seenT:{},
       lastBody:null,tone:(a.i||0)%3,
       trust:keepEmo(oldM.trust),grudge:keepEmo(oldM.grudge),
+      /* 双分 P1 镜像：belief(T) / emo(E) / lock 由 susAdd / credAdd / known 写入点同步派生。
+         旧轴仍是唯一真源，这里只保证跨夜重建不把镜像丢掉（P2 切换后这些才是主账）。 */
+      belief:Object.assign({},oldM.belief||{}),emo:Object.assign({},oldM.emo||{}),
+      lock:Object.assign({},oldM.lock||{}),
       /* cred：**正向信任**——"他干的是正经事"，和 trust（他帮过我）分开。
          来源全是可被目击的正经行为（做任务/修故障/合闸/拖人进医疗间/施救），
          异形伪装刷的就是这一条；作用是指控门槛、投票回避、证言加权。 */
@@ -409,6 +413,14 @@
       rev:0};
     /* 跨夜留下的嫌疑要重新评估准-确证（可能已跌破门槛 → 降级） */
     for(const k in a.mind.sus)evalAlmost(a,+k);
+    /* P1 双写：sus / cred 刚被衰减过，镜像必须跟着重建，否则 belief 会停在昨夜的旧值 */
+    if(global.SKTrust&&global.SKTrust.dualWrite){
+      var keys={};
+      for(const k in a.mind.sus)keys[k]=1;
+      for(const k in a.mind.cred)keys[k]=1;
+      for(const k in a.mind.known)keys[k]=1;
+      for(const k in keys)global.SKTrust.dualWrite(a,+k);
+    }
     /* 遥测：跨夜保留下来的嫌疑总量（验改动 A 的实际力度） */
     if(G&&G.simStats){
       let t=0;for(const k in a.mind.sus)t+=a.mind.sus[k];

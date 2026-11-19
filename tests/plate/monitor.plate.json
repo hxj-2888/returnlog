@@ -1,0 +1,210 @@
+{
+  "id": "monitor",
+  "label": "监控台 · 屏幕与键盘",
+  "image": "assets/scene/v4/facility/monitor.png",
+  "size": [
+    512,
+    512
+  ],
+  "crop": [
+    40,
+    8,
+    432,
+    300
+  ],
+  "spots": [
+    {
+      "id": "scr1-t",
+      "shape": "rect",
+      "x": 148,
+      "y": 40,
+      "w": 56,
+      "h": 36,
+      "order": 1,
+      "role": "channel"
+    },
+    {
+      "id": "scr1-b",
+      "shape": "rect",
+      "x": 148,
+      "y": 80,
+      "w": 56,
+      "h": 34,
+      "order": 2,
+      "role": "channel"
+    },
+    {
+      "id": "scr2-t",
+      "shape": "rect",
+      "x": 212,
+      "y": 40,
+      "w": 74,
+      "h": 36,
+      "order": 3,
+      "role": "channel"
+    },
+    {
+      "id": "scr2-b",
+      "shape": "rect",
+      "x": 212,
+      "y": 80,
+      "w": 74,
+      "h": 34,
+      "order": 4,
+      "role": "channel"
+    },
+    {
+      "id": "key-1",
+      "shape": "rect",
+      "x": 96,
+      "y": 128,
+      "w": 28,
+      "h": 30,
+      "order": 5,
+      "role": "key"
+    },
+    {
+      "id": "key-2",
+      "shape": "rect",
+      "x": 129,
+      "y": 128,
+      "w": 28,
+      "h": 30,
+      "order": 6,
+      "role": "key"
+    },
+    {
+      "id": "key-3",
+      "shape": "rect",
+      "x": 162,
+      "y": 128,
+      "w": 28,
+      "h": 30,
+      "order": 7,
+      "role": "key"
+    },
+    {
+      "id": "key-4",
+      "shape": "rect",
+      "x": 195,
+      "y": 128,
+      "w": 28,
+      "h": 30,
+      "order": 8,
+      "role": "key"
+    },
+    {
+      "id": "key-5",
+      "shape": "rect",
+      "x": 228,
+      "y": 128,
+      "w": 28,
+      "h": 30,
+      "order": 9,
+      "role": "key"
+    },
+    {
+      "id": "tape-1",
+      "shape": "rect",
+      "x": 300,
+      "y": 126,
+      "w": 34,
+      "h": 30,
+      "order": 10,
+      "role": "tape",
+      "to": [
+        172,
+        58
+      ],
+      "toR": 30,
+      "hole": {
+        "x": 156,
+        "y": 42,
+        "w": 32,
+        "h": 32
+      }
+    },
+    {
+      "id": "tape-2",
+      "shape": "rect",
+      "x": 340,
+      "y": 132,
+      "w": 34,
+      "h": 30,
+      "order": 11,
+      "role": "tape",
+      "to": [
+        240,
+        58
+      ],
+      "toR": 30,
+      "hole": {
+        "x": 224,
+        "y": 42,
+        "w": 32,
+        "h": 32
+      }
+    },
+    {
+      "id": "tape-3",
+      "shape": "rect",
+      "x": 380,
+      "y": 126,
+      "w": 34,
+      "h": 30,
+      "order": 12,
+      "role": "tape",
+      "to": [
+        240,
+        100
+      ],
+      "toR": 30,
+      "hole": {
+        "x": 224,
+        "y": 84,
+        "w": 32,
+        "h": 32
+      }
+    },
+    {
+      "id": "panel-1",
+      "shape": "rect",
+      "x": 82,
+      "y": 122,
+      "w": 62,
+      "h": 44,
+      "order": 13,
+      "role": "panel"
+    },
+    {
+      "id": "panel-2",
+      "shape": "rect",
+      "x": 150,
+      "y": 122,
+      "w": 62,
+      "h": 44,
+      "order": 14,
+      "role": "panel"
+    },
+    {
+      "id": "panel-3",
+      "shape": "rect",
+      "x": 218,
+      "y": 122,
+      "w": 62,
+      "h": 44,
+      "order": 15,
+      "role": "panel"
+    },
+    {
+      "id": "panel-4",
+      "shape": "rect",
+      "x": 286,
+      "y": 122,
+      "w": 62,
+      "h": 44,
+      "order": 16,
+      "role": "panel"
+    }
+  ]
+}
