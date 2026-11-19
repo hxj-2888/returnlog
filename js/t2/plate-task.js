@@ -69,8 +69,8 @@
     var image = plate.image;
     var skin = SKIN[spec.skin] || SKIN[plate.skin] || SKIN.cut;
     var wrap = el('div', 'plate-wrap');
-    /* 板图满屏 cover（2026-11-19 晚裁定）：取最大缩放、超出裁掉、不留余量；热点按 wrap 百分比定位 */
-    var availW = bd.clientWidth || 720, availH = bd.clientHeight || 440, scale = Math.max(availW / cw, availH / ch);
+    /* 满屏 contain（2026-11-19 用户纠正）：整块板图完整装进屏幕，不放大裁切；上下各让出 HUD 浮层的高度 */
+    var availW = (bd.clientWidth || 720) - 16, availH = (bd.clientHeight || 440) - 128, scale = Math.min(availW / cw, availH / ch);
     var dispW = cw * scale, dispH = ch * scale;
     wrap.style.width = dispW.toFixed(1) + 'px';
     wrap.style.height = dispH.toFixed(1) + 'px';
