@@ -10,6 +10,32 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 超长函数拆解 批2：drawFacilities 241 → 29 行（五个 painter）] — 2026-11-20
+
+- **本批改动**（纯表现层，零判定改动）：`js/game.js#drawFacilities` 循环内的 5 条 `f.kind` 分支链
+  （217 行）按连续切片搬进五个 painter，宿主只留 5 行派发 + 循环前的运行时坐标计算 + 循环后的拘留区角笼：
+  | 新函数 | 内容 | 行数 |
+  |---|---|---|
+  | `drawFacBreaker` | 电闸柜：手柄、状态灯、拉闸进度 | 51 |
+  | `drawFacMonitor` | 监控台：屏幕阵与信号状态 | 25 |
+  | `drawFacSupply` | 补给点：弹药 / 医疗两型箱体与余量 | 40 |
+  | `drawFacMedbot` | 医疗无人机：机体、旋翼、救治状态 | 38 |
+  | `drawFacSecbot` | 保安机器人：机体、巡逻朝向、拘留状态、名牌 | 73 |
+  切片前已核对：分支体只依赖 `f,x,y,s,T`（不引用循环内的 `rp`，也没有 `continue`），
+  所以 painter 签名统一 `(f,x,y,s,T)` 即可，语义与原来完全一致。
+- **手法**：把批1 的脚本参数化成 `_scan/split_chain.cjs`（锚点自检 → 切片 → 段首接缝改写 → 摊平写入），
+  后续批次复用同一套；校验脚本 `_scan/verify_split2.cjs` 与 `git show HEAD` 的旧链逐行比对，
+  **差异恰好 4 行 = 4 个段首接缝**（`}else if(` → `if(`），`f.kind` 分支数 5 = 5。
+- **读数变化**（本机实跑，日志 `tools/_gate-split-facilities-20261120.log`）：`npm test`
+  **1072 通过 / 1 失败**（唯一失败 = 已登记换子弹抖动）；`file:check:js` OK，
+  `drawFacilities` 登记项移除，**在册 10 → 9 条**（boot / aiAlien / startChatter / buildMeetCtx /
+  draw / home:esc / playerTalk / aiHuman / startVote）。
+- **下一批立项依据**：批3 起进入**判定链与主绘制**（`startVote` 202 → `playerTalk` 294 →
+  `aiHuman` 313 → `draw` 373 → `buildMeetCtx` 407 → `startChatter` 472 → `aiAlien` 544）。
+  这几条不像表现层那样能纯切片——分支里常有共享局部量与 `continue/return`，
+  每拆一条都要先做依赖核对、拆完单独跑全量，并核对 `_t` 调试 API 语义不变（红线 5）；
+  `boot`（12,547 行整个 IIFE）属阶段 B 按族外提，需同步 `index.html` 与 README（红线 2），放最后。
+
 ## [未发布 · 超长函数拆解 批1：drawFx 220 → 13 行（四个 painter）] — 2026-11-20
 
 - **动机**（用户指令）：「先来执行超大函数拆解任务」——`docs/file-budgets-js.json` 在册 11 条超长函数。
@@ -210,7 +236,7 @@
 
 - **动机**（用户现场）：「保安机器人巡逻路线修改，改为绕房间一整圈」。原来只是军械库左上角 4 点小矩形，长时间照不到房间其余部分。
 - **本批改动**：
-  1. **巡逻真源**：`js/data/map.js#facility[secbot].patrol` 由 4 点小矩形改为 **18 点整圈**——顶边 → 右上（绕开靶道架）→ 右边 → 底边含下沿缺口 → 左边 → 回到起点。覆盖 x 75.9~90.3 / y 66.3~76.5，整圈 52.8 格，按 1.6 格/秒约 **33 秒一圈**。所有航点与相邻连线均过 `SKGeo.free/pathClear`，避开工作台、靶道架、枪架与弹药箱。
+  1. **巡逻真源**：`js/data/map.js#facility[secbot].patrol` 由 4 点小矩形改为 **18 点整圈**——顶边 → 右上（绕开靶道架）→ 右边 → 底边含下沿缺口 → 左边 → 回到起点。覆盖 x 75.9~90.3 / y 66.3~76.5，整圈 52.8 格，按当时 1.6 格/秒约 **33 秒一圈**（同日已提速到 2 格/秒，见下方提速批）。所有航点与相邻连线均过 `SKGeo.free/pathClear`，避开工作台、靶道架、枪架与弹药箱。
   2. **规则正文**：`docs/CORE_RULES.md` R7.4.1 从「4 点巡逻」改为「绕军械库四壁整圈（18 航点）」，真源指针指向 `js/data/map.js`。
   3. **门禁**：`tests/test-v3.cjs` 原「4 点」断言改为「覆盖四壁 + 航点/相邻连线全可走」，速度 / 悬停 / 停摆断言不动，只收紧几何覆盖。
   4. **派生快照**：`npm run 3d:export:map` 重导 `map.json`；`node tools/build-apk-assets.cjs` 重打包 304 文件 / 54.4 MB。

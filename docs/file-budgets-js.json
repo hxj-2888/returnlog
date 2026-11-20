@@ -35,7 +35,6 @@
       "js/game.js:draw": "起始 10326 / 349 行：Canvas 主绘制：地图 / 角色 / 特效叠加；表现层，阶段 C 按 scene 拆",
       "js/ui/home.js:esc": "起始 65 / 307 行：开始页 HTML 模板字符串（单函数内联大段 DOM）；表现层，阶段 C 迁模板",
       "js/game.js:playerTalk": "起始 6580 / 259 行：玩家发言解析 / 模板 / 校验；阶段 B 拆解析与渲染两段",
-      "js/game.js:drawFacilities": "起始 9168 / 241 行：设施与机器人的 Canvas 绘制；表现层，不碰判定",
       "js/game.js:aiHuman": "起始 2807 / 239 行：人类 AI 决策：任务 / 补给 / 救人 / 报告；阶段 B 拆决策与执行两段",
       "js/game.js:startVote": "起始 7511 / 202 行：投票阶段：票权 / 门槛 / 改票 / 终结者；阶段 B 拆计票与状态机两段"
     },
