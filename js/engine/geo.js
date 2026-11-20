@@ -20,7 +20,7 @@
  * 依赖：   js/data/map.js（window.SKMapData）
  * 对外：   window.SKGeo = { CW, GS, GW, GH, inPoly, d2seg, inCorr,
  *            roomAt, free, nearestFree, pathClear, smoothPath,
- *            astar, idx, segX, los, losWalls }
+ *            astar, astarCalls/astarReset（A* 调用计数，门禁 A10）, idx, segX, los, losWalls }
  * ============================================================= */
 (function (global) {
   'use strict';
@@ -92,7 +92,9 @@
       }
       return res;
     }
+    let ASTAR_N=0;   /* A* 调用计数：门禁 A10 用它盯"重排风暴"（每 0.2 秒一次是上限） */
     function astar(sx,sy,tx,ty){
+      ASTAR_N++;
       const s=nearestFree(sx,sy),t=nearestFree(tx,ty);
       let s0=[Math.floor(s[0]/GS),Math.floor(s[1]/GS)],t0=[Math.floor(t[0]/GS),Math.floor(t[1]/GS)];
       /* 目标/起点可能被 nearestFree 原样返回地图外坐标：必须先越界退出，
@@ -164,6 +166,7 @@
     inPoly: inPoly, d2seg: d2seg, inCorr: inCorr, roomAt: roomAt,
     free: free, nearestFree: nearestFree, pathClear: pathClear,
     smoothPath: smoothPath, astar: astar, idx: idx, segX: segX,
+    astarCalls: function () { return ASTAR_N; }, astarReset: function () { ASTAR_N = 0; },
     los: los, losWalls: losWalls,
   });
 })(typeof window !== 'undefined' ? window : globalThis);
