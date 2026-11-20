@@ -51,10 +51,10 @@
   function applyFx(S, st, accent) {
     var f = st.p.fx, b = st.box, m = st.movedImg;
     if (m) {
+      m.style.transformOrigin = (b.x + b.w / 2) + 'px ' + (b.y + b.h / 2) + 'px';
       m.style.transform = 'translate(' + ((f.dx || 0) * b.w).toFixed(2) + 'px,' +
         ((f.dy || 0) * b.h).toFixed(2) + 'px) rotate(' + (f.deg || 0) + 'deg) scale(' + (f.s == null ? 1 : f.s) + ')';
-      m.style.filter = f.dim != null ? 'brightness(' + f.dim + ')' :
-        f.lit != null ? 'brightness(' + f.lit + ') saturate(1.18)' : '';
+      m.style.filter = f.dim != null ? 'brightness(' + f.dim + ')' : f.lit != null ? 'brightness(' + f.lit + ') saturate(1.18)' : '';
     }
     if (st.moved) st.moved.setAttribute('opacity', '1');
     if (f.glow) S.fx.appendChild(svgEl('ellipse', { cx: b.x + b.w / 2, cy: b.y + b.h / 2,
@@ -69,8 +69,8 @@
     var image = plate.image;
     var skin = SKIN[spec.skin] || SKIN[plate.skin] || SKIN.cut;
     var wrap = el('div', 'plate-wrap');
-    /* 板图满屏 cover（2026-11-19 晚裁定）：取最大缩放、超出裁掉、不留余量；热点按 wrap 百分比定位 */
-    var availW = bd.clientWidth || 720, availH = bd.clientHeight || 440, scale = Math.max(availW / cw, availH / ch);
+    /* 满屏 contain（2026-11-20 裁定）：整块板图必须完整装进屏幕 —— cover 会把 crop 放大推出屏幕，热点跟着点不到 */
+    var availW = (bd.clientWidth || 720) - 16, availH = (bd.clientHeight || 440) - 128, scale = Math.min(availW / cw, availH / ch);
     var dispW = cw * scale, dispH = ch * scale;
     wrap.style.width = dispW.toFixed(1) + 'px';
     wrap.style.height = dispH.toFixed(1) + 'px';

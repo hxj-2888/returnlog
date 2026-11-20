@@ -76,12 +76,12 @@
       crop: [66, 50, 380, 380],
       skin: 'dirty',
       spots: [
-        { id: 'ammo-1', shape: 'rect', x: 75, y: 162, w: 46, h: 156, role: 'bullet', order: 1 },
-        { id: 'ammo-2', shape: 'rect', x: 138, y: 162, w: 46, h: 156, role: 'bullet', order: 2 },
-        { id: 'ammo-3', shape: 'rect', x: 201, y: 162, w: 46, h: 156, role: 'bullet', order: 3 },
-        { id: 'ammo-4', shape: 'rect', x: 264, y: 162, w: 46, h: 156, role: 'bullet', order: 4 },
-        { id: 'ammo-5', shape: 'rect', x: 327, y: 162, w: 46, h: 156, role: 'bullet', order: 5 },
-        { id: 'ammo-6', shape: 'rect', x: 390, y: 162, w: 46, h: 156, role: 'bullet', order: 6 }
+        { id: 'ammo-1', shape: 'rect', x: 75, y: 162, w: 46, h: 156, role: 'bullet', order: 1, fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'ammo-2', shape: 'rect', x: 138, y: 162, w: 46, h: 156, role: 'bullet', order: 2, fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'ammo-3', shape: 'rect', x: 201, y: 162, w: 46, h: 156, role: 'bullet', order: 3, fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'ammo-4', shape: 'rect', x: 264, y: 162, w: 46, h: 156, role: 'bullet', order: 4, fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'ammo-5', shape: 'rect', x: 327, y: 162, w: 46, h: 156, role: 'bullet', order: 5, fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'ammo-6', shape: 'rect', x: 390, y: 162, w: 46, h: 156, role: 'bullet', order: 6, fx: { k: 'press', s: 0.94, lit: 1.20 } }
       ],
       /* 靶道校准：准星沿子弹这一排来回扫，亮带压在第 4 颗上 */
       lanes: [{ x: 70, y: 155, w: 372, h: 190, band: [0.55, 0.67], period: 1.55 }]
@@ -95,12 +95,12 @@
       size: [512, 512],
       crop: [24, 12, 464, 464],
       spots: [
-        { id: 'tube-1', shape: 'rect', x: 324, y: 148, w: 84, h: 42, order: 1, role: 'tube', band: [56, 76] },
-        { id: 'tube-2', shape: 'rect', x: 324, y: 192, w: 84, h: 42, order: 2, role: 'tube', band: [56, 76] },
-        { id: 'tube-3', shape: 'rect', x: 324, y: 236, w: 84, h: 42, order: 3, role: 'tube', band: [48, 68] },
-        { id: 'sw-1', shape: 'rect', x: 166, y: 214, w: 40, h: 42, order: 4, role: 'switch' },
-        { id: 'sw-2', shape: 'rect', x: 162, y: 288, w: 40, h: 42, order: 5, role: 'switch' },
-        { id: 'knob', shape: 'circle', x: 450, y: 232, r: 19, order: 6, role: 'knob' }
+        { id: 'tube-1', shape: 'rect', x: 324, y: 148, w: 84, h: 42, order: 1, role: 'tube', band: [56, 76], fx: { k: 'lit', lit: 1.22 } },
+        { id: 'tube-2', shape: 'rect', x: 324, y: 192, w: 84, h: 42, order: 2, role: 'tube', band: [56, 76], fx: { k: 'lit', lit: 1.22 } },
+        { id: 'tube-3', shape: 'rect', x: 324, y: 236, w: 84, h: 42, order: 3, role: 'tube', band: [48, 68], fx: { k: 'lit', lit: 1.22 } },
+        { id: 'sw-1', shape: 'rect', x: 166, y: 214, w: 40, h: 42, order: 4, role: 'switch', fx: { k: 'press', s: 0.92, lit: 1.18 } },
+        { id: 'sw-2', shape: 'rect', x: 162, y: 288, w: 40, h: 42, order: 5, role: 'switch', fx: { k: 'press', s: 0.92, lit: 1.18 } },
+        { id: 'knob', shape: 'circle', x: 450, y: 232, r: 19, order: 6, role: 'knob', fx: { k: 'turn', clip: 'circle', deg: -90 } }
       ]
     },
 
@@ -113,14 +113,14 @@
       crop: [0, 0, 1536, 1536],
       skin: 'off',
       spots: [
-        { id: 'strip-lt', shape: 'rect', x: 0, y: 148, w: 126, h: 232, order: 1, role: 'strip', band: [58, 78] },
-        { id: 'strip-rt', shape: 'rect', x: 1000, y: 144, w: 126, h: 232, order: 2, role: 'strip', band: [58, 78] },
-        { id: 'strip-lb', shape: 'rect', x: 0, y: 674, w: 126, h: 136, order: 3, role: 'strip', band: [54, 74] },
-        { id: 'strip-rb', shape: 'rect', x: 1000, y: 674, w: 126, h: 136, order: 4, role: 'strip', band: [54, 74] },
-        { id: 'deck-1', shape: 'rect', x: 150, y: 150, w: 840, h: 152, order: 5, role: 'shelf', band: [58, 72] },
-        { id: 'deck-2', shape: 'rect', x: 150, y: 330, w: 840, h: 160, order: 6, role: 'shelf', band: [58, 72] },
-        { id: 'deck-3', shape: 'rect', x: 150, y: 520, w: 840, h: 160, order: 7, role: 'shelf', band: [58, 72] },
-        { id: 'deck-4', shape: 'rect', x: 150, y: 710, w: 840, h: 160, order: 8, role: 'shelf', band: [58, 72] }
+        { id: 'strip-lt', shape: 'rect', x: 0, y: 148, w: 126, h: 232, order: 1, role: 'strip', band: [58, 78], fx: { k: 'press', s: 0.95, lit: 1.22 } },
+        { id: 'strip-rt', shape: 'rect', x: 1000, y: 144, w: 126, h: 232, order: 2, role: 'strip', band: [58, 78], fx: { k: 'press', s: 0.95, lit: 1.22 } },
+        { id: 'strip-lb', shape: 'rect', x: 0, y: 674, w: 126, h: 136, order: 3, role: 'strip', band: [54, 74], fx: { k: 'press', s: 0.95, lit: 1.22 } },
+        { id: 'strip-rb', shape: 'rect', x: 1000, y: 674, w: 126, h: 136, order: 4, role: 'strip', band: [54, 74], fx: { k: 'press', s: 0.95, lit: 1.22 } },
+        { id: 'deck-1', shape: 'rect', x: 150, y: 150, w: 840, h: 152, order: 5, role: 'shelf', band: [58, 72], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-2', shape: 'rect', x: 150, y: 330, w: 840, h: 160, order: 6, role: 'shelf', band: [58, 72], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-3', shape: 'rect', x: 150, y: 520, w: 840, h: 160, order: 7, role: 'shelf', band: [58, 72], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-4', shape: 'rect', x: 150, y: 710, w: 840, h: 160, order: 8, role: 'shelf', band: [58, 72], fx: { k: 'press', s: 0.97, lit: 1.15 } }
       ]
     },
 
@@ -136,11 +136,11 @@
         { id: 'scr1-b', shape: 'rect', x: 148, y: 80, w: 56, h: 34, order: 2, role: 'channel', fx: { k: 'lit', lit: 1.35 } },
         { id: 'scr2-t', shape: 'rect', x: 212, y: 40, w: 74, h: 36, order: 3, role: 'channel', fx: { k: 'lit', lit: 1.35 } },
         { id: 'scr2-b', shape: 'rect', x: 212, y: 80, w: 74, h: 34, order: 4, role: 'channel', fx: { k: 'lit', lit: 1.35 } },
-        { id: 'key-1', shape: 'rect', x: 96, y: 128, w: 28, h: 30, order: 5, role: 'key' },
-        { id: 'key-2', shape: 'rect', x: 129, y: 128, w: 28, h: 30, order: 6, role: 'key' },
-        { id: 'key-3', shape: 'rect', x: 162, y: 128, w: 28, h: 30, order: 7, role: 'key' },
-        { id: 'key-4', shape: 'rect', x: 195, y: 128, w: 28, h: 30, order: 8, role: 'key' },
-        { id: 'key-5', shape: 'rect', x: 228, y: 128, w: 28, h: 30, order: 9, role: 'key' },
+        { id: 'key-1', shape: 'rect', x: 96, y: 128, w: 28, h: 30, order: 5, role: 'key', fx: { k: 'press', s: 0.90, lit: 1.30, glow: true } },
+        { id: 'key-2', shape: 'rect', x: 129, y: 128, w: 28, h: 30, order: 6, role: 'key', fx: { k: 'press', s: 0.90, lit: 1.30, glow: true } },
+        { id: 'key-3', shape: 'rect', x: 162, y: 128, w: 28, h: 30, order: 7, role: 'key', fx: { k: 'press', s: 0.90, lit: 1.30, glow: true } },
+        { id: 'key-4', shape: 'rect', x: 195, y: 128, w: 28, h: 30, order: 8, role: 'key', fx: { k: 'press', s: 0.90, lit: 1.30, glow: true } },
+        { id: 'key-5', shape: 'rect', x: 228, y: 128, w: 28, h: 30, order: 9, role: 'key', fx: { k: 'press', s: 0.90, lit: 1.30, glow: true } },
         { id: 'tape-1', shape: 'rect', x: 300, y: 126, w: 34, h: 30, order: 10, role: 'tape', to: [172, 58], toR: 30, hole: { x: 156, y: 42, w: 32, h: 32 } },
         { id: 'tape-2', shape: 'rect', x: 340, y: 132, w: 34, h: 30, order: 11, role: 'tape', to: [240, 58], toR: 30, hole: { x: 224, y: 42, w: 32, h: 32 } },
         { id: 'tape-3', shape: 'rect', x: 380, y: 126, w: 34, h: 30, order: 12, role: 'tape', to: [240, 100], toR: 30, hole: { x: 224, y: 84, w: 32, h: 32 } },
@@ -160,9 +160,9 @@
       crop: [20, 16, 470, 470],
       skin: 'dirty',
       spots: [
-        { id: 'latch-top', shape: 'rect', x: 56, y: 50, w: 400, h: 44, order: 1, role: 'latch' },
-        { id: 'latch-bot', shape: 'rect', x: 56, y: 338, w: 400, h: 46, order: 2, role: 'latch' },
-        { id: 'lid', shape: 'rect', x: 190, y: 148, w: 128, h: 146, order: 3, role: 'lid', band: [42, 58] },
+        { id: 'latch-top', shape: 'rect', x: 56, y: 50, w: 400, h: 44, order: 1, role: 'latch', fx: { k: 'press', s: 0.94, lit: 1.18 } },
+        { id: 'latch-bot', shape: 'rect', x: 56, y: 338, w: 400, h: 46, order: 2, role: 'latch', fx: { k: 'press', s: 0.94, lit: 1.18 } },
+        { id: 'lid', shape: 'rect', x: 190, y: 148, w: 128, h: 146, order: 3, role: 'lid', band: [42, 58], fx: { k: 'press', s: 0.96, lit: 1.16 } },
         { id: 'stain-1', shape: 'rect', x: 78, y: 104, w: 72, h: 62, order: 4, role: 'stain' },
         { id: 'stain-2', shape: 'rect', x: 252, y: 96, w: 72, h: 62, order: 5, role: 'stain' },
         { id: 'stain-3', shape: 'rect', x: 352, y: 196, w: 72, h: 62, order: 6, role: 'stain' },
@@ -193,9 +193,9 @@
       size: [512, 512],
       crop: [8, 160, 496, 200],
       spots: [
-        { id: 'bolt-1', shape: 'rect', x: 288, y: 214, w: 48, h: 48, order: 1, role: 'bolt' },
-        { id: 'bolt-2', shape: 'rect', x: 192, y: 236, w: 48, h: 48, order: 2, role: 'bolt' },
-        { id: 'bolt-3', shape: 'rect', x: 78, y: 232, w: 48, h: 48, order: 3, role: 'bolt' }
+        { id: 'bolt-1', shape: 'rect', x: 288, y: 214, w: 48, h: 48, order: 1, role: 'bolt', fx: { k: 'turn', clip: 'circle', deg: -90 } },
+        { id: 'bolt-2', shape: 'rect', x: 192, y: 236, w: 48, h: 48, order: 2, role: 'bolt', fx: { k: 'turn', clip: 'circle', deg: -90 } },
+        { id: 'bolt-3', shape: 'rect', x: 78, y: 232, w: 48, h: 48, order: 3, role: 'bolt', fx: { k: 'turn', clip: 'circle', deg: -90 } }
       ]
     },
 
@@ -236,11 +236,11 @@
       crop: [100, 110, 560, 540],
       skin: 'dirty',
       spots: [
-        { id: 'gauge-1', shape: 'rect', x: 362, y: 347, w: 66, h: 66, order: 1, role: 'gauge', band: [44, 62] },
-        { id: 'gauge-2', shape: 'rect', x: 362, y: 422, w: 66, h: 66, order: 2, role: 'gauge', band: [44, 62] },
-        { id: 'gauge-3', shape: 'rect', x: 362, y: 497, w: 66, h: 66, order: 3, role: 'gauge', band: [40, 58] },
-        { id: 'valve-1', shape: 'rect', x: 485, y: 360, w: 80, h: 80, order: 4, role: 'valve' },
-        { id: 'valve-2', shape: 'rect', x: 580, y: 280, w: 80, h: 80, order: 5, role: 'valve' }
+        { id: 'gauge-1', shape: 'rect', x: 362, y: 347, w: 66, h: 66, order: 1, role: 'gauge', band: [44, 62], fx: { k: 'lit', lit: 1.30 } },
+        { id: 'gauge-2', shape: 'rect', x: 362, y: 422, w: 66, h: 66, order: 2, role: 'gauge', band: [44, 62], fx: { k: 'lit', lit: 1.30 } },
+        { id: 'gauge-3', shape: 'rect', x: 362, y: 497, w: 66, h: 66, order: 3, role: 'gauge', band: [40, 58], fx: { k: 'lit', lit: 1.30 } },
+        { id: 'valve-1', shape: 'rect', x: 485, y: 360, w: 80, h: 80, order: 4, role: 'valve', fx: { k: 'turn', clip: 'circle', deg: -90 } },
+        { id: 'valve-2', shape: 'rect', x: 580, y: 280, w: 80, h: 80, order: 5, role: 'valve', fx: { k: 'turn', clip: 'circle', deg: -90 } }
       ]
     },
     galley: {
@@ -251,11 +251,11 @@
       crop: [70, 80, 640, 620],
       skin: 'dirty',
       spots: [
-        { id: 'tray-1', shape: 'rect', x: 435, y: 155, w: 130, h: 90, order: 1, role: 'dish' },
-        { id: 'tray-2', shape: 'rect', x: 435, y: 225, w: 130, h: 80, order: 2, role: 'dish' },
-        { id: 'sink', shape: 'rect', x: 315, y: 365, w: 150, h: 110, order: 3, role: 'dish' },
-        { id: 'cup-utensil', shape: 'rect', x: 135, y: 345, w: 80, h: 90, order: 4, role: 'dish' },
-        { id: 'cup-metal', shape: 'rect', x: 215, y: 370, w: 60, h: 80, order: 5, role: 'dish' }
+        { id: 'tray-1', shape: 'rect', x: 435, y: 155, w: 130, h: 90, order: 1, role: 'dish', fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'tray-2', shape: 'rect', x: 435, y: 225, w: 130, h: 80, order: 2, role: 'dish', fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'sink', shape: 'rect', x: 315, y: 365, w: 150, h: 110, order: 3, role: 'dish', fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'cup-utensil', shape: 'rect', x: 135, y: 345, w: 80, h: 90, order: 4, role: 'dish', fx: { k: 'press', s: 0.94, lit: 1.20 } },
+        { id: 'cup-metal', shape: 'rect', x: 215, y: 370, w: 60, h: 80, order: 5, role: 'dish', fx: { k: 'press', s: 0.94, lit: 1.20 } }
       ]
     },
     'rec-table': {
@@ -333,10 +333,10 @@
       crop: [140, 80, 480, 600],
       skin: 'dirty',
       spots: [
-        { id: 'deck-1', shape: 'rect', x: 220, y: 235, w: 300, h: 70, order: 1, role: 'deck', band: [58, 74] },
-        { id: 'deck-2', shape: 'rect', x: 220, y: 345, w: 300, h: 70, order: 2, role: 'deck', band: [58, 74] },
-        { id: 'deck-3', shape: 'rect', x: 220, y: 460, w: 300, h: 70, order: 3, role: 'deck', band: [58, 74] },
-        { id: 'deck-4', shape: 'rect', x: 220, y: 555, w: 300, h: 70, order: 4, role: 'deck', band: [58, 74] }
+        { id: 'deck-1', shape: 'rect', x: 220, y: 235, w: 300, h: 70, order: 1, role: 'deck', band: [58, 74], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-2', shape: 'rect', x: 220, y: 345, w: 300, h: 70, order: 2, role: 'deck', band: [58, 74], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-3', shape: 'rect', x: 220, y: 460, w: 300, h: 70, order: 3, role: 'deck', band: [58, 74], fx: { k: 'press', s: 0.97, lit: 1.15 } },
+        { id: 'deck-4', shape: 'rect', x: 220, y: 555, w: 300, h: 70, order: 4, role: 'deck', band: [58, 74], fx: { k: 'press', s: 0.97, lit: 1.15 } }
       ]
     }
   };

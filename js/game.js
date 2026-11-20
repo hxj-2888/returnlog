@@ -1276,13 +1276,14 @@
       /* 落点由调用方决定（AI 抽一次就固定，玩家用手里的 sabTarget），
          没给才现抽 —— 否则同一帧里抽两次会出现"报的房间和设备对不上" */
       const sp=spot||sabSpot(rid); if(!sp)return false;
-      /* 2026-11-18 用户裁定：修故障做的是**故障所在舱室对应任务点**的小游戏，
-         不是千篇一律的"修电线"。破坏发生时就绑定一个同舱室任务点（抽签固定，
-         否则每次打开小游戏都换玩法），修的时候按它选玩法与难度档。 */
+      /* 2026-11-18 用户裁定：修故障做的是**故障所在舱室对应任务点**的小游戏，不是"修电线"。
+         破坏发生时就绑定一个同舱室任务点（抽签固定，否则每次打开小游戏都换玩法）。
+         2026-11-20 用户裁定：配电室再被拆＝电路又坏，powerFixed 复位、全亮打回暗舱（否则再拆零收益）。 */
       const roomPts=M.points.filter(p=>roomIdAt(p.x,p.y)===rid);
       const pt=roomPts.length?M.points.indexOf(roomPts[Math.floor(Math.random()*roomPts.length)]):null;
       G.dmg.push({room:rid,x:sp.x,y:sp.y,label:sp.label,left:SAB_TIME,dur:SAB_TIME,by:a.i,
         pt:pt,born:evNow()});
+      if(rid==='power'&&G.powerFixed){G.powerFixed=false;if(G.lightState===1){G.lightState=0;refreshLight();}}
       if(G.simMode&&G.simStats)G.simStats.sabotages++;
       logEvent('sabotage',{actor:a.i,room:rid,label:sp.label,
         x:+sp.x.toFixed(1),y:+sp.y.toFixed(1)});
@@ -2736,12 +2737,14 @@
           susAdd(v,a.i,EV_W.saw_drag,'saw_drag',evD);
         }
       }
-      /* R20.5：尸体被拖走的那一刻，所有正在搜它的人都要中断 ——
-         不许出现"人已经把尸体拖出半张图，另一个人还在原地读条搜尸"。 */
+      /* R20.5：尸体被拖走的那一刻，所有正在搜它 / 正在救它的人都要中断 ——
+         不许出现"人已经把尸体拖出半张图，另一个人还在原地读条"。
+         施救同一条（2026-11-20 用户裁定）：**被拖拽期间救不活**，两侧一致。 */
       for(const x of G.agents){
-        if(x._doing==='search'&&x._sv===v.i){
-          x.doing=0;x._dur=0;x._doing=null;x._sv=null;
-          if(x===G.me)toast('尸体被拖走了，搜查中断');
+        const sv=x._doing==='search'&&x._sv===v.i, rv=x._doing==='revive'&&x._rv===v;
+        if(sv||rv){
+          x.doing=0;x._dur=0;x._doing=null;x._sv=null;x._rv=null;
+          if(x===G.me)toast(sv?'尸体被拖走了，搜查中断':'伤者被拖走了，施救中断');
         }
       }
       return true;
@@ -4689,8 +4692,12 @@
         }
         knife(a,tgt); return;
       }
-      /* 追击全程连续移动：没有随机停顿，出刀判定不再被"抽风停下"打断 */
-      if(!a.path||!a.path.length) walkTo(a,tx,ty);
+      /* 追击全程连续移动：没有随机停顿；A10（2026-11-20）路径绑定目标 +
+         判定点(tx/ty)移动 ≥0.8 格就每 0.2 秒重排一次 —— 只认实时可见点或最后目击快照，不读全图坐标 */
+      if(tgt&&a.path&&a.path.length){const e=a.path[a.path.length-1];a._repathT=(a._repathT||0)+dt;
+        if(a._pathFor!==tgt.i)a.path=null;
+        else if(a._repathT>=0.2){a._repathT=0;if(Math.hypot(tx-e[0],ty-e[1])>=0.8)a.path=null;}}
+      if(!a.path||!a.path.length){walkTo(a,tx,ty);a._pathFor=tgt?tgt.i:null;}
       stepMove(a,dt,moveSpeed(a));
     }
     
@@ -4949,10 +4956,9 @@
       if(a._doing==='fix'){finishFix(a);return;}
       if(a._doing==='revive'){
         const v=a._rv;
-        if(v&&v.downed&&v.alive){
-          const dg=draggerOf(v);
-          if(dg)releaseDragBy(dg,true);
-          v.draggedBy=null;
+        /* 被拖拽期间救不活（2026-11-20 用户裁定）：这里不再撒手拖拽再强行救起，
+           拖拽中直接作废本次读条 —— 与 startDrag 的中断循环同一条，两侧一致。 */
+        if(v&&v.downed&&v.alive&&v.draggedBy==null){
           v.downed=false;v.downAt=0;v.killedBy=null;a.medkit=0;
           v.woundCause=null;v.downRoom=null;v.downX=null;v.downY=null;v.searched=false;
           G.fx.push({type:'heal',x:v.x,y:v.y,t:1.2,dur:1.2});
@@ -5072,7 +5078,7 @@
     /* ---- 两台机器人 ---- */
     /* 巡逻机器人：M.facility 的 x/y 只是初始位，运行时坐标放在 G.bots。
        botTick / interact / sabotage / 绘制都读运行时坐标，否则巡逻只是画面上动、玩法不变。 */
-    const BOT_SPEED=1.6;
+    const BOT_SPEED=2;   /* 2026-11-20 用户裁定 1.6 → 2：机器人巡逻小幅提速 */
     /* 保安机器人：14 格 + 180° 前方扇形；隔墙不算，仍需 losWalls 视线。 */
     /* 保安机器人：2026-10-30 视野 14 → 10.5；2026-11-06 用户裁定再削到 **6 格**
        （前方 180° 半圆不变，每夜擒拿上限仍是 2 次）。SEC_USES_MAX 是唯一真源，
@@ -5119,7 +5125,7 @@
       const f=M.facility.find(q=>q.kind===kind);
       return f?{x:f.x,y:f.y}:null;
     }
-    /* 巡逻推进：1.6 格/秒（玩家 5 格/秒），到点 0.3 格换下一个航点。
+    /* 巡逻推进：2 格/秒（2026-11-20 由 1.6 提速；玩家 5 格/秒），到点 0.3 格换下一个航点。
        不做避障——巡逻线是照家具空位手动排的，硬套 A* 会被掩体绕路带偏。 */
     function moveBot(b,dt,dead){
       if(!b)return;
@@ -8244,6 +8250,13 @@
         !(G.me.alive&&!G.me.downed&&!G.spectMode));
       // AI 投票：先说出口的指控 → 证据链最高嫌疑 → 人类无证据弃权；异形随机独立投票
       const packLead=alienPackLead();
+      voteBallotsForAll(m,packLead);
+      voteTrustFallback(m);
+      voteQuasiConfirm(m);
+      voteFillStubs(m);
+    }
+    /* 投票主体：票权 / 门槛 / 改票 / 终结者 / 异形同伙回避（startVote 拆分第三批） */
+    function voteBallotsForAll(m,packLead){
       for(const a of G.agents){
         if(!a.alive||(!G.spectMode&&a===G.me)||a.downed)continue;
         /* 先投的人：这段时间没听到能改我判断的话，就不重掷一次骰子。
@@ -8373,6 +8386,10 @@
         const bs2=bestSusTarget(a,SKTrait.C.shootSus(a)*0.9);
         m.votes[a.i]=(bs2&&bs2.i!==a.i)?bs2.i:-1;
       }
+    }
+
+    /* 见区间自带注释：正向信任兜底（startVote 拆分第三批） */
+    function voteTrustFallback(m){
       /* ---- 正向信任兜底（2026-11-01）----
          投完统一拦一道，而不是改动上面 8 条投票分支：
          手里**没有确证**的人，如果被投的对象 cred 很高，这一票按概率弃掉。
@@ -8392,6 +8409,10 @@
           }
         }
       }
+    }
+
+    /* 见区间自带注释：准-确证的投票侧（startVote 拆分第三批） */
+    function voteQuasiConfirm(m){
       /* ---- 准-确证的投票侧（2026-11-01）----
          双向但**都不是锁死**：
            almost.foe    → 这一票更难被洗白机制挡住（权重 ×1.6，这里体现为弃票概率归零）
@@ -8412,6 +8433,10 @@
           if(G.simStats)G.simStats.friendShield=(G.simStats.friendShield||0)+1;
         }
       }
+    }
+
+    /* 见区间自带注释：补齐票根，让 voteStory 完整（startVote 拆分第三批） */
+    function voteFillStubs(m){
       /* 补齐票根：没早投的人在这里落定，`voteStory` 才有一份完整的"谁最后投了谁" */
       m.voteMeta=m.voteMeta||{};
       for(const a of G.agents){
@@ -8422,6 +8447,7 @@
           rev:(a.mind&&a.mind.rev)|0,t:0};
       }
     }
+
     /* 驱逐门槛（2026-11-06 用户裁定）：可投票人数 >7 → 至少 4 票；≤7 → 3 票。
        只数真正能投票的人（活着且未濒死），与 startVote 的选民口径一致 ——
        濒死者不能投票，若按“存活人数”算，残局会把门槛抬到几乎凑不齐。 */
@@ -9001,9 +9027,9 @@
       for(const a of G.agents) if(a.downed&&a.alive){
         const d=Math.hypot(a.x-me.x,a.y-me.y); if(d<bd){bd=d;best=a;}}
       if(!best){toast('附近没有濒死者');return;}
-      const dg=draggerOf(best);
-      if(dg)releaseDragBy(dg,true);
-      best.draggedBy=null;
+      /* 被拖拽期间救不活（2026-11-20 用户裁定）：以前这里会 releaseDragBy 把拖拽
+         挣脱再强行施救，等于玩家有特权、AI 没有（AI 侧一直拒绝起手）。改成同一条：拒绝。 */
+      if(best.draggedBy!=null){toast('伤者正在被拖走 · 施救无效');return;}
       me.path=null;me.moving=false;
       me.doing=SKSanity.STAND.revive; me._dur=SKSanity.STAND.revive; me._doing='revive'; me._rv=best;
       toast('施救中 '+SKSanity.STAND.revive+'s');
@@ -9782,6 +9808,31 @@
         /* 机器人按巡逻运行时坐标画，设施表里的 x/y 只是初始位 */
         const rp=(f.kind==='medbot'||f.kind==='secbot')?botPos(f.kind):null;
         const x=SX(rp?rp.x:f.x),y=SY(rp?rp.y:f.y);
+        if(f.kind==='breaker')drawFacBreaker(f,x,y,s,T);
+        else if(f.kind==='monitor')drawFacMonitor(f,x,y,s,T);
+        else if(f.kind==='supply')drawFacSupply(f,x,y,s,T);
+        else if(f.kind==='medbot')drawFacMedbot(f,x,y,s,T);
+        else if(f.kind==='secbot')drawFacSecbot(f,x,y,s,T);
+      }
+      /* 拘留区：保安机器人旁边的红色虚线角笼 */
+      const jail=secJail();
+      if(jail){
+        const jx=SX(jail[0]),jy=SY(jail[1]);
+        const busy=G.agents.some(a=>a.detained&&a.alive);
+        ctx.save();
+        ctx.setLineDash([4,3]);
+        ctx.strokeStyle=busy?'rgba(255,107,97,.6)':'rgba(120,136,154,.22)';
+        ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.ellipse(jx,jy,0.52*s,0.34*s,0,0,7);ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle=busy?'rgba(255,150,140,.75)':'rgba(120,136,154,.35)';
+        ctx.font='500 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('拘留区',jx,jy-0.5*s);
+        ctx.restore();
+      }
+    }
+    /* 电闸柜：手柄、状态灯与拉闸进度（drawFacilities 拆分第二批） */
+    function drawFacBreaker(f,x,y,s,T){
         if(f.kind==='breaker'){
           const off=G.lightState===2;
           /* 电闸优化：柜体 + 危险色边框 + 大拉杆（角度随供电状态平滑过渡）+
@@ -9831,7 +9882,12 @@
           }
           drawIcon('bolt',off?'#7FD3F0':'#F0C674',0.40*s,0.60*s,0.30*s,0);
           ctx.restore();
-        }else if(f.kind==='monitor'){
+        }
+    }
+
+    /* 监控台：屏幕阵与信号状态（drawFacilities 拆分第二批） */
+    function drawFacMonitor(f,x,y,s,T){
+        if(f.kind==='monitor'){
           const cut=G.lightState===2;
           ctx.save();ctx.translate(x,y);
           /* 监控台本体同样交给底图（2026-10-31 改）：监控室的 screenwall（多屏拼接墙）、
@@ -9854,7 +9910,12 @@
             :('rgba(95,224,168,'+mblink.toFixed(2)+')');
           ctx.beginPath();ctx.arc(0,-0.92*s,0.075*s,0,7);ctx.fill();
           ctx.restore();
-        }else if(f.kind==='supply'){
+        }
+    }
+
+    /* 补给点：弹药 / 医疗两型箱体与余量提示（drawFacilities 拆分第二批） */
+    function drawFacSupply(f,x,y,s,T){
+        if(f.kind==='supply'){
           /* ---- 补给站（2026-11-01 改 Blender 渲染）----
              旧实现是 Canvas 手画的圆角矩形 + 居中图标 + 上方 9px 文字：
              在 12° 俯角的烘焙底图上，它就是一张贴在地上的 UI 按钮 ——
@@ -9892,7 +9953,12 @@
           ctx.beginPath();ctx.roundRect(x-tw0/2,y+0.62*s-th0/2,tw0,th0,4);ctx.fill();
           ctx.fillStyle=ammo?'rgba(255,224,163,.94)':'rgba(198,245,228,.94)';
           ctx.fillText(f.label,x,y+0.62*s+0.5);
-        }else if(f.kind==='medbot'){
+        }
+    }
+
+    /* 医疗无人机：机体、旋翼与救治状态（drawFacilities 拆分第二批） */
+    function drawFacMedbot(f,x,y,s,T){
+        if(f.kind==='medbot'){
           const dead=!!G.medbotDead;
           const left=G.medbotLeft==null?MEDBOT_CHARGES:G.medbotLeft;
           const exhausted=!dead&&left<=0;
@@ -9928,7 +9994,12 @@
           }
           drawBotLabel(f,x,y,s,dead);
           ctx.restore();
-        }else if(f.kind==='secbot'){
+        }
+    }
+
+    /* 保安机器人：机体、巡逻朝向、拘留状态与名牌（drawFacilities 拆分第二批） */
+    function drawFacSecbot(f,x,y,s,T){
+        if(f.kind==='secbot'){
           const dead=!!G.secbotDead;
           const used=!!G.secbotUsed;
           const b=G.bots&&G.bots.secbot;
@@ -9999,24 +10070,8 @@
           drawBotLabel(f,x,y,s,dead);
           ctx.restore();
         }
-      }
-      /* 拘留区：保安机器人旁边的红色虚线角笼 */
-      const jail=secJail();
-      if(jail){
-        const jx=SX(jail[0]),jy=SY(jail[1]);
-        const busy=G.agents.some(a=>a.detained&&a.alive);
-        ctx.save();
-        ctx.setLineDash([4,3]);
-        ctx.strokeStyle=busy?'rgba(255,107,97,.6)':'rgba(120,136,154,.22)';
-        ctx.lineWidth=1.2;
-        ctx.beginPath();ctx.ellipse(jx,jy,0.52*s,0.34*s,0,0,7);ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle=busy?'rgba(255,150,140,.75)':'rgba(120,136,154,.35)';
-        ctx.font='500 9px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.fillText('拘留区',jx,jy-0.5*s);
-        ctx.restore();
-      }
     }
+
     /* 地道口：菱形格栅 + 呼吸光环。
        形状语言全船统一（菱形 + 三道格栅 + 呼吸环），配色跟随所在舱室的主题色，
        这样食堂口是暖金、医疗口是冷青、引擎口是橙红，看起来长在房间里而不是贴上去的。
@@ -10526,6 +10581,12 @@
         if(f.x!=null&&!visibleAt(f.x,f.y))continue;
         if(f.type==='tracer'&&!(visibleAt(f.x1,f.y1)||visibleAt(f.x2,f.y2)))continue;
         const D=f.dur||0.6,p=1-Math.max(0,f.t)/D,a=1-p;
+        paintFxHit(f,p,a,T);paintFxTask(f,p,a,T);paintFxSite(f,p,a,T);paintFxGun(f,p,a,T);
+      }
+      G.fx=G.fx.filter(f=>f.t>0);
+    }
+    /* 伤害与武器特效：刀光 / 血花 / 弹道 / 枪口 / 命中环（drawFx 拆分第一批，纯表现层，不碰判定） */
+    function paintFxHit(f,p,a,T){
         if(f.type==='slash'){
           const a0=f.ang-1.6+2.6*p;
           const rO=(0.62+0.95*p)*VIEW.s, rI=(0.38+0.75*p)*VIEW.s;
@@ -10587,7 +10648,12 @@
           }
           ctx.fillStyle='rgba(190,30,30,'+a.toFixed(2)+')';
           ctx.beginPath();ctx.arc(x,y,2.4,0,7);ctx.fill();
-        }else if(f.type==='done'){
+        }
+    }
+
+    /* 任务与补给特效：完成环 / 申请单 / 拾取 / 复电（drawFx 拆分第一批） */
+    function paintFxTask(f,p,a,T){
+        if(f.type==='done'){
           const x=SX(f.x),y=SY(f.y);
           /* 维修/任务完成：**只留细小电流**（2026-11-01 用户：原来那圈全息光环光污染）。
              换成同一条电弧贴图的小尺寸版本，透明度压到 0.42、尺寸只有 0.35 格，
@@ -10649,7 +10715,12 @@
           /* 冲击环保留：电弧负责"电"，环负责"波及范围"，两者不重复 */
           ctx.strokeStyle='rgba(127,211,240,'+(a*0.5).toFixed(2)+')';ctx.lineWidth=1.6;
           ctx.beginPath();ctx.arc(x,y,(0.5+1.4*p)*VIEW.s,0,7);ctx.stroke();
-        }else if(f.type==='heal'){
+        }
+    }
+
+    /* 设施与状态特效：治疗 / 搜查 / 施工火星 / 火花 / 护盾 / 治疗光束 / 拘留 / 警报 / 钻管道（drawFx 拆分第一批） */
+    function paintFxSite(f,p,a,T){
+        if(f.type==='heal'){
           const x=SX(f.x),y=SY(f.y);
           ctx.strokeStyle='rgba(63,191,140,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
           ctx.beginPath();ctx.arc(x,y,(0.35+1.0*p)*VIEW.s,0,7);ctx.stroke();
@@ -10729,16 +10800,20 @@
             ctx.strokeStyle='rgba(168,150,255,'+(0.7*(1-k)*a).toFixed(2)+')';ctx.lineWidth=2;
             ctx.beginPath();ctx.ellipse(x,y,(0.3+1.1*k)*VIEW.s,(0.2+0.7*k)*VIEW.s,0,0,7);ctx.stroke();
           }
-        }else if(f.type==='knife'){
+        }
+    }
+
+    /* 近身与开枪的收尾描边（drawFx 拆分第一批） */
+    function paintFxGun(f,p,a,T){
+        if(f.type==='knife'){
           ctx.strokeStyle='rgba(224,87,79,'+a.toFixed(2)+')';ctx.lineWidth=3;
           ctx.beginPath();ctx.arc(SX(f.x),SY(f.y),(0.3+1.3*p)*VIEW.s,0,7);ctx.stroke();
         }else if(f.type==='shot'){
           ctx.strokeStyle='rgba(255,235,150,'+a.toFixed(2)+')';ctx.lineWidth=2;
           ctx.beginPath();ctx.moveTo(SX(f.x1),SY(f.y1));ctx.lineTo(SX(f.x2),SY(f.y2));ctx.stroke();
         }
-      }
-      G.fx=G.fx.filter(f=>f.t>0);
     }
+
     /* 头顶常显「席位号 + 名字」；编号永远在前，会议里也用同一套标签 */
     let TAG_RECTS=[];
     /* 文字量测缓存：DEV 全知标签每帧要量 15~30 条文本，measureText 在部分机器上很贵。
