@@ -1,0 +1,62 @@
+# 2.5D 正式版 · 静态站点 → Cloudflare Pages
+# -------------------------------------------------------------
+# 为什么需要这个文件：GitHub Actions 只跑「被推的那个 commit 里存在」的工作流。
+# 本仓 main 分支此前没有任何 .github/，所以 push 只更新分支指针，不会触发任何流水线。
+# （同仓 3d 分支有 deploy-3d.yml，因此 3D 版每次 push 都会自动发。）
+#
+# 设计原则：
+#   - 本项目是零依赖前端，没有构建步骤，仓库树即站点；只暂存运行时真正会读的文件
+#     （index.html / js / assets / audio / _headers），docs/、AGENTS.md 等文档不进站点。
+#   - 凭据走仓库级 secrets.CF_API_TOKEN / secrets.CF_ACCOUNT_ID（与 deploy-3d 共用）。
+#   - 缺凭据时不静默失败：发布步骤会直接报错，便于发现配置缺失。
+name: deploy-main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: 语法检查 + Pages 发布
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 语法检查（挡住半截脚本上线）
+        run: |
+          set -euo pipefail
+          find js -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo "js 语法检查通过"
+
+      - name: 暂存运行时文件
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f _headers
+          mkdir -p /tmp/site
+          cp -r index.html js assets audio _headers /tmp/site/
+          echo "暂存 $(find /tmp/site -type f | wc -l) 个文件 · $(du -sh /tmp/site | cut -f1)"
+
+      - name: 发布到 Pages
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 pages deploy /tmp/site \
+            --project-name=returnlog \
+            --branch=main \
+            --commit-dirty=true
