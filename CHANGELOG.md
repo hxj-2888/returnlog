@@ -10,6 +10,32 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [V0.5 · 正式发布：标签 / Release / Pages 上线 / 安卓包] — 2026-11-20
+
+- **动机**（用户现场）：「我觉得这批版本已经更新得不错，我们可以尝试着正式推上 GitHub 了。」
+  → 补做正式发布三件套（标签、Release、站点上线），并按裁定把 V3 标为历史版本、给 V0.5 出安卓包。
+- **本批改动**：
+  1. **公开面走导出仓**（`_public-release/POLICY.md` §6「禁止从 dev 仓 push」）：
+     `exports/returnlog-main` 同步 9 个产品文件（3 个 `LICENSE*.txt` 仅 CRLF 差异，未同步）→
+     提交 `a387544`，`check-public-leaks.cjs --ref HEAD` **PASS**，推 GitHub `127a9b6..a387544`，
+     回读远端 SHA 一致。Gitee 按用户要求本批不推（仍停 `b80b6be`）。
+     直推 dev 仓被 pre-push 钩子拦下 75 处命中，均为历史既有的 `HANDOFF*` / `changelog-history*`
+     文件名规则与 `3d/preview/data/panels.json` 的本机绝对路径，非本批引入，未擅自改动公开边界。
+  2. 打附注标签 `returnlog-v0.5`（→ `a387544`），建 Release「返航录 V0.5（2.5D 正式版）」并设为 Latest。
+  3. `tools/deploy-pages.cjs` 部署 Cloudflare Pages：暂存 292 文件 / 53.2 MB，上传 24 个新文件，
+     生产域名 `returnlog.pages.dev`；线上取回 `返航录V0.5` / `2026-11-20` 实测通过。
+  4. `returnlog-v3` **保留不动**（其 Release 挂着 48 MB `ReturnLog.apk`，已下载 4 次，删除会一并丢失）；
+     Release 标题改为「新返航录 V3（历史版本）· 安卓安装包」，正文加最新版指引。
+  5. **安卓包重打**：`android/build.cmd` 的 `--version-code 1 --version-name V3` → `2` / `V0.5`；
+     `android/AndroidManifest.xml` 同步（实测 aapt2 的 `--version-*` 注入不覆盖清单既有属性，
+     以清单为真源）；`build-apk-assets.cjs` 重打包 `android/assets/www`（304 文件 / 54.4 MB）；
+     产物 53.3 MB，已作为 `ReturnLog-V0.5.apk` 挂到 v0.5 Release。
+- **读数变化**（本机实跑）：`npm run t3:check` **13 PASS / 0 WARN / 0 FAIL**，C8「版本真源三处一致：
+  返航录V0.5」PASS；线上 `https://returnlog.pages.dev/js/config/version.js` → `返航录V0.5` / `2026-11-20`；
+  APK `aapt2 dump badging` → `versionCode 2` / `versionName V0.5`；`apksigner verify` → `CN=ReturnLog`。
+- **下一批立项依据**：公开仓仍无 `.github/workflows`（0 个文件），推送不触发 Actions，
+  部署只能本地手动跑 `deploy-pages.cjs`——是否把工作流纳入导出仓、让 Pages 自动发布，待用户裁定。
+
 ## [V0.5 · 版本升级与发布] — 2026-11-20
 
 - **动机**（用户现场）：「升版本号 0.5 提交到 GitHub，并且检查 CI 流程是否完成，国内镜像站不需要提交了。」
