@@ -10,6 +10,51 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [未发布 · 再拆配电室 → 全亮打回暗舱（powerFixed 可复位）] — 2026-11-20
+
+- **动机**（用户现场）：「电路维修一旦完成之后，引擎和配电室将永远保持常亮，除非使它拉闸变黑」。
+  查实：`js/game.js:5038` 早就写了"修好电路立刻全亮"，真正的缺陷是 **`G.powerFixed` 全文没有复位点**
+  （只在 `newGame` 里置 false）——异形把配电室再拆一遍，`powerFixed` 仍是 true、灯仍全亮，
+  **破坏等于零收益**，黑暗只能靠拉闸制造。
+- **本批改动**：`js/game.js#damageRoom` 在生成故障后加一条：
+  `if(rid==='power'&&G.powerFixed){G.powerFixed=false;if(G.lightState===1){G.lightState=0;refreshLight();}}`
+  —— 配电室再被拆＝电路又坏：`powerFixed` 复位、`lightState 1→0` 并立即重算 `G.lit`。
+  只认 `power` 舱：拆引擎室不背这个锅（保持全亮）。拉闸/合闸链路不变（合闸仍按
+  `powerFixed?3:4.5` 秒，复位后回到 4.5 秒）。
+- **读数变化**（本机实跑，日志 `tools/_gate-power-reset-20261120.log`）：`npm test`
+  **1071 通过 / 2 失败**（搜尸取物资、换子弹——两条均在 `tests/flaky-assertions.txt`）。
+  新增三段断言全过：`修好电路后全亮：引擎与配电室都亮（lightState=1）`、
+  `只拆引擎室不动电路`、`再拆配电室 → powerFixed 复位、全亮打回常态：引擎/配电重新变暗，会议室仍亮（故障 engine/power）`。
+  夹具按红线口径重写：`newGame()` 会整个换掉 G 对象 ⇒ **必须在其之后**再取 `g`，
+  第一版夹具正是把 `g` 取在新 Game 之前，导致 `powerFixed` 写进被丢弃的旧状态、断言假红。
+- **下一批立项依据**：`docs/CORE_RULES.md` R6/R9 关于"修好电路 = 全亮"的正文尚未写明"再拆会复位"，
+  属设计者文档，等用户裁定是否补句；本批只改实现与台账。
+
+## [未发布 · 工程规范变更：文件行数棘轮拔出（用户裁定）] — 2026-11-20
+
+- **动机**（用户裁定）：「我取消棘轮设定。直接从工程规范里面拔出棘轮。」
+  背景：game.js 余量已被压到 0 行，施救批与嫌疑轴迁移（架构级）都需要净增代码；
+  继续用"压缩历史注释抵消行数"换额度，实质是在拿注释换功能，收益为负。
+- **本批改动**（拔的是配额，不是拆分台账）：
+  1. `tools/filemap-js.cjs`：`check()` 删除文件行数判定（`cap = budget.max_lines || defaults`
+     与 `line_limit_exempt` 整段），改为注释说明裁定来源；
+     **保留**单函数上限 `rules.max_func_lines`（200）与 `rules.max_func_lines_allow`
+     「超长函数待拆」登记 —— 那是拆分债务台账，不是棘轮。
+  2. `docs/file-budgets-js.json`：删除 `default_max_lines`、`line_limit_exempt`、各文件 `max_lines`；
+     `max_func_lines` 从顶层挪进 `rules`（工具本来就读 `rules.max_func_lines`，此前两处并存）；
+     8 个文件的 `role` 里"锁到 X 行 / 欠账 +55 未抵消"这类配额叙述全部清除，只留模块职责。
+  3. `docs/README-details.md`：口径改为"行数现值只在 CHANGELOG 最新批次登记"，并注明棘轮已拔。
+  4. `docs/HANDOFF-2026-11-19.md` §五：原「行数棘轮」坑改写为"已于 2026-11-20 拔出，别再去恢复"。
+- **回滚路径**：改动前的 `file-budgets-js.json` 与 `filemap-js.cjs` 整份备份在本地
+  `_backup/20261120_棘轮拔出/`（该目录 gitignored，按治理规范 §9 只进备份不删除）。
+- **读数变化**（本机实跑）：`npm run file:check:js` **OK**（26 文件 / 22,438 行 / 函数 1,086 /
+  最大 js/game.js 12,773 行 / 每函数上限 200 行 / 11 个历史超长函数待拆）——
+  注意这一行现在**只报信息不判超额**；11 条待拆 WARN 与 1 条"登记但已不超长"提示保持原样。
+  `t3:check` 与 `ci:gate` 读数见本批提交说明。
+- **下一批立项依据**：嫌疑轴移除（并入 `mind.trust`）不再受行数约束，可按批次正常增删代码；
+  但**大函数拆分债务仍在册**，新增逻辑不许把 `startChatter` / `draw` 这类已登记函数继续撑大。
+  3D 独立仓 `3d/spec/file-budgets.json` 是同一套棘轮，需同样拔出（跨仓操作，待用户确认）。
+
 ## [未发布 · A10 落地：路径绑定目标 + 移动目标 0.2 秒重排 + A* 调用量入闸] — 2026-11-20
 
 - **动机**：决策登记 A10 建议 a（「三项一起才解决原地停顿 + 沿旧路径走 + 放弃时站住」）。
@@ -129,6 +174,20 @@
   （亮走廊 / 隔圆桌 / 忙人优先）与**按像素取点的点击夹具**（`s=innerWidth/VIEW_TILES`，镜头一变，
   同样的像素偏移在世界里就变，会掉到阈值下面）。其余待裁定项不变（medbot 孤儿板、三处任务名 vs 板图语义、
   动词配比、3D v2 导出链）。
+
+## [未发布 · 保安机器人绕军械库整圈巡逻] — 2026-11-20
+
+- **动机**（用户现场）：「保安机器人巡逻路线修改，改为绕房间一整圈」。原来只是军械库左上角 4 点小矩形，长时间照不到房间其余部分。
+- **本批改动**：
+  1. **巡逻真源**：`js/data/map.js#facility[secbot].patrol` 由 4 点小矩形改为 **18 点整圈**——顶边 → 右上（绕开靶道架）→ 右边 → 底边含下沿缺口 → 左边 → 回到起点。覆盖 x 75.9~90.3 / y 66.3~76.5，整圈 52.8 格，按 1.6 格/秒约 **33 秒一圈**。所有航点与相邻连线均过 `SKGeo.free/pathClear`，避开工作台、靶道架、枪架与弹药箱。
+  2. **规则正文**：`docs/CORE_RULES.md` R7.4.1 从「4 点巡逻」改为「绕军械库四壁整圈（18 航点）」，真源指针指向 `js/data/map.js`。
+  3. **门禁**：`tests/test-v3.cjs` 原「4 点」断言改为「覆盖四壁 + 航点/相邻连线全可走」，速度 / 悬停 / 停摆断言不动，只收紧几何覆盖。
+  4. **派生快照**：`npm run 3d:export:map` 重导 `map.json`；`node tools/build-apk-assets.cjs` 重打包 304 文件 / 54.4 MB。
+- **读数变化**（本机实跑，日志 `tools/_gate-secpatrol-20261120.log`、`tools/_cigate-secpatrol-20261120.log`）：
+  - `node tools/map-check.cjs`：`patrolBad 0` / `pointBad []` / `facBad []` / `unreachable []`。
+  - `npm test`：**1067 通过 / 2 失败**；两条均为已登记抖动（搜尸取物资、换子弹），巡逻段 9 条断言全 PASS。`npm run ci:gate`：**PASS 1068 通过 / 1 失败**（换子弹命中 `tests/flaky-assertions.txt`）；换子弹夹具本身置 `g.secbotDead=true`，与本批巡逻路线无关。
+  - `npm run t3:check` **PASS 9 / WARN 4 / FAIL 0**；`npm run agent:contract` **PASS**；`npm run file:check:js` **OK**（见 ci:gate 日志）。C6 漂移 `js/game.js 8dc2f3607f16 → 01399fc3ba70` 来自工作区另一批未提交的 A10 路径重排改动，非本批引入，未替它重导 rules 快照。
+- **下一批立项依据**：33 秒一圈是否偏慢待实机手感复核；C6 漂移待 A10 批收口时一并重导 rules；其余待裁定项（medbot 孤儿板、三处任务名 vs 板图语义、动词配比、3D v2 导出链）不变。
 
 ## [未发布 · 任务板满屏 + 完成态图内位移 + AI 停顿治理] — 2026-11-19
 
