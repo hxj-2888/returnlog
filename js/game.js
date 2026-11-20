@@ -11038,42 +11038,11 @@
       drawPipes(T);
       drawReqTable(T);
       drawDoors(T);
-      // 房名
-      for(const r of M.rooms){
-        const cx=r.label?r.label[0]:r.rect[0]+r.rect[2]/2;
-        const cy=r.label?r.label[1]+1.2:r.rect[1]+r.rect[3]/2;
-        ctx.font='500 11px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.lineWidth=3;ctx.strokeStyle=G.lit[r.id]?'rgba(255,255,255,.8)':'rgba(10,14,20,.75)';
-        ctx.strokeText(r.name,SX(cx),SY(cy));
-        ctx.fillStyle=G.lit[r.id]?'rgba(18,26,36,.85)':'rgba(150,158,170,.75)';
-        ctx.fillText(r.name,SX(cx),SY(cy));
-      }
-      // 任务点：他人的任务只留地面暗点；自己的任务标记画在迷雾之上（drawTaskMarkers）
-      // 设计者模式没有"自己的 4 个"，26 个点全按自己的画（地面暗点分支自然一个都不剩）。
+      /* 自己的任务：设计者模式 26 点全算自己的（地面暗点分支自然一个都不剩） */
       const myLeft=G.designMode?M.points.map((p,i)=>i):me.tasks.slice(me.tIdx);
-      for(const p of M.points){
-        const idx=M.points.indexOf(p);
-        if(myLeft.indexOf(idx)>=0)continue;
-        ctx.beginPath();ctx.arc(SX(p.x),SY(p.y),2.2,0,7);
-        ctx.fillStyle='rgba(120,130,145,.3)';ctx.fill();
-      }
-      /* 被破坏的设备：红色脉冲 + 倒计时，所有人都看得到（这是全船警报） */
-      for(const dm of G.dmg){
-        const a=0.42+0.4*(0.5+0.5*Math.sin(T*6.5));
-        ctx.save();
-        ctx.strokeStyle='rgba(255,90,78,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
-        ctx.setLineDash([5,4]);ctx.lineDashOffset=-T*20;
-        ctx.beginPath();ctx.arc(SX(dm.x),SY(dm.y),1.7*VIEW.s,0,7);ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.beginPath();ctx.arc(SX(dm.x),SY(dm.y),0.55*VIEW.s,0,7);
-        ctx.fillStyle='rgba(255,70,58,'+a.toFixed(2)+')';ctx.fill();
-        ctx.restore();
-        ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
-        ctx.lineWidth=3;ctx.strokeStyle='rgba(22,4,4,.9)';
-        const s='故障 '+Math.max(0,Math.ceil(dm.left))+'s';
-        ctx.strokeText(s,SX(dm.x),SY(dm.y)-2.2*VIEW.s);
-        ctx.fillStyle='#FF9A90';ctx.fillText(s,SX(dm.x),SY(dm.y)-2.2*VIEW.s);
-      }
+      paintRoomLabels();
+      paintTaskDots(myLeft);
+      paintDamageAlerts(T);
       /* 玩家异形的破坏目标：紫色虚线指引到舱室 */
       if(me.alien&&me.alive&&!me.sabUsed&&G.sabTarget){
         const t=G.sabTarget;
@@ -11382,6 +11351,50 @@
       }
       // DEV 面板刷新（墙钟 0.5s；高刷屏不再按帧数误触发）
       if(G.dev){ const now=performance.now(); if(now-(G.devAt||0)>=500){ G.devAt=now; renderDevPanel(); } }
+    }
+    /* paintRoomLabels：draw 拆分（纯表现层，不碰判定） */
+    function paintRoomLabels(){
+    // 房名
+    for(const r of M.rooms){
+      const cx=r.label?r.label[0]:r.rect[0]+r.rect[2]/2;
+      const cy=r.label?r.label[1]+1.2:r.rect[1]+r.rect[3]/2;
+      ctx.font='500 11px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=3;ctx.strokeStyle=G.lit[r.id]?'rgba(255,255,255,.8)':'rgba(10,14,20,.75)';
+      ctx.strokeText(r.name,SX(cx),SY(cy));
+      ctx.fillStyle=G.lit[r.id]?'rgba(18,26,36,.85)':'rgba(150,158,170,.75)';
+      ctx.fillText(r.name,SX(cx),SY(cy));
+    }
+    }
+    /* paintTaskDots：draw 拆分（纯表现层，不碰判定） */
+    function paintTaskDots(myLeft){
+    // 任务点：他人的任务只留地面暗点；自己的任务标记画在迷雾之上（drawTaskMarkers）
+    // myLeft 由调用方 draw 传入（设计者模式 26 点全算自己的，地面暗点分支自然一个都不剩）。
+    for(const p of M.points){
+      const idx=M.points.indexOf(p);
+      if(myLeft.indexOf(idx)>=0)continue;
+      ctx.beginPath();ctx.arc(SX(p.x),SY(p.y),2.2,0,7);
+      ctx.fillStyle='rgba(120,130,145,.3)';ctx.fill();
+    }
+    }
+    /* paintDamageAlerts：draw 拆分（纯表现层，不碰判定） */
+    function paintDamageAlerts(T){
+    /* 被破坏的设备：红色脉冲 + 倒计时，所有人都看得到（这是全船警报） */
+    for(const dm of G.dmg){
+      const a=0.42+0.4*(0.5+0.5*Math.sin(T*6.5));
+      ctx.save();
+      ctx.strokeStyle='rgba(255,90,78,'+a.toFixed(2)+')';ctx.lineWidth=2.4;
+      ctx.setLineDash([5,4]);ctx.lineDashOffset=-T*20;
+      ctx.beginPath();ctx.arc(SX(dm.x),SY(dm.y),1.7*VIEW.s,0,7);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(SX(dm.x),SY(dm.y),0.55*VIEW.s,0,7);
+      ctx.fillStyle='rgba(255,70,58,'+a.toFixed(2)+')';ctx.fill();
+      ctx.restore();
+      ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=3;ctx.strokeStyle='rgba(22,4,4,.9)';
+      const s='故障 '+Math.max(0,Math.ceil(dm.left))+'s';
+      ctx.strokeText(s,SX(dm.x),SY(dm.y)-2.2*VIEW.s);
+      ctx.fillStyle='#FF9A90';ctx.fillText(s,SX(dm.x),SY(dm.y)-2.2*VIEW.s);
+    }
     }
     /* 小地图：照蓝图风格重画 —— 房间轮廓 + 连接通道 + 舱室名 + 任务点图例 */
     /* 小地图静态层离屏缓存（2026-11-14）：公开依据 docs/ASSET_GOVERNANCE.md §14.4
