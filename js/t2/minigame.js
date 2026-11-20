@@ -400,10 +400,11 @@
     }
 
     const wrap = el('div', 'plate-wrap');
-    /* 与 plate-task 同一口径：板图满屏 cover，不留余量（2026-11-19 晚裁定） */
+    /* 与 plate-task 同一口径：整块板图完整装进屏幕（contain），上下让出 HUD 浮层高度。
+       cover 会把 crop 放大推出屏幕，断口/线头就落到看不见的地方（2026-11-20 用户裁定改回）。 */
     const cw = crop[2], ch = crop[3];
-    const availW = bd.clientWidth || 720, availH = bd.clientHeight || 440;
-    const sc = Math.max(availW / cw, availH / ch);
+    const availW = (bd.clientWidth || 720) - 16, availH = (bd.clientHeight || 440) - 128;
+    const sc = Math.min(availW / cw, availH / ch);
     wrap.style.width = (cw * sc).toFixed(1) + 'px';
     wrap.style.height = (ch * sc).toFixed(1) + 'px';
     wrap.style.aspectRatio = cw + ' / ' + ch;
