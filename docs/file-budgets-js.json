@@ -1,41 +1,29 @@
 {
-  "note": "2.5D 真源大文件预算棘轮（2026-11-13 立，阶段 A）。额度只许下调；上调须在 CHANGELOG.md 写明理由并同时下调别处。检查：node tools/filemap-js.cjs --check。2026-11-15 用户裁定：js/data/lines.js 语料不受行数上限约束（仍受单函数 200 行约束）。2026-11-18 用户裁定「暂时忽略棘轮」：本批（AI 社交追责扩散 / 统一身份轴 / 感知视野制 / 报告公平 / 被击倒者认人）临时超额，额度按当批实跑锁死并同时下调 js/engine/body.js（100 → 75），理由见 CHANGELOG 对应批次的「行数棘轮」段。同日 R13.9/R13.10 发言反同质化 + R4.6 编号任务批：game.js 12,527 → 12,582、sanity.js 1,241 → 1,251，**下调抵消项是首次把 js/t2/ai.js 从默认 1,200 收到实际 925（−275）**，净结余仍为负（额度收紧）。2026-11-19 任务系统 P1 + AI P0：game.js 锁到 12,601（_t.trustShadow 探针 +3）、minigame.js 锁到 1,315（plate 分派 / .pspot 样式 / HINT +43，叠加既有欠账），两项均为过渡期临时额度，抵消项挂在后续批次（任务系统删旧 builder、AI P1 删旧认知代码），理由见 CHANGELOG 本批「行数棘轮」段。2026-11-19 全量任务批（26 任务全部图内化）：minigame.js 1,315 → 797（−518，删 11 个旧 builder 与死样式），额度同步收紧到 820；plate-task.js 300 → 650（六动词）；game.js 12,601 → 12,611（A12 徘徊修复 +10，欠账继续挂 AI P1 删旧认知代码）。2026-11-19 追逐手感批：game.js 12,611 → 12,674（turnBack + 追击硬上限）、sanity.js 1,251 → 1,273（HUNT.chaseCap/chaseGiveUp/chaseStutter + TURN 表），额度按实跑锁死；抵消项仍是 AI P3 删 sus/cred/known 旧轴。同日假动作批（假任务任意进度收手 / 反侦察转真做 / 听觉中断 / 异形 5 分换两张单）：game.js 12,674 → 12,724、sanity.js 1,273 → 1,286，按实跑锁死。同日故障反应批（FIX_REACT 反应期 / 不抢人类正在修的故障 / 任务专注）：game.js 12,724 → 12,751、sanity.js 1,286 → 1,292。V0.1 正式版：六张新板 + 双分 P1 双写，game.js 12,755→12,773、t2/ai.js 925→937，按实跑锁死。",
-  "default_max_lines": 1200,
-  "max_func_lines": 200,
-  "line_limit_exempt": [
-    "js/data/lines.js"
-  ],
+  "note": "2.5D 真源文件图 + 拆分债务登记（不是行数配额）。2026-11-20 用户裁定：文件行数棘轮已从工程规范拔出 —— max_lines / default_max_lines / line_limit_exempt 全部删除，tools/filemap-js.cjs --check 不再判定文件行数，行数只在汇总行作信息展示。原基线（含各文件锁死值与欠账叙述）备份在本地 _backup/20261120_棘轮拔出/file-budgets-js.json（gitignored，可回滚）。保留的是另一套东西：rules.max_func_lines 单函数上限 + rules.max_func_lines_allow「超长函数待拆」登记（拆分台账），以及每个大文件的 role 说明。检查：node tools/filemap-js.cjs --check。",
   "files": {
     "js/game.js": {
-      "max_lines": 12773,
-      "role": "T2 跨域规则闭包：boot() 内含主循环 / 判定 / 动作结算；2026-11-15 素材加载器外提后 12,137 → 12,132；同日工程化精简第一批外提尸体/物资 5 个纯函数到 js/engine/body.js，12,132 → 12,089，额度同步下调锁死；2026-11-18 本批 +295（报告公平 aiReportApproach / 报告赶路独占移动与卡死回退 / 被击倒者认人 / 追责扩散 / 目标黏性 / 目击者改靶节流；收尾再补 R20 配置平等落地：搜尸拖动互斥、被拖者视野、终结者横幅与身份、情绪语料），按用户裁定临时超额锁到 12,527；同日 R13.9/R13.10 发言反同质化批再 +55（startChatter 开场取人 takeOpen + infoTier、alibiLine 词序按证据强弱重排、_t.alibiLineOf 探针；同时删掉 _t 里重复的 accuseLineOf 键 = 死代码 −1），锁到 12,582。2026-11-19 任务系统 P1 + AI P0 再 +19（_t.trustShadow 探针 3 行 + 注释；无判定改动），2026-11-19 全量任务批再 +10（A12 徘徊修复：randIn 内缩 2.2 格、空闲停留 4~9s、目标改本舱/邻舱），锁到 12,611；2026-11-19 追逐手感批再 +63（turnBack 回头刀/回头枪 + 追击硬上限 chaseCap/冷却/停顿），锁到 12,674；**欠账 +55 / +19 / +10 均未抵消，削减挂阶段 B 外提 / AI P1 删旧认知代码**"
+      "role": "T2 跨域规则闭包：boot() 内含主循环 / 判定 / 动作结算"
     },
     "js/t2/minigame.js": {
-      "max_lines": 820,
-      "role": "T2 小游戏交互原型（26 任务独立配置 + 3 个通用 builder：wire / place / lever）。2026-11-19 全量任务批：删除 sync/pour/swap/align/aim/match/level/sequence/sort/valve/code 共 11 个 builder 与死样式，1,315 → 797；额度同步收紧到 820"
+      "role": "T2 小游戏交互原型（26 任务独立配置 + 3 个通用 builder：wire / place / lever）"
     },
     "js/t2/plate-task.js": {
-      "max_lines": 650,
-      "role": "T2 图内任务通用引擎（六动词 tap / tapSeq / hold / holdBand / drag / aim；双层遮罩 + 墙钟累计的长按进度）。板数据仍只读 js/data/plates.js"
+      "role": "T2 图内任务通用引擎（六动词 tap / tapSeq / hold / holdBand / drag / aim"
     },
     "js/t2/trust.js": {
-      "max_lines": 120,
-      "role": "T2 双分模型 P0 影子（只读派生 T/E，不写字段、不改决策）；P1 切主链后并入认知模块"
+      "role": "T2 双分模型 P0 影子（只读派生 T/E，不写字段、不改决策）"
     },
     "js/engine/body.js": {
-      "max_lines": 75,
-      "role": "T2 尸体 / 物资公共查询（2026-11-15 从 game.js 外提的 5 个零闭包依赖纯函数；game.js 以薄委托回绑）。2026-11-18 按「上调同时下调别处」把额度从 100 锁到实际 75"
+      "role": "T2 尸体 / 物资公共查询（2026-11-15 从 game.js 外提的 5 个零闭包依赖纯函数"
     },
     "js/ai/sanity.js": {
-      "max_lines": 1292,
-      "role": "T2 数值 / 语料真源（SKConfig 之上的全部可调参数）。2026-11-18 本批新增 IDENTITY / GRATITUDE 两张表、HUNT.witSwapCD/witSwapMargin 两条改靶节流，并把散写在 game.js 的常量归位，额度显式登记 1,241；同日 R13.9 批 +10（SPEECH.alibiOpenMax / accuseSpeakers 两条排期名额与其注释），锁到 1,251；后续只许减不许增"
+      "role": "T2 数值 / 语料真源（SKConfig 之上的全部可调参数）"
     },
     "js/t2/ai.js": {
-      "max_lines": 937,
-      "role": "T2 认知与身份轴（统一信念轴 / beliefOf / topSus）。**本批的下调抵消项**：原按 default_max_lines 1,200 计，实际 925 行，按棘轮「上调须同时下调别处」正式登记为 925（−275），抵消 game.js +55 与 sanity.js +10 后仍有结余"
+      "role": "T2 认知与身份轴（统一信念轴 / beliefOf / topSus）"
     },
     "js/data/lines.js": {
-      "role": "台词语料库（纯数据；2026-11-15 用户裁定：语料不受行数上限，仍保留函数 200 行约束）"
+      "role": "台词语料库（纯数据"
     }
   },
   "rules": {
@@ -51,6 +39,7 @@
       "js/game.js:aiHuman": "起始 2807 / 239 行：人类 AI 决策：任务 / 补给 / 救人 / 报告；阶段 B 拆决策与执行两段",
       "js/game.js:drawFx": "起始 9909 / 220 行：特效调度与绘制；表现层，不碰判定",
       "js/game.js:startVote": "起始 7511 / 202 行：投票阶段：票权 / 门槛 / 改票 / 终结者；阶段 B 拆计票与状态机两段"
-    }
+    },
+    "max_func_lines": 200
   }
 }

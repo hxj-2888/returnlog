@@ -240,20 +240,16 @@ function loadBudgets() {
 function check(files) {
   const b = loadBudgets();
   const rules = b.rules || {};
-  const defaults = b.default_max_lines || 1200;
-  const lineExempt = new Set(b.line_limit_exempt || []);
   const maxFunc = rules.max_func_lines || 200;
   const allowBigFunc = rules.max_func_lines_allow || {};
   const violations = [];
   const warns = [];
   const seenAllow = new Set();
 
+  /* 2026-11-20 用户裁定：文件行数棘轮（max_lines / default_max_lines / line_limit_exempt）
+     已从工程规范拔出 —— 不再作为门禁判定，行数只在下面的汇总里作信息展示。
+     保留的是另一套东西：单函数上限与「超长函数待拆」债务登记，那是拆分台账，不是棘轮。 */
   for (const f of files) {
-    const budget = (b.files || {})[f.file] || {};
-    const cap = budget.max_lines || defaults;
-    if (!lineExempt.has(f.file) && f.lines > cap) {
-      violations.push(`${f.file} 行数 ${f.lines} 超出预算 ${cap}（只许减不许增）`);
-    }
     for (const x of f.funcs) {
       const key = `${f.file}:${x.name}`;
       if (x.lines <= maxFunc) continue;
