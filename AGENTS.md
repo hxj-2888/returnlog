@@ -5,7 +5,7 @@
 > 现行架构为**三层**：T1 工程大层（AI 拟人化 ‖ 空间与资源 ‖ 玩家决策）→ T2 机制与执行层（原 L2+L3 合并同类）→ T3 验收层；层外参考层 R 与预增层 P 已于 2026-11-12 收口归档（不占层号、不进依赖链），待办只记 `CHANGELOG.md`；体验层移出架构图，见 `docs/00-先导-游戏体验.md`。
 > §三文件地图的「层」列将在档 1 重构时换为 `T1/T2/T3 + domain`；**§一红线原文保留**；命令与改动流程见 `docs/workflow.md`，历史踩坑记录保留为附录。
 
-> **当前版本**：返航录V0.1（2026-11-19）· `package.json` 0.1.0
+> **当前版本**：返航录V0.5（2026-11-20）· `package.json` 0.5.0
 > **一句话**：11 人类 vs 4 异形的实时太空船对抗网页游戏；零依赖前端、无构建、`file://` 可直接运行。
 > **接手顺序**：本文件 → README（一页）→ `CHANGELOG.md` 最新批次；历史分卷按需读。
 > **权威口径（2026-11-12 校正 · T3 验收层规范落地）**：
@@ -49,7 +49,7 @@
    `config/version → data/map → data/plates → data/names → data/lines → ui/templates → engine/clock → engine/invariants → engine/geo → engine/assets → engine/body → ai/sanity → ai/traits → t2/space → t2/ai → t2/decision → t2/minigame → game → main → ui/home → ui/replay`。
    **`ai/sanity.js` 必须排在 `ai/traits.js` 之前**：traits 的 `b()` 要读 `SKSanity.TRAIT_GAIN` 做方差压缩，
    `knifeBold / knifeWatcherCap` 也要读理智层的表。
-3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V0.1'`）。**
+3. **版本单一真源是 `js/config/version.js`（`SKConfig.version = '返航录V0.5'`）。**
    改版本必须同批改 `package.json`（`version` / `gameVersion`）并在 `CHANGELOG.md` 记录；
    界面版本号一律用 `[data-version]` 占位，由脚本填充，禁止散落硬编码。
 4. **门禁必须全绿。** 改任何逻辑/数据后按改动规模跑门禁，失败一律按回归处理；

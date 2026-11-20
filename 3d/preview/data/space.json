@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-19T11:08:41.587Z",
+  "generated_at": "2026-11-20T02:49:20.202Z",
   "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
   "sources": {
     "js/ai/sanity.js": "0e7eea81c039",
     "js/t2/space.js": "ea88c60eb922",
-    "js/game.js": "f38a0877c67e"
+    "js/game.js": "388e0bdde38e"
   },
   "grid": {
     "meters_per_cell": 1,
@@ -68,7 +68,7 @@
     "chase_sus": 10
   },
   "bot": {
-    "speed": 1.6,
+    "speed": 2,
     "catch_speed": 7.5,
     "sec_range": 6,
     "sec_arc_div": 2,

@@ -384,6 +384,10 @@
     },
     /* fix / revive 这类没有具体任务点的动作，也用同一块板 */
     defaultPlate: function () { return plates['panel-fix']; },
+    /* 2026-11-20 裁定：medbot 板与 surgery 板同构（3 探针拖回接口），
+       语义上手术台校准应配手术台家具，故不换用；保留为备用同构板，非孤儿待办。
+       资产文件按红线二.5 不删（未经用户逐项确认），登记于此避免再次被当遗留。 */
+    spare: ['medbot'],
     get: function (id) { return plates[id] || null; }
   };
 

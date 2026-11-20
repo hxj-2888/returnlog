@@ -88,14 +88,14 @@
       color:'#E0574F', hint:'准星扫进亮带时点击，连中 4 次；脱靶不扣进度' },
 
     /* ---- 仓储 · 舱门板与货位 ---- */
-    '库存盘点': { k:'plate', plate:'shelf', verb:'tap', use:'deck', n:4,
-      color:'#F5A64A', hint:'逐格点按，清点五个库存位' },
+    '库存盘点': { k:'plate', plate:'shelf', verb:'hold', use:'deck', n:4, hold:0.7,
+      color:'#F5A64A', hint:'逐格按住清点四个库存位，充满即记数' },
     '货架校准': { k:'plate', plate:'shelf', verb:'holdBand', use:'deck', n:4, dur:2.4,
       color:'#F0C674', hint:'四层货架各自按住顶到亮线；过头会退回来' },
     '货箱封条': { k:'plate', plate:'door-panel', verb:'hold', use:'strip', n:4, hold:0.8,
       color:'#F0C674', hint:'按住四条封条压紧，充满即封好' },
-    '出库扫描': { k:'plate', plate:'door-panel', verb:'tapSeq', use:'strip', n:4,
-      color:'#73A7FF', hint:'按 1→4 顺序扫过四条灯带' }
+    '出库扫描': { k:'plate', plate:'door-panel', verb:'hold', use:'strip', n:4, hold:0.7,
+      color:'#73A7FF', hint:'逐条按住扫过四条灯带，充满即完成一条' }
   };
 
   const BY_LABEL = {};
