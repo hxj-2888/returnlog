@@ -25,9 +25,9 @@
      因此**不需要**把 `tools/deploy-config.cjs` 的 SKIP 规则复制进工作流，不存在规则漂移。
   3. 凭据复用仓库级 `secrets.CF_API_TOKEN` / `secrets.CF_ACCOUNT_ID`（与 `deploy-3d` 共用）。
 - **读数变化**（实跑）：导出仓提交 `0a3bd88` → 脱敏检查 **PASS** → push `a387544..0a3bd88`；
-  工作流 `deploy-main` 运行 `44685130348` **28 秒成功**，日志「暂存 293 个文件 · 52M」
-  「Deployment complete: https://3f3344ac.returnlog.pages.dev」；线上 `returnlog.pages.dev`
-  取回 `返航录V0.5` / `2026-11-20` 未变。
+  工作流 `deploy-main` 运行 `44685130348` **28 秒成功**，当批实跑读数 **1 通过 / 0 失败**；
+  日志「暂存 293 个文件 · 52M」「Deployment complete: https://3f3344ac.returnlog.pages.dev」；
+  线上 `returnlog.pages.dev` 取回 `返航录V0.5` / `2026-11-20` 未变。
 - **下一批立项依据**：dev 仓 `.github/workflows/deploy.yml` 是含 `tools/` 依赖的完整版，
   与导出仓的 `deploy-main.yml` 并存但从不运行；是否把 dev 侧那份降级为「PR 门禁专用」以免日后误抄，待裁定。
 
