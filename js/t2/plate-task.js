@@ -51,10 +51,10 @@
   function applyFx(S, st, accent) {
     var f = st.p.fx, b = st.box, m = st.movedImg;
     if (m) {
+      m.style.transformOrigin = (b.x + b.w / 2) + 'px ' + (b.y + b.h / 2) + 'px';
       m.style.transform = 'translate(' + ((f.dx || 0) * b.w).toFixed(2) + 'px,' +
         ((f.dy || 0) * b.h).toFixed(2) + 'px) rotate(' + (f.deg || 0) + 'deg) scale(' + (f.s == null ? 1 : f.s) + ')';
-      m.style.filter = f.dim != null ? 'brightness(' + f.dim + ')' :
-        f.lit != null ? 'brightness(' + f.lit + ') saturate(1.18)' : '';
+      m.style.filter = f.dim != null ? 'brightness(' + f.dim + ')' : f.lit != null ? 'brightness(' + f.lit + ') saturate(1.18)' : '';
     }
     if (st.moved) st.moved.setAttribute('opacity', '1');
     if (f.glow) S.fx.appendChild(svgEl('ellipse', { cx: b.x + b.w / 2, cy: b.y + b.h / 2,

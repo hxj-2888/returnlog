@@ -22,7 +22,12 @@
       "w": 130,
       "h": 90,
       "order": 1,
-      "role": "dish"
+      "role": "dish",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "tray-2",
@@ -32,7 +37,12 @@
       "w": 130,
       "h": 80,
       "order": 2,
-      "role": "dish"
+      "role": "dish",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "sink",
@@ -42,7 +52,12 @@
       "w": 150,
       "h": 110,
       "order": 3,
-      "role": "dish"
+      "role": "dish",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "cup-utensil",
@@ -52,7 +67,12 @@
       "w": 80,
       "h": 90,
       "order": 4,
-      "role": "dish"
+      "role": "dish",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "cup-metal",
@@ -62,7 +82,12 @@
       "w": 60,
       "h": 80,
       "order": 5,
-      "role": "dish"
+      "role": "dish",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     }
   ]
 }

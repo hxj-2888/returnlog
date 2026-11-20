@@ -26,7 +26,11 @@
       "band": [
         44,
         62
-      ]
+      ],
+      "fx": {
+        "k": "lit",
+        "lit": 1.3
+      }
     },
     {
       "id": "gauge-2",
@@ -40,7 +44,11 @@
       "band": [
         44,
         62
-      ]
+      ],
+      "fx": {
+        "k": "lit",
+        "lit": 1.3
+      }
     },
     {
       "id": "gauge-3",
@@ -54,7 +62,11 @@
       "band": [
         40,
         58
-      ]
+      ],
+      "fx": {
+        "k": "lit",
+        "lit": 1.3
+      }
     },
     {
       "id": "valve-1",
@@ -64,7 +76,12 @@
       "w": 80,
       "h": 80,
       "order": 4,
-      "role": "valve"
+      "role": "valve",
+      "fx": {
+        "k": "turn",
+        "clip": "circle",
+        "deg": -90
+      }
     },
     {
       "id": "valve-2",
@@ -74,7 +91,12 @@
       "w": 80,
       "h": 80,
       "order": 5,
-      "role": "valve"
+      "role": "valve",
+      "fx": {
+        "k": "turn",
+        "clip": "circle",
+        "deg": -90
+      }
     }
   ]
 }

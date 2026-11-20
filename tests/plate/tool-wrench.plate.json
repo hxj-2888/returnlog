@@ -21,7 +21,12 @@
       "w": 48,
       "h": 48,
       "order": 1,
-      "role": "bolt"
+      "role": "bolt",
+      "fx": {
+        "k": "turn",
+        "clip": "circle",
+        "deg": -90
+      }
     },
     {
       "id": "bolt-2",
@@ -31,7 +36,12 @@
       "w": 48,
       "h": 48,
       "order": 2,
-      "role": "bolt"
+      "role": "bolt",
+      "fx": {
+        "k": "turn",
+        "clip": "circle",
+        "deg": -90
+      }
     },
     {
       "id": "bolt-3",
@@ -41,7 +51,12 @@
       "w": 48,
       "h": 48,
       "order": 3,
-      "role": "bolt"
+      "role": "bolt",
+      "fx": {
+        "k": "turn",
+        "clip": "circle",
+        "deg": -90
+      }
     }
   ]
 }

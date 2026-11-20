@@ -77,7 +77,13 @@
       "w": 28,
       "h": 30,
       "order": 5,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "s": 0.9,
+        "lit": 1.3,
+        "glow": true
+      }
     },
     {
       "id": "key-2",
@@ -87,7 +93,13 @@
       "w": 28,
       "h": 30,
       "order": 6,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "s": 0.9,
+        "lit": 1.3,
+        "glow": true
+      }
     },
     {
       "id": "key-3",
@@ -97,7 +109,13 @@
       "w": 28,
       "h": 30,
       "order": 7,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "s": 0.9,
+        "lit": 1.3,
+        "glow": true
+      }
     },
     {
       "id": "key-4",
@@ -107,7 +125,13 @@
       "w": 28,
       "h": 30,
       "order": 8,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "s": 0.9,
+        "lit": 1.3,
+        "glow": true
+      }
     },
     {
       "id": "key-5",
@@ -117,7 +141,13 @@
       "w": 28,
       "h": 30,
       "order": 9,
-      "role": "key"
+      "role": "key",
+      "fx": {
+        "k": "press",
+        "s": 0.9,
+        "lit": 1.3,
+        "glow": true
+      }
     },
     {
       "id": "tape-1",

@@ -22,7 +22,12 @@
       "w": 400,
       "h": 44,
       "order": 1,
-      "role": "latch"
+      "role": "latch",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.18
+      }
     },
     {
       "id": "latch-bot",
@@ -32,7 +37,12 @@
       "w": 400,
       "h": 46,
       "order": 2,
-      "role": "latch"
+      "role": "latch",
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.18
+      }
     },
     {
       "id": "lid",
@@ -46,7 +56,12 @@
       "band": [
         42,
         58
-      ]
+      ],
+      "fx": {
+        "k": "press",
+        "s": 0.96,
+        "lit": 1.16
+      }
     },
     {
       "id": "stain-1",

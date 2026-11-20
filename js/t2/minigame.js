@@ -208,7 +208,7 @@
   /* 完成态的图内位移（js/t2/plate-task.js#fxDone）：整块贴图在热点里被搬走 / 旋开 / 压下，
      底下露出的暗图就是空位；不新增图形，只动这张图的一块像素 */
   #mg .plate-moved{pointer-events:none}
-  #mg .pmoved image{transform-box:fill-box;transform-origin:center;
+  #mg .pmoved image{transform-box:view-box;
     transition:transform .46s cubic-bezier(.2,.8,.2,1),filter .46s ease}
   #mg .pglow{filter:blur(7px);animation:mgGlow .9s ease-out forwards}
   @keyframes mgGlow{0%{opacity:0}45%{opacity:.5}100%{opacity:.24}}

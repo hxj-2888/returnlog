@@ -22,7 +22,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 1
+      "order": 1,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "ammo-2",
@@ -32,7 +37,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 2
+      "order": 2,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "ammo-3",
@@ -42,7 +52,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 3
+      "order": 3,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "ammo-4",
@@ -52,7 +67,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 4
+      "order": 4,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "ammo-5",
@@ -62,7 +82,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 5
+      "order": 5,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     },
     {
       "id": "ammo-6",
@@ -72,7 +97,12 @@
       "w": 46,
       "h": 156,
       "role": "bullet",
-      "order": 6
+      "order": 6,
+      "fx": {
+        "k": "press",
+        "s": 0.94,
+        "lit": 1.2
+      }
     }
   ],
   "lanes": [
