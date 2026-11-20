@@ -10,6 +10,27 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [V0.5 · 公开仓 main 接入 Pages 自动发布] — 2026-11-20
+
+- **动机**（用户现场）：「这个版本直接顶替掉远端 returnlog 那个不就行了，为什么不会触发 actions 呢？」
+  ——远端确实已被顶替（`main` = `a387544`），但**触发与否取决于被推的 commit 里有没有工作流文件**，
+  而不是「有没有替换」。核查：`gh api .../actions/workflows` 只有 `deploy-3d`（在 `3d` 分支），
+  `main` 树里 `.github/` 一个文件都没有，所以 push 只更新分支指针，Actions 无事可做。
+- **本批改动**（只动导出仓，dev 仓仅此台账条目）：
+  1. 新增 `.github/workflows/deploy-main.yml`：push 到 `main` 或手动触发；步骤为
+     `node --check` 全量 js 语法检查 → 暂存 `index.html / js / assets / audio / _headers` →
+     `wrangler pages deploy --project-name=returnlog --branch=main`。
+  2. 白名单在 CI 侧只需 5 个顶层项：导出仓树本身就是裁剪过的（293 个运行时文件），
+     `qwen-lib` / `v4/tex`（除 `door-panel.png`）/ `_raw_fx` 根本不在仓内，
+     因此**不需要**把 `tools/deploy-config.cjs` 的 SKIP 规则复制进工作流，不存在规则漂移。
+  3. 凭据复用仓库级 `secrets.CF_API_TOKEN` / `secrets.CF_ACCOUNT_ID`（与 `deploy-3d` 共用）。
+- **读数变化**（实跑）：导出仓提交 `0a3bd88` → 脱敏检查 **PASS** → push `a387544..0a3bd88`；
+  工作流 `deploy-main` 运行 `44685130348` **28 秒成功**，日志「暂存 293 个文件 · 52M」
+  「Deployment complete: https://3f3344ac.returnlog.pages.dev」；线上 `returnlog.pages.dev`
+  取回 `返航录V0.5` / `2026-11-20` 未变。
+- **下一批立项依据**：dev 仓 `.github/workflows/deploy.yml` 是含 `tools/` 依赖的完整版，
+  与导出仓的 `deploy-main.yml` 并存但从不运行；是否把 dev 侧那份降级为「PR 门禁专用」以免日后误抄，待裁定。
+
 ## [V0.5 · 正式发布：标签 / Release / Pages 上线 / 安卓包] — 2026-11-20
 
 - **动机**（用户现场）：「我觉得这批版本已经更新得不错，我们可以尝试着正式推上 GitHub 了。」
