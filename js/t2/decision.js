@@ -162,7 +162,7 @@
   /* 还能不能再开一场夜晚会议：**在消耗报告额度之前**必须先问这一句。 */
   function nightMeetLeft(){
     const G=global.SKV3._t.G();
-    if(!G||G.over||G.meet)return 0;
+    if(!G||G.over||G.meet||G.terminator)return 0;
     return Math.max(0,SK.MEET.perNight-(G.nightMeets||0));
   }
 

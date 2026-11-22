@@ -2,37 +2,39 @@
   "schema_version": 1,
   "note": "2.5D / 3D 推理与发言的唯一规则真源快照。勿手改；改 js/ 后重跑 npm run 3d:export:rules，check-parity 会拦截漂移。玩家输入映射、地形/A*/碰撞/LOS、美术允许各自实现。",
   "sources": {
-    "js/ai/sanity.js": "921709043856",
-    "js/ai/traits.js": "e3df0186bf52",
-    "js/t2/ai.js": "735fed065855",
-    "js/t2/decision.js": "ff0b7283e6fe",
-    "js/game.js": "0bccef362045",
-    "js/data/lines.js": "3a0af2a4a85c"
+    "js/ai/sanity.js": "003faa70d6fa",
+    "js/ai/traits.js": "1de4db5b6b98",
+    "js/t2/ai.js": "5a7513eeb3cb",
+    "js/t2/decision.js": "3c2ab6dc5558",
+    "js/game.js": "dfe908895de7",
+    "js/data/lines.js": "4bf7b80a3c9e"
   },
   "tables": {
     "SKSanity": {
       "TRAIT_GAIN": 0.45,
       "KNIFE": {
+        "discoverHorizon": 1.8,
         "witnessCap": 3,
         "minConceal": 0.34,
         "boldBase": 0.5,
         "boldSpan": 0.16,
         "lockAtStart": 0,
-        "victimSus": 0.9,
-        "victimGrudge": 0.7
+        "victimCert": -999,
+        "victimGrudge": -70
       },
       "RED_BODY": {
-        "dur": 1.5
+        "dur": 0.5
       },
       "RUSH": {
-        "dur": 2,
-        "mul": 1.5,
+        "dur": 1,
+        "mul": 2,
+        "decay": true,
         "alienOnly": true
       },
       "SIGHT": {
-        "humanLightR": 7,
-        "humanDarkR": 2.3,
-        "alienDarkR": 3.5,
+        "humanLightR": 5.5,
+        "humanDarkR": 2,
+        "alienDarkR": 4,
         "aiCapR": 8,
         "corrR": 12,
         "litRoomMul": 1.15,
@@ -46,6 +48,7 @@
       "HUNT": {
         "memorySec": 25,
         "repickSec": 8,
+        "accuserPull": 12,
         "incumbentPen": 6,
         "chaseCap": 6,
         "chaseGiveUp": 14,
@@ -64,14 +67,16 @@
         "cd": 9
       },
       "TASK_ABORT": {
-        "hearRate": 0.12
+        "hearRate": 0.035
       },
       "TASK_FOCUS": {
         "skipSide": 0.15
       },
       "SABOTAGE": {
         "witnessCap": 1,
-        "minConceal": 0.58
+        "minConceal": 0.58,
+        "outSec": 30,
+        "doorScanSec": 2
       },
       "BREAKER": {
         "witnessCap": 1,
@@ -83,7 +88,7 @@
         "riskCost": 1.2,
         "minScore": 0.25,
         "maxAudience": 4,
-        "abortRate": 0.06,
+        "abortRate": 0.012,
         "turnReal": 0.15,
         "cooldown": 18,
         "breakerChance": 0.1,
@@ -121,35 +126,44 @@
           "cap": 0.8
         }
       },
-      "CRED": {
-        "gains": {
-          "taskDone": 0.12,
-          "fixDone": 0.2,
-          "breakerOn": 0.12,
-          "dragToMed": 0.16,
-          "revive": 0.16,
-          "fakeWork": 0.12,
-          "fakeRepair": 0.2,
-          "shotAct": 0.02,
-          "shotAlien": 0.08,
-          "shotHuman": -0.08
+      "AXIS": {
+        "certAlien": -999,
+        "certHuman": 999,
+        "cert": 999,
+        "certFloor": 500,
+        "certRevert": {
+          "on": true,
+          "nights": 0,
+          "to": -100,
+          "toHuman": 100
         },
-        "decay": 0.92,
-        "cap": 1.2,
-        "floor": -0.5,
-        "accuseShieldAt": 0.35,
-        "voteShield": 0.55,
-        "testimony": 0.6,
-        "kindMap": {
-          "realFix": "fixDone",
-          "realRevive": "revive",
-          "breakerOn": "breakerOn",
-          "fake": "fakeRepair",
-          "fakeTask": "fakeWork"
-        }
+        "eventCap": 200,
+        "cap": 200,
+        "floor": -999,
+        "almostFoe": -30,
+        "almostFriend": 200,
+        "priorPool": 100,
+        "decayFloor": 0.16,
+        "decaySpan": 0.29,
+        "decayAnchor": 100,
+        "emoDecay": 0.32,
+        "heardCap": 20,
+        "scoreMul": 0.6,
+        "panicShot": -40,
+        "incitePer": -15,
+        "inciteCap": -60,
+        "emptyAccuse": -8,
+        "followE": 6,
+        "followT": 8,
+        "followCap": 60,
+        "lootBulletPanic": -20,
+        "lootBulletT": -25,
+        "lootMedkitT": 10
       },
       "IDENTITY": {
         "evidenceW": 1,
+        "trustSusW": 1,
+        "trustNegW": 0,
         "almostAlien": 0.05,
         "almostHuman": 0.95,
         "targetMulMin": 0.5,
@@ -160,23 +174,18 @@
         "priorMax": 0.98
       },
       "ACCOUNT": {
-        "correct": {
-          "cred": 0.1
-        },
-        "wrong": {
-          "cred": -0.14,
-          "sus": 0.09
-        },
-        "wrongLead": {
-          "grudge": 0.35
-        },
-        "leadMul": 2.2,
-        "voterMul": 0.55,
+        "correct": 50,
+        "wrong": -12,
+        "voterEmo": -30,
+        "wrongLeadEmo": -45,
+        "leadMul": 1,
+        "accuserMul": 1,
+        "voterMul": 0,
         "spamAt": 3,
         "spamMul": 1.6
       },
       "FRAME": {
-        "chance": 0.85,
+        "chance": 0.18,
         "knifeRatio": 0.55
       },
       "WARM": {
@@ -188,9 +197,18 @@
         "followChance": 0.45
       },
       "GRATITUDE": {
-        "revive": 0.55,
-        "dragToMed": 0.35,
-        "defended": 0.45
+        "revive": {
+          "t": 30,
+          "e": 55
+        },
+        "dragToMed": {
+          "t": 30,
+          "e": 35
+        },
+        "defended": {
+          "t": 0,
+          "e": 45
+        }
       },
       "TESTIFY": {
         "dirtySus": 0.3,
@@ -222,6 +240,79 @@
           ]
         ],
         "refuseSpeakP": 0.5
+      },
+      "WITNESS": {
+        "taskDone": 25,
+        "taskDoing": 15,
+        "fakeWork": -25,
+        "taskAbandon": -25,
+        "fixDone": 25,
+        "fakeRepair": -25,
+        "fixAbandon": -25,
+        "breakerOn": 80,
+        "breakerPull": -80,
+        "red": -999,
+        "bot": -80,
+        "detain": -30,
+        "dragAway": -20,
+        "dragToMed": 20,
+        "revive": 20,
+        "lootBullet": -25,
+        "lootMedkit": 10,
+        "followE": 3,
+        "followT": 4,
+        "followCap": 60,
+        "followRadius": 3.5,
+        "followWindow": 10
+      },
+      "EMOTE": {
+        "panicShot": -40,
+        "incitePer": -15,
+        "inciteCap": -60,
+        "knifeVictim": -70,
+        "accused": -45,
+        "voted": -30
+      },
+      "HEARD": {
+        "cap": 20,
+        "attn": {
+          "knife": 1,
+          "shot": 0.9,
+          "scream": 0.8,
+          "pipe": 0.7,
+          "power": 0.5,
+          "robot": 0.5,
+          "door": 0.2,
+          "drag": 0.4,
+          "detain": 0.8
+        }
+      },
+      "MAPPING": {
+        "cap": 15,
+        "contradiction": -15,
+        "alibiClear": 15,
+        "quickReport": -10,
+        "nearBody": -10,
+        "roomSus": -8,
+        "silent": -10,
+        "presenceDeny": 10,
+        "impossibleClaim": -15,
+        "sawAvoid": -10,
+        "wrongAccuse": -10,
+        "alibiSelf": 10,
+        "relay": 12
+      },
+      "MODE": {
+        "classic": {
+          "total": 15,
+          "aliens": 4,
+          "matesKnown": false
+        },
+        "trio": {
+          "total": 15,
+          "aliens": 3,
+          "matesKnown": true
+        }
       },
       "LENS": {
         "rows": {
@@ -331,7 +422,7 @@
         "floor": 0.25,
         "lr": {
           "__fn": true,
-          "sha": "b4bc86cf873c",
+          "sha": "89d5505d75c7",
           "nums": [
             0,
             1,
@@ -340,12 +431,12 @@
         },
         "order": {
           "__fn": true,
-          "sha": "1f93e0751df7",
+          "sha": "05ec3155d305",
           "nums": []
         },
         "rankedLr": {
           "__fn": true,
-          "sha": "8493693e4dbe",
+          "sha": "87f6e0f3aebc",
           "nums": []
         },
         "costlyKeys": [
@@ -361,7 +452,6 @@
         "stale": 15
       },
       "HUMANISH": {
-        "onSight": 0.28,
         "pull": 6
       },
       "CARRY": {
@@ -374,20 +464,12 @@
         "whyKeep": 4
       },
       "ALMOST": {
-        "foeSus": 0.5,
-        "foeKinds": 2,
-        "foeConf": 0.8,
-        "friendCred": 0.5,
-        "friendKinds": 2,
-        "friendConf": 0.7,
-        "freshNights": 2,
         "foeVoteMul": 1.6,
-        "foeVoteTier": true,
+        "foeVoteTier": false,
         "foeShootMul": 0.7,
         "friendShootMul": 1.4,
         "friendShieldAdd": 0.25,
-        "friendVoteShield": 0.45,
-        "heardKinds": 1
+        "friendVoteShield": 0.45
       },
       "RELIA": {
         "base": 0.5,
@@ -424,10 +506,40 @@
       },
       "CONFIRM": {
         "nearR": 4.5,
-        "farSusMul": 1
+        "farSusMul": 1,
+        "useDist": false
       },
       "MISID": {
-        "chance": 0.2
+        "base": 0.15,
+        "perExtra": 0.05,
+        "minPeople": 2,
+        "cap": 0.35,
+        "tiers": [
+          0.15,
+          0.18,
+          0.21,
+          0.25,
+          0.28,
+          0.32,
+          0.35
+        ],
+        "cloudConc": 0.6,
+        "closeR": 1.5,
+        "closeMul": 2,
+        "action": {
+          "on": true,
+          "lo": 0.15,
+          "hi": 0.25,
+          "tiers": [
+            0.15,
+            0.17,
+            0.19,
+            0.21,
+            0.23,
+            0.25
+          ],
+          "cloudConc": 0.6
+        }
       },
       "DESC": {
         "on": true,
@@ -436,7 +548,7 @@
         "confLoss": 0.78
       },
       "FIRST": {
-        "chance": 0.25,
+        "chance": 0.075,
         "firstLine": 0.6,
         "wgt": 0.22,
         "leadMul": 1.35,
@@ -453,7 +565,11 @@
         "alienLineCap": 6,
         "nudgeGapMs": 5000,
         "alibiOpenMax": 2,
-        "accuseSpeakers": 3
+        "accuseSpeakers": 3,
+        "humanAccuseSus": 0.35,
+        "alienAccuseRate": 0.06,
+        "alienHitBackRate": 0.32,
+        "alienLeadRate": 0.12
       },
       "COFRAME": {
         "chance": 0.25,
@@ -501,13 +617,14 @@
         "biasLo": 0.85,
         "biasHi": 1.15,
         "threshold": 0.3,
-        "chance": 0.55,
+        "hardLine": 0.55,
+        "chance": 0.9,
         "knifeRatio": 0.55,
         "shotRatio": 0.15,
         "busChance": 0.2
       },
       "TERMINATOR": {
-        "night": 8,
+        "night": 9,
         "bullets": 1,
         "reveal": true
       },
@@ -525,25 +642,26 @@
         "len": 75
       },
       "WIN": {
-        "pts": 45,
+        "pts": 48,
         "faultPenalty": 5
       },
       "STAND": {
         "fix": 10,
         "revive": 5,
         "search": 1.2,
-        "qual": 0,
+        "qual": 0.75,
         "ammo": 5,
         "med": 3,
         "fault": 30
       },
       "REACH": {
-        "knife": 1.35,
+        "knife": 1.5,
         "sabotage": 1.7,
         "fix": 2
       },
       "SHOT": {
-        "range": 9,
+        "range": 8,
+        "cone": 1.0471975511965976,
         "chaseKnown": 14,
         "chaseSus": 10,
         "alienFireP": 0.7,
@@ -552,11 +670,24 @@
         "botShotCheck": 10
       },
       "PIPE": {
+        "cooldown": 10
+      },
+      "SUPPLY": {
+        "cooldown": 20
+      },
+      "AMBUSH": {
+        "dur": 10,
+        "minR": 2.2,
+        "maxR": 5.5,
         "cooldown": 20
       },
       "SOUND": {
         "suspectAge": 8,
-        "suspectRadius": 4
+        "suspectRadius": 4,
+        "knifeR": 14,
+        "shotR": 20,
+        "screamR": 15,
+        "alienActMul": 0.5
       },
       "LOOT": {
         "aiSearchChance": 0.85,
@@ -608,9 +739,9 @@
         },
         "knifeReach": {
           "__fn": true,
-          "sha": "2a19e5322ef3",
+          "sha": "a83e4867b0e9",
           "nums": [
-            1.3,
+            1.5,
             1,
             0.22
           ]
@@ -950,6 +1081,13 @@
       "susOf",
       "topSus",
       "crimeWindow",
+      "trustScore",
+      "trustRaw",
+      "axisAddT",
+      "trustCert",
+      "effT",
+      "currentPrior",
+      "budgetT",
       "evNow",
       "keepSusNight",
       "keepCredWhy",
@@ -996,7 +1134,8 @@
       "trustProb",
       "hostileTo",
       "axisThreat",
-      "beliefOf"
+      "beliefOf",
+      "credRaw"
     ],
     "SKT2Decision": [
       "seatNo",
@@ -1020,7 +1159,7 @@
       "nums": []
     },
     "SKSanity.witnessWeight": {
-      "sha": "8729df0d513d",
+      "sha": "66fc64ca0b83",
       "nums": [
         0.5,
         0,
@@ -1033,7 +1172,7 @@
       ]
     },
     "SKSanity.escapeCost": {
-      "sha": "b792d01159f3",
+      "sha": "64d310cb282d",
       "nums": [
         0,
         1.6,
@@ -1042,7 +1181,7 @@
       ]
     },
     "SKSanity.exposure": {
-      "sha": "268d89725de2",
+      "sha": "f8b9a263f06a",
       "nums": [
         0,
         0,
@@ -1053,15 +1192,15 @@
       ]
     },
     "SKSanity.trustEndorseAt": {
-      "sha": "28bc7e1d0d9c",
+      "sha": "cb878fcdf538",
       "nums": []
     },
     "SKSanity.trustObeyGate": {
-      "sha": "601d50123316",
+      "sha": "782edcd382bc",
       "nums": []
     },
     "SKSanity.rollCharisma": {
-      "sha": "9642e122fc0a",
+      "sha": "6f8b18137080",
       "nums": [
         0,
         1,
@@ -1069,7 +1208,7 @@
       ]
     },
     "SKSanity.alibiTimeWord": {
-      "sha": "562672d45a29",
+      "sha": "a94bfee44ffe",
       "nums": [
         0,
         0,
@@ -1077,7 +1216,7 @@
       ]
     },
     "SKSanity.checkAlibi": {
-      "sha": "a59661ab3226",
+      "sha": "8c85484cbe9e",
       "nums": [
         0,
         0,
@@ -1088,14 +1227,14 @@
       ]
     },
     "SKSanity.reliaMul": {
-      "sha": "1403a5e7d0a8",
+      "sha": "03e120e52e8d",
       "nums": [
         0,
         1
       ]
     },
     "SKSanity.beliefEntropy": {
-      "sha": "016d24c7f0bb",
+      "sha": "b837d8184718",
       "nums": [
         0,
         0,
@@ -1107,7 +1246,7 @@
       ]
     },
     "SKSanity.disguiseScore": {
-      "sha": "562fc186e753",
+      "sha": "3aa5b7e9db7d",
       "nums": [
         0,
         0,
@@ -1117,17 +1256,24 @@
         1,
         2026,
         11,
-        3,
-        1,
-        1,
+        21,
+        15,
+        20,
+        15,
+        15,
+        12,
+        9.5,
+        15,
+        25,
         0,
         1,
+        20,
         1,
         0
       ]
     },
     "SKSanity.disguiseRisk": {
-      "sha": "3acb6942c3fb",
+      "sha": "74fd737377af",
       "nums": [
         0,
         0,
@@ -1137,24 +1283,27 @@
       ]
     },
     "SKSanity.credVoteShield": {
-      "sha": "80570e3693a7",
+      "sha": "ab80a87f47b2",
       "nums": [
         0,
+        0.55,
+        1.55,
         0,
         0.85
       ]
     },
     "SKSanity.credTestimony": {
-      "sha": "8ed7ee59b80a",
+      "sha": "3398bbfe9f7a",
       "nums": [
         1,
         0,
+        0.6,
         0.35,
         0.6
       ]
     },
     "SKSanity.alibiReach": {
-      "sha": "0780febc237b",
+      "sha": "6675c8e928a6",
       "nums": [
         0,
         4,
@@ -1182,15 +1331,11 @@
       ]
     },
     "SKT2AI.susOf": {
-      "sha": "73a4448f80bf",
-      "nums": [
-        0,
-        0,
-        0
-      ]
+      "sha": "f586d78bb0df",
+      "nums": []
     },
     "SKT2AI.topSus": {
-      "sha": "612c8e26d8b5",
+      "sha": "70e014058cdd",
       "nums": [
         1,
         2026,
@@ -1202,12 +1347,15 @@
         11,
         18,
         1,
+        2026,
+        11,
+        20,
         3,
         4
       ]
     },
     "SKT2AI.crimeWindow": {
-      "sha": "d2352ee2e94d",
+      "sha": "ea2fba47ecc0",
       "nums": [
         0,
         0,
@@ -1215,49 +1363,142 @@
         0
       ]
     },
+    "SKT2AI.trustScore": {
+      "sha": "f005cfe78915",
+      "nums": [
+        999
+      ]
+    },
+    "SKT2AI.trustRaw": {
+      "sha": "044339267232",
+      "nums": [
+        0
+      ]
+    },
+    "SKT2AI.axisAddT": {
+      "sha": "d219ccc51115",
+      "nums": [
+        0,
+        2026,
+        11,
+        21,
+        0,
+        2026,
+        11,
+        21,
+        200,
+        999,
+        1,
+        3,
+        0,
+        1,
+        2026,
+        11,
+        22,
+        999,
+        100,
+        0,
+        2026,
+        11,
+        22,
+        0
+      ]
+    },
+    "SKT2AI.trustCert": {
+      "sha": "a93c8139d94d",
+      "nums": [
+        2026,
+        11,
+        22,
+        0,
+        0
+      ]
+    },
+    "SKT2AI.effT": {
+      "sha": "d114b6c44809",
+      "nums": [
+        0
+      ]
+    },
+    "SKT2AI.currentPrior": {
+      "sha": "d8bb1e54119b",
+      "nums": [
+        10,
+        13
+      ]
+    },
+    "SKT2AI.budgetT": {
+      "sha": "06f36640f8ff",
+      "nums": [
+        0,
+        1,
+        0
+      ]
+    },
     "SKT2AI.evNow": {
-      "sha": "fe24a321f3b2",
+      "sha": "5e94dad3b70b",
       "nums": [
         0,
         0
       ]
     },
     "SKT2AI.keepSusNight": {
-      "sha": "d1bdd27ea9f9",
+      "sha": "bc771ad632d9",
       "nums": []
     },
     "SKT2AI.keepCredWhy": {
-      "sha": "7eefaa93bb73",
+      "sha": "c71500bd0014",
       "nums": [
         0
       ]
     },
     "SKT2AI.keepRelia": {
-      "sha": "6de932631dde",
+      "sha": "e1bf0f214ed6",
       "nums": [
         0.02,
         3
       ]
     },
     "SKT2AI.credOf": {
-      "sha": "145d02658efc",
+      "sha": "6fd2d7185cc1",
       "nums": [
+        2026,
+        11,
+        20,
+        0.481,
+        0.004,
+        2.6,
+        2.8,
         0
       ]
     },
     "SKT2AI.mindReset": {
-      "sha": "e4fd134fb17b",
+      "sha": "b724a187a68e",
       "nums": [
         20,
+        0.05,
+        0.8,
+        0,
+        1,
+        0.05,
+        10,
+        0.5,
         0.05,
         0.05,
         0.8,
         2026,
         11,
-        18,
-        2.6,
-        0.04,
-        0.04,
+        21,
+        1,
+        999,
+        1,
+        0.6,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
         2026,
         11,
         1,
@@ -1271,7 +1512,12 @@
         0,
         1,
         3,
+        2026,
+        11,
+        22,
         0,
+        0,
+        2,
         2026,
         11,
         8,
@@ -1282,13 +1528,32 @@
         10,
         0,
         3,
+        200,
         2,
         0.5,
         3,
         3,
         2026,
         11,
+        21,
+        2026,
+        11,
         5,
+        0,
+        2026,
+        11,
+        22,
+        999,
+        100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        500,
+        0,
+        100,
+        100,
         0,
         1,
         1,
@@ -1299,7 +1564,7 @@
       ]
     },
     "SKT2AI.evPush": {
-      "sha": "913fb2b871fd",
+      "sha": "9874d05939ce",
       "nums": [
         0,
         1,
@@ -1317,11 +1582,29 @@
       ]
     },
     "SKT2AI.susAdd": {
-      "sha": "6b412242f1a9",
+      "sha": "afa262bdb615",
       "nums": [
-        0,
+        20,
         1,
-        0.55,
+        2026,
+        11,
+        21,
+        0.75,
+        0,
+        0,
+        20,
+        2026,
+        11,
+        21,
+        80,
+        20,
+        25,
+        2026,
+        11,
+        21,
+        0,
+        200,
+        0,
         1,
         3,
         8,
@@ -1330,54 +1613,64 @@
       ]
     },
     "SKT2AI.evalAlmost": {
-      "sha": "9618a9b812d4",
+      "sha": "f15142c40848",
       "nums": [
         0,
         1,
+        200,
+        200,
+        0,
+        1,
+        200,
+        200,
+        0,
+        0,
+        0,
+        2026,
+        11,
+        21,
+        0,
+        200,
+        2026,
+        11,
+        21,
+        4,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
         1,
         2026,
         11,
-        6,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
+        21,
+        0,
         0,
         0,
         0,
         0,
         1,
-        1,
-        3,
         0,
         1,
-        0,
-        1,
-        0,
-        1,
+        0.0001,
+        0.0001,
         0,
         1,
         1,
         1,
-        1,
-        3,
         0,
         1
       ]
     },
     "SKT2AI.susCut": {
-      "sha": "41e3d16aae51",
+      "sha": "0a3476552a6e",
       "nums": [
-        0,
-        0,
-        0
+        1
       ]
     },
     "SKT2AI.checkAlibi": {
-      "sha": "a1b70640ed39",
+      "sha": "3b78c264b431",
       "nums": [
         0,
         0,
@@ -1385,7 +1678,7 @@
       ]
     },
     "SKT2AI.claimWindow": {
-      "sha": "32a0bd001f49",
+      "sha": "82c8c52beb22",
       "nums": [
         0,
         0,
@@ -1393,7 +1686,7 @@
       ]
     },
     "SKT2AI.susAddContradiction": {
-      "sha": "bcc97830d932",
+      "sha": "f4097979a2bb",
       "nums": [
         0,
         1,
@@ -1402,16 +1695,17 @@
       ]
     },
     "SKT2AI.oldQuantifierWouldFire": {
-      "sha": "a869b95da6c3",
+      "sha": "8c3054b4346a",
       "nums": [
         24,
         45
       ]
     },
     "SKT2AI.knownOverride": {
-      "sha": "c73b7f0a80e1",
+      "sha": "d62b5e9879c0",
       "nums": [
         0,
+        999,
         1,
         1,
         0,
@@ -1419,30 +1713,30 @@
       ]
     },
     "SKT2AI.liveTarget": {
-      "sha": "2c52cb1a4852",
+      "sha": "67980ee9ee76",
       "nums": []
     },
     "SKT2AI.bestSusTarget": {
-      "sha": "a31bc5a5cd24",
+      "sha": "e9031fdc1250",
       "nums": []
     },
     "SKT2AI.almostFoeOf": {
-      "sha": "705e94b8ce76",
+      "sha": "d4dff762c41a",
       "nums": []
     },
     "SKT2AI.almostFriendOf": {
-      "sha": "a758e5b7d89e",
+      "sha": "d9edae8e56b5",
       "nums": []
     },
     "SKT2AI.bestAlmostTarget": {
-      "sha": "bb6b5366e00a",
+      "sha": "0b7a61d6d36a",
       "nums": [
         1,
         0
       ]
     },
     "SKT2AI.bestKnownTarget": {
-      "sha": "a528106c9aad",
+      "sha": "c283ddfe2cc2",
       "nums": [
         1,
         0,
@@ -1452,7 +1746,7 @@
       ]
     },
     "SKT2AI.evidenceReason": {
-      "sha": "988ec16def94",
+      "sha": "aab58fb2a745",
       "nums": [
         1,
         0,
@@ -1461,7 +1755,7 @@
       ]
     },
     "SKT2AI.soundSubject": {
-      "sha": "cc2e39f12aa9",
+      "sha": "dc7df6b395ed",
       "nums": [
         8,
         4,
@@ -1470,7 +1764,7 @@
       ]
     },
     "SKT2AI.playerHeard": {
-      "sha": "540db2b71114",
+      "sha": "deaa61e07cdf",
       "nums": [
         0,
         0,
@@ -1479,18 +1773,26 @@
       ]
     },
     "SKT2AI.shotCred": {
-      "sha": "48d74a9583bd",
-      "nums": []
+      "sha": "7263838b59a1",
+      "nums": [
+        2026,
+        11,
+        21,
+        60,
+        30,
+        60,
+        30
+      ]
     },
     "SKT2AI.affordableAlmostShot": {
-      "sha": "e4e82f32da09",
+      "sha": "b9ed24407a0b",
       "nums": [
         0.85,
         4
       ]
     },
     "SKT2AI.envEstimate": {
-      "sha": "8eb2b7a1b738",
+      "sha": "87f72b0446bc",
       "nums": [
         0,
         0,
@@ -1523,7 +1825,7 @@
       ]
     },
     "SKT2AI.audSusEstimate": {
-      "sha": "564a2777ba14",
+      "sha": "13d6935cd293",
       "nums": [
         0,
         0,
@@ -1546,15 +1848,15 @@
       ]
     },
     "SKT2AI.pubAccusers": {
-      "sha": "7231ddd0b950",
+      "sha": "2dc42341acea",
       "nums": []
     },
     "SKT2AI.pubSolidAccusers": {
-      "sha": "df038e5677ac",
+      "sha": "b11742dd3b74",
       "nums": []
     },
     "SKT2AI.publicHeat": {
-      "sha": "9caaf0a1e568",
+      "sha": "0b79c0ba9a46",
       "nums": [
         1,
         0.3,
@@ -1564,7 +1866,7 @@
       ]
     },
     "SKT2AI.publicInfluence": {
-      "sha": "6dd52d919f42",
+      "sha": "4ec38998db8c",
       "nums": [
         0,
         1,
@@ -1574,7 +1876,7 @@
       ]
     },
     "SKT2AI.sequenceCue": {
-      "sha": "2c45d6780a2b",
+      "sha": "e9466e5b29e2",
       "nums": [
         1,
         1,
@@ -1591,7 +1893,7 @@
       ]
     },
     "SKT2AI.statementRelation": {
-      "sha": "61fa8874b2bf",
+      "sha": "d90caa5de287",
       "nums": [
         0,
         0.4,
@@ -1599,7 +1901,7 @@
       ]
     },
     "SKT2AI.hypotheses": {
-      "sha": "51f48137f713",
+      "sha": "b8766d1b4e80",
       "nums": [
         0,
         0,
@@ -1611,13 +1913,13 @@
       ]
     },
     "SKT2AI.refreshHyps": {
-      "sha": "05f5d376c457",
+      "sha": "1f318f4dac54",
       "nums": [
         3
       ]
     },
     "SKT2AI.hypothesisSpread": {
-      "sha": "3380f14ff614",
+      "sha": "82faa201f758",
       "nums": [
         3,
         2,
@@ -1651,7 +1953,7 @@
       ]
     },
     "SKT2AI.hypothesisEvidence": {
-      "sha": "2f943f693bfc",
+      "sha": "0fee261eb812",
       "nums": [
         0,
         0,
@@ -1664,11 +1966,11 @@
       ]
     },
     "SKT2AI.hasIdEvidence": {
-      "sha": "a323f1bf6963",
+      "sha": "35f24cbea125",
       "nums": []
     },
     "SKT2AI.identityPrior": {
-      "sha": "edb03ffa96eb",
+      "sha": "47c82f018222",
       "nums": [
         0.5,
         0,
@@ -1695,10 +1997,15 @@
       ]
     },
     "SKT2AI.identityAxis": {
-      "sha": "2042734fbcf8",
+      "sha": "b407aa231710",
       "nums": [
         0.5,
         0,
+        1,
+        2026,
+        11,
+        20,
+        1,
         0,
         9,
         2026,
@@ -1708,23 +2015,44 @@
         0.99,
         2026,
         11,
-        18,
-        2.6,
+        21,
         0,
+        200,
+        0.5,
+        1,
+        200,
+        1,
+        999,
+        0,
+        0,
+        0.5,
+        0,
+        0.5,
+        999,
+        0,
+        76.9,
+        0.69,
+        0,
+        1,
+        999,
+        1,
+        0,
+        0,
+        1,
         0.01,
         0.99,
         0.5,
-        0.5
+        1
       ]
     },
     "SKT2AI.identityAlien": {
-      "sha": "0a65932ca254",
+      "sha": "32ffc9189386",
       "nums": [
         1
       ]
     },
     "SKT2AI.hostileProb": {
-      "sha": "dea265eae4f2",
+      "sha": "749a6543a024",
       "nums": [
         0,
         1
@@ -1743,21 +2071,35 @@
       ]
     },
     "SKT2AI.axisThreat": {
-      "sha": "b09c7abfde15",
+      "sha": "be90788ca86d",
       "nums": [
         0,
         0,
         0,
         0,
-        0.5,
-        0.5,
+        2.8,
+        2026,
+        11,
+        21,
         0,
         0
       ]
     },
     "SKT2AI.beliefOf": {
-      "sha": "bec4a4c25db9",
-      "nums": []
+      "sha": "3eb9bc8dcca2",
+      "nums": [
+        0,
+        1,
+        0,
+        0
+      ]
+    },
+    "SKT2AI.credRaw": {
+      "sha": "c2d05af1d26b",
+      "nums": [
+        0,
+        1
+      ]
     },
     "SKT2Decision.seatNo": {
       "sha": "19e4d79860be",
@@ -1853,7 +2195,7 @@
       ]
     },
     "SKT2Decision.nightMeetLeft": {
-      "sha": "30b3e0ac6ae3",
+      "sha": "7977962fc0db",
       "nums": [
         0,
         0,
@@ -1928,9 +2270,7 @@
       "saw_knife": 1,
       "saw_pipe": 1,
       "saw_sabotage": 1,
-      "saw_bot": 1,
-      "saw_red": 1,
-      "saw_breaker": 1
+      "saw_red": 1
     },
     "MEET_SCHED_note": "MEET_SCHED 是运行时定时器状态（decision.js:163），不是规则，不导出值"
   },
@@ -1960,12 +2300,12 @@
   },
   "stats": {
     "modules": 4,
-    "table_keys": 55,
-    "functions": 82,
+    "table_keys": 62,
+    "functions": 90,
     "fn_count": {
       "SKSanity": 16,
       "SKTrait": 3,
-      "SKT2AI": 50,
+      "SKT2AI": 58,
       "SKT2Decision": 13
     }
   }

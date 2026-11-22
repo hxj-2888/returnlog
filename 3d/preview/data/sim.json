@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-19T11:09:20.882Z",
+  "generated_at": "2026-11-22T11:35:13.019Z",
   "note": "本文件由 3d/tools/export-sim.cjs 生成，勿手改。只含\"一局怎么开始、多少分算赢、天亮怎么推进\"的非发言规则；台词另见 data/lines.json（S 轨，2026-11-08 已接）。",
   "sources": {
-    "js/ai/sanity.js": "0e7eea81c039",
-    "js/t2/space.js": "ea88c60eb922",
+    "js/ai/sanity.js": "6443b7f91301",
+    "js/t2/space.js": "d6b5223fc97d",
     "js/data/names.js": "96414d4fb89c",
-    "3d/preview/data/map_v2.json": "de0cffa0899b",
-    "3d/preview/data/minigames.json": "3c0b3caf9284"
+    "3d/preview/data/map_v2.json": "96cdb7dc3a7b",
+    "3d/preview/data/minigames.json": "b620ec9b2ec8"
   },
   "roles": {
     "agents": 15,
@@ -17,7 +17,7 @@
     "normal_per_agent": 3
   },
   "win": {
-    "pts": 45,
+    "pts": 48,
     "fault_penalty": 5,
     "task_pts": {
       "hard": 2,
@@ -30,7 +30,7 @@
   },
   "rules": {
     "WIN": {
-      "pts": 45,
+      "pts": 48,
       "faultPenalty": 5
     },
     "NIGHT": {
@@ -54,23 +54,23 @@
       "fix": 10,
       "revive": 5,
       "search": 1.2,
-      "qual": 0,
+      "qual": 0.75,
       "ammo": 5,
       "med": 3,
       "fault": 30
     },
     "REACH": {
-      "knife": 1.35,
+      "knife": 1.5,
       "sabotage": 1.7,
       "fix": 2
     },
     "PIPE": {
-      "cooldown": 20
+      "cooldown": 10
     },
     "SIGHT": {
-      "humanLightR": 7,
-      "humanDarkR": 2.3,
-      "alienDarkR": 3.5,
+      "humanLightR": 5.5,
+      "humanDarkR": 2,
+      "alienDarkR": 4,
       "aiCapR": 8,
       "corrR": 12,
       "litRoomMul": 1.15,
@@ -87,28 +87,33 @@
     },
     "SABOTAGE": {
       "witnessCap": 1,
-      "minConceal": 0.58
+      "minConceal": 0.58,
+      "outSec": 30,
+      "doorScanSec": 2
     },
     "KNIFE": {
+      "discoverHorizon": 1.8,
       "witnessCap": 3,
       "minConceal": 0.34,
       "boldBase": 0.5,
       "boldSpan": 0.16,
       "lockAtStart": 0,
-      "victimSus": 0.9,
-      "victimGrudge": 0.7
+      "victimCert": -999,
+      "victimGrudge": -70
     },
     "RED_BODY": {
-      "dur": 1.5
+      "dur": 0.5
     },
     "RUSH": {
-      "dur": 2,
-      "mul": 1.5,
+      "dur": 1,
+      "mul": 2,
+      "decay": true,
       "alienOnly": true
     },
     "HUNT": {
       "memorySec": 25,
       "repickSec": 8,
+      "accuserPull": 12,
       "incumbentPen": 6,
       "chaseCap": 6,
       "chaseGiveUp": 14,
@@ -121,7 +126,8 @@
       "jitter": 4
     },
     "SHOT": {
-      "range": 9,
+      "range": 8,
+      "cone": 1.0471975511965976,
       "chaseKnown": 14,
       "chaseSus": 10,
       "alienFireP": 0.7,
@@ -135,24 +141,17 @@
       "lateAt": 7
     },
     "ALMOST": {
-      "foeSus": 0.5,
-      "foeKinds": 2,
-      "foeConf": 0.8,
-      "friendCred": 0.5,
-      "friendKinds": 2,
-      "friendConf": 0.7,
-      "freshNights": 2,
       "foeVoteMul": 1.6,
-      "foeVoteTier": true,
+      "foeVoteTier": false,
       "foeShootMul": 0.7,
       "friendShootMul": 1.4,
       "friendShieldAdd": 0.25,
-      "friendVoteShield": 0.45,
-      "heardKinds": 1
+      "friendVoteShield": 0.45
     },
     "CONFIRM": {
       "nearR": 4.5,
-      "farSusMul": 1
+      "farSusMul": 1,
+      "useDist": false
     },
     "CARRY": {
       "decaySight": 0.72,
@@ -164,7 +163,6 @@
       "whyKeep": 4
     },
     "HUMANISH": {
-      "onSight": 0.28,
       "pull": 6
     },
     "AVOID": {
@@ -173,7 +171,7 @@
       "nightCap": 1
     },
     "TERMINATOR": {
-      "night": 8,
+      "night": 9,
       "bullets": 1,
       "reveal": true
     }

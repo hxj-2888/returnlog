@@ -19,6 +19,8 @@ const SKIP = [
   /^assets\/scene\/v4\/tex\/(?!door-panel\.png$)/,   // L1 烘焙源材质（door-panel 是运行时依赖）
   /^assets\/qwen-lib\/.*\.png$/,                    // L1 千问素材库原图，Blender 构建期用
   /^assets\/scene\/v4\/facility\/_raw_fx\//,         // L2 Blender 渲染中间帧
+  /^assets\/scene\/v4\/_preview\.png$/,              // L2 底图预览图（非运行时）
+  /^assets\/portfolio\//,                           // L5 作品集展示图（非对局运行时）
   /\.md$/,                                          // L5 文档
 ];
 

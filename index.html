@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080A0F">
-<meta name="description" content="《新返航录》网页试玩版 · 返航录V0.5——11 人类 vs 4 异形的实时太空船对抗游戏，可旁观">
+<meta name="description" content="《新返航录》网页试玩版 · 返航录V0.5——11 人类 vs 4 内鬼的实时太空船对抗游戏，可旁观">
 <title>新返航录 · V0.5（2.5D）</title>
 <style>
   html,body{margin:0;height:100%;background:#080A0F;overflow:hidden;
@@ -26,6 +26,19 @@
     line-height:1.15;margin:0}
   #pick .sub{font-size:12px;line-height:1.85;color:#7C8798;max-width:33em;margin:0}
   #pick .sub b{color:#A9B6C6;font-weight:500}
+  /* 对局模式切换（2026-11-21 用户裁定：从身份卡列表里提出来，放到卡片上方） */
+  #pick .modebar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+  #pick .mode{display:flex;flex-direction:column;gap:2px;align-items:flex-start;
+    padding:9px 12px;border:1px solid #232C39;border-radius:11px;
+    background:rgba(13,18,26,.72);cursor:pointer;transition:.18s;text-align:left;
+    font:inherit;color:inherit}
+  #pick .mode:hover{border-color:var(--acc);background:#111A24}
+  #pick .mode.sel{border-color:var(--acc);background:#111A24;
+    box-shadow:inset 0 0 0 1px var(--acc),0 0 16px -8px var(--acc)}
+  #pick .mode b{font-size:12.5px;font-weight:600;letter-spacing:1.5px;color:var(--acc)}
+  #pick .mode span{font-size:10px;color:#7C8798;line-height:1.5}
+  #pick .mode.sel b{text-shadow:0 0 10px var(--acc)}
+  #pick .modecap{font-size:9.5px;letter-spacing:2px;color:#4E5A69;margin:0 0 6px}
   #pick .roles{display:flex;flex-direction:column;gap:7px}
   #pick .role{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:11px;
     padding:clamp(8px,1.2vh,12px) 13px;border:1px solid #232C39;border-radius:11px;
@@ -242,11 +255,21 @@
     <div class="brand">
       <div class="mark"><i></i>RETURN LOG · 试玩版 · 返航录V3</div>
       <h1>新 返 航 录</h1>
-      <p class="sub">同一艘船上，<b>11 名人类</b>与 <b>4 名异形</b>共处。
+      <p class="sub">同一艘船上，人类与内鬼共处 —— <b>经典局 15 人 3 鬼</b>（三名内鬼互相认脸）、
+        <b>单人局 15 人 4 鬼</b>（互不相识）。
         白天在会议桌前凭证据投票，夜里在手电照不到的地方被出刀。
-        修满 <b>45 分</b>返航，或者一个人都回不去。</p>
+        修满 <b>48 分</b>返航，或者一个人都回不去。</p>
     </div>
 
+    <div class="modecap">对 局 模 式</div>
+    <div class="modebar" id="home-mode">
+      <button class="mode sel" style="--acc:#F0A26B" data-mode="trio">
+        <b>经 典 局</b><span>15 人 · 3 内鬼 · 三名内鬼互相认脸</span>
+      </button>
+      <button class="mode" style="--acc:#8FA6C0" data-mode="classic">
+        <b>单 人 局</b><span>15 人 · 4 内鬼 · 开局互不相识</span>
+      </button>
+    </div>
     <div class="roles" id="home-roles">
       <button class="role sel" style="--acc:#8FA6C0" data-role="human">
         <i class="dot"></i>

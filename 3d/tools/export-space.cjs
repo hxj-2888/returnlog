@@ -71,8 +71,8 @@ const out = {
     speed: SKT2Space.DOOR_SPEED,
     width: SKT2Space.DOOR_W,
     pass: SKT2Space.DOOR_PASS,
-    /* 断电安检扫描：d.scanT=Math.min(2,…) 且 scanT>=2 才放行（js/game.js doorTick） */
-    scan_sec: pick(gameSrc, gamePath, /d\.scanT=Math\.min\(([\d.]+),\s*\(d\.scanT\|\|0\)\+dt\)/, '门扫描秒数'),
+    /* 断电安检扫描：DOOR_SCAN_TIME（js/game.js doorTick） */
+    scan_sec: pick(gameSrc, gamePath, /DOOR_SCAN_TIME\s*=\s*([\d.]+)/, '门扫描秒数'),
   },
   sight: {
     human_light_r: SKSanity.SIGHT.humanLightR,

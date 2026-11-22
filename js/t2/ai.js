@@ -18,16 +18,94 @@
   'use strict';
   const SK = global.SKSanity;
 
-  /* 嫌疑读值：跨夜留下的存量对**夜间行动**要打 0.7 折 ——
-     否则天亮第一分钟就有人凭昨晚的旧印象去开枪（存量上限 0.45 仍然高于
-     激进档的开枪门槛 0.36）。会议里的指控/投票读全额。 */
+  /* 嫌疑读值（0~1）= **相对先验的信任跌落**（2026-11-21 用户第三批裁定）。
+     决策读 T+E 合成（情绪 = 短期信任加减）：effT = T + E。
+     T=prior → 0；T=prior−200（准-确证异形线）→ 1；T 硬确证 −999 → 1。
+     先验 prior = 100 × 存活人类 / 存活总数（G.priorT，死亡即重算）。 */
+  function effT(a, i) {
+    return trustRaw(a, i) + ((a && a.mind && a.mind.E && a.mind.E[i]) || 0);
+  }
+  function currentPrior() {
+    const G = global.SKV3._t.G();
+    return (G && G.priorT != null) ? G.priorT : SK.AXIS.priorPool * (10 / 13);
+  }
+  function beliefOf(a, i, forNight) {
+    let s = Math.max(0, Math.min(1, (currentPrior() - effT(a, i)) / SK.AXIS.cap));
+    if (forNight && s > 0) {
+      const n = (a && a.mind && a.mind.susNight && a.mind.susNight[i]) || 0;
+      if (n < global.SKV3._t.G().night) s *= SK.CARRY.nightReadSec;
+    }
+    return s;
+  }
   function susOf(a, i, forNight) {
-    const v = (a && a.mind && a.mind.sus && a.mind.sus[i]) || 0;
-    if (!v) return 0;
-    if (!forNight) return v;
-    const n = (a.mind.susNight && a.mind.susNight[i]) || 0;
-    if (n >= global.SKV3._t.G().night) return v;
-    return v * SK.CARRY.nightReadSec;
+    return beliefOf(a, i, forNight);
+  }
+
+  /* ---------------- 唯二两轴（2026-11-21 用户第三批裁定「0~200 分制」）----------------
+     T 个人信任分 ∈ [−999, +200]：0 分 = 准-确证异形（可逆）、200 = 准-确证人类、
+     ∓999 = 硬确证（出刀/钻管道/破坏/红光/被刀认凶）。先验 = 100×存活人类比，
+     每次死亡重算；夜间分段衰减（小分先消、大分记得久）。
+     E 个人情绪分 ∈ [−100, +100]：短期信任账（恐慌/煽动/恩仇），决策读 T+E 合成。
+     传闻链并入 T，单条 ≤ HEARD.cap（20 分）；行为目击走 WITNESS 分值表。 */
+  function credRaw(a, i) {
+    /* 兼容薄壳：返回**信任盈余分**（T − 先验，clamp ±cap）。旧调用点问
+       「他比先验像多少人类」—— 单位从 0~1 把握度改为分，消费端已同步换算。 */
+    const s = trustRaw(a, i) - currentPrior();
+    return Math.max(-SK.AXIS.cap, Math.min(SK.AXIS.cap, s));
+  }
+  function trustRaw(a, i) {
+    const m = a && a.mind;
+    if (!m || i == null || i === a.i) return 0;
+    if (m.T && m.T[i] != null) return m.T[i];
+    /* 旧局 / 夹具兼容：没有 T 账本时按确证锚读出 */
+    if (m.known && m.known[i]) return SK.AXIS.certAlien;
+    if (!a.alien && m.knownHuman && m.knownHuman[i]) return SK.AXIS.certHuman;
+    if (a.alien && a.mates && a.mates[i]) return SK.AXIS.certHuman;
+    return currentPrior();
+  }
+  function trustScore(a, i) {
+    return trustRaw(a, i);   /* 读出 = 存储（单位：分）；确证 ∓999 原样透传 */
+  }
+  /* T 的加减写入（唯一入口，参数单位 = 分）。确证不需要写入侧保护：
+     常规事件单条 ≤ 200（WITNESS 全表最大 |25|、传闻 ≤20），
+     与 ±999 的数学距离由 certFloor=500 的读出判据承担。 */
+  function axisAddT(a, i, w) {
+    if (!a || i == null || i === a.i || !w) return 0;
+    if (!a.mind) mindReset(a);
+    const AX = SK.AXIS;
+    if (!a.mind.T) a.mind.T = {};
+    /* 2026-11-21 用户裁定「初始分按人数比动态分配」：T 是绝对分，
+       未落笔的对象从**当前先验**起算（不是 0），每次死亡重算先验后新写也跟新先验。 */
+    const old = a.mind.T[i] != null ? a.mind.T[i] : currentPrior();
+    /* 2026-11-21 用户裁定：常规单笔变化 |ΔT| ≤ 200（异形专属行为 ∓999 走 trustCert，不经过这里） */
+    const wc = Math.max(-AX.eventCap, Math.min(AX.eventCap, w));
+    const nv = Math.max(AX.floor, Math.min(AX.cap, old + wc));
+    a.mind.T[i] = Math.abs(nv) < 1e-3 ? 0 : +nv.toFixed(1);
+    /* 2026-11-22 翻案：记下对目标的最后一次"扣分行为"夜（只记负向写入）。
+       连续 N 夜没有再扣分 → mindReset 里把 ∓999 退化为 ∓100。 */
+    if (w < 0) {
+      const G0 = global.SKV3._t.G();
+      if (G0) { a.mind.certNegNight = a.mind.certNegNight || {}; a.mind.certNegNight[i] = G0.night; }
+      /* 2026-11-22 nights=0 语义：任何负向写入都是"又看到扣分行为" →
+         把确证标记为"已被刷新"（dirty），当夜结算不得降级。 */
+      a.mind.certDirty = a.mind.certDirty || {};
+      a.mind.certDirty[i] = false;
+    }
+    return a.mind.T[i];
+  }
+  /* 确证写入：把 T 钉到 ±999（「一切分数化」——确证就是分数，不是独立账本） */
+  function trustCert(a, i, alien) {
+    if (!a || i == null || i === a.i) return;
+    if (!a.mind) mindReset(a);
+    if (!a.mind.T) a.mind.T = {};
+    a.mind.T[i] = alien ? SK.AXIS.certAlien : SK.AXIS.certHuman;
+    /* 确证本身也是一次强扣分行为：重置"最后扣分夜"，让翻案倒计时从此刻重新起算。 */
+    const G0 = global.SKV3._t.G();
+    if (G0) { a.mind.certNegNight = a.mind.certNegNight || {}; a.mind.certNegNight[i] = G0.night; }
+    /* 2026-11-22 nights=0：确证刚写下 = 干净起点（当晚后续没有新扣分就降级）。
+       之后的任何扣分（axisAddT w<0）会把它翻成 false。 */
+    a.mind.certDirty = a.mind.certDirty || {};
+    a.mind.certDirty[i] = true;
   }
 
   /* ---------------- 统一身份轴（2026-11-06 用户裁定 · 2026-11-18 从 js/game.js 归位） ----------------
@@ -40,7 +118,9 @@
      函数体与搬家前逐行一致，只改了三处取值方式：G → _t.G()、IDENTITY → SKSanity.IDENTITY、
      SKSanity → SK。game.js 用同名局部别名直调，所有调用点零改动。 */
   const IDENTITY = SK.IDENTITY;
-  const ID_EVIDENCE = {saw_knife:1,saw_pipe:1,saw_sabotage:1,saw_bot:1,saw_red:1,saw_breaker:1};
+  /* 2026-11-21 用户第三批裁定：硬确证名单只留异形专属动作 ——
+     拉闸 −80、停摆 −80、拘留 −30 都降为强疑点；红光顶上确证位。 */
+  const ID_EVIDENCE = {saw_knife:1,saw_pipe:1,saw_sabotage:1,saw_red:1};
   function hasIdEvidence(x){
     return !!(x&&x.kinds&&x.kinds.some(k=>ID_EVIDENCE[k]));
   }
@@ -77,6 +157,8 @@
     const G=global.SKV3._t.G();
     if(!a||!t||!G)return 0.5;
     if(a.mind&&a.mind.known&&a.mind.known[t.i])return 0;
+    /* 终结者明牌写下的 knownHuman：同类，直接是 1（2026-11-20） */
+    if(!a.alien&&a.mind&&a.mind.knownHuman&&a.mind.knownHuman[t.i])return 1;
     if(a.alien&&a.mates&&a.mates[t.i])return 0;
     const af=a.mind&&a.mind.almost;
     if(af&&af.foe&&af.foe[t.i]&&hasIdEvidence(af.foe[t.i]))return IDENTITY.almostAlien;
@@ -88,13 +170,16 @@
        硬锚（known / 队友 / almost）排在它前面，保持不变：亲眼所见与已认出的队友
        不该被一次广播改写方向。 */
     if(G.revealAll)return t.alien?0:0.99;
-    /* h 只吃“人类诊断性行为”（cred）。普通 sus 走原来的嫌疑链，
-       不再从 h 里减：人类也会开枪/拖尸/被拘留，减掉会把真人类误判成同类。
-       2026-11-18：cred 已是双极轴（R12.6），所以这一项可正可负 ——
-       正端把人推向"像人类"，负端推向"像异形"，仍然只有一条轴。 */
-    const cred=(a.mind&&a.mind.cred&&a.mind.cred[t.i])||0;
-    return Math.max(0.01,Math.min(0.99,
-      identityPrior(a)+IDENTITY.evidenceW*Math.max(-0.5,Math.min(0.5,cred))));
+    /* 2026-11-21 用户第三批裁定：h 由 **T+E 合成分**两段线性映射（无透视、无分支）：
+       T_eff ∈ [0,200] → h ∈ [0.5,1]（分越高越像人类，200 → 1）；
+       T_eff ∈ [−999,0] → h ∈ [0,0.5]（0 分准-确证异形 → 0.5，−999 硬确证 → 0）。
+       先验（76.9 起）天然落在 h≈0.69，异形挑目标随死亡重算自动聚焦人类。
+       E 进合成（恐慌 = 短期认定他是敌人，可升级到开枪出刀）。 */
+    const te=effT(a,t.i);
+    const w=Math.max(0,Math.min(1,te/SK.AXIS.cap));
+    /* 负端：|T_eff| 越负越像异形（−999 → wN=1 → h=0），无 if */
+    const neg=Math.max(0,Math.min(1,-te/SK.AXIS.cap));
+    return Math.max(0.01,Math.min(0.99,0.5*(1+w-neg)));
   }
   function identityAlien(a,t){
     if(!a||!t||!global.SKV3._t.G())return null;
@@ -114,20 +199,21 @@
      硬锚一律不参与：known / 队友有自己的分支，混进来就是重复计数。
      量纲：sus 与这一段同为 0~1 的"怀疑强度"，先验本身不计（否则残局人人 0.48 起步，
      激进档门槛 0.36 会变成见人就开枪）。 */
+  /* T 的负端 = 敌对读数（R12.8）。这不是第三条轴：只是个人信任分在 0 以下的绝对值。
+     硬锚不参与（known / 队友 / 明牌人类各有分支），避免重复计数。 */
   function axisThreat(a,i){
     const m=a&&a.mind;
     if(!m||i==null)return 0;
     if(m.known&&m.known[i])return 0;
+    if(!a.alien&&m.knownHuman&&m.knownHuman[i])return 0;
     if(a.alien&&a.mates&&a.mates[i])return 0;
-    const c=(m.cred&&m.cred[i])||0;
-    const d=Math.max(-0.5,Math.min(0.5,c));
-    return a.alien?Math.max(0,d):Math.max(0,-d);
+    const d=trustRaw(a,i)-currentPrior();
+    /* 一条轴两个导出（R12.8，2026-11-21 改读相对先验）：
+       人类看负偏（比先验更不像人 = 敌对）；异形看正盈余（比先验更像船员 = 目标）。 */
+    return a.alien ? Math.max(0,d)/SK.AXIS.cap
+                   : Math.max(0,-d)/SK.AXIS.cap;
   }
-  /* 人类侧软证据合流：手里有实证用实证，只有"这人总在带节奏"这种立场印象时用立场轴。
-     开枪 / 会议点名 / 投票兜底三条链共用它 ⇒ 不新增第二套门槛。 */
-  function beliefOf(a,i,forNight){
-    return Math.max(susOf(a,i,forNight),axisThreat(a,i));
-  }
+  /* beliefOf 已并入核心块（相对先验 + T+E 合成），此处留注释占位 */
 
   function topSus(a, min, forNight) {
     if (!a || !a.mind) return null;
@@ -147,6 +233,9 @@
     for (const k in a.mind.sus) {
       const i = +k, s = beliefOf(a, i, forNight);
       if (s < th) continue;
+      /* 终结者明牌后的人类队友：不得再因旧嫌疑被点名 / 投票 / 开枪
+         （2026-11-20 用户裁定）。异形侧不跳过 —— 明牌人类正是它的目标。 */
+      if (!a.alien && a.mind.knownHuman && a.mind.knownHuman[i]) continue;
       const e = envEstimate(a, i);
       const env = e.score * e.conf;
       if (best == null || s > best + eps || (Math.abs(s - best) <= eps && env > bestEnv)) {
@@ -157,6 +246,7 @@
       if (seen[k]) continue;
       const i = +k, s = beliefOf(a, i, forNight);
       if (s < th) continue;
+      if (!a.alien && a.mind.knownHuman && a.mind.knownHuman[i]) continue;
       const e = envEstimate(a, i);
       const env = e.score * e.conf;
       if (best == null || s > best + eps || (Math.abs(s - best) <= eps && env > bestEnv)) {
@@ -321,18 +411,30 @@
     /* 情绪记忆跨会议保留、每场会议衰减 20%：AI 不是只按嫌疑分投票的机器，
        被谁咬过、被谁护过，会一直记得（衰减到 0.05 以下才忘）。 */
     const oldM=a.mind||{};
-    const keepEmo=(o)=>{const out={};for(const k in (o||{})){if(o[k]>0.05)out[k]=o[k]*0.8;}return out;};
-    /* cred（正向信任）跨夜保留，按 SKSanity.CRED.decay 慢衰减 ——
-       洗白是长期投资，一夜做好事第二天就清零的话，伪装就没有意义了。 */
-    const keepCred=(o)=>{
-      /* 2026-11-18：cred 是双极轴（R12.6），负端同样按 ×decay 往回收、按 floor 夹紧。
-         原来只留 `v>0.04`，等于每晚把"这人很像异形"的印象悄悄抹平 —— 正向能攒、负向留不住，
-         一条轴就变成了单向。 */
-      const out={},d=SKSanity.CRED.decay,cap=SKSanity.CRED.cap,floor=SKSanity.CRED.floor;
+    /* keepEmo(o, drop)：×0.8 跨夜衰减 + 小值截断。
+       drop 是**调用方量纲**的截断线：影子账（trust/grudge/warm/humanT）仍是
+       0~1 视图量纲用 0.05；E 主账已是 ±10 分量纲用 0.5（=旧 0.05 视图）。 */
+    const keepEmo=(o,drop,mult)=>{const d=drop==null?0.05:drop;
+      const m=(mult==null)?0.8:mult;
+      const out={};for(const k in (o||{})){if(o[k]>d)out[k]=o[k]*m;}return out;};
+    /* ---- T 跨夜：先验剥离 + 分段衰减（2026-11-21 用户裁定）----
+       · 每次 death 重算先验（G.priorT，见 game.js），夜里结算时剥离**昨夜先验**、
+         个人净分按「小分先消、大分记得久」的连续函数衰减，再叠上今夜先验；
+       · coef(v) = decayFloor + decaySpan × min(1, |net|/decayAnchor)；
+       · 确证 ∓999 走带外混合（s=1 不衰减），依旧不需要写入侧特例；
+       · E 情绪 ×emoDecay（0.6，快衰减）。 */
+    const keepT=(o,prevPrior,curPrior)=>{
+      const out={},AXD=SK.AXIS;
+      const pp=(prevPrior==null)?curPrior:prevPrior, cp=(curPrior==null)?pp:curPrior;
       for(const k in (o||{})){
-        const v=o[k]*d;
-        if(Math.abs(v)<=0.04)continue;
-        out[k]=Math.max(floor,Math.min(cap,v));
+        const v=o[k];
+        const net=v-pp;                       /* 剥离先验：只剩个人净分 */
+        const s=Math.max(0,Math.min(1,
+          (Math.abs(net)-AXD.cap)/(AXD.certFloor-AXD.cap)));
+        const coef=AXD.decayFloor+AXD.decaySpan*Math.min(1,Math.abs(net)/AXD.decayAnchor);
+        /* 混合：确证（|net| 越过确证段）s→1，原值保留；常规 = 先验 + 净分×coef */
+        const nv=v*s+(cp+net*coef)*(1-s);
+        out[k]=Math.max(AXD.floor,Math.min(AXD.cap,+nv.toFixed(1)));
       }
       return out;
     };
@@ -370,7 +472,13 @@
       return out;
     };
     const sus=keepSus();
+    /* 翻案倒计时跨夜保留：每个目标最后一次"扣分行为"发生在第几夜 */
+    const certNegNight=Object.assign({},oldM.certNegNight||{});
+    /* 2026-11-22 nights=0：确证写入后当夜是否"仍无新扣分"（true=干净可降级） */
+    const certDirty=Object.assign({},oldM.certDirty||{});
     a.mind={mem:[],sus:sus,why:keepWhy(sus),susNight:keepSusNight(sus,oldM.susNight),alert:0,
+      T:keepT(oldM.T,G&&G.priorTPrev,G&&G.priorT),E:keepEmo(oldM.E,2,SK.AXIS.emoDecay),
+      certNegNight:certNegNight,certDirty:certDirty,
       /* heard：注意力窗口（2026-11-08 用户裁定，同日修订）。
          长度上限 `ATTN.heardMax`（10）的**滑动窗口**：整局累积、不跨夜清零，
          满了由新证词顶掉最旧的一条（不是丢弃新证词）。
@@ -387,7 +495,8 @@
       /* cred：**正向信任**——"他干的是正经事"，和 trust（他帮过我）分开。
          来源全是可被目击的正经行为（做任务/修故障/合闸/拖人进医疗间/施救），
          异形伪装刷的就是这一条；作用是指控门槛、投票回避、证言加权。 */
-      cred:keepCred(oldM.cred),
+      /* cred 影子（只读兼容）跨夜不衰减 —— 语义已改为 (T−prior)/200 视图，写入端维护 */
+      cred:oldM.cred||{},
       /* credWhy：cred 的来源种类与夜数（准-确证 almost.friend 要用「种类 ≥2 + 新鲜度」） */
       credWhy:keepCredWhy(oldM.credWhy,oldM.cred),
       /* warm：讨论里攒下的"聊得来"。和 trust（他帮过我）/ cred（他能干）都不同，
@@ -404,13 +513,41 @@
          身上带着刚出刀的红光）。不是嫌疑分，是不再动摇的身份结论。 */
       /* detainSeen：本夜亲眼见过谁被保安拘留（去重用，按夜清空）
          humanT：异形眼里的"这人像人类"（目击合闸），跨夜慢衰减，只调优先度 */
-      humanT:keepEmo(oldM.humanT),
+      /* humanT 已并轴（2026-11-21）：异形的"像船员"读数 = T 正端视图，
+         旧字段不再创建；存量存档里的残留值随本行一并丢弃 */
       /* ally：软联盟计数（谁替谁说过话，保过几次）—— 跨夜保留但会随回合淡出 */
       ally:Object.assign({},oldM.ally||{}),
       known:keepKnown,redSeen:{},alibi:{},detainSeen:{},avoidSeen:{},hyps:[],
       /* rev：信念版本号（2026-11-05）。每次 susAdd 自增，会议里用来判断
          「我这票投出去之后，是不是又听到了什么」—— 没听到新东西就不跟风改票。 */
       rev:0};
+    /* 2026-11-22「翻案机制」：确证若没有再扣分行为刷新，就从 ±999 退化为 ±100。
+       nights>0（旧口径）：按"当前夜 − 最后扣分夜"判定；
+       nights=0（二次裁定）：当晚结算即判 —— 看 certDirty（确证写入后置 true、
+       之后任何扣分 axisAddT(w<0) 置 false）。dirty 为真 = 当夜无新扣分 → 降级；
+       为假 = 当夜又看到扣分 → 不降级，但重置为 true 供下一夜重新观察。 */
+    const CR=SK.AXIS.certRevert;
+    if(CR&&CR.on&&G){
+      const neg=a.mind.certNegNight, dirt=a.mind.certDirty||{};
+      a.mind.certDirty=dirt;
+      const zeroNight=(CR.nights||0)<=0;
+      for(const k in a.mind.T){
+        const v=a.mind.T[k], last=neg[k];
+        if(Math.abs(v)<(SK.AXIS.certFloor||500))continue;
+        if(zeroNight){
+          if(dirt[k]===false){ dirt[k]=true; continue; }  /* 当夜又有扣分：保留确证，下一夜重看 */
+        }else{
+          if(last==null||(gn-last)<CR.nights)continue;
+        }
+        a.mind.T[k]=(v<0)?(CR.to!=null?CR.to:-100):(CR.toHuman!=null?CR.toHuman:100);
+        /* 同步摘除铁证名单：否则 known 仍挡住"再次目击→重新确证"，翻案后无法自愈。
+           证据链 mem 保留（"我确实见过他出刀"的记忆在，只是不再是不动摇的结论）。 */
+        if(v<0){ if(a.mind.known)delete a.mind.known[k]; }
+        else { if(a.mind.knownHuman)delete a.mind.knownHuman[k]; }
+        delete dirt[k];
+        if(global.SKTrust&&global.SKTrust.dualWrite)global.SKTrust.dualWrite(a,+k);
+      }
+    }
     /* 跨夜留下的嫌疑要重新评估准-确证（可能已跌破门槛 → 降级） */
     for(const k in a.mind.sus)evalAlmost(a,+k);
     /* P1 双写：sus / cred 刚被衰减过，镜像必须跟着重建，否则 belief 会停在昨夜的旧值 */
@@ -452,8 +589,15 @@
     return out;
   }
 
+  /* 决策面读值：个人信任分的**正端**（0~1）。这是唯一的"他可信"读数，
+     不再有独立的公开信誉轴（2026-11-20 两轴合并）。 */
   function credOf(a,i){
-    return (a&&a.mind&&a.mind.cred&&a.mind.cred[i])||0;
+    /* 正向前科（2026-11-20 语义还原）：只读 cred 的正端，不减嫌疑。
+       credOf 的读取点（指控护盾 / 投票挡票 / 证言权重 / almost.friend / 领袖可信度）
+       问的都是「他做过多少正经事」，不是「他现在净信任多少」。改成净值会让一次嫌疑
+       把整条护盾吃掉 —— 实测挡票数 0.481→0.004、almost.friend 大面积失效，
+       等于废掉 R12.6/R12.8 的整条洗白链。身份判断另有 trustScore（净值 T）。 */
+    return Math.max(0,credRaw(a,i));
   }
 
   function evPush(a,ev){
@@ -476,14 +620,55 @@
     }
   }
 
+  /* 2026-11-21 用户裁定「每夜筛子」：每个 AI 每夜最多吸纳 3 个**目击事件**，
+     按分数绝对值优先 —— 名额满时只有更大的事件能挤掉最小的一条（并撤销旧分）。
+     作用于目击类写入（susAdd / credAdd）；证言可信度 / 情绪 / 洗清不走这里。 */
+  const EV_PER_NIGHT=4;   /* 2026-11-21 用户裁定：每夜可吸纳目击事件 3 → 4 */
+  function budgetT(a,i,delta,reason){
+    const G=global.SKV3._t.G();
+    if(!G||!delta)return delta;
+    if(!a._evN||a._evN.night!==G.night)a._evN={night:G.night,list:[]};
+    const list=a._evN.list;
+    if(list.length<EV_PER_NIGHT){list.push({i:i,d:delta,r:reason||''});return delta;}
+    let mi=0;
+    for(let k=1;k<EV_PER_NIGHT;k++)if(Math.abs(list[k].d)<Math.abs(list[mi].d))mi=k;
+    if(Math.abs(delta)>Math.abs(list[mi].d)){
+      const old=list[mi];
+      axisAddT(a,old.i,-old.d);
+      list[mi]={i:i,d:delta,r:reason||''};
+      return delta;
+    }
+    return 0;
+  }
   function susAdd(a,i,w,reason,ev){
     const G=global.SKV3._t.G();
-    if(!a||i==null||i===a.i||!G)return;
+    if(!a||i==null||i===a.i||!G||!w)return;
     if(!a.mind)mindReset(a);
-    const old=a.mind.sus[i]||0;
-    const gain=w*(1-old*0.55);
-    a.mind.sus[i]=Math.min(1,old+gain);
-    /* 记下这一笔来自第几夜：跨夜衰减要靠它判断「本夜有没有新证据」 */
+    /* 一切分数化：疑点就是 T 减分（单位=分）。传闻链（别人讲的话）单条
+       ≤ HEARD.cap（20 分）——「不是自己推出来的东西只在微小分值相加」。 */
+    let gain=w*(SK.AXIS.scoreMul!=null?SK.AXIS.scoreMul:1);   /* 2026-11-21 分值抑制 ×0.75 */
+    const isRelay=typeof reason==='string'&&
+      (reason.indexOf('heard_')===0||reason.indexOf('relay')===0);
+    if(isRelay)gain=Math.min(gain,SK.HEARD?SK.HEARD.cap:20);
+    /* 2026-11-21 修符号 bug：susAdd 语义 = 嫌疑扣分，一律按 |gain| 扣。
+       量化表里有负值条目（拉闸 −80 / 拖离 −20 / lootBullet −25），
+       旧写法 -gain 会把负值变成**加分**（实测把"拖人进医疗间"记成嫌疑）。 */
+    const applied=budgetT(a,i,-Math.abs(gain),reason);
+    if(!applied)return;
+    axisAddT(a,i,applied);
+    if(G&&G.simStats){
+      /* 审计遥测（2026-11-21）：按**目标阵营**分账，并记实际生效值（含筛子挤占/单笔钳制），
+         避免拿 |gain| 虚报。A: = 打到异形身上，H: = 打到人类身上。 */
+      const tgt=G.agents&&G.agents[i];
+      const tag=(tgt&&tgt.alien)?'A:':'H:';
+      const tb=G.simStats.tOut||(G.simStats.tOut={});
+      tb[tag+(reason||'?')]=(tb[tag+(reason||'?')]||0)+applied;
+    }
+    /* 影子字段（只读兼容）：门禁夹具直接读 mind.sus；它不参与任何判定。
+       新量纲：sus = (prior − T) / 200，clamp 0~1。 */
+    if(!a.mind.sus)a.mind.sus={};
+    a.mind.sus[i]=beliefOf(a,i,false);
+    /* 记下这一笔来自第几夜：跨夜衰减 / 新鲜度判定仍要看证据时间 */
     a.mind.susNight=a.mind.susNight||{};
     a.mind.susNight[i]=G.night;
     const arr=a.mind.why[i]||(a.mind.why[i]=[]);
@@ -492,74 +677,64 @@
       t:ev?ev.t:evNow(),x:ev&&ev.x!=null?ev.x:null,y:ev&&ev.y!=null?ev.y:null,
       room:ev?ev.room:null});
     if(arr.length>8)arr.shift();
-    /* 信念动过了：会议里「听到发言 → 改票」靠这个计数器判断，
-       而不是拿两个随机分支的结果硬比（那会把抖动当成改票理由）。 */
     a.mind.rev=(a.mind.rev|0)+1;
     refreshHyps(a);
-    /* 嫌疑变了就重算准-确证（可能刚好跨线，也可能因为被洗清而降级） */
     evalAlmost(a,i);
   }
 
   function evalAlmost(a,i){
     const G=global.SKV3._t.G();
     if(!a||!a.mind||i==null||i===a.i||!G)return;
+    if(!a.mind.T)a.mind.T={};
+    /* 影子回灌（只服务夹具/旧档）：**只在 T 从未落笔时发生一次**。
+       新量纲：sus 影子 0~1 = (prior−T)/200 → T = prior − sus×200；
+       cred 影子 0~1 = (T−prior)/200 → T = prior + cred×200。 */
+    if(a.mind.T[i]==null){
+      const c=(a.mind.cred&&a.mind.cred[i])||0, s=(a.mind.sus&&a.mind.sus[i])||0;
+      if(c||s){
+        const p=currentPrior();
+        a.mind.T[i]=c>0 ? p+c*SK.AXIS.cap : p-s*SK.AXIS.cap;
+      }
+    }
     const A=SKSanity.ALMOST;
     if(!a.mind.almost)a.mind.almost={foe:{},friend:{}};
     const grid=a.mind.almost;
     const known=a.mind.known&&a.mind.known[i];
-    const freshNight=G.night-A.freshNights;
-    /* --- foe --- */
-    const sus=(a.mind.sus&&a.mind.sus[i])||0;
-    const why=(a.mind.why&&a.mind.why[i])||[];
-    const fk={},ff={};
-    for(const w of why){
-      if(!w.kind)continue;
-      fk[w.kind]=1;
-      if(w.night!=null&&w.night>=freshNight)ff[w.kind]=1;
-    }
-    /* 证据种类（2026-11-06 用户裁定）：传闻可以**补一个种类**，但不能单独定罪。
-       弱线索（沉默 / 空口指控 / 领袖点名 / 快速报案 / 错告 / 背书）仍然一律不算。
-       约束：`real`（自己看见 / 查到的）至少 1 条；`heard` 最多补 A.heardKinds 个。 */
-    const WEAK={silent:1,empty_accuse:1,leader_order:1,impossible_claim:1,
-      quick_report:1,wrong_accuse:1};
-    const kinds=Object.keys(fk);
-    const real=kinds.filter(k=>k.indexOf('heard_')!==0&&!WEAK[k]);
-    /* heard_vouch 是**正向**背书，方向不对，不进敌性证据的种类 */
-    const heard=kinds.filter(k=>k.indexOf('heard_')===0&&k!=='heard_vouch');
-    const heardUse=Math.min(heard.length,Math.max(0,A.heardKinds|0));
-    const counted=real.length+heardUse;
-    const foeOk=!known&&sus>=A.foeSus&&real.length>=1&&
-      counted>=A.foeKinds&&Object.keys(ff).length>=1;
+    /* --- 准-确证：纯分数判定（2026-11-21 用户裁定「0 分=准-确证异形 / 200=准-确证人类」，
+       可逆：T 回升过线自动解除）。读 T+E 合成（情绪短期账也算数）。 --- */
+    /* 2026-11-21：准-确证判定改用**纯 T**（不用 T+E）——
+       E 是短期情绪（被指控/被煽动），它该影响投票倾向与敌对，
+       但不该把一个人"变成准-确证异形"。旧写法让"被 4 个人指控"自动过线，
+       形成'被指控→E 掉→准确证→更多人指控'的雪崩。 */
+    const T0=trustRaw(a,i);
+    const AX=SK.AXIS;
+    const foeOk=!known&&T0<=AX.almostFoe;
     if(foeOk){
       const had=grid.foe&&grid.foe[i];
-      grid.foe[i]={t:evNow(),sus:+sus.toFixed(3),kinds:kinds,
-        heardUsed:heardUse,
-        since:had&&had.since!=null?had.since:G.night,conf:A.foeConf};
+      grid.foe[i]={t:evNow(),sus:+Math.max(0,-(trustRaw(a,i))).toFixed(1),
+        kinds:['score'],since:had&&had.since!=null?had.since:G.night,conf:1};
       if(!had&&G.simStats){
         G.simStats.almostCount=(G.simStats.almostCount||0)+1;
         const tgt=G.agents&&G.agents[i];
-        if(tgt&&tgt.alien)G.simStats.almostAlien=(G.simStats.almostAlien||0)+1;
+        if(tgt&&tgt.alien){
+          G.simStats.almostAlien=(G.simStats.almostAlien||0)+1;
+          /* 审计（2026-11-21）：破线是「T 自己就 ≤0」还是「T>0 被 E 拖过线」 */
+          const rawT=trustRaw(a,i), e=(a.mind.E&&a.mind.E[i])||0;
+          if(rawT>0)G.simStats.almostByE=(G.simStats.almostByE||0)+1;
+          else G.simStats.almostByT=(G.simStats.almostByT||0)+1;
+          if(e<-0.0001&&G.simStats.almostEsum!=null)G.simStats.almostEsum+=e;
+          else if(e<-0.0001)G.simStats.almostEsum=e;
+        }
         else G.simStats.almostHuman=(G.simStats.almostHuman||0)+1;
-        /* 只统计"没有这条传闻就凑不够"的次数：这才是本批真正改掉的那部分 */
-        if(real.length<A.foeKinds)G.simStats.almostHeard=(G.simStats.almostHeard||0)+1;
       }
       grid.friend&&delete grid.friend[i];
     }else if(grid.foe&&grid.foe[i])delete grid.foe[i];
-    /* --- friend --- */
-    const cred=credOf(a,i);
-    const cw=(a.mind.credWhy&&a.mind.credWhy[i])||[];
-    const ck={},cf={};
-    for(const w of cw){
-      if(!w.kind)continue;
-      ck[w.kind]=1;
-      if(w.night!=null&&w.night>=freshNight)cf[w.kind]=1;
-    }
-    const friendOk=!known&&!grid.foe[i]&&cred>=A.friendCred&&
-      Object.keys(ck).length>=A.friendKinds&&Object.keys(cf).length>=1;
+    const surplus=trustRaw(a,i)-currentPrior();
+    const friendOk=!known&&!grid.foe[i]&&T0>=AX.almostFriend;
     if(friendOk){
       const had=grid.friend&&grid.friend[i];
-      grid.friend[i]={t:evNow(),cred:+cred.toFixed(3),kinds:Object.keys(ck),
-        since:had&&had.since!=null?had.since:G.night,conf:A.friendConf};
+      grid.friend[i]={t:evNow(),cred:+surplus.toFixed(1),
+        since:had&&had.since!=null?had.since:G.night,conf:1};
       if(!had&&G.simStats)G.simStats.almostFriendCount=(G.simStats.almostFriendCount||0)+1;
     }else if(grid.friend&&grid.friend[i])delete grid.friend[i];
   }
@@ -574,7 +749,9 @@
     if(hadFriend)delete g.friend[i];
     if(w.mind.cred&&w.mind.cred[i])w.mind.cred[i]=0;
     if(w.mind.credWhy)delete w.mind.credWhy[i];
-    if(!g.foe[i])g.foe[i]={t:evNow(),sus:1,kinds:['known'],since:G.night,conf:1};
+    trustCert(w,i,true);   /* 一切分数化：确证硬覆盖 = T −999 */
+    if(w.mind.sus&&w.mind.sus[i])w.mind.sus[i]=1;   /* 影子视图同步：确证＝嫌疑拉满 */
+    if(!g.foe[i])g.foe[i]={t:evNow(),sus:SK.AXIS.cap,kinds:['known'],since:G.night,conf:1};
     if(G.simStats){
       if(hadFriend)G.simStats.overriddenFriends=(G.simStats.overriddenFriends||0)+1;
     }
@@ -585,10 +762,11 @@
     if(!a||i==null||i===a.i||!G)return;
     if(!a.mind)mindReset(a);
     if(a.mind.known&&a.mind.known[i])return;
-    const old=a.mind.sus[i]||0;
-    if(old<=0)return;
-    const cut=Math.min(old,w);
-    a.mind.sus[i]=Math.max(0,old-cut);
+    /* 一切分数化：不在场证明洗清 = T 加分（旧 susCut 直接改 sus 账已废弃） */
+    axisAddT(a,i,w*(SK.AXIS.scoreMul!=null?SK.AXIS.scoreMul:1));
+    /* 影子字段同步（只读兼容）：门禁读 mind().sus 看洗清效果 */
+    if(!a.mind.sus)a.mind.sus={};
+    a.mind.sus[i]=beliefOf(a,i,false);
     a.mind.alibi[i]={t:ev?ev.t:evNow(),room:ev?ev.room:null,reason:reason||''};
   }
 
@@ -723,10 +901,13 @@
   }
 
   function shotCred(w,actor,victim){
+    /* 2026-11-21 用户裁定：开枪本身只加恐慌情绪（E，走 EMOTE.panicShot），
+       不改 T；打死谁才回填目击者的 T —— 打死异形 +60 / 打死人类 −30。
+       「打死谁」的判定读目击者自己的 known / 明牌，不读真实阵营。 */
     if(!w||!actor||!victim||!w.mind)return [];
-    const CR=SK.CRED.gains,out=[{w:CR.shotAct,reason:'shotAct'}];
-    if(w.mind.known&&w.mind.known[victim.i])out.push({w:CR.shotAlien,reason:'shotAlien'});
-    else if(w.mind.knownHuman&&w.mind.knownHuman[victim.i])out.push({w:CR.shotHuman,reason:'shotHuman'});
+    const out=[];
+    if(w.mind.known&&w.mind.known[victim.i])out.push({w:60,reason:'shotAlien'});
+    else if(w.mind.knownHuman&&w.mind.knownHuman[victim.i])out.push({w:-30,reason:'shotHuman'});
     return out;
   }
 
@@ -735,7 +916,8 @@
     if(!af)return null;
     if(!liveTarget(af.i,a))return null;
     if(almostFriendOf(a,af.i))return null;
-    const v=susOf(a,af.i,true);
+    if(!a.alien&&a.mind&&a.mind.knownHuman&&a.mind.knownHuman[af.i])return null;
+    const v=beliefOf(a,af.i,true);
     return v>=thr*0.85?{i:af.i,score:v,why:(a.mind.why[af.i]||[]).slice(-4)}:null;
   }
 
@@ -892,6 +1074,8 @@
 
   global.SKT2AI = Object.freeze({
     susOf: susOf, topSus: topSus, crimeWindow: crimeWindow,
+    trustScore: trustScore, trustRaw: trustRaw, axisAddT: axisAddT, trustCert: trustCert,
+    effT: effT, currentPrior: currentPrior, budgetT: budgetT,
     evNow: evNow,
     keepSusNight: keepSusNight,
     keepCredWhy: keepCredWhy,
@@ -932,6 +1116,8 @@
     hasIdEvidence: hasIdEvidence, identityPrior: identityPrior,
     identityAxis: identityAxis, identityAlien: identityAlien,
     hostileProb: hostileProb, trustProb: trustProb, hostileTo: hostileTo,
-    axisThreat: axisThreat, beliefOf: beliefOf
+    axisThreat: axisThreat, beliefOf: beliefOf,
+    /* 2026-11-20 两轴合并：T 的唯一计算入口；credRaw 只作证据累加器读数 */
+    trustScore: trustScore, credRaw: credRaw
   });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -802,3 +802,23 @@ Qwen-Image 2.1 Turbo GGUF（Qwen Research License 非商用）经本地 stable-d
 `assets/minigame/flashlight.png`（Qwen 本地生成）已删除，`js/game.js` 的 `loadImg('flashlight')`
 与 `drawWeapon` 手电绘制段已撤——该贴图从未入过本登记表（生成时未走 §14 流程，属流程违规，
 一并在此补记）。
+
+### 2026-11-20 · 电闸拉杆动画素材（breaker-lever）
+
+红线 12 / §14 四步留痕，口径同上批：**只取设计方法，不引用任何公开素材文件**；成品由本机
+千问本地模型（`tools/gen-breaker-lever.ps1`）出白底单物件图，再经 `tools/cutout-breaker-lever.py`
+泛洪抠图 + breaker 同档冷调，落 `assets/scene/v4/facility/breaker-lever.png`（运行时正式图）。
+用户 2026-11-20 明确「可以使用 AI 生成图，必须使用千问本地生图模型」。
+
+| 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
+|---|---|---|---|---|---|
+| 工业刀闸 / 隔离开关的外形构成 | https://en.wikipedia.org/wiki/Disconnector | Wikipedia  contributors | CC-BY-SA（仅读结构描述，未取图） | 2026-11-20 | 采纳「红球操作手柄 + 金属拉杆 + 底部圆形枢轴」的经典刀闸构成；枢轴在下便于做扳动动画 |
+| 科幻配电盘开关的视觉语言 | https://among-us.fandom.com/wiki/Electrical | Among Us Wiki / Fandom | CC-BY-SA（仅读文字描述，未取图） | 2026-11-20 | 采纳「拉杆状态一眼可读（上=合/下=断）+ 红色危险色」；与本作断电语义一致 |
+
+**比对**：公开方案是整机 / 整柜照片；本项目只需要一根**可旋转的拉杆手柄**（枢轴在下、
+握把在上，白底便于抠图），故只吸收外形构成与状态语义两条方法论，不照搬整柜构图。
+生成图为纯白底单物件，用 `tools/plate-overlay.cjs` 同法叠图确认枢轴落在图片底部中央
+（约 0.5W / 0.86H），再决定 drawWork 里的支点偏移；未目测定坐标。
+
+**三态声明**：入库=是（`assets/scene/v4/facility/*.png` 正式图目录，非 `_raw`）、发布=是
+（运行时贴图，走 `deploy-config.cjs` 白名单）、磁盘留存=永久。原始白底图留本机 `output/`，不入库。

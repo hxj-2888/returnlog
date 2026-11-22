@@ -19,14 +19,14 @@
  * 不变量：· 只读 DOM / Image，不碰 G 与任何对局状态；
  *        · file:// 可用：经典 script、无 fetch、无 ES Module；
  *        · 预缩放只改运行时副本，源尺寸保留在 stats().sourceDim。
- * 对外：window.SKAssets = { IMG, loadImg, rtImg, mapReady, stats, retryFailed }
+ * 对外：window.SKAssets = { IMG, loadImg, loadOptional, rtImg, mapReady, stats, retryFailed }
  * ============================================================= */
 (function (global) {
   'use strict';
   var A = 'assets/scene/';
   var MAX_TEX = 4096;
   var CAPS = [4096, 2048, 1024];
-  var TRY = { core: 5, other: 3, audio: 3 };
+  var TRY = { core: 5, other: 3, audio: 3, optional: 1 };
   var WAIT0 = 600;
   var IMG = {}, SRC = {}, ST = {}, RTIMG = {}, SRCDIM = {}, RTFAIL = {}, SEQ = {};
   var RETRIES = 0;
@@ -70,14 +70,21 @@
     }
   }
 
+  /* 可选贴图（2026-11-22 · 修复「进入舱段」永久禁用）：
+     素材尚未出图、但绘制处已有矢量回退的贴图登记为可选 —— 只取一次（+1 次重试），
+     不计入加载门的总数/失败数，到了就用、没到就回退，绝不卡住进场。 */
+  var OPT = {};
+  function isCore(k) { return k === 'base' || k === 'hull'; }
   function imgCount() {
-    var total = 0, done = 0, failed = 0;
+    var total = 0, done = 0, failed = 0, optTotal = 0, optDone = 0, coreBad = false;
     for (var k in ST) {
+      if (OPT[k]) { optTotal++; if (ok(IMG[k])) optDone++; continue; }
       total++;
       if (ok(IMG[k])) done++;
-      else if (ST[k].failed) failed++;
+      else if (ST[k].failed) { failed++; if (isCore(k)) coreBad = true; }
     }
-    return { total: total, done: done, failed: failed };
+    return { total: total, done: done, failed: failed, coreFailed: coreBad,
+      optional: { total: optTotal, done: optDone } };
   }
   function audCount() {
     var total = ALIST.length, done = 0, failed = 0;
@@ -91,9 +98,15 @@
   function progress() {
     var i = imgCount(), a = audCount();
     var total = i.total + a.total, done = i.done + a.done, failed = i.failed + a.failed;
-    return { pct: total ? Math.floor(done * 100 / total) : 0,
-      ready: i.total > 0 && done === total, failed: failed,
-      pending: Math.max(0, total - done - failed), img: i, aud: a };
+    var pending = Math.max(0, total - done - failed);
+    /* 放行口径（2026-11-22）：只有底图/船壳（core）是硬门槛；其余贴图与音效
+       在绘制/播放处都有回退，全部「已结算」（成功或重试用尽）即放行，
+       失败项以 degraded 标出并保留重试入口 —— 单张非关键图缺失不能把整局锁死。 */
+    var ready = i.total > 0 && pending === 0 && !i.coreFailed &&
+      ok(IMG.base) && ok(IMG.hull);
+    return { pct: total ? Math.floor((done + failed) * 100 / total) : 0,
+      ready: ready, failed: failed, degraded: ready && failed > 0,
+      coreFailed: i.coreFailed, pending: pending, img: i, aud: a };
   }
 
   function stats() {
@@ -208,7 +221,7 @@
   function loadImg(k, src, n) {
     n = n | 0;
     if (n) RETRIES++;
-    var max = (k === 'base' || k === 'hull') ? TRY.core : TRY.other;
+    var max = isCore(k) ? TRY.core : (OPT[k] ? TRY.optional : TRY.other);
     var my = SEQ[k] = (SEQ[k] || 0) + 1;
     delete RTIMG[k];
     delete RTFAIL[k];
@@ -234,6 +247,9 @@
     im.src = srcUrl(src) + (n ? '?r=' + n : '');
     return im;
   }
+
+  /* 登记为可选后再取：见 OPT 注释。重试/online 重取沿用同一登记。 */
+  function loadOptional(k, src) { OPT[k] = 1; return loadImg(k, src, 0); }
 
   function rtImg(k) {
     var src = IMG[k];
@@ -277,7 +293,8 @@
     setTimeout(function () { preload(); }, 0);
   }
 
-  global.SKAssets = { IMG: IMG, SFX: SFX, BGM: BGM, loadImg: loadImg, rtImg: rtImg,
+  global.SKAssets = { IMG: IMG, SFX: SFX, BGM: BGM, loadImg: loadImg, loadOptional: loadOptional,
+    rtImg: rtImg,
     mapReady: function (im) { return ok(im); }, stats: stats, retryFailed: retryFailed,
     preload: preload, progress: progress, onChange: onChange };
 })(typeof window !== 'undefined' ? window : globalThis);

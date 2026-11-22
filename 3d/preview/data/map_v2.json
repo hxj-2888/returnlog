@@ -4799,7 +4799,7 @@
    "y": 49.9,
    "kind": "hard",
    "label": "引擎组同步",
-   "dur": 7
+   "dur": 9
   },
   {
    "room": "engine",
@@ -4807,7 +4807,7 @@
    "y": 55.1,
    "kind": "normal",
    "label": "零件车",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "engine",
@@ -4815,7 +4815,7 @@
    "y": 51.6,
    "kind": "normal",
    "label": "工具台",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "engine",
@@ -4823,7 +4823,7 @@
    "y": 53.2,
    "kind": "normal",
    "label": "保险盘接线",
-   "dur": 6
+   "dur": 8
   },
   {
    "room": "ecosys",
@@ -4831,7 +4831,7 @@
    "y": 50.5,
    "kind": "hard",
    "label": "氧气循环",
-   "dur": 8
+   "dur": 11
   },
   {
    "room": "ecosys",
@@ -4839,7 +4839,7 @@
    "y": 59.1,
    "kind": "normal",
    "label": "培养罐补液",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "ecosys",
@@ -4847,7 +4847,7 @@
    "y": 49.4,
    "kind": "normal",
    "label": "温控面板",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "power",
@@ -4855,7 +4855,7 @@
    "y": 49.3,
    "kind": "hard",
    "label": "电路维修",
-   "dur": 10
+   "dur": 13
   },
   {
    "room": "power",
@@ -4863,7 +4863,7 @@
    "y": 55.5,
    "kind": "hard",
    "label": "变压器换芯",
-   "dur": 9
+   "dur": 12
   },
   {
    "room": "transit",
@@ -4871,7 +4871,7 @@
    "y": 57.2,
    "kind": "normal",
    "label": "餐台清洁",
-   "dur": 6
+   "dur": 8
   },
   {
    "room": "transit",
@@ -4879,7 +4879,7 @@
    "y": 59.4,
    "kind": "normal",
    "label": "配餐台盘点",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "fun",
@@ -4887,7 +4887,7 @@
    "y": 52.1,
    "kind": "normal",
    "label": "娱乐桌",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "fun",
@@ -4895,7 +4895,7 @@
    "y": 53.2,
    "kind": "normal",
    "label": "点唱机",
-   "dur": 6
+   "dur": 8
   },
   {
    "room": "med",
@@ -4903,7 +4903,7 @@
    "y": 84,
    "kind": "hard",
    "label": "手术台校准",
-   "dur": 7
+   "dur": 9
   },
   {
    "room": "med",
@@ -4911,7 +4911,7 @@
    "y": 78.9,
    "kind": "normal",
    "label": "药柜",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "med",
@@ -4919,7 +4919,7 @@
    "y": 87.4,
    "kind": "normal",
    "label": "消毒循环",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "armory",
@@ -4927,7 +4927,7 @@
    "y": 73.5,
    "kind": "hard",
    "label": "靶道校准",
-   "dur": 8
+   "dur": 11
   },
   {
    "room": "armory",
@@ -4935,7 +4935,7 @@
    "y": 70,
    "kind": "normal",
    "label": "工作台",
-   "dur": 6
+   "dur": 8
   },
   {
    "room": "armory",
@@ -4943,7 +4943,7 @@
    "y": 74.7,
    "kind": "normal",
    "label": "弹药清点",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "cam",
@@ -4951,7 +4951,7 @@
    "y": 29,
    "kind": "hard",
    "label": "监控墙重连",
-   "dur": 9
+   "dur": 12
   },
   {
    "room": "cam",
@@ -4959,7 +4959,7 @@
    "y": 34.9,
    "kind": "normal",
    "label": "操作台",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "cam",
@@ -4967,7 +4967,7 @@
    "y": 35,
    "kind": "normal",
    "label": "录像归档",
-   "dur": 6
+   "dur": 8
   },
   {
    "room": "warehouse",
@@ -4975,7 +4975,7 @@
    "y": 8.45,
    "kind": "hard",
    "label": "货架校准",
-   "dur": 7
+   "dur": 9
   },
   {
    "room": "warehouse",
@@ -4983,7 +4983,7 @@
    "y": 8.45,
    "kind": "normal",
    "label": "库存盘点",
-   "dur": 4
+   "dur": 5
   },
   {
    "room": "warehouse",
@@ -4991,7 +4991,7 @@
    "y": 8.45,
    "kind": "normal",
    "label": "货箱封条",
-   "dur": 5
+   "dur": 6
   },
   {
    "room": "warehouse",
@@ -4999,10 +4999,15 @@
    "y": 11.2,
    "kind": "normal",
    "label": "出库扫描",
-   "dur": 6
+   "dur": 8
   }
  ],
  "pipes": [
+  {
+   "room": "bridge",
+   "x": 58.5,
+   "y": 28.5
+  },
   {
    "room": "engine",
    "x": 12.2,

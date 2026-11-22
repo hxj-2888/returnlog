@@ -135,6 +135,16 @@
   /* 身份卡改为"先选后进"：点卡片只切换选中态（主页会同时锚亮船上对应舱室），
      真正的开局走「进入舱段」或双击卡片。卡片没有 #home-go 时（旧页面）保持点一下就开局。 */
   var picked = 'human';
+  /* 对局模式（2026-11-22：经典局=trio 三形互认；单人局=classic 四形互不相识） */
+  var pickedMode = 'trio';
+  function selectMode(el) {
+    var m = el.getAttribute('data-mode');
+    if (!m) return;
+    pickedMode = (m === 'trio') ? 'trio' : 'classic';
+    document.querySelectorAll('[data-mode]').forEach(function (x) {
+      x.classList.toggle('sel', x === el);
+    });
+  }
 
   function selectRole(el) {
     var role = el.getAttribute('data-role');
@@ -145,8 +155,9 @@
     });
   }
 
-  /* ---------------- 素材加载门（2026-11-15） ----------------
-     图像与音频全部就绪前禁用「进入舱段」；?test 是门禁页，直接放行。 */
+  /* ---------------- 素材加载门（2026-11-15 · 2026-11-22 修订） ----------------
+     全部素材结算（成功或重试用尽）前禁用「进入舱段」；底图/船壳失败才硬拦，
+     非关键素材失败降级放行（见 SKAssets.progress().degraded）；?test 是门禁页，直接放行。 */
   var TEST_PAGE = /[?&]test\b/.test(location.search);
   function bindLoader() {
     var go = $('home-go'), box = $('home-load'), bar = $('home-load-bar'),
@@ -160,18 +171,23 @@
     }
     function render(p) {
       var pct = Math.max(0, Math.min(100, p.pct || 0));
-      var bad = p.failed > 0 && p.pending === 0;
+      /* 2026-11-22：只有底图/船壳失败才算「加载失败」并禁用进场；
+         其余素材失败为降级放行（绘制/播放处有回退），保留重试入口。 */
+      var bad = !!p.coreFailed && p.pending === 0;
       var ready = !!p.ready;
+      var degraded = !!p.degraded;
       if (bar) bar.style.width = pct + '%';
       box.classList.toggle('ok', ready);
       box.classList.toggle('bad', bad);
       go.disabled = !ready;
       go.textContent = ready ? '进 入 舱 段' : (bad ? '素材加载失败' : '正在加载…');
-      if (txt) txt.textContent = ready ? '素材已就绪 · 可以进入'
-        : (bad ? ('有 ' + p.failed + ' 项素材未就绪 · 点击重试')
+      if (txt) txt.textContent = ready
+        ? (degraded ? ('素材已就绪 · 可以进入（' + p.failed + ' 项非关键素材未取到，已用回退画法 · 点击重试）')
+          : '素材已就绪 · 可以进入')
+        : (bad ? '地图底图加载失败 · 点击重试'
           : ('正在加载素材 ' + pct + '% · 图像 ' + p.img.done + '/' + p.img.total +
              ' · 音频 ' + p.aud.done + '/' + p.aud.total));
-      if (retry) retry.hidden = !bad;
+      if (retry) retry.hidden = !(bad || degraded);
     }
     SKAssets.onChange(render);
     if (retry) retry.onclick = function () {
@@ -184,15 +200,24 @@
     render(SKAssets.progress());
   }
 
-  function startRole(role) {
+  function startRole(role, mode) {
     var go = $('home-go');
     if (go && go.disabled) return;
     playBgm();
     /* 名单由开始页收集（玩家名 + 14 个 AI 名）；对局侧会再兜一次去重补位。
        ?test 门禁页会忽略这份名单，保证断言里的默认名字稳定。 */
     var roster = (window.SKHome && window.SKHome.roster) ? window.SKHome.roster() : null;
-    if (window.SKV3) window.SKV3.start(role, roster);
+    /* 模式与身份正交（2026-11-21）：mode 决定阵容（经典 4 形互不相识 / 结伴 3 形互认），
+       role 决定玩家席位。旧入口 role='trio' 仍兼容（start 内部会兜成 trio 模式）。 */
+    var md = mode || pickedMode || null;
+    if (window.SKV3) window.SKV3.start(role, roster, md);
     setTimeout(function () { apply(); syncSettings(); }, 0);
+  }
+
+  function bindMode() {
+    document.querySelectorAll('[data-mode]').forEach(function (el) {
+      el.addEventListener('click', function () { selectMode(el); });
+    });
   }
 
   function bindRoles() {
@@ -200,19 +225,20 @@
     document.querySelectorAll('[data-role]').forEach(function (el) {
       el.addEventListener('click', function () {
         selectRole(el);
-        if (!hasGo) startRole(el.getAttribute('data-role'));
+        if (!hasGo) startRole(el.getAttribute('data-role'), pickedMode);
       });
       el.addEventListener('dblclick', function () {
-        startRole(el.getAttribute('data-role'));
+        startRole(el.getAttribute('data-role'), pickedMode);
       });
     });
     var go = $('home-go');
-    if (go) go.addEventListener('click', function () { startRole(picked); });
+    if (go) go.addEventListener('click', function () { startRole(picked, pickedMode); });
   }
 
   function boot() {
     fillVersion();
     bindLoader();
+    bindMode();
     bindRoles();
     bindSettings();
     apply();

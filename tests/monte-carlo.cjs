@@ -43,6 +43,7 @@ const CSV = path.resolve(DIR, arg('csv', 'tests/reports/mc-results.csv'));
 const GAME_TIMEOUT = Math.max(1000, parseInt(arg('game-timeout', '20000'), 10) || 20000);
 const VERBOSE = process.env.MC_VERBOSE === '1' || arg('verbose', '0') === '1';
 const MAX_STEPS = Math.max(0, parseInt(arg('max-steps', '0'), 10) || 0);
+const MODE = arg('mode', null);
 /* A/B 归因开关（2026-11-06）：--no-discuss 还原旧模拟口径（讨论发言不执行）；
    --hypgap 调整并列弃权的权重差阈值（-1 彻底关闭）；
    --hypmode loose 还原 2026-11-06 之前的宽松判据。
@@ -56,6 +57,33 @@ const SOCIAL_ON = arg('social', '1') !== '0';
 const HEARD_KINDS = arg('heard', null);
 /* 2026-11-07：--misid 0 关掉「目击认错人」（A/B 用），只作用于本次运行。 */
 const MISID_CHANCE = arg('misid', null);
+/* 2026-11-20：--hacc 0.5 还原「人类点名门槛旧值」做同 seed A/B（只作用于本次运行）。 */
+const HACC = arg('hacc', null);
+/* 2026-11-20：--tabort 0.12 / --aabort 0.06 还原「任务中断旧值」做同 seed A/B。 */
+const TABORT = arg('tabort', null);
+const AABORT = arg('aabort', null);
+/* 2026-11-20 平衡校准探针（只作用于本次运行，不改默认口径）：
+   --shoot 1.0      人类自动开枪门槛系数（默认 0.8；调大 = 更谨慎）
+   --mislead 0.30   异形「大义灭亲」概率（默认 0.20）
+   --pileon 0.55    异形「顺势踩人」概率（默认 0.40）
+   这三项落地必须由用户裁定，这里只为把「旋钮 → 胜率」的对应关系测出来。 */
+const SHOOT_K = arg('shoot', null);
+const MISLEAD_BUS = arg('mislead', null);
+const PILEON = arg('pileon', null);
+/* 2026-11-21 通用调参覆盖：--set AXIS.scoreMul:0.6 --set KNIFE.discoverHorizon:1.5
+   按点分路径写 SKSanity.*（只作用于本次运行，不改磁盘真源）。
+   允许重复；值走 Number()，非数值参数（布尔用 1/0）自行约定。 */
+const SETS = (() => {
+  const out = [];
+  for (let i = 0; i < process.argv.length - 1; i++) {
+    if (process.argv[i] !== '--set') continue;
+    const raw = process.argv[i + 1];
+    const k = raw.indexOf(':');
+    if (k <= 0) continue;
+    out.push({ path: raw.slice(0, k), val: Number(raw.slice(k + 1)) });
+  }
+  return out;
+})();
 
 function mean(a, key) {
   const xs = a.map(r => +r[key]).filter(Number.isFinite);
@@ -94,6 +122,8 @@ const LABELS = {
   medbotRevives:'无人机救起次数', medkitRevives:'医疗包救起次数',
   ghostTasks:'幽灵做任务个数', ghostFixes:'幽灵修故障次数',
   humanDefends:'人类替人辩护次数', reportDoubts:'质疑报案太快次数',
+  stanceBlocks:'态度互斥拦截次数（同一目标又保又咬）',
+  stanceViolations:'态度互斥违例数（应为 0，涨了说明有新通道绕过闸门）',
   sabHits:'破坏命中次数', sabFixed:'破坏被修次数',
   sabFixSec:'破坏修复耗时（秒）', sabFixedByGhost:'幽灵抢修次数',
   contradictions:'口供矛盾次数', falseContradictions:'旧量词会冤枉人的次数',
@@ -129,14 +159,18 @@ const LABELS = {
   misIdWrites:'目击认错人次数（known 指向了另一个人）',
   misIdToAlien:'认错后指到的其实是异形',
   misIdToHuman:'认错后指到的是无辜人类',
-  misIdRealHuman:'认错时真凶本身也是人类（拉闸被看见）'
+  misIdRealHuman:'认错时真凶本身也是人类（拉闸被看见）',
+  accuseHuman:'人类带靶子开口人次', accuseAlien:'异形带靶子开口人次',
+  taskAborts:'人类听见脚步中断任务次数', fakeAborts:'异形伪装提前收手次数',
+  emptySay:'空发言被兜底丢弃条数（应为 0）'
 };
 const LABEL_GROUPS = [
   ['一局有多长 / 胜负', 'nights prog steps meetings terminatorGames terminatorArms humans aliens downed'],
   ['打斗与物资', 'knives shots sabotages exiles humanExiles alienExiles searches loots bulletsLooted medkitsLooted qualsLooted humanLoots alienLoots humanShots alienShots sabHits sabFixed sabFixSec sabFixedByGhost'],
   ['异形行动 / 伪装', 'fakeRepairs fakeTasks fakeBreaker fakeBreakerRolls fakeBreakerPlans busAccusals mateFollowVotes alienPileOns alienFrameFollow realFixes realRevives alienTasks alienPipes alienPipePlans rushKills revives medbotRevives medkitRevives ghostTasks ghostFixes'],
-  ['会议与发言', 'orders orderObey orderRefuse endorses credFollow credShieldVotes abstains streakCuts lineDups mutualFrames humanDefends reportDoubts discussLines vouchHeard'],
-  ['推理 · 确证与准-确证', 'knownWrites knownVotes ejectByKnown detainWitness detainEvictions almostCount almostFriendCount almostHeard misIdWrites misIdToAlien misIdToHuman misIdRealHuman almostEject almostVotes overriddenFriends susCarry'],
+  ['会议与发言', 'orders orderObey orderRefuse endorses credFollow credShieldVotes abstains streakCuts lineDups mutualFrames humanDefends reportDoubts stanceBlocks stanceViolations discussLines vouchHeard accuseHuman accuseAlien'],
+  ['任务与中断', 'taskAborts fakeAborts emptySay'],
+  ['推理 · 确证与准-确证', 'knownWrites knownVotes ejectByKnown detainWitness detainEvictions almostCount almostFriendCount almostHeard misIdWrites misIdToAlien misIdToHuman misIdRealHuman almostEject almostVotes overriddenFriends susCarry actionMisWrites'],
   ['证据命中目标（审计）', 'knownWritesAlien knownWritesHuman knownVotesAlien knownVotesHuman ejectByKnownAlien ejectByKnownHuman almostAlien almostHuman almostEjectAlien almostEjectHuman'],
   ['推理 · 口供与可信度', 'contradictions falseContradictions contradictionOld reliaWrites reliaSpread hedgeAgents sureAgents silentSus presenceDeny claimRecall retractCount'],
   ['推理 · 行为线索', 'avoidCount farSight allyRevealed friendShield avoidSus reportsUsed nightMeetFull'],
@@ -234,6 +268,8 @@ function summarize(results) {
        人类辩护 / 异形质疑快速报案者 */
     'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
     'humanDefends', 'reportDoubts',
+    /* 2026-11-20 态度互斥：同一目标「又保又咬」被拦下的次数 / 违例数（应恒 0） */
+    'stanceBlocks', 'stanceViolations',
     /* 2026-11-01 破坏技能探查 */
     'sabotages', 'sabHits', 'sabFixed', 'sabFixSec', 'sabFixedByGhost',
     /* 2026-11-01 推理质量：拆谎误判 / 确证触发 / 拘留证据 */
@@ -257,6 +293,7 @@ function summarize(results) {
     /* 2026-11-06 异形社交顺势（AI 拟人化）：顺势踩人 / 构陷顺着场上靶子 */
     'alienPileOns', 'alienFrameFollow', 'almostHeard',
     'misIdWrites', 'misIdToAlien', 'misIdToHuman', 'misIdRealHuman',
+    'actionMisWrites',
     'hypothesisAbstain'];
   const avg = {}, med = {};
   for (const k of keys) { avg[k] = +mean(results, k).toFixed(3); med[k] = +median(results, k).toFixed(3); }
@@ -294,12 +331,13 @@ function summarize(results) {
     'credFollow', 'realFixes', 'realRevives', 'credShieldVotes', 'fakeRepairs', 'fakeTasks',
     'fakeBreaker', 'fakeBreakerRolls', 'fakeBreakerPlans', 'busAccusals', 'mateFollowVotes', 'rushKills', 'alienTasks', 'alienPipes', 'almostFriendCount', 'friendShield',
     'almostCount', 'almostEject', 'presenceDeny', 'avoidSus', 'retractCount', 'allyRevealed',
-    'humanDefends', 'reportDoubts', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
+    'humanDefends', 'reportDoubts', 'stanceBlocks', 'medbotRevives', 'medkitRevives', 'ghostTasks', 'ghostFixes',
     'detainWitness', 'sabHits', 'loots', 'humanShots', 'alienShots', 'revives',
     'earlyVotes', 'voteChanges', 'earlyKept',
     'reachImpossible', 'statementDamp', 'discussLines', 'vouchHeard',
     'alienPileOns', 'alienFrameFollow', 'almostHeard',
     'misIdWrites', 'misIdToAlien', 'misIdToHuman', 'misIdRealHuman',
+    'actionMisWrites',
     'hypothesisAbstain'];
   const reach = {};
   for (const k of REACH_KEYS) {
@@ -748,21 +786,67 @@ if (arg('rereport', '0') === '1' || process.argv.indexOf('--rereport') >= 0) {
     try { SKV3.setSfxVolume(0); } catch (e) {}
     const g = SKV3._t.G(); if (g) g.paused = true;
   });
-  if (NO_DISCUSS || HYP_GAP !== null || HYP_MODE || !SOCIAL_ON || HEARD_KINDS !== null || MISID_CHANCE !== null) {
-    const ab = await page.evaluate(o => ({
-      noDiscuss: o.noDiscuss ? SKV3._t.setSimNoDiscuss(true) : false,
-      hypMode: o.hypMode ? SKV3._t.setHypMode(o.hypMode) : null,
-      hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap),
-      social: o.social ? null : SKV3._t.setSocial(0),
-      heard: o.heard === null ? null : SKV3._t.setHeardKinds(o.heard),
-      misid: o.misid === null ? null : SKV3._t.setMisId(o.misid)
-    }), { noDiscuss: NO_DISCUSS, hypMode: HYP_MODE,
+  if (NO_DISCUSS || HYP_GAP !== null || HYP_MODE || !SOCIAL_ON || HEARD_KINDS !== null || MISID_CHANCE !== null || HACC !== null || TABORT !== null || AABORT !== null || SHOOT_K !== null || MISLEAD_BUS !== null || PILEON !== null || SETS.length) {
+    const ab = await page.evaluate(o => {
+      const out = {
+        noDiscuss: o.noDiscuss ? SKV3._t.setSimNoDiscuss(true) : false,
+        hypMode: o.hypMode ? SKV3._t.setHypMode(o.hypMode) : null,
+        hypGap: o.hypGap === null ? null : SKV3._t.setHypGap(o.hypGap),
+        social: o.social ? null : SKV3._t.setSocial(0),
+        heard: o.heard === null ? null : SKV3._t.setHeardKinds(o.heard),
+        misid: o.misid === null ? null : SKV3._t.setMisId(o.misid)
+      };
+      if (o.hacc !== null) {
+        SKSanity.SPEECH.humanAccuseSus = o.hacc;
+        out.hacc = SKSanity.SPEECH.humanAccuseSus;
+      }
+      if (o.tabort !== null) {
+        SKSanity.TASK_ABORT.hearRate = o.tabort;
+        out.tabort = SKSanity.TASK_ABORT.hearRate;
+      }
+      if (o.aabort !== null) {
+        SKSanity.DISGUISE.abortRate = o.aabort;
+        out.aabort = SKSanity.DISGUISE.abortRate;
+      }
+      if (o.shoot !== null) out.shoot = SKV3._t.setShootK(o.shoot);
+      if (o.mislead !== null) {
+        SKSanity.MISLEAD.busChance = o.mislead;
+        out.mislead = SKSanity.MISLEAD.busChance;
+      }
+      if (o.pileon !== null) {
+        SKSanity.SOCIAL.pileOn = o.pileon;
+        out.pileon = SKSanity.SOCIAL.pileOn;
+      }
+      /* 通用覆盖：点分路径写到 SKSanity.*，不存在则报错（避免拼错静默失效） */
+      out.sets = [];
+      for (const s of o.sets) {
+        const parts = s.path.split('.');
+        let node = window.SKSanity;
+        for (let j = 0; j < parts.length - 1; j++) {
+          if (!node || node[parts[j]] == null) throw new Error('bad set path: ' + s.path);
+          node = node[parts[j]];
+        }
+        const last = parts[parts.length - 1];
+        if (!node || !(last in node)) throw new Error('bad set key: ' + s.path);
+        node[last] = s.val;
+        out.sets.push(s.path + '=' + node[last]);
+      }
+      return out;
+    }, { noDiscuss: NO_DISCUSS, hypMode: HYP_MODE,
       hypGap: HYP_GAP === null ? null : parseFloat(HYP_GAP), social: SOCIAL_ON,
       heard: HEARD_KINDS === null ? null : parseFloat(HEARD_KINDS),
-      misid: MISID_CHANCE === null ? null : parseFloat(MISID_CHANCE) });
+      misid: MISID_CHANCE === null ? null : parseFloat(MISID_CHANCE),
+      hacc: HACC === null ? null : parseFloat(HACC),
+      tabort: TABORT === null ? null : parseFloat(TABORT),
+      aabort: AABORT === null ? null : parseFloat(AABORT),
+      shoot: SHOOT_K === null ? null : parseFloat(SHOOT_K),
+      mislead: MISLEAD_BUS === null ? null : parseFloat(MISLEAD_BUS),
+      pileon: PILEON === null ? null : parseFloat(PILEON),
+      sets: SETS });
     console.log('[A/B] ' + JSON.stringify(ab));
   }
 
+  if (MODE) await page.evaluate(m => SKV3._t.setMode(m), MODE);
   const results = [];
   const t0 = Date.now();
   for (let i = 0; i < GAMES; i++) {

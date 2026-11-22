@@ -2,8 +2,8 @@
   "schema_version": 1,
   "generatedBy": "3d/tools/export-minigames.cjs",
   "sources": {
-    "minigame": "4d68e9309f3e",
-    "plates": "936df6d2033a"
+    "minigame": "df4a5c2eb4a0",
+    "plates": "5f055026d2bf"
   },
   "kinds": [
     "wire",
@@ -48,10 +48,9 @@
     },
     "电路维修": {
       "k": "wire",
-      "n": 3,
-      "rounds": 2,
+      "n": 5,
       "color": "#E0574F",
-      "hint": "直接操控面板图里的断线：每组三处、共两组；接错不重置"
+      "hint": "直接操控面板图里的五处断线：点一头 → 再点另一头，接错不重置"
     },
     "保险盘接线": {
       "k": "wire",
@@ -220,11 +219,12 @@
     "库存盘点": {
       "k": "plate",
       "plate": "shelf",
-      "verb": "tap",
+      "verb": "hold",
       "use": "deck",
       "n": 4,
+      "hold": 0.7,
       "color": "#F5A64A",
-      "hint": "逐格点按，清点五个库存位"
+      "hint": "逐格按住清点四个库存位，充满即记数"
     },
     "货架校准": {
       "k": "plate",
@@ -249,11 +249,12 @@
     "出库扫描": {
       "k": "plate",
       "plate": "door-panel",
-      "verb": "tapSeq",
+      "verb": "hold",
       "use": "strip",
       "n": 4,
+      "hold": 0.7,
       "color": "#73A7FF",
-      "hint": "按 1→4 顺序扫过四条灯带"
+      "hint": "逐条按住扫过四条灯带，充满即完成一条"
     }
   },
   "byLabel": {
@@ -362,6 +363,28 @@
               "x": 368,
               "y": 588,
               "angle": -2
+            }
+          },
+          {
+            "id": "w-rust",
+            "color": "#B85C3A",
+            "width": 9,
+            "path": "M369,435 L371,450 L371,462 L370,476 L369,486",
+            "cut": {
+              "x": 371,
+              "y": 462,
+              "angle": 92
+            }
+          },
+          {
+            "id": "w-ochre",
+            "color": "#B07A3A",
+            "width": 8,
+            "path": "M320,528 L319,538 L318,546 L315,556",
+            "cut": {
+              "x": 318,
+              "y": 544,
+              "angle": 92
             }
           }
         ],

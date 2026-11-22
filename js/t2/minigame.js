@@ -38,8 +38,10 @@
       color:'#00E5B0', hint:'把闸刀分三段按住推到底，每段充满即到位' },
 
     /* ---- 维修 · 电路板 / 扳手 ---- */
-    '电路维修': { k:'wire', n:3, rounds:2, color:'#E0574F',
-      hint:'直接操控面板图里的断线：每组三处、共两组；接错不重置' },
+    /* 2026-11-20 用户裁定：电路维修最多 5 处断口，取消「3 处锁死 × 2 组」的旧设计。
+       板数据里有 5 根真实电线，n 取满 5（不再靠重复组数加难）。 */
+    '电路维修': { k:'wire', n:5, color:'#E0574F',
+      hint:'直接操控面板图里的五处断线：点一头 → 再点另一头，接错不重置' },
     '保险盘接线': { k:'wire', n:2, color:'#F0C674',
       hint:'接回保险盘上的两处断线；接错不重置' },
     '零件车': { k:'plate', plate:'panel-fix', verb:'drag', use:'part', n:3,
@@ -375,15 +377,14 @@
     const crop = plate.crop || [0, 0, W, H];
     const CW = plate.cut.w, CH = plate.cut.h;
     const ER = plate.ember.r, HIT = plate.ember.hit;
-    /* 难度档只决定「启用几处断口」，不改动板数据：普通 2 / 高难 3 / 电路 3 */
+    /* 难度档只决定「启用几处断口」，不改动板数据：普通 2 / 高难 3 / 电路 5 */
     const pick = shuffled(plate.wires.map(function (_, i) { return i; }))
-      .slice(0, Math.max(1, Math.min(plate.wires.length, cfg('n', tierN(2, 3, 3)))));
+      .slice(0, Math.max(1, Math.min(plate.wires.length, cfg('n', tierN(2, 3, 5)))));
     const wires = pick.map(function (i) { return plate.wires[i]; });
     const state = wires.map(function () { return { held: -1, done: false }; });
     let heldWire = -1;
-    /* 2026-11-19 难度提升（R4.5）：电路维修 cfg.rounds=2，其它板默认 1 组。
-       多组 = 同一组断口重接：判据 / 线头位置 / 原图线索全不变（对标「注液 3 杯」），
-       只增加重复次数。板数据不碰，所以门禁读到的仍是 3 处断口 / 6 个线头 / 进度 0 / 3。 */
+    /* 分组重接机制保留给以后要用「重复次数」抬难度的板；电路维修已改成 5 处真实断口，
+       cfg.rounds 缺省为 1，不再走复位重接。 */
     const ROUNDS = Math.max(1, cfg('rounds', 1));
     let round = 1;
 
@@ -507,7 +508,7 @@
         cuts.innerHTML = ''; pulses.innerHTML = '';
         setCuts(); setEmbers();
         setProg(0, wires.length,
-          '第 ' + round + ' / ' + ROUNDS + ' 组：断口已复位，再把三处接一遍');
+          '第 ' + round + ' / ' + ROUNDS + ' 组：断口已复位，再把这几处接一遍');
         return;
       }
       setProg(done, wires.length,

@@ -47,7 +47,10 @@
     search: '搜', supply: '资', qual: '单',
     night_start: '夜', dawn: '晨', game_start: '始', game_end: '终'
   };
-  var METHOD = { knife: '刀伤', shot: '枪伤', bled: '失血', vote: '驱逐', sabotage: '破坏' };
+  /* 击杀方式分枪/刀（2026-11-20 用户裁定）：枪致死写「枪击」，刀致死才写「刀击」。
+     `bled` 是濒死拖到天亮失血，死亡事件里的 method 已经由 die() 按 woundCause 落成
+     knife/shot，所以这里三档就够；vote 是驱逐，不是击杀。 */
+  var METHOD = { knife: '刀击', shot: '枪击', bled: '失血', vote: '驱逐', sabotage: '破坏' };
 
   var el = {};
   var data = null;
@@ -88,7 +91,7 @@
     switch (e.kind) {
       case 'game_start': return '<b>对局开始</b> · 第 1 夜';
       case 'night_start': return '<b>第 ' + (e.night || 1) + ' 夜</b>开始';
-      case 'dawn': return '<b>天亮</b> · 维修进度 ' + (e.prog == null ? '?' : e.prog) + '/45';
+      case 'dawn': return '<b>天亮</b> · 维修进度 ' + (e.prog == null ? '?' : e.prog) + '/48';
       case 'knife': return '<b>' + esc(a) + '</b> 在 <span class="rm">' + esc(r) + '</span> 出刀击倒 <span class="vd">' + esc(v) + '</span>';
       case 'shoot': return '<b>' + esc(a) + '</b> 在 <span class="rm">' + esc(r) + '</span> 开枪击倒 <span class="vd">' + esc(v) + '</span>';
       case 'kill':
@@ -98,7 +101,7 @@
       case 'task':
         return '<b>' + esc(a) + '</b> 在 <span class="rm">' + esc(r) + '</span> 完成「'
           + esc(e.label) + '」 <b>+' + (e.pts || 1) + '</b> 分'
-          + (e.ghost ? '（幽灵）' : '') + (e.prog != null ? ' · 进度 ' + e.prog + '/45' : '');
+          + (e.ghost ? '（幽灵）' : '') + (e.prog != null ? ' · 进度 ' + e.prog + '/48' : '');
       case 'fix':
         return '<b>' + esc(a) + '</b> 在 <span class="rm">' + esc(r) + '</span> 修好故障「' + esc(e.label) + '」';
       case 'sabotage':
@@ -142,12 +145,12 @@
           + esc(e.text);
       case 'eject':
         return '<span class="vd">' + esc(v) + '</span> 被投票驱逐（' + (e.votes || 0) + ' 票）· 身份：'
-          + (e.alien ? '异形' : '人类');
+          + (e.alien ? '内鬼' : '人类');
       case 'detain':
         return '保安机器人在 <span class="rm">' + esc(r) + '</span> 拘留 <span class="vd">' + esc(v) + '</span>';
       case 'game_end':
-        return '<b>对局结束</b> · ' + (e.win ? '人类胜利' : '异形胜利') + ' · ' + esc(e.why || '')
-          + (e.prog != null ? ' · 维修 ' + e.prog + '/45' : '');
+        return '<b>对局结束</b> · ' + (e.win ? '人类胜利' : '内鬼胜利') + ' · ' + esc(e.why || '')
+          + (e.prog != null ? ' · 维修 ' + e.prog + '/48' : '');
       default: return '<b>' + esc(nz(e.actor)) + '</b> ' + esc(e.kind);
     }
   }
@@ -299,10 +302,10 @@
       return '<span class="' + (r.alive ? 'ali' : '') + '" style="' + (r.alive ? '' : 'opacity:.45') + '">' + esc(r.name) + '</span>';
     }).join('、');
     el.meta.innerHTML =
-      '<div><b>第 ' + (res.nights || 1) + ' 夜</b> · 维修 <b>' + (res.prog == null ? '?' : res.prog) + '/' + (res.winPts || 45) + '</b>'
-      + ' · 存活 人类 <span class="hum">' + aliveH + '/11</span> · 异形 <span class="ali">' + aliveA + '/4</span></div>'
+      '<div><b>第 ' + (res.nights || 1) + ' 夜</b> · 维修 <b>' + (res.prog == null ? '?' : res.prog) + '/' + (res.winPts || 48) + '</b>'
+      + ' · 存活 人类 <span class="hum">' + aliveH + '/11</span> · 内鬼 <span class="ali">' + aliveA + '/4</span></div>'
       + '<div>人类：' + humans + '</div>'
-      + '<div>异形：' + aliens + '</div>';
+      + '<div>内鬼：' + aliens + '</div>';
   }
 
   /* ---------------- 播放 / 拖动 ---------------- */
@@ -397,7 +400,7 @@
       : (events.length ? events[events.length - 1].pt : 0);
 
     el.root.classList.remove('hide');
-    el.title.textContent = data.result && data.result.win ? '人类胜利 · 对局复盘' : '异形胜利 · 对局复盘';
+    el.title.textContent = data.result && data.result.win ? '人类胜利 · 对局复盘' : '内鬼胜利 · 对局复盘';
     el.sub.textContent = (data.result && data.result.why ? data.result.why + ' · ' : '')
       + '事件 ' + events.length + ' 条 · 位置帧 ' + frames.length + ' 个 · 回放时长 ' + fmt(endPt)
       + (data.savedAt ? ' · 保存于 ' + data.savedAt.slice(0, 16).replace('T', ' ') : '');

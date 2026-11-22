@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-11-20T02:49:20.202Z",
+  "generated_at": "2026-11-22T11:35:12.656Z",
   "note": "本文件由 3d/tools/export-space.cjs 生成，勿手改。数值真源见 sources。",
   "sources": {
-    "js/ai/sanity.js": "0e7eea81c039",
-    "js/t2/space.js": "ea88c60eb922",
-    "js/game.js": "388e0bdde38e"
+    "js/ai/sanity.js": "6443b7f91301",
+    "js/t2/space.js": "d6b5223fc97d",
+    "js/game.js": "0e1bcc5349a8"
   },
   "grid": {
     "meters_per_cell": 1,
@@ -13,7 +13,7 @@
   },
   "move": {
     "speed": 4,
-    "drag_speed": 2.5,
+    "drag_speed": 2.3,
     "ghost_task_cap": 1
   },
   "door": {
@@ -22,12 +22,12 @@
     "speed": 4,
     "width": 1.8,
     "pass": 0.6,
-    "scan_sec": 2
+    "scan_sec": 2.5
   },
   "sight": {
-    "human_light_r": 7,
-    "human_dark_r": 2.3,
-    "alien_dark_r": 3.5,
+    "human_light_r": 5.5,
+    "human_dark_r": 2,
+    "alien_dark_r": 4,
     "corr_r": 12,
     "lit_room_mul": 1.15,
     "fog_room_mask": 0.87,
@@ -38,13 +38,13 @@
     "fix": 10,
     "revive": 5,
     "search": 1.2,
-    "qual": 0,
+    "qual": 0.75,
     "ammo": 5,
     "med": 3,
     "fault_left": 30
   },
   "reach": {
-    "knife": 1.35,
+    "knife": 1.5,
     "sabotage": 1.7,
     "fix": 2,
     "body": 2.2,
@@ -52,7 +52,7 @@
     "breaker": 2
   },
   "pipe": {
-    "cooldown": 20,
+    "cooldown": 10,
     "human_forbidden": true
   },
   "breaker": {
@@ -63,7 +63,7 @@
     "witness_cap": 1
   },
   "shoot": {
-    "range": 9,
+    "range": 8,
     "chase_known": 14,
     "chase_sus": 10
   },

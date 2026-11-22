@@ -29,6 +29,21 @@
 | 渲染 | `3d/tools/render-task-frame.py`，Blender 5.2.2 EEVEE / 64 samples / 1024×640 |
 | 输出 | `assets/minigame/task-frame.png`（RGBA，26 个任务共用；任务色由 `--mg-accent` 区分） |
 
+## breaker-lever.png（2026-11-20 · 电闸拉杆动画素材）
+
+> 运行时路径 `assets/scene/v4/facility/breaker-lever.png`；用途：玩家 / AI 拉闸、合闸时的
+> 世界视图专用动画（`js/game.js#drawWork` 的 `lever` 分支），与电路维修的放大工具同一表现口径。
+
+| 项 | 值 |
+|---|---|
+| 出图 | 千问本地模型（`tools/gen-breaker-lever.ps1`，8 步 / CFG 1.0 / 768×768 / seed 20261120） |
+| 后处理 | `tools/cutout-breaker-lever.py`（白底泛洪抠图 + breaker 同档冷调 sat 0.34 / dim 0.86） |
+| 原始图 | `<Qwen-Image 模型目录>\output\breaker-lever.png`（本机，不入库） |
+| 公开参照登记 | `docs/ASSET_GOVERNANCE.md` §14 · 2026-11-20 电闸拉杆条目 |
+
+**许可**：Qwen Research License —— 非商用，与上方同批裁定一致（用户 2026-11-20 明确
+「可以使用千问本地生成图」）。转商用按下方许可与裁定处理。
+
 ## 许可与裁定
 
 - **许可**：Qwen Research License —— **非商用**。发行 / 商用需另行取得授权，
