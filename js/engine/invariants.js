@@ -75,9 +75,11 @@
 
       /* ---------- 生 / 死 / 濒死 ---------- */
       ok(!a.downed || a.alive, 'A10', a.name + ' 濒死但已不在场');
-      ok(a.knife >= 0 && a.knife <= 1, 'A11', a.name + ' 刀数异常 ' + a.knife);
+      const maxKnife = (a.alien && (G._evo2Done || G._evo1Done)) ? 2 : 1;
+      ok(a.knife >= 0 && a.knife <= maxKnife, 'A11', a.name + ' 刀数异常 ' + a.knife);
       ok(a.qual >= 0 && a.qual <= 2, 'A12', a.name + ' 资格异常 ' + a.qual);
-      ok(a.bullet >= 0 && a.bullet <= 1, 'A13', a.name + ' 子弹异常 ' + a.bullet);
+      const maxBullet = (a.alien && G.terminator) ? 2 : 1;
+      ok(a.bullet >= 0 && a.bullet <= maxBullet, 'A13', a.name + ' 子弹异常 ' + a.bullet);
       ok(a.medkit >= 0 && a.medkit <= 1, 'A14', a.name + ' 医疗包异常 ' + a.medkit);
       if (!a.alive) {
         ok(CAUSES[a.deathCause] === 1, 'A15', a.name + ' 死亡但无合法死因');
@@ -106,10 +108,16 @@
     ok(G.night >= 1, 'G2', '夜数 < 1');
     ok(Number.isFinite(G.t) && G.t >= -1 && G.t <= NIGHT + 1, 'G3', '夜间计时越界 ' + G.t);
     ok(G.lightState === 0 || G.lightState === 1 || G.lightState === 2, 'G4', '灯光态非法 ' + G.lightState);
-    const bright = M.rooms.filter(function (r) { return r.light === 'bright'; }).length;
+    /* 常态点灯数 = 亮房 + 电路已修好后的引擎/配电（2026-11-20 用户裁定：
+       电路维修完成后这两间永久并入亮房，跨夜不再变暗）。这条必须与
+       game.js#refreshLight 同一条口径，否则 G5 会把正确状态判成越界。 */
+    const baseLit = M.rooms.filter(function (r) {
+      return r.light === 'bright' ||
+        (G.powerFixed && (r.id === 'engine' || r.id === 'power'));
+    }).length;
     let litCount = 0;
     for (const r of M.rooms) if (G.lit[r.id]) litCount++;
-    const wantLit = G.lightState === 1 ? M.rooms.length : (G.lightState === 2 ? 1 : bright);
+    const wantLit = G.lightState === 1 ? M.rooms.length : (G.lightState === 2 ? 1 : baseLit);
     ok(litCount === wantLit, 'G5', '点灯房数 ' + litCount + ' ≠ ' + wantLit);
 
     /* ---------- 拖拽（玩家与 AI 共用） ---------- */

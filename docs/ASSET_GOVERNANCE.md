@@ -780,3 +780,45 @@
 **比对**：公开方案是「整间舱室插画」；本项目是**裁切到 768×768 的单设备面板**（热点要压在具体物件上），
 因此只吸收分区 / 配色 / 信息层级三条方法论，不照搬整间构图。六张板坐标均须用
 `tools/plate-overlay.cjs` 叠图核准，不得目测。
+
+### 2026-11-19 · 两张图内任务板（jukebox / transformer）+ 手电筒贴图移除
+
+红线 12 / §14 四步留痕，同上批口径：**只取设计方法，不引用公开素材文件**；成品由本机
+Qwen-Image 2.1 Turbo GGUF（Qwen Research License 非商用）经本地 stable-diffusion.cpp 生成，
+8 步 / CFG 1.0 / euler / 512×512 / seed 2026。动机：点唱机旧映射落在娱乐桌板（图不对题）、
+变压器换芯旧映射先落在断线板后改扳手板（视觉不贴），各配专属板。
+
+| 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
+|---|---|---|---|---|---|
+| 点唱机面板的按键布局与霓虹语言 | https://clipart-library.com/jukebox.html | Clipart Library 合集 | 公开参考页（仅读描述，未取图） | 2026-11-19 | 采纳「拱形霓虹顶 + 一排发光选曲键 + 下部格栅」的经典构图；对应 jukebox |
+| 点唱机交互反馈 | https://www.conorsouness.design/projects/blaston-jukebox | Conor Souness | 公开作品页（仅读交互描述） | 2026-11-19 | 采纳「按下键位点亮反馈」的交互口径；对应 tapSeq 音键 |
+| 变压器柜体的工业构成 | https://www.fab.com/listings/f69086ba-0b90-4dc2-8341-8cf401a26a4c | NX Dynamics / Fab | 商业套件（仅作设计参照，未下载） | 2026-11-19 | 采纳「柜体分段 + 观察窗 + 铭牌/警示位置」的层级；对应 transformer |
+| 变压器柜体三维构成 | https://www.3dmox.com/solidworks/ug-42692-1.html | 莫西网投稿 | 公开参考页（仅读结构描述） | 2026-11-19 | 采纳「冷轧钢板哑光喷塑 + 底部进线」的工业语义；对应 transformer |
+
+**比对**：公开素材是整机/整柜；本项目是裁切到 512² 的单面板，热点必须压在四个音键 / 三枚
+芯螺栓上。两板坐标已用 `tools/plate-overlay.cjs` 叠图核准（2026-11-19）。
+
+**手电筒贴图移除**：同日用户裁定「手电筒动画去掉」。`assets/scene/flashlight.png` 与
+`assets/minigame/flashlight.png`（Qwen 本地生成）已删除，`js/game.js` 的 `loadImg('flashlight')`
+与 `drawWeapon` 手电绘制段已撤——该贴图从未入过本登记表（生成时未走 §14 流程，属流程违规，
+一并在此补记）。
+
+### 2026-11-20 · 电闸拉杆动画素材（breaker-lever）
+
+红线 12 / §14 四步留痕，口径同上批：**只取设计方法，不引用任何公开素材文件**；成品由本机
+千问本地模型（`tools/gen-breaker-lever.ps1`）出白底单物件图，再经 `tools/cutout-breaker-lever.py`
+泛洪抠图 + breaker 同档冷调，落 `assets/scene/v4/facility/breaker-lever.png`（运行时正式图）。
+用户 2026-11-20 明确「可以使用 AI 生成图，必须使用千问本地生图模型」。
+
+| 主题 | 来源 URL | 作者 / 机构 | 许可 | 检索日 | 采纳结论 |
+|---|---|---|---|---|---|
+| 工业刀闸 / 隔离开关的外形构成 | https://en.wikipedia.org/wiki/Disconnector | Wikipedia  contributors | CC-BY-SA（仅读结构描述，未取图） | 2026-11-20 | 采纳「红球操作手柄 + 金属拉杆 + 底部圆形枢轴」的经典刀闸构成；枢轴在下便于做扳动动画 |
+| 科幻配电盘开关的视觉语言 | https://among-us.fandom.com/wiki/Electrical | Among Us Wiki / Fandom | CC-BY-SA（仅读文字描述，未取图） | 2026-11-20 | 采纳「拉杆状态一眼可读（上=合/下=断）+ 红色危险色」；与本作断电语义一致 |
+
+**比对**：公开方案是整机 / 整柜照片；本项目只需要一根**可旋转的拉杆手柄**（枢轴在下、
+握把在上，白底便于抠图），故只吸收外形构成与状态语义两条方法论，不照搬整柜构图。
+生成图为纯白底单物件，用 `tools/plate-overlay.cjs` 同法叠图确认枢轴落在图片底部中央
+（约 0.5W / 0.86H），再决定 drawWork 里的支点偏移；未目测定坐标。
+
+**三态声明**：入库=是（`assets/scene/v4/facility/*.png` 正式图目录，非 `_raw`）、发布=是
+（运行时贴图，走 `deploy-config.cjs` 白名单）、磁盘留存=永久。原始白底图留本机 `output/`，不入库。

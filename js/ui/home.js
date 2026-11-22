@@ -26,6 +26,10 @@
   if (!M) return;
   /* 胜利目标分的唯一真源是 js/ai/sanity.js#SKSanity.WIN.pts（game.js 的 WIN_PTS 同源）。 */
   var WIN = (global.SKSanity && global.SKSanity.WIN) ? global.SKSanity.WIN.pts : '—';
+  var SG = (global.SKSanity && global.SKSanity.SIGHT) || {};
+  var HL_R = SG.humanLightR != null ? SG.humanLightR : 5.5;
+  var HD_R = SG.humanDarkR != null ? SG.humanDarkR.toFixed(1) : '2.0';
+  var AD_R = SG.alienDarkR != null ? SG.alienDarkR.toFixed(1) : '4.0';
 
   /* 身份 → 船上的锚点舱室与说明。人类看任务舱；异形看管道口；旁观看会议室。 */
   var ANCHOR = {
@@ -34,17 +38,24 @@
       what: 'point', acc: '#8FA6C0',
       note: '<h4>人类 · 你在这艘船上要做什么</h4>每人派发 <b>1 高难 + 3 普通</b>共 4 个任务点，' +
         '站桩维修（普通 8 秒 / 高难 12 秒 / 电路维修 15 秒）。' +
-        '亮舱整间可见，暗舱只有 7 格手电锥 + <b>2.3 格</b>近身视野。' +
+        '亮舱整间可见，暗舱只有 ' + HL_R + ' 格手电锥 + <b>' + HD_R + ' 格</b>近身视野。' +
         '发现尸体按 <code>R</code> 拉铃开会，凭证据投票把人驱逐出舱。'
     },
-    alien: {
-      rooms: ['engine', 'cam', 'armory', 'warehouse', 'transit', 'med'],
-      what: 'pipe', acc: '#E0574F',
-      note: '<h4>异形 · 你和同类互不认识</h4>每夜一次出刀、一次破坏技，可以钻这 6 个管道口' +
-        '（<b>引擎 / 监控 / 军械 / 仓库 / 食堂 / 医疗间</b>）瞬移。' +
-        '同类之间没有队友名单——只有亲眼看见对方出刀 / 钻管道 / 破坏，才会认出他是队友。' +
-        '近身视野 <b>3.11 格</b>。'
-    },
+    alien: (function () {
+      var pipeRooms = M.pipes.map(function (p) { return p.room; });
+      var pipeNames = M.pipes.map(function (p) {
+        var r = M.rooms.find(function (rm) { return rm.id === p.room; });
+        return r ? r.name : p.room;
+      }).join(' / ');
+      return {
+        rooms: pipeRooms,
+        what: 'pipe', acc: '#E0574F',
+        note: '<h4>内鬼 · 你和同类互不认识</h4>每夜一次出刀、一次破坏技，可以钻这 ' + M.pipes.length + ' 个管道口' +
+          '（<b>' + pipeNames + '</b>）瞬移。' +
+          '同类之间没有队友名单——只有亲眼看见对方出刀 / 钻管道 / 破坏，才会认出他是队友。' +
+          '近身视野 <b>' + AD_R + ' 格</b>。'
+      };
+    })(),
     spect: {
       rooms: ['bridge'], what: 'none', acc: '#7FD3F0',
       note: '<h4>旁观者 · 第 16 人</h4>不占 15 席，全知无迷雾，9 格/秒的相机幽灵。' +
@@ -197,9 +208,9 @@
       if (kind === 'rules') {
         note.innerHTML = '<h4>一局怎么玩</h4>昼夜循环：白天<b>会议</b>（发言 → 投票 → 驱逐）' +
           '→ 夜晚（各自行动）→ 天亮结算维修进度。夜晚<b>点击地面</b>移动，' +
-          '<code>W/E</code> 交互、<code>A</code> 出刀（异形）、<code>S</code> 搜尸、' +
+          '<code>W/E</code> 交互、<code>A</code> 出刀（内鬼）、<code>S</code> 搜尸、' +
           '<code>D</code> 收尸；亮舱整间可见，暗舱只有手电锥。' +
-          '故障 30 秒没人修好扣 5 分；人类修满 <code>' + WIN + '</code> 分或清出全部异形即胜利。' +
+          '故障 30 秒没人修好扣 5 分；人类修满 <code>' + WIN + '</code> 分或清出全部内鬼即胜利。' +
           '死亡后变幽灵：穿墙全视，只能做自己剩下的任务（1.6×，最多 1 分）。' +
           '看不见的动静会以<b>声纹环</b>标出方位（越近越亮，不显示身份）。' +
           '报告有全局额度，会议不限每晚一次，但报告即开会时尸体会清场。';

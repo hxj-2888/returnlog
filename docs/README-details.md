@@ -605,8 +605,10 @@ tools/
 > 下一个接手的人会照命令跑空。本批只登记不代答（`lines-audit.cjs` 是语料体检的欠账，
 > 与 R13.10「表态句必须带可复核事实」是同一条线上的活）。
 
-分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。2026-11-19 任务系统改造新增 `js/t2/plate-task.js`（图内任务通用引擎：贴图 + 热点 + tap/tapSeq/hold/holdBand/drag/aim；板数据仍只读 `js/data/plates.js`）；同日双分模型 P0 新增 `js/t2/trust.js`（只读派生信任分 T / 情绪分 E 的影子，不改任何决策，`_t.trustShadow` 探针）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`。2026-11-15 工程化精简第一批新增 `js/engine/body.js`（尸体/物资 5 个纯函数，同一薄委托模式，`index.html` 在 `engine/assets` 之后加载）；**行数现值只在 `CHANGELOG.md` 最新批次与
-`docs/file-budgets-js.json` 登记**，本处不再复制（旧写法停在 12,089 行，已过期两次批次）。
+分层约定：**数据（js/data）→ 引擎（js/engine）→ 三域模块（js/t2）→ 编排（js/game.js）→ 入口（js/main.js）→ 主页（js/ui/home.js）→ 复盘（js/ui/replay.js）**。方案 A 按三域切已落地三块：`js/t2/space.js`（空间与资源域：运行常量 + 几何 / 数值纯函数与配色表）、`js/t2/ai.js`（AI 拟人化域认知链整组 26 个函数）、`js/t2/decision.js`（玩家决策域报告额度、会议发言解析与会议排期）、`js/t2/minigame.js`（玩家决策域站桩动作的小游戏：**26 任务定制 / 14 型交互**，新增 sequence / sort / valve / code；`?test` 与模拟不弹；接线已换成「图内要素」——直接操控生成图里的电线，板描述真源在 `js/data/plates.js`）。2026-11-19 任务系统改造新增 `js/t2/plate-task.js`（图内任务通用引擎：贴图 + 热点 + tap/tapSeq/hold/holdBand/drag/aim；板数据仍只读 `js/data/plates.js`）；同日双分模型 P0 新增 `js/t2/trust.js`（只读派生信任分 T / 情绪分 E 的影子，不改任何决策，`_t.trustShadow` 探针）。**薄委托已收敛**：`game.js` 顶部用局部别名直接绑定这些函数（同一个函数对象、无转发层），状态沿用 `_t.G()`。2026-11-15 工程化精简第一批新增 `js/engine/body.js`（尸体/物资 5 个纯函数，同一薄委托模式，`index.html` 在 `engine/assets` 之后加载）。**行数现值只在 `CHANGELOG.md` 最新批次登记**，本处不再复制
+（旧写法停在 12,089 行，已过期两次批次）。`docs/file-budgets-js.json` 于 2026-11-20 按用户裁定
+改为**文件图 + 拆分债务登记**：文件行数棘轮（`max_lines` 配额与 `--check` 判定）已从工程规范拔出，
+行数不再阻断门禁；保留的是单函数上限与「超长函数待拆」登记（拆分台账，不是棘轮）。
 所有脚本都是有顺序的经典脚本（IIFE + `window.SK*` 命名空间），不使用 ES Module 与构建步骤。
 
 ### 3D 预演（2.5D 的延伸，不是第二条产品线）

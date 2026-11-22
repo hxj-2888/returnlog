@@ -30,7 +30,10 @@
   function hOld(a, i) {
     var t = core();
     if (!a || i == null || !t) return 0.5;
-    return clamp(t.identityAxis(a, i), 0, 1);
+    var G = global.SKV3 && global.SKV3._t && global.SKV3._t.G ? global.SKV3._t.G() : null;
+    var tgt = G && G.agents ? G.agents[i] : null;
+    if (!tgt) return 0.5;
+    return clamp(t.identityAxis(a, tgt), 0, 1);
   }
 
   /* 影子 h：旧 h 减去 sus 的负轴位移。
@@ -44,20 +47,31 @@
     return clamp(hOld(a, i) - sus * 0.6, 0.05, 0.99);
   }
 
-  /* 信任分 T ∈ [−1, +1]：±1 刻度 = 旧 ±0.5 语义 ×2 */
-  function T(a, i) { return +(2 * hShadow(a, i) - 1).toFixed(3); }
-  function h(a, i) { return +hShadow(a, i).toFixed(3); }
+  /* 信任分 T ∈ [−1, +1]：**唯一**的身份判断轴（2026-11-20 两轴合并）。
+     T 由 t2/ai.js#trustScore 统一算：cred 正端与 sus 负端合成一条轴，
+     known 硬锁 −1、knownHuman 硬锁 +1。trust.js 只做镜像与读数，不另立公式。 */
+  function T(a, i) {
+    var t = core();
+    return t && t.trustScore ? +t.trustScore(a, i).toFixed(3) : 0;
+  }
+  function h(a, i) { return +((T(a, i) + 1) / 2).toFixed(3); }
 
-  /* 情绪分 E ∈ [−1, +1]：感恩 − 记仇（两者各 0~2） */
+  /* 情绪分 E 读出 ∈ [−1, +1] 视图：mind.E 存储为 ±10 分（与 T 同量纲），
+     ÷scale 折回视图；仅旧档/夹具没有 E 时才从 trust−grudge 影子回灌（影子是视图量纲） */
   function E(a, i) {
     if (!a || !a.mind || i == null) return 0;
+    var ev = a.mind.E || {};
+    var sc = (global.SKSanity && global.SKSanity.AXIS && global.SKSanity.AXIS.scale) || 10;
+    if (ev[i] != null) return +clamp(ev[i] / sc, -1, 1).toFixed(3);
     var tr = (a.mind.trust && a.mind.trust[i]) || 0;
     var gr = (a.mind.grudge && a.mind.grudge[i]) || 0;
     return +clamp(tr - gr, -1, 1).toFixed(3);
   }
 
   function locked(a, i) {
-    return !!(a && a.mind && a.mind.known && a.mind.known[i]);
+    return !!(a && a.mind &&
+      ((a.mind.known && a.mind.known[i]) ||
+       (!a.alien && a.mind.knownHuman && a.mind.knownHuman[i])));
   }
 
   function impression(a, i) {
@@ -88,7 +102,9 @@
     a.mind.emo[i] = E(a, i);
     if (a.mind.known && a.mind.known[i]) {
       var k = a.mind.known[i];
-      a.mind.lock[i] = { t: k.t, kind: k.kind, room: k.room };
+      a.mind.lock[i] = { t: k.t, kind: k.kind, room: k.room, side: 'alien' };
+    } else if (!a.alien && a.mind.knownHuman && a.mind.knownHuman[i]) {
+      a.mind.lock[i] = { kind: 'knownHuman', side: 'human' };
     } else delete a.mind.lock[i];
   }
 

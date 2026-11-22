@@ -107,7 +107,7 @@
     if(a._doing==='ammo')return {c:'#E0A94B',icon:'bullet',glow:'rgba(224,169,75,.12)'};
     if(a._doing==='search')return {c:'#7FD3F0',icon:'lens',glow:'rgba(127,211,240,.10)'};
     if(a._doing==='revive')return {c:'#3FBF8C',icon:'cross',glow:'rgba(63,191,140,.12)'};
-    if(a._doing==='breaker')return {c:'#7FD3F0',icon:'bolt',glow:'rgba(127,211,240,.12)'};
+    if(a._doing==='breaker')return {c:'#7FD3F0',icon:'lever',glow:'rgba(127,211,240,.12)'};
     return {c:'#F0C674',icon:'wrench',glow:'rgba(240,198,116,.11)'};
   }
   function pipeTint(rid){
@@ -151,7 +151,7 @@
        2026-11-07 用户裁定：全体移动速度 4.2 → 4.0，拖尸 2.7 → 2.5。
        game.js 的 moveSpeed() 与 tools/test-v3.cjs 的断言都读这两个真源。 */
     MOVE_SPEED: 4.0,
-    DRAG_SPEED: 2.5,
+    DRAG_SPEED: 2.3,
     GHOST_TASK_CAP: GHOST_TASK_CAP,
     SPECT_SPEED: 9,
     DOOR_OPEN_R: 3.0,

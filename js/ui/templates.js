@@ -85,6 +85,11 @@
   button.p{background:#2A4A6B;border-color:#3C6690}
   .who{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .who button{padding:6px 11px;font-size:12.5px}
+  /* 2026-11-22：投票名单里的同族队友标注（与地图头顶 ◆同族 名牌同一套暗红/红字）。
+     仅作玩家可见的提示，不泄露 AI 私有判断 —— 判据在 game.js#isMyMate。 */
+  .who button.vote-mate{background:rgba(46,12,12,.94);border-color:#7A2A2A}
+  .who button.vote-mate:hover{background:rgba(70,18,18,.96);border-color:#E0574F}
+  .who button.vote-mate .mate-badge{margin-left:6px;color:#E0574F;font-weight:700;font-size:11.5px}
   .vote-skip{width:100%;margin-top:8px;padding:8px 12px;font-size:12.5px}
   .hide{display:none}
   .mtg{display:grid;grid-template-columns:1fr 1.05fr .95fr;gap:14px;width:min(1180px,94vw);
@@ -210,7 +215,7 @@
   @media (max-width:760px){#dev-rows{grid-template-columns:repeat(3,minmax(0,1fr))}}
   #dragtag{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);font-size:12px;
     color:#F0C674;background:rgba(10,14,20,.88);border:1px solid #4A3C1E;border-radius:8px;
-    padding:4px 12px;z-index:5}
+    padding:4px 12px;z-index:5;cursor:pointer;user-select:none}
   #invfail{position:fixed;left:50%;top:10px;transform:translateX(-50%);font-size:12px;color:#FF8A80;
     background:rgba(40,8,8,.94);border:1px solid #7A2A2A;border-radius:8px;padding:6px 12px;z-index:50}
   #body .card{width:min(460px,88vw)}
@@ -242,7 +247,7 @@
   <div>维修 <b><span id="pg">0</span> / <span id="pgmax">45</span></b></div>
   <div id="bar"><i id="pgi"></i></div>
   <div>剩余 <b id="tm">120</b> 秒 · 第 <b id="nt">1</b> 夜 · <b id="pwr">照明正常</b></div>
-  <div class="surv">存活 <b id="alive">15</b> 人 · 人类 <b id="hum">11</b> · 异形 <b id="ali">4</b></div>
+  <div class="surv">存活 <b id="alive">15</b> 人 · 人类 <b id="hum">11</b> · 内鬼 <b id="ali">4</b></div>
   <div>你是 <b id="role">人类</b><span id="dnwrap" class="hide"> · 濒死 <b id="dn">0</b> 人</span></div>
   <div id="personal">任务 <b id="tk">0</b>/4 · 申请单 <b id="ql">0</b> · 待领 <b id="qp">0</b> · 弹 <b id="bl">0</b> · 包 <b id="md">0</b> · 报告 <b id="rp">2</b>/2 · 会议 <b id="mt">0</b>/2<span id="qual-hint" class="hide"> · 回圆桌领取</span></div>
   <div id="tasks"></div>
@@ -250,7 +255,7 @@
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
 <div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · M 音效 · ESC 暂停</div>
-<div id="dragtag" class="hide">拖拽中 · 按 G 放下</div>
+<div id="dragtag" class="hide" title="点击或按 G 放下">拖拽中 · 按 G 或点这里放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">
   <div class="dt"><span>DEV · 全知总览</span><span class="dt2">F2 关闭 · 攻击与驱逐对你无效 · 尸体信息显示凶手 · 每人资源见卡片</span></div>
@@ -265,7 +270,7 @@
 </div></div>
 
 <div id="pipe" class="ov hide"><div class="card pipe-card">
-  <h2>地道 · 选择出口</h2><div class="sub" id="pipe-sub">异形专用 · 选择要去的那一端</div>
+  <h2>地道 · 选择出口</h2><div class="sub" id="pipe-sub">内鬼专用 · 选择要去的那一端</div>
   <div class="pipe-list" id="pipe-list"></div>
   <div class="btns"><button id="pipe-cancel">取消 (Esc)</button></div>
 </div></div>
