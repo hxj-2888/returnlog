@@ -98,6 +98,9 @@
   #pick .load button{padding:4px 9px;border-radius:6px;border:1px solid #6B3A34;
     background:#2A1714;color:#FFB4A8;font:10px/1 inherit;cursor:pointer}
   #pick .go[disabled]{opacity:.45;cursor:progress;filter:saturate(.45)}
+  #pick .modebar.is-disabled{opacity:.42;pointer-events:none;filter:saturate(.5)}
+  #pick .rolecap{font-size:10px;letter-spacing:2px;color:#55606F;margin:4px 0 -2px}
+  #pick .role.role-util{opacity:.85;padding:clamp(7px,1vh,10px) 13px}
   #pick .go[disabled]:hover{background:linear-gradient(180deg,#2A2416,#1B1710);box-shadow:none}
   #pick .stats{display:flex;flex-wrap:wrap;gap:6px}
   #pick .chip{display:flex;align-items:baseline;gap:5px;padding:4px 9px;border:1px solid #232C39;
@@ -253,10 +256,10 @@
 <div id="pick">
   <section class="panel">
     <div class="brand">
-      <div class="mark"><i></i>RETURN LOG · 试玩版 · 返航录V3</div>
+      <div class="mark"><i></i>RETURN LOG · 正式版 · <span data-version>返航录V1.0</span></div>
       <h1>新 返 航 录</h1>
       <p class="sub">同一艘船上，人类与内鬼共处 —— <b>经典局 15 人 3 鬼</b>（三名内鬼互相认脸）、
-        <b>单人局 15 人 4 鬼</b>（互不相识）。
+        <b>盲鬼局 15 人 4 鬼</b>（互不相识）。
         白天在会议桌前凭证据投票，夜里在手电照不到的地方被出刀。
         修满 <b>48 分</b>返航，或者一个人都回不去。</p>
     </div>
@@ -267,7 +270,7 @@
         <b>经 典 局</b><span>15 人 · 3 内鬼 · 三名内鬼互相认脸</span>
       </button>
       <button class="mode" style="--acc:#8FA6C0" data-mode="classic">
-        <b>单 人 局</b><span>15 人 · 4 内鬼 · 开局互不相识</span>
+        <b>盲 鬼 局</b><span>15 人 · 4 内鬼 · 开局互不相识</span>
       </button>
     </div>
     <div class="roles" id="home-roles">
@@ -281,14 +284,15 @@
         <span><b>异 形</b><span>出刀 · 钻管道 · 破坏舱室 · 伪装成人在开会</span></span>
         <span class="where">6 个管道口</span>
       </button>
-      <button class="role" style="--acc:#7FD3F0" data-role="spect">
+      <div class="rolecap">观 战 与 沙 盒 工 具</div>
+      <button class="role role-util" style="--acc:#7FD3F0" data-role="spect">
         <i class="dot"></i>
         <span><b>旁观者</b><span>第 16 人：全知视角的高速幽灵，不参与对局</span></span>
         <span class="where">中央会议室</span>
       </button>
-      <button class="role" style="--acc:#63E0A8" data-role="design">
+      <button class="role role-util" style="--acc:#63E0A8" data-role="design">
         <i class="dot"></i>
-        <span><b>设计者 · 纯净</b><span>只展示地图与任务点，人物不绘制；幽灵穿墙，26 任务点与管道全开放</span></span>
+        <span><b>设计者 · 纯净</b><span>静态沙盒：人物不绘制，穿墙直达 26 任务点与管道</span></span>
         <span class="where">静态沙盒</span>
       </button>
     </div>

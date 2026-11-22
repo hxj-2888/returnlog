@@ -24,8 +24,8 @@
 
   global.SKConfig = Object.freeze({
     name: '新返航录',
-    version: '返航录V0.5',
-    build: '2026-11-20',
+    version: '返航录V1.0',
+    build: '2026-11-22',
     license: 'MIT',
     repos: Object.freeze({
       github: 'https://github.com/hxj-2888/returnlog',

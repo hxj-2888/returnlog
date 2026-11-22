@@ -229,6 +229,8 @@
   #body .bd-loot b{text-decoration:underline dotted rgba(240,198,116,.5)}
   #body .bd-bad{color:#E0574F}
   @keyframes qpop{0%{transform:scale(1)}35%{transform:scale(1.9);color:#FFF3C4;text-shadow:0 0 12px #F0C674}100%{transform:scale(1)}}
+  @keyframes barsoon{0%,100%{filter:brightness(1)}50%{filter:brightness(1.38);box-shadow:0 0 10px rgba(240,198,116,.55)}}
+  #bar.soon #pgi{background:linear-gradient(90deg,#3FBF8C,#F0C674);animation:barsoon 1.3s ease-in-out infinite}
   #hud b.pop{display:inline-block;animation:qpop .75s ease}
   #m-say .ln.sys{color:#7C8798;font-size:12px}
   #m-tpl{margin-top:8px;border-top:1px solid #1F2733;padding-top:7px}
@@ -254,8 +256,8 @@
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
-<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · M 音效 · ESC 暂停</div>
-<div id="dragtag" class="hide" title="点击或按 G 放下">拖拽中 · 按 G 或点这里放下</div>
+<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · R 报告 · S 搜尸 · D 拖/放 · F 施救 · B 开枪 · ESC 暂停</div>
+<div id="dragtag" class="hide" title="点击或按 D 放下">拖拽中 · 按 D 或点这里放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">
   <div class="dt"><span>DEV · 全知总览</span><span class="dt2">F2 关闭 · 攻击与驱逐对你无效 · 尸体信息显示凶手 · 每人资源见卡片</span></div>

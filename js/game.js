@@ -8955,7 +8955,7 @@
       document.getElementById('m-title').textContent=
         kind==='pre'?'第 1 天 · 开局公开讨论':(kind==='day'?('第 '+G.night+' 天 · 全员会议'):'紧急会议');
       document.getElementById('m-sub').textContent=
-        kind==='pre'?('公开讨论 '+discuss+' 秒 · 本轮不投票 · 讨论完直接进入第 1 夜')
+        kind==='pre'?('开局航行简报（'+discuss+' 秒）· 本轮不投票 · 点击「跳过讨论」立即进入第 1 夜')
         :(kind==='day'&&G._overtime
           ?('讨论 '+discuss+' 秒 + 投票 '+voteT+' 秒 · 上一场会议拖到了天亮')
           :('讨论 '+discuss+' 秒 + 投票 '+voteT+' 秒'+
@@ -10180,10 +10180,9 @@
         }
         return;
       }
-      /* 监控台：只允许 V / ESC / 静音，其它输入全部吞掉 */
+      /* 监控台：只允许 ESC / 静音，其它输入全部吞掉 */
       if(G.camView){
         if(k==='m'){SND.setOn(!SND.isOn());toast(SND.isOn()?'音效：开':'音效：关');return;}
-        if(k==='v'){closeCams();return;}
         return;
       }
       if(G.meet||G.over)return;
@@ -10207,7 +10206,6 @@
       if(k==='d'||k==='g'){e.preventDefault();toggleDrag();return;}
       if(k==='f'){rescue();return;}
       if(k==='h'){sabotage();return;}
-      if(k==='v'){(G.camView?closeCams():openCams());return;}
       if(k==='b'){shoot();return;}
     });
     
@@ -10804,7 +10802,7 @@
         if(bp0)noticeAction(me,bp0[0],bp0[1],6,'drag',b);
         aiHear('drag',me.x,me.y,8,{actor:me});
         SND.drag(0.7); hear(me.x,me.y,'drag',0.8);
-        toast('拖拽 '+b.name+' · 移动变慢，再按 G 放下');
+        toast('拖拽 '+b.name+' · 移动变慢，再按 D 放下');
       }
     }
     function toast(s){ G.msg=s; G.msgT=2.6; }
@@ -13246,6 +13244,8 @@
         const w=Math.min(100,G.prog/WIN_PTS*100)+'%';
         if(pgi.style.width!==w)pgi.style.width=w;
       }
+      const bar=hudEl('bar');
+      if(bar)bar.classList.toggle('soon',!G.over&&G.prog>=Math.round(WIN_PTS*0.75));
       hudText('tm',Math.max(0,G.t).toFixed(0));
       hudText('nt',G.night);
       const alive=G.agents.filter(a=>a.alive).length;
@@ -13311,8 +13311,8 @@
             :(G.pipePick
               ?'地道选择：点击出口按钮或按 1–8 直达 · ESC 取消 · 设计者模式无冷却'
               :(G.camView
-                ?'监控台：V / ESC 退出 · 配电室拉闸会切断全部 '+M.rooms.length+' 路信号'
-                :'设计者纯净：点击穿墙飞行（6.5 格/秒） · W 交互（'+M.points.length+' 任务点 / '+M.pipes.length+' 管道口 / 电闸 / 监控 / 领单 / 补给全开） · H 破坏 · V 监控 · ESC 暂停 · 人物不绘制 · 夜钟不走')))
+                ?'监控台：ESC 退出 · 配电室拉闸会切断全部 '+M.rooms.length+' 路信号'
+                :'设计者纯净：点击穿墙飞行（6.5 格/秒） · W 交互（'+M.points.length+' 任务点 / '+M.pipes.length+' 管道口 / 电闸 / 监控 / 领单 / 补给全开） · H 破坏 · ESC 暂停')))
           :spectator
           ?'旁观者：点击地面飞行（9 格/秒 · 穿墙 · 全知） · ESC 暂停/设置'
           :(G.sabPick
@@ -13320,16 +13320,18 @@
           :(G.pipePick
             ?'地道选择：点击出口按钮或按 1–3 直达 · ESC 取消 · 内鬼专用'
             :(G.camView
-              ?'监控台：V / ESC 退出 · 配电室拉闸会切断全部 '+M.rooms.length+' 路信号'
+              ?'监控台：ESC 退出 · 配电室拉闸会切断全部 '+M.rooms.length+' 路信号'
               :(G.sabTarget&&G.me.alien&&!G.me.sabUsed
                 ?'破坏目标：'+roomNameById(G.sabTarget.room)+'「'+G.sabTarget.label+'」· 进入舱室自动下手 · 30 秒内可被修复'
                 :(!G.me.alive
-                  ?'幽灵态：点击穿墙移动 · E 维修任务（1.6×，额度 '+(GHOST_TASK_CAP-(G.me.ghostPts||0))+' 分）· 不能修故障/报告/投票/搜尸 · 不能破坏 · F2 DEV'
+                  ?'幽灵态：点击穿墙移动 · W 维修任务（1.6×，额度 '+(GHOST_TASK_CAP-(G.me.ghostPts||0))+' 分）· 不能修故障/报告/投票/搜尸'
                   :(G.me.downed
-                    ?'你已濒死：等队友 F 施救，或被拖进医疗间 · F2 DEV'
+                    ?'你已濒死：等队友 F 施救，或被拖进医疗间'
                     :(G.me.detained
                       ?'被保安机器人锁住：'+Math.max(0,Math.ceil(G.me.detainedT||0))+' 秒后自动释放 · 不能移动'
-                      :'移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · M 音效 · ESC 暂停')))))));
+                      :(G.me.alien
+                        ?'移动=点击地面 · W 交互/钻道 · A 出刀 · H 破坏 · R 报告 · S 搜尸 · D 拖/放 · ESC 暂停'
+                        :'移动=点击地面 · W 交互（多目标按 1-9） · R 报告 · S 搜尸 · D 拖/放 · F 施救 · B 开枪 · ESC 暂停'))))))));
         /* 无人机救起后的僵直优先于其它提示：玩家要能看见为什么点不动 */
         if(!spectator&&!G.designMode&&(G.me.stunT||0)>0)
           t='刚被无人机救起：'+Math.max(0,Math.ceil(G.me.stunT))+' 秒内不能移动 · E 仍可交互';

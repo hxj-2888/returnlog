@@ -153,6 +153,8 @@
     document.querySelectorAll('[data-role]').forEach(function (x) {
       x.classList.toggle('sel', x === el);
     });
+    var modeBar = $('home-mode');
+    if (modeBar) modeBar.classList.toggle('is-disabled', role === 'design');
   }
 
   /* ---------------- 素材加载门（2026-11-15 · 2026-11-22 修订） ----------------
