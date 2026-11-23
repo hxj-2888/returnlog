@@ -12,7 +12,7 @@
  */
 'use strict';
 
-const ENTRIES = ['index.html', '_headers', 'LICENSE', 'README.md', 'js', 'audio', 'assets'];
+const ENTRIES = ['index.html', '_headers', 'LICENSE', 'README.md', 'js', 'audio', 'assets', 'functions'];
 
 const SKIP = [
   /^assets\/scene\/v4\/facility\/_raw\//,            // L2 SDXL 候选原图

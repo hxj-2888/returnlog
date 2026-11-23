@@ -1,0 +1,7 @@
+# 新返航录 Cloudflare Pages 配置
+name = "returnlog"
+pages_build_output_dir = "."
+compatibility_date = "2026-01-01"
+
+[observability]
+enabled = true

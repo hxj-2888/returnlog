@@ -21,23 +21,31 @@
   'use strict';
 
   var KEY = 'sk.settings.v1';
-  var DEFAULTS = { music: 0.35, sfx: 0.8 };
+  var DEFAULTS = { music: 0.35, sfx: 0.8, musicOn: true, sfxOn: true, fps: true, spectDev: true };
   var S = load();
   var bgmStarted = false;
 
   function load() {
     try {
       var raw = JSON.parse(localStorage.getItem(KEY) || '{}');
+      var fpsRaw = localStorage.getItem('sk_fps');
       return {
         music: typeof raw.music === 'number' ? Math.max(0, Math.min(1, raw.music)) : DEFAULTS.music,
-        sfx: typeof raw.sfx === 'number' ? Math.max(0, Math.min(1, raw.sfx)) : DEFAULTS.sfx
+        sfx: typeof raw.sfx === 'number' ? Math.max(0, Math.min(1, raw.sfx)) : DEFAULTS.sfx,
+        musicOn: typeof raw.musicOn === 'boolean' ? raw.musicOn : DEFAULTS.musicOn,
+        sfxOn: typeof raw.sfxOn === 'boolean' ? raw.sfxOn : DEFAULTS.sfxOn,
+        fps: typeof raw.fps === 'boolean' ? raw.fps : (fpsRaw === '0' ? false : DEFAULTS.fps),
+        spectDev: typeof raw.spectDev === 'boolean' ? raw.spectDev : DEFAULTS.spectDev
       };
     } catch (e) {
-      return { music: DEFAULTS.music, sfx: DEFAULTS.sfx };
+      return Object.assign({}, DEFAULTS);
     }
   }
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+    try {
+      localStorage.setItem(KEY, JSON.stringify(S));
+      localStorage.setItem('sk_fps', S.fps ? '1' : '0');
+    } catch (e) {}
   }
   function $(id) { return document.getElementById(id); }
 
@@ -53,15 +61,22 @@
   /* 音量曲线：音乐滑杆 0.35 直接当线性音量用等于 −9dB，再乘旧的 0.7 就是 −12dB，
      在音效 0.8 的旁边基本听不见。这里走 pow(v, 0.7) 的感知曲线，
      0.35 → 0.47（约 −6.5dB），满档仍然是 1.0，不新增任何上限。 */
-  function bgmVol() { return Math.min(1, Math.pow(Math.max(0, S.music), 0.7)); }
+  function bgmVol() { return S.musicOn ? Math.min(1, Math.pow(Math.max(0, S.music), 0.7)) : 0; }
   function apply() {
     var bgm = bgmEl();
-    if (bgm) bgm.volume = bgmVol();
-    if (window.SKV3 && SKV3.setSfxVolume) SKV3.setSfxVolume(S.sfx);
+    if (bgm) {
+      bgm.volume = bgmVol();
+      if (!S.musicOn || S.music <= 0) {
+        try { bgm.pause(); } catch (e) {}
+      }
+    }
+    if (window.SKV3 && SKV3.setSfxVolume) SKV3.setSfxVolume(S.sfxOn ? S.sfx : 0);
+    if (window.SKV3 && SKV3.setFpsEnabled) SKV3.setFpsEnabled(S.fps);
+    if (window.SKV3 && SKV3.setSpectDev) SKV3.setSpectDev(S.spectDev);
   }
   function playBgm() {
     var bgm = bgmEl();
-    if (!bgm || S.music <= 0) return;
+    if (!bgm || !S.musicOn || S.music <= 0) return;
     try {
       var p = bgm.play();
       if (p && p.then) p.then(function () { bgmStarted = true; }, function () {});
@@ -76,6 +91,14 @@
     if (s) s.value = ss;
     if ($('set-music-v')) $('set-music-v').textContent = mm;
     if ($('set-sfx-v')) $('set-sfx-v').textContent = ss;
+    if ($('set-music-on')) $('set-music-on').checked = !!S.musicOn;
+    if ($('set-music-on-v')) $('set-music-on-v').textContent = S.musicOn ? '开' : '关';
+    if ($('set-sfx-on')) $('set-sfx-on').checked = !!S.sfxOn;
+    if ($('set-sfx-on-v')) $('set-sfx-on-v').textContent = S.sfxOn ? '开' : '关';
+    if ($('set-fps')) $('set-fps').checked = !!S.fps;
+    if ($('set-fps-v')) $('set-fps-v').textContent = S.fps ? '开' : '关';
+    if ($('set-spect-dev')) $('set-spect-dev').checked = !!S.spectDev;
+    if ($('set-spect-dev-v')) $('set-spect-dev-v').textContent = S.spectDev ? '开' : '关';
     var pb = $('set-pause');
     if (pb) {
       var live = !!(window.SKV3 && SKV3.isOpen && SKV3.isOpen());
@@ -103,6 +126,32 @@
     if (btn) btn.addEventListener('click', function () { playBgm(); openSettings(); });
     var close = $('set-close');
     if (close) close.addEventListener('click', closeSettings);
+    var mOn = $('set-music-on');
+    if (mOn) mOn.addEventListener('change', function () {
+      S.musicOn = !!mOn.checked;
+      if ($('set-music-on-v')) $('set-music-on-v').textContent = S.musicOn ? '开' : '关';
+      apply(); save();
+      if (S.musicOn && S.music > 0) playBgm();
+    });
+    var sOn = $('set-sfx-on');
+    if (sOn) sOn.addEventListener('change', function () {
+      S.sfxOn = !!sOn.checked;
+      if ($('set-sfx-on-v')) $('set-sfx-on-v').textContent = S.sfxOn ? '开' : '关';
+      apply(); save();
+      if (S.sfxOn && window.SKV3 && SKV3.playSfx) SKV3.playSfx('click');
+    });
+    var fpsEl = $('set-fps');
+    if (fpsEl) fpsEl.addEventListener('change', function () {
+      S.fps = !!fpsEl.checked;
+      if ($('set-fps-v')) $('set-fps-v').textContent = S.fps ? '开' : '关';
+      apply(); save();
+    });
+    var sdEl = $('set-spect-dev');
+    if (sdEl) sdEl.addEventListener('change', function () {
+      S.spectDev = !!sdEl.checked;
+      if ($('set-spect-dev-v')) $('set-spect-dev-v').textContent = S.spectDev ? '开' : '关';
+      apply(); save();
+    });
     var m = $('set-music');
     if (m) m.addEventListener('input', function () {
       S.music = Math.max(0, Math.min(1, (+m.value || 0) / 100));
@@ -153,6 +202,8 @@
     document.querySelectorAll('[data-role]').forEach(function (x) {
       x.classList.toggle('sel', x === el);
     });
+    var modeBar = $('home-mode');
+    if (modeBar) modeBar.classList.toggle('is-disabled', role === 'design');
   }
 
   /* ---------------- 素材加载门（2026-11-15 · 2026-11-22 修订） ----------------
