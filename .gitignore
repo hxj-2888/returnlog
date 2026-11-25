@@ -111,3 +111,9 @@ docs/qwen21/
 # 依据 AGENTS.md「公开物脱敏规范」：交接台账属开发内部件，不随公开仓发布。
 # tools/ship.cjs 走 `git add -A`，所以必须在这里排除，不能只靠"不手动 add"。
 docs/_worklog/
+
+# ---- 2026-11-22 Qoder Sites 上传产物（不入库、不随仓发布）----
+# tools/_qsite-stage.cjs 从 deploy-config.cjs 白名单拷出的临时公开输出，
+# 只用于云端上传；ship.cjs 走 git add -A，必须在此排除。
+dist/
+*.qoder.site

@@ -99,8 +99,10 @@
       }
     }
     ok(names.size === agents.length, 'A21', '存在重名席位');
-    ok(aliens === 4, 'A22', '异形 ' + aliens + ' ≠ 4');
-    ok(humans === 11, 'A23', '人类 ' + humans + ' ≠ 11');
+    const wantAliens = (G.mode === 'trio') ? 3 : 4;
+    const wantHumans = agents.length - wantAliens;
+    ok(aliens === wantAliens, 'A22', '异形 ' + aliens + ' ≠ ' + wantAliens);
+    ok(humans === wantHumans, 'A23', '人类 ' + humans + ' ≠ ' + wantHumans);
     ok(me === agents[0], 'A24', 'me 不是 0 号席位');
 
     /* ---------- 全局 ---------- */
@@ -111,13 +113,13 @@
     /* 常态点灯数 = 亮房 + 电路已修好后的引擎/配电（2026-11-20 用户裁定：
        电路维修完成后这两间永久并入亮房，跨夜不再变暗）。这条必须与
        game.js#refreshLight 同一条口径，否则 G5 会把正确状态判成越界。 */
-    const baseLit = M.rooms.filter(function (r) {
-      return r.light === 'bright' ||
-        (G.powerFixed && (r.id === 'engine' || r.id === 'power'));
+    const wantLit = M.rooms.filter(function (r) {
+      const base = G.lightState === 1 ? true : (G.lightState === 2 ? r.id === 'bridge'
+        : (r.light === 'bright' || (G.powerFixed && (r.id === 'engine' || r.id === 'power'))));
+      return base && !(G.roomOut && G.roomOut[r.id] > 0);
     }).length;
     let litCount = 0;
     for (const r of M.rooms) if (G.lit[r.id]) litCount++;
-    const wantLit = G.lightState === 1 ? M.rooms.length : (G.lightState === 2 ? 1 : baseLit);
     ok(litCount === wantLit, 'G5', '点灯房数 ' + litCount + ' ≠ ' + wantLit);
 
     /* ---------- 拖拽（玩家与 AI 共用） ---------- */

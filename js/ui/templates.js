@@ -229,6 +229,8 @@
   #body .bd-loot b{text-decoration:underline dotted rgba(240,198,116,.5)}
   #body .bd-bad{color:#E0574F}
   @keyframes qpop{0%{transform:scale(1)}35%{transform:scale(1.9);color:#FFF3C4;text-shadow:0 0 12px #F0C674}100%{transform:scale(1)}}
+  @keyframes barsoon{0%,100%{filter:brightness(1)}50%{filter:brightness(1.38);box-shadow:0 0 10px rgba(240,198,116,.55)}}
+  #bar.soon #pgi{background:linear-gradient(90deg,#3FBF8C,#F0C674);animation:barsoon 1.3s ease-in-out infinite}
   #hud b.pop{display:inline-block;animation:qpop .75s ease}
   #m-say .ln.sys{color:#7C8798;font-size:12px}
   #m-tpl{margin-top:8px;border-top:1px solid #1F2733;padding-top:7px}
@@ -244,7 +246,7 @@
 
   const HTML = String.raw`<canvas id="cv"></canvas>
 <div id="hud">
-  <div>维修 <b><span id="pg">0</span> / <span id="pgmax">45</span></b></div>
+  <div>维修 <b><span id="pg">0</span> / <span id="pgmax">48</span></b></div>
   <div id="bar"><i id="pgi"></i></div>
   <div>剩余 <b id="tm">120</b> 秒 · 第 <b id="nt">1</b> 夜 · <b id="pwr">照明正常</b></div>
   <div class="surv">存活 <b id="alive">15</b> 人 · 人类 <b id="hum">11</b> · 内鬼 <b id="ali">4</b></div>
@@ -254,8 +256,8 @@
   <div id="dmgline" class="hide"></div>
   <div id="devline" class="hide">DEV <b>无敌 · 全知</b> · 断言 <b id="inv">0</b> 失败</div>
 </div>
-<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · A 出刀 · S 搜尸/查看 · D 收尸 · F 施救 · R 报告 · B 开枪 · H 破坏 · V 监控 · M 音效 · ESC 暂停</div>
-<div id="dragtag" class="hide" title="点击或按 G 放下">拖拽中 · 按 G 或点这里放下</div>
+<div id="tip">移动=点击地面 · W 交互（多目标按 1-9 选择） · R 报告 · S 搜尸 · D 拖/放 · F 施救 · B 开枪 · ESC 暂停</div>
+<div id="dragtag" class="hide" title="点击或按 D 放下">拖拽中 · 按 D 或点这里放下</div>
 <div id="invfail" class="hide"></div>
 <div id="dev" class="hide">
   <div class="dt"><span>DEV · 全知总览</span><span class="dt2">F2 关闭 · 攻击与驱逐对你无效 · 尸体信息显示凶手 · 每人资源见卡片</span></div>
@@ -366,7 +368,7 @@
   <h2>已暂停</h2><div class="sub">单机模式 · 夜里的倒计时和 AI 都已冻结</div>
   <div class="row"><span>继续游戏</span><b>ESC / P</b></div>
   <div class="row"><span>当前进度</span><b id="p-info">—</b></div>
-  <div class="row"><span>版本</span><b data-version>返航录V3</b></div>
+  <div class="row"><span>版本</span><b data-version>返航录V1.0</b></div>
   <div class="btns">
     <button class="p" id="p-resume">继续</button>
     <button id="p-set">设置</button>
