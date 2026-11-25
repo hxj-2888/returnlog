@@ -28,14 +28,22 @@
   },
   "rules": {
     "max_func_lines_allow": {
-      "js/game.js:boot": "起始 108 / 11943 行：IIFE 主闭包：状态、主循环与 347 个嵌套函数都在这里；阶段 B 按族外提，boot 只留装配",
-      "js/game.js:aiAlien": "起始 3745 / 457 行：异形 AI 决策：挑目标 / 出刀 / 开枪 / 管道 / 藏尸；阶段 B 拆 plan 与 execute 两段",
-      "js/game.js:startChatter": "起始 6137 / 436 行：会议发言排期：talkScore / 组合槽 / 同场去重；阶段 B 拆排期与出句两段",
-      "js/game.js:buildMeetCtx": "起始 5043 / 408 行：会议上下文：受害者 / 证言 / 背书 / lead；阶段 B 拆 ctx 组装与时间线对质两段",
-      "js/game.js:draw": "起始 10326 / 349 行：Canvas 主绘制：地图 / 角色 / 特效叠加；表现层，阶段 C 按 scene 拆",
-      "js/ui/home.js:esc": "起始 65 / 307 行：开始页 HTML 模板字符串（单函数内联大段 DOM）；表现层，阶段 C 迁模板",
-      "js/game.js:playerTalk": "起始 6580 / 259 行：玩家发言解析 / 模板 / 校验；阶段 B 拆解析与渲染两段",
-      "js/game.js:aiHuman": "起始 2807 / 239 行：人类 AI 决策：任务 / 补给 / 救人 / 报告；阶段 B 拆决策与执行两段"
+      "js/game.js:boot": "IIFE 主闭包装配入口；阶段 B 已按族外提至 ai/engine/view，剩余状态与主循环待续拆",
+      "js/ui/home.js:esc": "开始页 HTML 模板字符串（单函数内联大段 DOM）；表现层，阶段 C 迁模板",
+      "js/ai/cognition.js:create": "阶段 B 从 game.js 外提的认知/目击/信任工厂模块，待按子族续拆",
+      "js/ai/night-ai.js:create": "阶段 B 从 game.js 外提的夜间 AI 工厂模块，待按人类/异形续拆",
+      "js/ai/night-ai.js:aiHuman": "原 game.js:aiHuman 迁入；人类 AI 决策，待拆决策与执行两段",
+      "js/ai/night-ai.js:aiAlien": "原 game.js:aiAlien 迁入；异形 AI 决策，待拆 plan 与 execute 两段",
+      "js/engine/audio.js:create": "阶段 B 从 game.js 外提的音频合成工厂模块（213 行）",
+      "js/engine/bots.js:create": "阶段 B 从 game.js 外提的保安/医疗机器人工厂模块（297 行）",
+      "js/engine/meeting.js:create": "阶段 B 从 game.js 外提的会议/发言/投票工厂模块，待按子族续拆",
+      "js/engine/meeting.js:buildMeetCtx": "原 game.js:buildMeetCtx 迁入；会议上下文组装与时间线对质",
+      "js/engine/meeting.js:startChatter": "原 game.js:startChatter 迁入；会议发言排期与出句",
+      "js/engine/meeting.js:playerTalk": "原 game.js:playerTalk 迁入；玩家发言解析/模板/校验",
+      "js/engine/sabotage.js:create": "阶段 B 从 game.js 外提的破坏系统工厂模块（307 行）",
+      "js/engine/ship-sys.js:create": "阶段 B 从 game.js 外提的船体/门禁/管道工厂模块（256 行）",
+      "js/view/render.js:create": "阶段 B 从 game.js 外提的 Canvas 渲染工厂模块，待按 scene 续拆",
+      "js/view/render.js:draw": "原 game.js:draw 迁入；Canvas 主绘制，待按 scene 续拆"
     },
     "max_func_lines": 200
   }
