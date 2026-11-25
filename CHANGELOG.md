@@ -10,6 +10,15 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [V1.0 · 过期文档版本口径修正与 README 玩法概述升级] — 2026-11-25
+
+- **本批改动**（文档口径修正与说明升级，零玩法/数值改动）：
+  1. `README.md`：从极简工程说明升级为完整脱敏的 2.5D 正式版 V1.0 玩法概述（经典 12v3 / 盲鬼 11v4 双模式、75s 暗夜与会议循环、26 处图内任务、设施与机器人、全自主 T/E 认知 AI、键位速查与快速开始）。
+  2. `AGENTS.md` / `js/config/version.js` / `package.json` / `docs/README-details.md`：统一头部与注释中滞后的 `返航录V0.5 / V3.7`、`0.5.0 / 3.7.0` 及单模式描述为 `返航录V1.0 / 1.0.0` 与双模式口径（`AGENTS.md §一` 红线正文未动）。
+  3. `docs/ENGINEERING-SLIM-PLAN.md`：将方案状态由「P1 余批未落地」更新为「已完成收口（阶段 B 拆分落地，留作历史归档）」。
+- **读数变化**：未跑整局蒙特卡洛（沿用前批 V1.0 实跑）；本次实跑 `node --check js/config/version.js` PASS、`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）、`npm run file:check:js` PASS（36 文件 / 25,384 行 / 0 FAIL）、`npm run t3:check` PASS（10 PASS / 3 WARN / 0 FAIL）、`npm run guard` PASS（300 文件 / 49.83 MB / 0 污染）。
+- **下一批立项依据**：保持 2.5D `main` 与 3D `3d` 双分支独立演进，按需推进后续体验与性能打磨。
+
 ## [V1.0 · 核心规则正文对齐 V1.0 与文件预算台账收口] — 2026-11-25
 
 - **本批改动**（文档与门禁台账同步，零玩法/数值改动）：

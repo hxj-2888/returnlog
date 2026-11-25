@@ -1,46 +1,88 @@
 # 新返航录（2.5D 正式版 V1.0）
 
-15 人太空船社会推理与实时对抗网页游戏（经典局 12 人类 vs 3 内鬼互认 / 盲鬼局 11 人类 vs 4 异形）。零依赖前端、无构建、`file://` 可直接运行。
+> **版本**：`返航录 V1.0`（`1.0.0`） · **技术栈**：零依赖纯静态前端（HTML5 Canvas + 经典 `<script>`，无构建，`file://` 双击即玩）
+> **分支**：`main` 为 2.5D 正式版主线；`3d` 为 Godot 4.6 3D 延伸版副分支
 
-## 快速开始
+《新返航录》是一款 **15 人太空船社会推理与实时生存对抗** 单机网页游戏。你将与 14 名拥有独立感知、记忆、性格与推理能力的 AI 船员困在一艘故障频发的深空飞船中，在暗夜行动与全员会议之间展开心理与信息的生死博弈。
 
-- 直接打开 `index.html`；或 `npm start` 起本地静态服务。
-- 门禁：`npm test` / `npm run ci:gate`
-- T3 体检：`npm run t3:check`
-- 资产门禁：`npm run guard` / `node tools/assets-check.cjs`
-- 全平台发布：`npm run ship`
+---
 
-## AI 读取边界
+## 一、游戏玩法概述
 
-单一真源：`AGENTS.md` §零。默认只读 `AGENTS → ARCHITECTURE → docs/00-先导 → 任务对应的 js/`；
-默认不读 `tests/`、`tests/reports/`、`assets/` 二进制、`android/`、`tools/` 美术/发布、
-`docs/changelog-history-*.md`（历史分卷）。不要全仓 grep。
+### 1. 双模式与胜负条件
+支持扮演**人类**、**内鬼**或开启**旁观者**视角，并支持自定义 15 人船员名单与完整复盘回放：
 
-## 目录
+- **经典局（默认）**：12 名人类 vs 3 名内鬼（内鬼彼此互认，协同制造混乱与构陷）。
+- **单人局 / 盲鬼局**：11 名人类 vs 4 名内鬼（内鬼互不相识，全凭暗夜目击行为自行辨认同族）。
+- **人类胜利**：分工完成全船各舱室维修任务，将**全船维修进度推至 48 分**触发返航；或通过会议投票与武装反击淘汰全部内鬼。
+- **内鬼胜利**：在暗夜伏击、发动限时破坏、拉闸断电与会议误导，令全部人类出局。
+
+### 2. 昼夜循环与核心系统
+- **开局公开讨论**：全员在中央会议室核对任务分工后进入第 1 夜。
+- **暗夜实时行动（75 秒/夜）**：
+  - **10 大主题舱室与 26 处图内交互任务**：涵盖中央会议室、医疗间、监控室、军械库、配电室、引擎室、生态舱、娱乐室、仓库与中转舱；包含点击、顺序、长按、区间保持、拖拽与瞄准等多元图内维修小游戏。
+  - **资源与补给链**：个人维修累计进度可获得物资申请单，回中央会议室圆桌领取后，前往军械库/医疗间补给点兑换**子弹**与**医疗包**。
+  - **船体设施与机器人**：自动感应门、电闸全船断电、监控室全船摄像头、内鬼专用通风管道、在军械库巡逻并抓捕现行犯的**保安机器人**、以及驻守医疗间自动抢救濒死船员的**医疗无人机**。
+  - **战斗、濒死与取证**：出刀（1.5 格半圆范围含友伤）与开枪会将目标打成**濒死**（天亮失血死亡），出刀后短暂留下红身痕迹；期间可拖拽藏尸、搜尸查看伤情与时间线并手动拾取物资、使用医疗包施救，或拉响报告召开紧急会议。
+  - **破坏、进化与终结者时刻**：内鬼每夜可对舱室发动 30 秒致命破坏（超时扣全船 5 分）或拉闸断电；单内鬼残局可触发终极进化透视；战局延续至第 9 夜进入**终结者时刻**，全场公开身份、取消会议并补发弹药决胜负。
+- **全员会议、发言推理与投票驱逐**：
+  - 发现伤员/尸体（夜会）或天亮结算（白会）触发全员会议，依次经过 **讨论 → 投票 → 公布**。
+  - 支持快捷证据模板与中文自由发言、讨论期先投改票、弃权、不在场证明时间线对质与带错节奏后的全场信任/情绪追责。
+
+### 3. 全自主认知 AI（与玩家配置平等）
+- 玩家与 AI 共享同一套视野（含视口约束与手电锥）、听觉半径、移动速度与交互规则，**AI 绝不偷看阵营真值**。
+- 每名 AI 独立维护 **个人信任分（T）与个人情绪分（E）** 双轴认知，结合亲眼目击、听觉追踪、传闻失真与注意力窗口、性格四轴（激进/谨慎/社交/好奇）、主动跟踪取证、辩护背书与领袖号召，呈现高变数的拟人化推理局。
+
+---
+
+## 二、常用键位（2.5D 网页版）
+
+- **移动**：点击地面自动寻路（支持小地图/舱室导航）
+- **交互 / 轮盘**：`W`（多项交互时展开轮盘，数字键选择）
+- **战斗与行动**：`A` 出刀（内鬼） · `B` 开枪 · `H` 破坏（内鬼） · `S` 搜尸/查看伤情 · `D / G` 拖拽/放下 · `F` 施救 · `R` 报告 · `V` 监控 · `M` 静音 · `Esc` 暂停
+
+---
+
+## 三、快速开始
+
+- **直接游玩**：双击打开 `index.html`（`file://` 零依赖直开），或运行 `npm start` 启动本地静态服务。
+- **核心门禁**：`npm test` / `npm run ci:gate`
+- **专项体检**：`npm run t3:check` · `npm run file:check:js` · `npm run agent:contract` · `npm run guard`
+- **发布构建**：`npm run ship`
+
+---
+
+## 四、AI 读取边界
+
+单一真源：`AGENTS.md` §零。默认只读 `AGENTS → ARCHITECTURE → docs/CORE_RULES → docs/00-先导 → 任务对应的 js/`；
+默认不读 `tests/`、`tests/reports/`、`assets/` 二进制、`android/`、`tools/` 美术/发布、`docs/changelog-history-*.md`（历史分卷）。不要全仓 grep。
+
+---
+
+## 五、目录结构与规范入口
 
 ```
-index.html            唯一加载清单
+index.html            唯一加载清单（经典 <script> 顺序加载）
 js/                   T1/T2 运行时（36 个模块）
 audio/                T1 运行时音效
-assets/               T1 运行时引用 + MANIFEST / 许可（二进制不默认读）
-docs/                 规范（先导 / 验收 / 工作流 / 资产治理 / 历史分卷）
-tests/                T3 可执行门禁、夹具与报告（默认不读）
-3d/preview/data/      T3 导出快照；3d/tools/export-*.cjs 导出链
-tools/                发布与美术管线（默认不读）
+assets/               T1 运行时素材 + MANIFEST / 许可
+functions/            Pages 边缘中间件与云端存档接口
+docs/                 核心规则、体验先导、验收、工作流与资产治理规范
+tests/                T3 门禁、夹具与行为回归套件
+3d/preview/data/      3D 延伸版导出数据快照；3d/tools/export-*.cjs 导出链
+tools/                本地开发、发布与资产校验工具
 ```
 
-详细项目结构、门禁清单、3D 与部署说明已拆到 [docs/README-details.md](docs/README-details.md)。
-
-## 规范入口
-
-- [AGENTS.md](AGENTS.md) — 红线、命令与改动流程
+- 详细结构、门禁清单、3D 与部署说明：[docs/README-details.md](docs/README-details.md)
+- [AGENTS.md](AGENTS.md) — 工程红线、命令与改动流程
 - [ARCHITECTURE.md](ARCHITECTURE.md) — T1/T2/T3 三层架构
+- [docs/CORE_RULES.md](docs/CORE_RULES.md) — 核心玩法规则权威版
 - [docs/00-先导-游戏体验.md](docs/00-先导-游戏体验.md) — 体验描述面
-- [docs/acceptance.md](docs/acceptance.md) — T3 验收规范
-- [docs/workflow.md](docs/workflow.md) — 本机命令与提交流程
-- [docs/ASSET_GOVERNANCE.md](docs/ASSET_GOVERNANCE.md) — 资产治理
-- [CHANGELOG.md](CHANGELOG.md) — 当前批次 + 索引；历史分卷在 `docs/changelog-history-*.md`
+- [docs/acceptance.md](docs/acceptance.md) · [docs/workflow.md](docs/workflow.md) · [docs/ASSET_GOVERNANCE.md](docs/ASSET_GOVERNANCE.md)
+- [CHANGELOG.md](CHANGELOG.md) — 当前批次与读数台账（历史分卷在 `docs/changelog-history-*.md`）
 
-## 许可与署名
+---
 
-见 [LICENSE](LICENSE)、`assets/**/CREDITS.md` / `LICENSE.txt`、`audio/CREDITS.md`。素材署名不可删，二次分发同样适用。
+## 六、许可与署名
+
+代码采用 **MIT License**（见 [LICENSE](LICENSE)）；场景、音频与第三方素材署名见 `assets/**/CREDITS.md` / `LICENSE.txt`、`audio/CREDITS.md`（二次分发须保留原始署名）。
