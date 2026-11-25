@@ -1778,7 +1778,7 @@
           /* 2026-11-02 用户裁定：**白天回会议室、夜晚远程**。
              白天是真的把所有人传送到中央会议室（dawn() 负责刷位置）并打断任务；
              夜晚则是频道连线，人不离岗。 */
-          push(()=>sysSay(m.kind==='day'?'天亮了，全员回中央会议室集合。':'没有尸体，但有人按下了会议铃。'));
+          push(()=>sysSay(m.kind==='pre'?'航行简报：全员核对任务分工，讨论结束后进入第 1 夜。':(m.kind==='day'?'天亮了，全员回中央会议室集合。':'没有尸体，但有人按下了会议铃。')));
         }
         /* 没抢到第一句的先发制人者：紧跟着报案信息把矛头指出来（仍是前几句）。 */
         if(openingFn&&!openingPushed){ push(openingFn); openingPushed=true; }
@@ -1856,18 +1856,24 @@
            真人记得「你上次说你在引擎室」。这里只允许把它说出来，
            **绝不产生任何 `sus`**：昨晚在引擎室、今晚在配电室本来就正常，
            再给权重就是又一处量词错误（同 2026-11-01 那条教训）。 */
-        for(const a of speakers){
-          const al=alibiOf(a);
-          const h=(a.mind&&a.mind.claimHist)||[];
-          const prev=h.length?h[h.length-1]:null;
-          if(prev&&prev.room&&prev.room!==al.room){
-            const other=cands.find(x=>x!==a);
-            if(other)push(()=>say(other.name,pickLine(other,'claim_recall',0,
-              {t:a.name,r:al.room,r2:prev.room,when:whenWord()})));
-            (m.ctx.claimNotes=m.ctx.claimNotes||[]).push({who:a.i,prev:prev.room,now:al.room});
-            if(G.simStats)G.simStats.claimRecall=(G.simStats.claimRecall||0)+1;
+        if(m.kind!=='pre'){
+          let recalled=false;
+          for(const a of speakers){
+            const al=alibiOf(a);
+            const h=(a.mind&&a.mind.claimHist)||[];
+            const prev=h.length?h[h.length-1]:null;
+            if(!recalled&&prev&&prev.room&&prev.room!==al.room){
+              const other=cands.find(x=>x!==a);
+              if(other){
+                push(()=>say(other.name,pickLine(other,'claim_recall',0,
+                  {t:a.name,r:al.room,r2:prev.room,when:whenWord()})));
+                recalled=true;
+              }
+              (m.ctx.claimNotes=m.ctx.claimNotes||[]).push({who:a.i,prev:prev.room,now:al.room});
+              if(G.simStats)G.simStats.claimRecall=(G.simStats.claimRecall||0)+1;
+            }
+            recordClaim(a,al);
           }
-          recordClaim(a,al);
         }
         const asker=cands[3]||cands[0];
         if(G.me.alive&&!G.me.downed&&!G.spectMode){
