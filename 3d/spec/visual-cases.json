@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "note": "视觉证据用例：由 capture-visual.cjs 在有渲染的进程里逐条跑（headless 取不到帧缓冲，实测 get_image()=null）。判据不进 CI，图片与结论只作为规则条目的证据。",
+  "cases": [
+    {
+      "tag": "meeting",
+      "args": [
+        "--shot",
+        "--wait",
+        "3"
+      ],
+      "intent": "开局公开讨论：发言区 / 投票面板 / 发言编排三栏齐全，按钮文案与键位不重叠、不被裁切"
+    },
+    {
+      "tag": "blackout",
+      "args": [
+        "--shot",
+        "--blackout",
+        "--wait",
+        "3"
+      ],
+      "intent": "拉闸后：舱室全暗、会议室仍亮（R5.4），画面不应整屏全黑到看不见 HUD"
+    },
+    {
+      "tag": "above",
+      "args": [
+        "--shot",
+        "--above",
+        "--wait",
+        "3"
+      ],
+      "intent": "旁观者俯视剖面：天花板整层隐藏（此前 cull_mode 事故的回归点），能看清舱室与走廊布局"
+    },
+    {
+      "tag": "above-blackout",
+      "args": [
+        "--shot",
+        "--above",
+        "--blackout",
+        "--wait",
+        "3"
+      ],
+      "intent": "俯视 + 断电（R5.4 的唯一有效视角）：会议室仍亮，其余舱室与走廊全暗，且天花板整层隐藏"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "note": "大文件预算棘轮（2026-11-12 立）。额度只许下调，上调必须在 CHANGELOG-2026-11.md 写明理由并同时下调别处。目的：阻止 main.gd 这类装配文件重新长成巨石。",
+  "default_max_lines": 1150,
+  "files": {
+    "main.gd": {
+      "max_lines": 5611,
+      "role": "装配层：节点装配 + 输入分发 + HUD/面板接线；不得再放调试夹具",
+      "note": "2026-11-14 上调 5550→5560：--blackout 截图前先 _finish_meeting，否则开局会议面板铺满屏幕、断电图无效。属证据链路的必要改动，非玩法代码。同日第二次 5560→5590：修复人机偶现卡死（真源 dt 上限 + 遮罩清场）与灯光三态同步，属逐行移植补漏的守卫，非新系统；同时把 default_max_lines 1200→1150 及三个有余量文件的额度下调，净额度收缩。 2026-11-15 上调 5590→5597：同源移植 2.5D say() 的「自己发言强制滚到底」修复（7 行），属判定层同源补漏。"
+    },
+    "sim/sim_state.gd": {
+      "max_lines": 3935,
+      "role": "判定层聚合：规则/主循环/动作结算",
+      "note": "2026-11-16 上调 3695→3705：report 额度收口到 open_meeting_kind 单一入口、scan_bodies 补 rescue 守卫、fake 结算按 _fakeKind 广播；由 ai_alien 下调 -64 抵扣。"
+    },
+    "sim/ai_alien.gd": {
+      "max_lines": 1381,
+      "role": "异形 AI：效用表 / 伪装 / 管道 / 行凶后报案",
+      "note": "2026-11-16 下调 1359→1295：补给/救援/藏尸/理智线拆到 sim/alien_routines.gd（-64 行），额度同步收紧。异形 AI：效用表 / 伪装 / 管道 / 行凶后报案"
+    },
+    "sim/ai_human.gd": {
+      "max_lines": 794,
+      "role": "人类 AI：任务 / 救人 / 搜尸 / 循声查探",
+      "note": "2026-11-16 上调 706→738：H3 开枪抽 _try_shoot 并在 H4 之前调用（真源 2864<2902）、补 lootRun 的「物资不缺也每 6 秒掷 0.85 顺手取证」；由 ai_alien 下调 -64 抵扣。人类 AI：任务 / 救人 / 搜尸 / 循声查探"
+    },
+    "sim/mind.gd": {
+      "max_lines": 2027,
+      "role": "心智层：嫌疑/记忆/证据"
+    },
+    "sim/speech.gd": {
+      "max_lines": 1551,
+      "role": "会议编排与台词生成"
+    },
+    "sim/bots.gd": {
+      "max_lines": 395,
+      "role": "保安 / 医疗无人机"
+    },
+    "sim/crew_view.gd": {
+      "max_lines": 330,
+      "role": "船员视图数据"
+    },
+    "sim/grid_nav.gd": {
+      "max_lines": 290,
+      "role": "网格寻路"
+    },
+    "sim/lines_data.gd": {
+      "max_lines": 285,
+      "role": "语料装载"
+    },
+    "sim/invariants.gd": {
+      "max_lines": 200,
+      "role": "对局不变量"
+    },
+    "sim/body_state.gd": {
+      "max_lines": 112,
+      "role": "尸体链"
+    },
+    "sim/rules_data.gd": {
+      "max_lines": 105,
+      "role": "规则表装载"
+    },
+    "map_builder.gd": {
+      "max_lines": 1310,
+      "role": "地图几何构建",
+      "note": "2026-11-14 上调 1280→1310：会议室（bridge）独立常亮强光源——按用户裁定「会议室是最尊贵的」，断电时只有它不熄，且正常供电时功率收敛避免过曝。"
+    }
+  },
+  "rules": {
+    "max_func_lines": 200,
+    "tests_only_in_tests_dir": true,
+    "max_func_lines_allow": {
+      "main.gd:_ready": "引擎装配入口，本次拆分前的既存结构，待按 world/ui/view 三段再拆",
+      "main.gd:_collect_offers": "交互候选装载，待与 ui_wheel 合并收口",
+      "main.gd:_build_hud": "HUD 构建，待迁 scripts/ui/",
+      "sim/ai_alien.gd:_decide": "异形决策链，效用表接管后待按 _plan/_exec_plan 再切",
+      "sim/speech.gd:plan_alien_deception": "构陷编排，待按候选/评分两段切",
+      "sim/speech.gd:player_say": "玩家发言解析，待按模板/校验两段切",
+      "tests/test_world.gd:_run_probetest": "DEV 探针验收，本次拆分时原样迁出（原 262 行），待按阶段拆段",
+      "tests/test_world.gd:_run_aiporttest": "AI 移植验收，本次拆分时原样迁出（原 300 行），待按系统拆段",
+      "tests/test_ui.gd:_run_meetuitest": "会议界面验收，本次拆分时原样迁出（原 248 行），且自带 11 项既有失败待修",
+      "tests/test_social.gd:_run_speechtest": "发言链验收，本次拆分时原样迁出（原 219 行），待按语料/时序两段切"
+    }
+  }
+}

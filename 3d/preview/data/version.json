@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "name": "新返航录",
+  "product": "新返航录 3D 版",
+  "version": "V0.1",
+  "semver": "0.1.0",
+  "channel": "preview",
+  "build": "2026-11-26",
+  "license": "MIT",
+  "repos": {
+    "github": "https://github.com/hxj-2888/returnlog",
+    "gitee": "https://gitee.com/hxj-2888/returnlog"
+  },
+  "base": {
+    "version": "返航录V1.0",
+    "semver": "1.0.0"
+  },
+  "sources": {
+    "3d/version.json": "db63f7f5bb38",
+    "js/config/version.js": "6c6f366219eb",
+    "package.json": "9ec5cdcb9826"
+  }
+}

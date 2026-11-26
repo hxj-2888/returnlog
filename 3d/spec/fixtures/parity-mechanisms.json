@@ -1,0 +1,532 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-12T07:09:14.158Z",
+  "source": "2.5D js/game.js via SKV3._t (Edge headless, index.html?test)",
+  "src_refs": {
+    "sabTick": "js/game.js:1297",
+    "recordFrame": "js/game.js:1410",
+    "replayData": "js/game.js:1426",
+    "envNotice": "js/game.js:1848",
+    "evPush": "js/t2/ai.js:325-338",
+    "constants": "js/game.js:1400 / js/t2/ai.js:192"
+  },
+  "cases": {
+    "record_frame": {
+      "frame_count": 2,
+      "frame_keys": [
+        "pt",
+        "n",
+        "p"
+      ],
+      "p_entry_len": 4,
+      "p_entry_count": 15,
+      "n": 1,
+      "pt": 0,
+      "first_p_entry": [
+        0,
+        32.5,
+        32.1,
+        1
+      ]
+    },
+    "replay_data": {
+      "keys": [
+        "v",
+        "game",
+        "savedAt",
+        "map",
+        "result",
+        "roster",
+        "events",
+        "frames"
+      ],
+      "v": 1,
+      "game": "返航录V3.7",
+      "map_keys": [
+        "w",
+        "h",
+        "rooms",
+        "pipes"
+      ],
+      "map": {
+        "w": 98,
+        "h": 94,
+        "rooms": 10,
+        "pipes": 8
+      },
+      "result_keys": [
+        "win",
+        "why",
+        "prog",
+        "winPts",
+        "nights"
+      ],
+      "result": {
+        "win": false,
+        "why": "",
+        "prog": 0,
+        "winPts": 45,
+        "nights": 1
+      },
+      "roster_len": 15,
+      "roster_keys": [
+        "i",
+        "name",
+        "alien",
+        "alive",
+        "deathCause",
+        "deathRoom"
+      ],
+      "events_is_array": true,
+      "frames_is_array": true
+    },
+    "sab_tick": {
+      "room": "power",
+      "dmg_before": 0,
+      "dmg_after": 1,
+      "sabTarget_after": {
+        "room": "power",
+        "x": 32.53199375400034,
+        "y": 32.07043694930885,
+        "label": "fixture"
+      },
+      "sabUsed_after": true,
+      "dmg0": {
+        "room": "power",
+        "x": 32.53199375400034,
+        "y": 32.07043694930885,
+        "label": "fixture",
+        "left": 30,
+        "dur": 30,
+        "by": 0
+      }
+    },
+    "env_notice_fault": {
+      "kind": "env_fault",
+      "conf": 0.55,
+      "alert_gain": 0.1925,
+      "agents": [
+        {
+          "i": 0,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 232
+          },
+          "mem_before": 14,
+          "mem_after": 15,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 1,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 233
+          },
+          "mem_before": 14,
+          "mem_after": 16,
+          "alert_before": 0,
+          "alert_after": 0.2835,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 2,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 234
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 3,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 235
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.413,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 4,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 236
+          },
+          "mem_before": 14,
+          "mem_after": 16,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 5,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 237
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.504,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 6,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 238
+          },
+          "mem_before": 15,
+          "mem_after": 16,
+          "alert_before": 0.26249999999999996,
+          "alert_after": 0.45499999999999996,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 7,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 239
+          },
+          "mem_before": 15,
+          "mem_after": 17,
+          "alert_before": 0.16799999999999998,
+          "alert_after": 0.3605,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 8,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 240
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.42,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 9,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 241
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.4445,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 10,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 242
+          },
+          "mem_before": 15,
+          "mem_after": 16,
+          "alert_before": 0.252,
+          "alert_after": 0.4445,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 11,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 243
+          },
+          "mem_before": 14,
+          "mem_after": 15,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 12,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 244
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 13,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 245
+          },
+          "mem_before": 14,
+          "mem_after": 17,
+          "alert_before": 0,
+          "alert_after": 0.4725,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        },
+        {
+          "i": 14,
+          "alive": true,
+          "downed": false,
+          "detained": false,
+          "env_count": 1,
+          "ev": {
+            "kind": "env_fault",
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "room": "bridge",
+            "conf": 0.55,
+            "src": "env",
+            "t": 0,
+            "night": 1,
+            "id": 246
+          },
+          "mem_before": 14,
+          "mem_after": 16,
+          "alert_before": 0,
+          "alert_after": 0.1925,
+          "noise": {
+            "x": 32.53199375400034,
+            "y": 32.07043694930885,
+            "t": 0,
+            "kind": "env_fault"
+          }
+        }
+      ]
+    }
+  }
+}

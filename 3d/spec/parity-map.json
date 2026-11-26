@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "policy": "2026-11-09 用户裁定：3D 版是 2.5D 版的延伸，不是第二条产品线。除按键操作（玩家输入映射）、维度、部分美术素材三处外，其他都是 2.5D 版的移植；如无必要，不要擅自往 3D 版里加 2D 版没有的东西（新状态 / 新计数器 / 新阈值 / 新系统都算）。推理与发言判定、规则、语料、AI 行为全部同源。",
+  "note": "2026-11-13 起函数级 modules 已并入 3d/spec/mapping-ledger.json（唯一判决表）；本文件只保留红线 11 引用的 allowed_differences 与 truth_sources。",
+  "superseded_modules": "3d/spec/mapping-ledger.json",
+  "allowed_differences": [
+    "维度：3D 场景 / 第一人称相机 / 碰撞 / A* 网格 / LOS 几何 / LOD（真·维度产物，新增须注明「为什么 2.5D 不需要」）",
+    "美术：贴图、模型、光照、UI 呈现（「部分美术素材」可不同，不等于整套重做）",
+    "按键操作：2.5D 键鼠点击 vs 3D WASD + 鼠标（AI 端不受影响）",
+    "运行时适配器：setTimeout → Godot tick/agenda（语义一致，不算机制差异）",
+    "【2.5D 不需要】尸体记忆的存储形态：2.5D 用 mind.mem 时间线存 saw_body 条目；3D 的 mind 没有 mem 时间线，改存 bodySeen[victim]=night（quick_report 用）+ lastBody{i,sig}（同一具尸体状态变化的去重槽）+ why 里的 saw_body_moved / near_body 记录。语义与 observeBody 一致（第 13 批补齐），只是数据形状不同。",
+    "【2.5D 不需要】小游戏卡片打开时锁移动（ui_locked 把 mg.is_open() 并入判据）：2.5D 是点击地面移动，遮罩一盖就没有落点；3D 是 WASD 持续输入，必须显式锁，否则卡片挡着画面还能走。",
+    "【2.5D 不需要】照明三态的场景落地：2.5D 用 canvas 遮罩 + CSS 表达，3D 要把 light_state(0/1/2) 落到每盏 OmniLight3D 的 visible、常亮材质 emission、环境光与 DirectionalLight 补光；状态机本身与真源 refreshLight 同源。",
+    "【2.5D 不需要】旁观者俯视剖面：飞到天花板以上时整层天花板（含灯带）隐藏，从上面看是完整舱室剖面；2.5D 本来就是俯视 2D，没有\"穿层\"问题。下层只做贴板，旁观者下穿被夹在 y≥0.35，不掉进虚空。",
+    "【美术，待做】角色目前是 billboard 贴图（与 2.5D 立绘同源）。改为实际建模属\"部分美术素材\"允许差异，排在美术栏，不在判定层。",
+    "【美术】地图 decor：2.5D 的 20 件是地面喷涂 / 摄像头 / 全息屏等场景涂装；3D 的 40 件是墙面美术图版（`map_v2.decor`）。decor 不参与碰撞、LOS、交互与寻路，纯表现层；运行时的 `cover / points / facility / rooms / walls / pipes` 必须与 `js/data/map.js` 逐值一致。`layout-v2.json` 只是方案层美术留档，Godot 运行时不读取。"
+  ],
+  "truth_sources": [
+    "3d/preview/data/rules.json（推理/发言规则 + 函数指纹）",
+    "3d/preview/data/lines.json（62 类台词 + 词表 + parseSpeech 正则）",
+    "3d/preview/data/sim.json（开局/分值/夜长/会议）",
+    "3d/preview/data/space.json（空间/视野/站桩/机器人）"
+  ]
+}
