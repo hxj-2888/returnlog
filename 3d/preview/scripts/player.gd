@@ -109,7 +109,8 @@ func _build_camera() -> void:
 	flashlight.spot_range = 20.0
 	flashlight.spot_angle = 30.0
 	flashlight.spot_angle_attenuation = 1.15
-	flashlight.light_energy = 3.8
+	flashlight.spot_attenuation = 1.45
+	flashlight.light_energy = 2.2
 	flashlight.light_color = Color(1.0, 0.94, 0.82)
 	flashlight.shadow_enabled = true
 	flashlight.shadow_bias = 0.04
@@ -119,8 +120,8 @@ func _build_camera() -> void:
 	_spill_light.spot_range = 21.0
 	_spill_light.spot_angle = 44.0
 	_spill_light.spot_angle_attenuation = 1.65
-	_spill_light.spot_attenuation = 1.35
-	_spill_light.light_energy = 0.85
+	_spill_light.spot_attenuation = 1.6
+	_spill_light.light_energy = 0.45
 	_spill_light.light_color = Color(0.95, 0.92, 0.84)
 	_spill_light.shadow_enabled = false
 	flashlight.add_child(_spill_light)

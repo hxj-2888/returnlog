@@ -493,9 +493,7 @@ func _build_decor(data: Dictionary) -> void:
 
 func _build_doors(data: Dictionary) -> void:
 	var frame_mat := _mat(METAL, Color(0.5, 0.56, 0.66))
-	var glow := _flat(Color("#F0C674"), true)
-	glow.set_meta("base_emit", 0.8)
-	_door_strip_mats.append(glow)
+	var strip_mats: Dictionary = {}
 	var leaf_mat := _mat(METAL, Color(0.34, 0.39, 0.47))
 	leaf_mat.metallic = 0.6
 	## 2026-11-11 美术裁定：门 = 3D 滑门结构 + 2.5D 门板。
@@ -552,7 +550,7 @@ func _build_doors(data: Dictionary) -> void:
 			sb.size = Vector3(1.7, 0.05, 0.32) if along_x else Vector3(0.32, 0.05, 1.7)
 			strip.mesh = sb
 			strip.position = center + Vector3(0, 2.47, 0)
-			strip.material_override = glow
+			strip.material_override = _door_strip_mat(room, Vector2(center.x, center.z), data, strip_mats)
 			add_child(strip)
 
 			# ---- 门扇 + 碰撞：断电时两扇合拢拦住人，扫描满 2 秒才滑开 ----
@@ -602,6 +600,51 @@ func _build_doors(data: Dictionary) -> void:
 				"key": "%s|%s|%.3f" % [String(room.get("id", "")), side, coord],
 				"leaves": leaves, "blockers": blockers, "scan": scan,
 			})
+
+
+## 按所属舱室 theme.glow 缓存门楣灯带材质（全船最多 10 个），不再使用硬编码琥珀色。
+func _door_strip_mat(room: Dictionary, door_pos: Vector2, data: Dictionary, cache: Dictionary) -> StandardMaterial3D:
+	var target := room
+	var th: Variant = target.get("theme", null)
+	if not (th is Dictionary) or not (th as Dictionary).has("glow"):
+		target = _find_door_room(door_pos, data)
+	var rid := String(target.get("id", "_default"))
+	if cache.has(rid):
+		return cache[rid] as StandardMaterial3D
+	var glow_col := Color("#F0C674")
+	var t_dict: Variant = target.get("theme", null)
+	if t_dict is Dictionary:
+		var raw: Variant = (t_dict as Dictionary).get("glow", [])
+		if raw is Array and (raw as Array).size() >= 3:
+			var a := raw as Array
+			glow_col = Color(clampf(float(a[0]), 0.0, 1.0), clampf(float(a[1]), 0.0, 1.0), clampf(float(a[2]), 0.0, 1.0))
+	var mat := _flat(glow_col, true)
+	mat.emission_energy_multiplier = 0.75
+	mat.set_meta("base_emit", 0.75)
+	_door_strip_mats.append(mat)
+	cache[rid] = mat
+	return mat
+
+
+## 查找包含门坐标或距离最近的舱室字典，作为无 theme.glow 门条目的兜底。
+func _find_door_room(door_pos: Vector2, data: Dictionary) -> Dictionary:
+	var best := {}
+	var best_d := 1e9
+	for r: Dictionary in data.get("rooms", []):
+		var rect: Array = r.get("rect", [])
+		if rect.size() >= 4:
+			var x0 := float(rect[0])
+			var y0 := float(rect[1])
+			var x1 := x0 + float(rect[2])
+			var y1 := y0 + float(rect[3])
+			if door_pos.x >= x0 - 0.3 and door_pos.x <= x1 + 0.3 and door_pos.y >= y0 - 0.3 and door_pos.y <= y1 + 0.3:
+				return r
+			var c := Vector2((x0 + x1) * 0.5, (y0 + y1) * 0.5)
+			var d := door_pos.distance_squared_to(c)
+			if d < best_d:
+				best_d = d
+				best = r
+	return best
 
 
 func _drone(pos: Vector3, color: Color, title: String) -> Node3D:

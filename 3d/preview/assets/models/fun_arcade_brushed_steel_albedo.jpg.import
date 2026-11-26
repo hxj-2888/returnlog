@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ctjcyrsx7ohk7"
-path="res://.godot/imported/fun_arcade_brushed_steel_albedo.jpg-05f6700a52647e831029183cf87dcc12.ctex"
+path.s3tc="res://.godot/imported/fun_arcade_brushed_steel_albedo.jpg-05f6700a52647e831029183cf87dcc12.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3f6e6a2394faea8efe99ceb8d9ca0032"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fun_arcade_brushed_steel_albedo.jpg"
-dest_files=["res://.godot/imported/fun_arcade_brushed_steel_albedo.jpg-05f6700a52647e831029183cf87dcc12.ctex"]
+dest_files=["res://.godot/imported/fun_arcade_brushed_steel_albedo.jpg-05f6700a52647e831029183cf87dcc12.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0

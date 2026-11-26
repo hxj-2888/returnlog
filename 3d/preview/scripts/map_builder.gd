@@ -84,7 +84,7 @@ const COVER_HEIGHT := CoverBuilder.COVER_HEIGHT
 ## 缺图时回退到原来的共享 wall-panel + theme.wall 染色，不影响出包。
 const CABIN_TEX_DIR := "res://assets/textures/cabin/"
 ## 一张 512 贴图覆盖的墙面尺寸（米）。身份色在图里，这里只管重复密度。
-const CABIN_TILE_M := 2.4
+const CABIN_TILE_M := 3.4
 ## 千问覆盖的 10 舱（2026-11-09 SDXL 退役、铁板舱 exclusion 解除）：墙面贴图与
 ## WALL_SKIN 的首张同字节。改走同一条 ResourceLoader 路径后，同一张 1536² 纹理
 ## 只上传一次显存；贴图缺失时 _wall_material() 自动退回共享 wall-panel + 染色。
@@ -108,7 +108,7 @@ var _fill: DirectionalLight3D = null
 ## 天花板补光（朝上），照天花板背光面
 var _ceil_fill: DirectionalLight3D = null
 ## 正常供电基础层补光：提升天花板梁架、墙面法线与船员背光面通透度（断电时仍回落至极弱档）。
-var _ceil_fill_base := 0.22
+var _ceil_fill_base := 0.12
 var _fill_base := 0.14
 var power_on := true
 var _lighting: RoomLighting = RoomLighting.new()
@@ -162,7 +162,7 @@ func set_light_state(st: int) -> void:
 	## 否则叠加在本就明亮的场景上会过曝（实测亮像素占比 1.3% → 7.4%）；
 	## 断电档也不宜高于正常档，否则会出现「黑天比亮天更亮」的怪相（实测 22.9 vs 18.1）。
 	if _keynote != null:
-		_keynote.light_energy = 3.5 if st == 2 else 2.8
+		_keynote.light_energy = 2.2 if st == 2 else 1.8
 	if _fill != null:
 		_fill.light_energy = _fill_base if on else 0.02
 	if _ceil_fill != null:
@@ -265,16 +265,22 @@ func _ceiling_material(rid: String = "") -> StandardMaterial3D:
 	return _ceil_deck_mat
 
 
-func _place_kit(name: String, pos: Vector3, along_x: bool, len_scale: float) -> void:
+func _place_kit(name: String, pos: Vector3, along_x: bool, total_len: float) -> void:
 	var packed: PackedScene = _ceil_kit.get(name)
-	if packed == null:
+	if packed == null or total_len <= 0.1:
 		return
-	var node := packed.instantiate() as Node3D
-	node.position = pos
-	node.rotation.y = 0.0 if along_x else PI * 0.5
-	node.scale = Vector3(len_scale, 1.0, 1.0)
-	add_child(node)
-	_ceil_nodes.append(node)
+	## 按 3m~4m 整数段分段摆放 3m 套件，避免长跨度直接拉伸（单段 scale.x 控制在 0.8~1.35）
+	var segs := maxi(1, roundi(total_len / 3.2))
+	var len_scale := clampf((total_len / float(segs)) / 3.0, 0.8, 1.35)
+	var axis := Vector3(1.0, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, 1.0)
+	for i in segs:
+		var offset := ((float(i) + 0.5) / float(segs) - 0.5) * total_len
+		var node := packed.instantiate() as Node3D
+		node.position = pos + axis * offset
+		node.rotation.y = 0.0 if along_x else PI * 0.5
+		node.scale = Vector3(len_scale, 1.0, 1.0)
+		add_child(node)
+		_ceil_nodes.append(node)
 
 
 ## 一个舱的工业天花板：主梁 3m 一档、次梁 6m 一档、2 条管线 + 1 条线槽。
@@ -299,20 +305,20 @@ func _add_ceiling_kit(room: Dictionary) -> void:
 	for i in n_main:
 		var off := (float(i) + 0.5) * span / float(n_main)
 		var pos := Vector3(x0 + w * 0.5, beam_y, z0 + off) if long_x else Vector3(x0 + off, beam_y, z0 + d * 0.5)
-		_place_kit("ceiling_beam", pos, long_x, length / 3.0)
+		_place_kit("ceiling_beam", pos, long_x, length)
 	var n_cross := maxi(1, int(floor(length / 6.0)))
 	for i in n_cross:
 		var off := (float(i) + 0.5) * length / float(n_cross)
 		var pos := Vector3(x0 + off, beam_y, z0 + d * 0.5) if long_x else Vector3(x0 + w * 0.5, beam_y, z0 + off)
-		_place_kit("ceiling_beam", pos, not long_x, span / 3.0)
+		_place_kit("ceiling_beam", pos, not long_x, span)
 	var pipe_y := CEILING_Y - 0.27
 	for frac in [0.30, 0.45]:
 		var off := span * float(frac)
 		var pos := Vector3(x0 + w * 0.5, pipe_y, z0 + off) if long_x else Vector3(x0 + off, pipe_y, z0 + d * 0.5)
-		_place_kit("ceiling_pipe", pos, long_x, length / 3.0)
+		_place_kit("ceiling_pipe", pos, long_x, length)
 	var tray_off := span * 0.70
 	var tray_pos := Vector3(x0 + w * 0.5, CEILING_Y - 0.26, z0 + tray_off) if long_x else Vector3(x0 + tray_off, CEILING_Y - 0.26, z0 + d * 0.5)
-	_place_kit("ceiling_tray", tray_pos, long_x, length / 3.0)
+	_place_kit("ceiling_tray", tray_pos, long_x, length)
 
 
 ## floor_spec 的 tint 是底图用的 MULTIPLY 染色（可 >1 表示提亮）。
@@ -381,9 +387,9 @@ func _add_ceiling_strip(room: Dictionary) -> void:
 	## 公开依据：Godot 官方 standard_material_3d —— Emission 直接叠加到最终图像，
 	## 不受场景光照影响；取值过高在 Filmic 色调映射下会过曝成亮条，且不会照亮房间
 	## （照亮房间要靠真实光源或 GI，见 _build_environment 的 ceil_fill）。
-	mat.emission_energy_multiplier = 1.15
+	mat.emission_energy_multiplier = 0.72
 	mat.roughness = 0.4
-	_register_emit(mat, 1.15)
+	_register_emit(mat, 0.72)
 	## 贴边收缩：把每条边的中点往房间中心收 0.45m，灯带就贴在墙顶接缝内侧
 	var c := Vector2.ZERO
 	for p: Array in poly:
@@ -473,6 +479,14 @@ func _build_corridors() -> void:
 		floor_mat.emission_energy_multiplier = float(cs["emit"])
 	var corr_repeat := float(cs.get("repeat_m", 2.6))
 	var ceil_mat := _ceiling_material()
+	# 走廊顶部细灯带材质（柔和发光并随断电统一熄灭）
+	var strip_mat := StandardMaterial3D.new()
+	strip_mat.albedo_color = Color(0.66, 0.82, 0.96)
+	strip_mat.emission_enabled = true
+	strip_mat.emission = Color(0.66, 0.82, 0.96)
+	strip_mat.emission_energy_multiplier = 0.65
+	strip_mat.roughness = 0.4
+	_register_emit(strip_mat, 0.65)
 	for corridor: Dictionary in data.get("corridors", []):
 		var pts: Array = corridor.get("pts", [])
 		for i in range(pts.size() - 1):
@@ -480,6 +494,17 @@ func _build_corridors() -> void:
 			var b := Vector2(float(pts[i + 1][0]), float(pts[i + 1][1]))
 			_add_corridor_quad(a, b, width, 0.02, Vector3.UP, floor_mat, corr_repeat)
 			_add_corridor_quad(a, b, width, CEILING_Y, Vector3.DOWN, ceil_mat, CEIL_TILE_M)
+			var seg_len := a.distance_to(b)
+			if seg_len >= 0.4:
+				var box := BoxMesh.new()
+				box.size = Vector3(seg_len, 0.05, 0.16)
+				var mi := MeshInstance3D.new()
+				mi.mesh = box
+				mi.position = Vector3((a.x + b.x) * 0.5, CEILING_Y - 0.05, (a.y + b.y) * 0.5)
+				mi.rotation.y = -atan2(b.y - a.y, b.x - a.x)
+				mi.material_override = strip_mat
+				add_child(mi)
+				_ceil_nodes.append(mi)
 
 
 func _build_walls() -> void:
@@ -522,7 +547,8 @@ func _wall_material(rid: String, fallback_tint: Color) -> StandardMaterial3D:
 		return _material("wall-panel", fallback_tint, true)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = load(path) as Texture2D
-	mat.albedo_color = WALL_TINT_BASE
+	# 对 Qwen 墙面温和融合 35% 舱室色温，保留分区辨识度
+	mat.albedo_color = WALL_TINT_BASE.lerp(fallback_tint, 0.35)
 	ArtStyle.apply_wall_pbr(mat, path, CABIN_TILE_M)
 	_cabin_mats[rid] = mat
 	return mat
@@ -650,7 +676,8 @@ func _build_corridor_lamps() -> void:
 			var light := OmniLight3D.new()
 			light.position = Vector3(float(lamp.get("x", 0)), 2.75, float(lamp.get("y", 0)))
 			light.omni_range = CORR_LAMP_RANGE
-			light.light_energy = 2.16
+			light.light_energy = 1.25
+			light.omni_attenuation = 1.25
 			light.light_color = Color(0.86, 0.92, 1.0)
 			light.shadow_enabled = false
 			light.distance_fade_enabled = true
@@ -717,7 +744,7 @@ func _build_environment() -> void:
 	## 天花板背光补光（Godot GL Compatibility 下自发光不照亮周围，需弱朝上平行光）。
 	var ceil_fill := DirectionalLight3D.new()
 	ceil_fill.rotation_degrees = Vector3(58.0, 20.0, 0.0)
-	ceil_fill.light_energy = 0.22
+	ceil_fill.light_energy = 0.12
 	ceil_fill.light_color = Color(0.62, 0.70, 0.82)
 	ceil_fill.shadow_enabled = false
 	add_child(ceil_fill)
@@ -803,9 +830,12 @@ func _material(texture_name: String, tint: Color, triplanar: bool = false) -> St
 		var path := "res://assets/textures/%s.png" % texture_name
 		if ResourceLoader.exists(path):
 			mat.albedo_texture = load(path)
-			ArtStyle.apply_shared_pbr(mat, path, 0.70, false)
+			ArtStyle.apply_shared_pbr(mat, path, 0.70, true)
 	mat.albedo_color = tint
-	mat.roughness = 0.9
+	if mat.roughness_texture == null:
+		mat.roughness = 0.85
+	else:
+		mat.roughness = 1.0
 	mat.metallic = 0.08
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mat.uv1_triplanar = triplanar

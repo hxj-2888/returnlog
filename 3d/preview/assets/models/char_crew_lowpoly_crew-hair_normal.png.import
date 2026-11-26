@@ -3,28 +3,29 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bvfvudg4yn8js"
-path="res://.godot/imported/char_crew_lowpoly_crew-hair_normal.png-b4b0ac185c93ff8433b4c52ad43690d3.ctex"
+path.bptc="res://.godot/imported/char_crew_lowpoly_crew-hair_normal.png-b4b0ac185c93ff8433b4c52ad43690d3.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "a11b4f0673a92c9425a9680855b4a576"
+"md5": "af9e472810ec83e4446b48639fe6777d"
 }
 
 [deps]
 
 source_file="res://assets/models/char_crew_lowpoly_crew-hair_normal.png"
-dest_files=["res://.godot/imported/char_crew_lowpoly_crew-hair_normal.png-b4b0ac185c93ff8433b4c52ad43690d3.ctex"]
+dest_files=["res://.godot/imported/char_crew_lowpoly_crew-hair_normal.png-b4b0ac185c93ff8433b4c52ad43690d3.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=768
+detect_3d/compress_to=0

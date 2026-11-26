@@ -3,23 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://eqdyokjuooql"
-path="res://.godot/imported/door_leaf_r_door_frame_normal.jpg-46e2da595e0994e71576aeb5da26689a.ctex"
+path.bptc="res://.godot/imported/door_leaf_r_door_frame_normal.jpg-46e2da595e0994e71576aeb5da26689a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "c645349fe7397b54935375fb6068d4bd"
+"md5": "d15833f3e0612721c9a91a0924b00e82"
 }
 
 [deps]
 
 source_file="res://assets/models/door_leaf_r_door_frame_normal.jpg"
-dest_files=["res://.godot/imported/door_leaf_r_door_frame_normal.jpg-46e2da595e0994e71576aeb5da26689a.ctex"]
+dest_files=["res://.godot/imported/door_leaf_r_door_frame_normal.jpg-46e2da595e0994e71576aeb5da26689a.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=768
+detect_3d/compress_to=0

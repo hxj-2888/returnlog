@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://nfcn6jlhw31w"
-path="res://.godot/imported/door_leaf_r_door_panel_r_emissive.png-fcf30ebc0c91a9e202467b086287bc73.ctex"
+path.s3tc="res://.godot/imported/door_leaf_r_door_panel_r_emissive.png-fcf30ebc0c91a9e202467b086287bc73.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b7fef0368e2f6d338be3768a580f47fb"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/door_leaf_r_door_panel_r_emissive.png"
-dest_files=["res://.godot/imported/door_leaf_r_door_panel_r_emissive.png-fcf30ebc0c91a9e202467b086287bc73.ctex"]
+dest_files=["res://.godot/imported/door_leaf_r_door_panel_r_emissive.png-fcf30ebc0c91a9e202467b086287bc73.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0

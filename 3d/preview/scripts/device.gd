@@ -130,9 +130,8 @@ func _build_model() -> void:
 	_build_fallback()
 
 
-## GLB 机身上没有放图的面，这里在正面贴一块面板图。
-## 位置按实例化后的实际包围盒算（正面是 -Z），不能猜固定偏移 ——
-## 猜的 -0.20 会让面板飘在机柜前面，看起来像贴了张照片。
+## GLB 机身上没有放图的面，这里装配 3D 嵌入式凹框、内退屏幕、抗眩光玻璃与带物理按键的操作台沿。
+## 位置按实例化后的实际包围盒算（正面是 -Z），保证紧贴机身且有真实凹凸层次。
 ## 保底渲染（_build_fallback）那支屏幕 quad 已经走 _screen_path()，会自动换图，不再叠第二块。
 func _add_faceplate() -> void:
 	if not _from_glb:
@@ -147,46 +146,131 @@ func _add_faceplate() -> void:
 	var h := clampf(bounds.size.y * 0.62, 0.24, 1.05)
 	var mid := bounds.get_center()
 	var fy := mid.y + bounds.size.y * 0.06
+	var front_z := bounds.position.z
 
-	# 深色金属边框
-	var bezel := MeshInstance3D.new()
-	var bmesh := BoxMesh.new()
-	bmesh.size = Vector3(w + 0.05, h + 0.05, 0.014)
-	bezel.mesh = bmesh
-	bezel.position = Vector3(mid.x, fy, bounds.position.z - 0.006)
+	# 四边独立拉丝金属凹框：厚 0.048m、宽 0.032m，围出真实物理凹槽
+	var frame_w := 0.032
+	var frame_d := 0.048
+	var bezel_z := front_z - 0.010
+	var bezel_front_z := bezel_z - frame_d * 0.5
 	var bmat := StandardMaterial3D.new()
-	bmat.albedo_color = Color(0.14, 0.16, 0.20)
-	bmat.metallic = 0.75
-	bmat.roughness = 0.36
-	bezel.material_override = bmat
-	add_child(bezel)
+	bmat.albedo_color = Color(0.24, 0.27, 0.32)
+	bmat.metallic = 0.72
+	bmat.roughness = 0.45
+	ArtStyle.apply_shared_pbr(bmat, "res://assets/textures/panel-metal.png", 0.65, false)
+	var bars := [
+		[Vector3(w + frame_w * 2.0, frame_w, frame_d), Vector3(mid.x, fy + h * 0.5 + frame_w * 0.5, bezel_z)],
+		[Vector3(w + frame_w * 2.0, frame_w, frame_d), Vector3(mid.x, fy - h * 0.5 - frame_w * 0.5, bezel_z)],
+		[Vector3(frame_w, h, frame_d), Vector3(mid.x - w * 0.5 - frame_w * 0.5, fy, bezel_z)],
+		[Vector3(frame_w, h, frame_d), Vector3(mid.x + w * 0.5 + frame_w * 0.5, fy, bezel_z)],
+	]
+	for bar: Array in bars:
+		var bi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = bar[0] as Vector3
+		bi.mesh = bm
+		bi.position = bar[1] as Vector3
+		bi.material_override = bmat
+		add_child(bi)
 
+	# 屏幕内嵌退进凹槽深处（比边框前沿向内退 0.026m），降低背光强度消除发光纸片感
+	var plate_z := bezel_front_z + 0.026
 	var plate := MeshInstance3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(w, h)
 	plate.mesh = quad
-	# 贴在机身正面外 1.4 厘米，避免与边框及机身表面 z-fighting
-	plate.position = Vector3(mid.x, fy, bounds.position.z - 0.014)
+	plate.position = Vector3(mid.x, fy, plate_z)
 	plate.rotation.y = PI
 	_screen_material = _screen_mat(tex_path)
-	_screen_material.emission_energy_multiplier = 0.6
+	_screen_material.emission_energy_multiplier = 0.22
 	plate.material_override = _screen_material
 	add_child(plate)
 
-	# 屏幕玻璃反光层
+	# 抗眩光玻璃嵌在屏幕前 0.008m（仍在凹框内部），压低手电反白刺眼
 	var glass := MeshInstance3D.new()
 	glass.mesh = quad
-	glass.position = Vector3(mid.x, fy, bounds.position.z - 0.017)
+	glass.position = Vector3(mid.x, fy, plate_z - 0.008)
 	glass.rotation.y = PI
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var gmat := StandardMaterial3D.new()
-	gmat.albedo_color = Color(0.85, 0.94, 1.0, 0.08)
+	gmat.albedo_color = Color(0.82, 0.92, 0.98, 0.14)
 	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gmat.metallic = 0.15
-	gmat.roughness = 0.08
-	gmat.metallic_specular = 0.92
+	gmat.metallic = 0.08
+	gmat.roughness = 0.24
+	gmat.metallic_specular = 0.45
 	glass.material_override = gmat
 	add_child(glass)
+
+	_add_control_ledge(mid.x, fy - h * 0.5 - frame_w, front_z, w + frame_w * 2.0, bmat)
+
+
+## 屏幕下方微微前倾的操作台沿 + 3 颗实体按键 + 1 颗立体旋钮 + 1 颗主题色 LED 灯珠
+func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: float, frame_mat: StandardMaterial3D) -> void:
+	var shelf_h := 0.055
+	var shelf_d := 0.095
+	var shelf := MeshInstance3D.new()
+	var smesh := BoxMesh.new()
+	smesh.size = Vector3(total_w, shelf_h, shelf_d)
+	shelf.mesh = smesh
+	shelf.position = Vector3(cx, bottom_y - 0.026, front_z - 0.042)
+	shelf.rotation.x = -0.22
+	shelf.material_override = frame_mat
+	add_child(shelf)
+
+	var top_y := shelf_h * 0.5
+	var span := minf(total_w * 0.72, 0.34)
+	var btn_colors := [Color(0.76, 0.24, 0.20), Color(0.84, 0.62, 0.20), Color(0.24, 0.64, 0.46)]
+	for i in btn_colors.size():
+		var btn := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.032, 0.018, 0.026)
+		btn.mesh = bm
+		btn.position = Vector3(-span * 0.38 + float(i) * (span * 0.18), top_y + 0.009, -0.008)
+		var bmat := StandardMaterial3D.new()
+		bmat.albedo_color = btn_colors[i] as Color
+		bmat.roughness = 0.48
+		bmat.metallic = 0.12
+		btn.material_override = bmat
+		shelf.add_child(btn)
+
+	# 立体旋钮（圆柱底座 + 顶部拨棱）
+	var knob := MeshInstance3D.new()
+	var km := CylinderMesh.new()
+	km.top_radius = 0.017
+	km.bottom_radius = 0.020
+	km.height = 0.022
+	km.radial_segments = 16
+	knob.mesh = km
+	knob.position = Vector3(span * 0.20, top_y + 0.011, -0.006)
+	knob.material_override = frame_mat
+	shelf.add_child(knob)
+
+	var ridge := MeshInstance3D.new()
+	var rm := BoxMesh.new()
+	rm.size = Vector3(0.006, 0.008, 0.022)
+	ridge.mesh = rm
+	ridge.position = Vector3(0.0, 0.013, 0.0)
+	ridge.material_override = frame_mat
+	knob.add_child(ridge)
+
+	# 小尺寸自发光 LED 状态灯珠（按任务光圈主题色发光）
+	var led_col := _task_ring_color()
+	var led := MeshInstance3D.new()
+	var lm := SphereMesh.new()
+	lm.radius = 0.011
+	lm.height = 0.016
+	lm.radial_segments = 12
+	lm.rings = 6
+	led.mesh = lm
+	led.position = Vector3(span * 0.40, top_y + 0.006, -0.010)
+	var lmat := StandardMaterial3D.new()
+	lmat.albedo_color = led_col
+	lmat.emission_enabled = true
+	lmat.emission = led_col
+	lmat.emission_energy_multiplier = 1.4
+	lmat.roughness = 0.25
+	led.material_override = lmat
+	shelf.add_child(led)
 
 
 ## 交互距离：按**占地矩形的钳位距离**算，不是到节点中心的直线距离。
@@ -266,6 +350,14 @@ func _build_fallback() -> void:
 	_screen_height = 0.72
 
 
+func _task_ring_color() -> Color:
+	var col: Color = RING_COLOR.get(kind, Color("#F0C674"))
+	var cfg := MinigameData.task_cfg(_ensure_mg_data(), task_label)
+	if (kind == "plate" or cfg.has("color")) and String(cfg.get("color", "")) != "":
+		col = Color(String(cfg.get("color", "")))
+	return col
+
+
 func _build_ring() -> void:
 	var ring := MeshInstance3D.new()
 	var torus := TorusMesh.new()
@@ -276,10 +368,7 @@ func _build_ring() -> void:
 	ring.mesh = torus
 	ring.position = Vector3(0, 0.014, 0)
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var col: Color = RING_COLOR.get(kind, Color("#F0C674"))
-	var cfg := MinigameData.task_cfg(_ensure_mg_data(), task_label)
-	if (kind == "plate" or cfg.has("color")) and String(cfg.get("color", "")) != "":
-		col = Color(String(cfg.get("color", "")))
+	var col := _task_ring_color()
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(col.r, col.g, col.b, 0.45)
 	mat.emission_enabled = true

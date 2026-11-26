@@ -15,16 +15,16 @@ const PRESETS := {
 }
 
 const COVER_PRESETS := {
-	"brushed_steel": {"metallic": 0.85, "roughness": 0.36, "specular": 0.65, "normal": 0.72},
+	"brushed_steel": {"metallic": 0.85, "roughness": 0.36, "specular": 0.50, "normal": 0.72},
 	"metal_panel": {"metallic": 0.45, "roughness": 0.50, "specular": 0.52, "normal": 0.72},
 	"shell_white": {"metallic": 0.06, "roughness": 0.54, "specular": 0.42, "normal": 0.65},
 	"fabric": {"metallic": 0.0, "roughness": 0.90, "specular": 0.22, "normal": 0.78},
 	"rubber": {"metallic": 0.0, "roughness": 0.88, "specular": 0.20, "normal": 0.75},
 	"wood": {"metallic": 0.0, "roughness": 0.72, "specular": 0.32, "normal": 0.70},
-	"glass": {"metallic": 0.08, "roughness": 0.12, "specular": 0.85, "normal": 0.35},
+	"glass": {"metallic": 0.08, "roughness": 0.12, "specular": 0.55, "normal": 0.35},
 	"hazard": {"metallic": 0.18, "roughness": 0.55, "specular": 0.45, "normal": 0.70},
 	"leaf": {"metallic": 0.0, "roughness": 0.62, "specular": 0.35, "normal": 0.65},
-	"screen": {"metallic": 0.12, "roughness": 0.22, "specular": 0.80, "normal": 0.35},
+	"screen": {"metallic": 0.12, "roughness": 0.22, "specular": 0.45, "normal": 0.35},
 }
 
 
@@ -37,16 +37,16 @@ static func apply_environment(env: Environment) -> void:
 	env.ambient_light_color = Color(0.56, 0.63, 0.74)
 	env.ambient_light_energy = 0.24
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
-	env.tonemap_exposure = 1.18
-	env.tonemap_white = 5.2
+	env.tonemap_exposure = 1.0
+	env.tonemap_white = 6.0
 	env.adjustment_enabled = true
-	env.adjustment_brightness = 1.04
-	env.adjustment_contrast = 1.05
-	env.adjustment_saturation = 1.06
+	env.adjustment_brightness = 1.0
+	env.adjustment_contrast = 1.02
+	env.adjustment_saturation = 1.03
 	env.glow_enabled = true
-	env.glow_intensity = 0.30
-	env.glow_bloom = 0.06
-	env.glow_hdr_threshold = 0.88
+	env.glow_intensity = 0.16
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 1.15
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.014, 0.020, 0.034)
 	env.fog_density = 0.007
@@ -74,11 +74,8 @@ static func apply_wall_pbr(mat: StandardMaterial3D, albedo_path: String, tile_m:
 	mat.uv1_scale = Vector3.ONE * (1.0 / tile_m)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	apply_shared_pbr(mat, albedo_path, 0.85, true)
-	if ResourceLoader.exists(DETAIL_NORMAL_PATH):
-		mat.detail_enabled = true
-		mat.detail_normal = load(DETAIL_NORMAL_PATH) as Texture2D
-		mat.detail_blend_mode = BaseMaterial3D.BLEND_MODE_MUL
-		mat.detail_uv_layer = BaseMaterial3D.DETAIL_UV_1
+	# 墙面已有三平面 *-normal.png，关闭 BoxMesh 上的 DETAIL_UV_1 以免长墙横向拉丝
+	mat.detail_enabled = false
 
 
 ## 地板 PBR：严格保留原 albedo_texture / albedo_color / UV repeat_m，仅叠加法线与粗糙度贴图。
@@ -118,11 +115,17 @@ static func apply_cover_pbr(mat: StandardMaterial3D, role: String) -> void:
 		mat.normal_enabled = true
 		mat.normal_texture = load(base + "_normal.jpg") as Texture2D
 		mat.normal_scale = float(cfg["normal"])
+	var has_rough := false
 	if ResourceLoader.exists(base + "_rough.jpg"):
 		mat.roughness_texture = load(base + "_rough.jpg") as Texture2D
 		mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+		has_rough = true
 	mat.metallic = float(cfg["metallic"])
-	mat.roughness = float(cfg["roughness"])
+	# 挂载粗糙度贴图时不再用低标量去乘贴图，交由贴图通道控制粗糙度
+	if has_rough:
+		mat.roughness = 0.95 if mat.metallic >= 0.5 else 1.0
+	else:
+		mat.roughness = float(cfg["roughness"])
 	mat.metallic_specular = float(cfg["specular"])
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 
@@ -135,6 +138,26 @@ static func tune_crew_material(mat: StandardMaterial3D) -> void:
 	if mat.ao_texture != null:
 		mat.ao_enabled = true
 		mat.ao_light_affect = 0.45
+	# 带 ORM 贴图时优先保持 roughness=1.0 交由绿通道控制，避免皮肤被标量乘成油光
+	if has_orm:
+		mat.roughness = 1.0
+		if rname.contains("face") or rname.contains("skin") or rname.contains("head"):
+			mat.metallic = 0.0
+			mat.metallic_specular = 0.32
+			mat.rim_enabled = true
+			mat.rim = 0.22
+			mat.rim_tint = 0.65
+		elif rname.contains("suit") or rname.contains("cloth") or rname.contains("fabric"):
+			mat.metallic = 1.0 if mat.metallic_texture != null else 0.0
+			mat.rim_enabled = true
+			mat.rim = 0.16
+			mat.rim_tint = 0.30
+		elif rname.contains("hair"):
+			mat.metallic = 0.0
+			mat.metallic_specular = 0.15
+		else:
+			mat.metallic = 1.0 if mat.metallic_texture != null else 0.0
+		return
 	if rname.contains("face") or rname.contains("skin") or rname.contains("head"):
 		mat.metallic = 0.0
 		mat.roughness = 0.52
@@ -143,11 +166,7 @@ static func tune_crew_material(mat: StandardMaterial3D) -> void:
 		mat.rim = 0.22
 		mat.rim_tint = 0.65
 	elif rname.contains("suit") or rname.contains("cloth") or rname.contains("fabric"):
-		if has_orm:
-			mat.roughness = 1.0
-			mat.metallic = 1.0 if mat.metallic_texture != null else 0.0
-		else:
-			apply_pbr(mat, "fabric_suit")
+		apply_pbr(mat, "fabric_suit")
 		mat.rim_enabled = true
 		mat.rim = 0.16
 		mat.rim_tint = 0.30
@@ -155,9 +174,6 @@ static func tune_crew_material(mat: StandardMaterial3D) -> void:
 		mat.metallic = 0.0
 		mat.roughness = 0.92
 		mat.metallic_specular = 0.15
-	elif has_orm:
-		mat.roughness = 1.0
-		mat.metallic = 1.0 if mat.metallic_texture != null else 0.0
 	elif rname.contains("boot") or rname.contains("glove") or rname.contains("belt") or rname.contains("rubber"):
 		apply_pbr(mat, "rubber_grip")
 	elif rname.contains("metal") or rname.contains("visor") or rname.contains("buckle"):

@@ -89,7 +89,7 @@ func build(sim) -> void:
 						var an := String(n).to_lower()
 						var anim := ap.get_animation(String(n))
 						if anim != null:
-							anim.loop_mode = Animation.LOOP_LINEAR if (an.contains("idle") or an.contains("walk")) else Animation.LOOP_NONE
+							anim.loop_mode = Animation.LOOP_LINEAR if (an.contains("idle") or an.contains("walk") or an.contains("dragged")) else Animation.LOOP_NONE
 					if not _anim_reported:
 						_anim_reported = true
 						print("CREW_ANIM %s -> %s" % [glb_path, str(ap.get_animation_list())])
@@ -202,7 +202,7 @@ func sync(sim, delta: float) -> void:
 	for a: Dictionary in sim.agents:
 		var i := int(a.get("i", -1))
 		if _models.has(i):
-			_sync_model(a, i, delta, omniscient, can_step)
+			_sync_model(sim, a, i, delta, omniscient, can_step)
 			continue
 		if not _sprites.has(i):
 			continue
@@ -224,7 +224,7 @@ func sync(sim, delta: float) -> void:
 			_sync_label(a, i, alive, downed, omniscient)
 
 
-func _sync_model(a: Dictionary, i: int, delta: float, omniscient: bool, can_step: bool) -> void:
+func _sync_model(sim, a: Dictionary, i: int, delta: float, omniscient: bool, can_step: bool) -> void:
 	var m: Node3D = _models[i]
 	var alive := bool(a.get("alive", true))
 	var downed := bool(a.get("downed", false))
@@ -254,29 +254,43 @@ func _sync_model(a: Dictionary, i: int, delta: float, omniscient: bool, can_step
 		(_labels[i] as Label3D).visible = true
 	var disp: Vector2 = _motion.step_move(m, i, tgt, delta)
 	if downed or not alive:
-		## down 动作会把根骨后仰放倒；没有 down 才退回整体旋转。
-		if _anims.has(i):
-			var dap: AnimationPlayer = _anims[i]
-			var dname := _anim_name(dap, "down")
-			if dname != "":
-				if String(_anim_state.get(i, "")) != "down":
-					_anim_state[i] = "down"
-					_action_t.erase(i)
-					dap.play(dname, 0.08)
-					dap.speed_scale = 1.0
-				m.position.y = 0.0
-			else:
-				dap.stop()
-				m.rotation = Vector3(-PI * 0.5, float(a.get("aimAng", 0.0)), 0.0)
-				m.position.y = 0.12
-		else:
-			m.rotation = Vector3(-PI * 0.5, float(a.get("aimAng", 0.0)), 0.0)
-			m.position.y = 0.12
+		_sync_downed(sim, a, i, m, tgt, delta)
 	else:
 		var ap: AnimationPlayer = _anims.get(i) as AnimationPlayer
 		_motion.sync_alive(a, m, i, delta, disp, ap, _anim_state, _action_t, can_step)
 	if _labels.has(i):
 		_sync_label(a, i, alive, downed, omniscient)
+
+
+## 同步倒地/尸体表现：被拖行时沿拖拽方向平滑对齐（脚朝前/头朝后），优先播放 dragged 否则保持 down 贴地。
+func _sync_downed(sim, a: Dictionary, i: int, m: Node3D, tgt: Vector3, delta: float) -> void:
+	var raw_db: Variant = a.get("draggedBy", null)
+	var dragged_by := int(raw_db) if raw_db != null else -1
+	var drag_dir := Vector2.ZERO
+	if dragged_by >= 0:
+		var dragger: Dictionary = sim.agent(dragged_by)
+		if not dragger.is_empty():
+			var dpos: Vector2 = dragger.get("pos", Vector2.ZERO)
+			drag_dir = Vector2(tgt.x, tgt.z) - dpos
+	var has_dir := drag_dir.length_squared() > 0.0001
+	var dap: AnimationPlayer = _anims.get(i) as AnimationPlayer
+	var want := "dragged" if (dragged_by >= 0 and dap != null and _anim_name(dap, "dragged") != "") else "down"
+	var dname := _anim_name(dap, want) if dap != null else ""
+	if dap != null and dname != "":
+		if String(_anim_state.get(i, "")) != want:
+			_anim_state[i] = want
+			_action_t.erase(i)
+			dap.play(dname, 0.08)
+			dap.speed_scale = 1.0
+		m.position.y = 0.0
+		var next_yaw := lerp_angle(m.rotation.y, atan2(drag_dir.x, drag_dir.y), clampf(delta * 10.0, 0.0, 1.0)) if has_dir else m.rotation.y
+		m.rotation = Vector3(0.0, next_yaw, 0.0)
+	else:
+		if dap != null:
+			dap.stop()
+		var fb_yaw := lerp_angle(m.rotation.y, atan2(-drag_dir.x, -drag_dir.y), clampf(delta * 10.0, 0.0, 1.0)) if has_dir else float(a.get("aimAng", 0.0))
+		m.rotation = Vector3(-PI * 0.5, fb_yaw, 0.0)
+		m.position.y = 0.12
 
 
 func _sync_label(a: Dictionary, i: int, alive: bool, downed: bool, omniscient: bool) -> void:

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c1y5if4gydeuh"
-path="res://.godot/imported/ecosys_tank_rubber_albedo.jpg-5ce6d23192cf8e2236ddc0f903d3591e.ctex"
+path.s3tc="res://.godot/imported/ecosys_tank_rubber_albedo.jpg-5ce6d23192cf8e2236ddc0f903d3591e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0c1b1d8a72a0d06ad48e50df99b96d51"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/ecosys_tank_rubber_albedo.jpg"
-dest_files=["res://.godot/imported/ecosys_tank_rubber_albedo.jpg-5ce6d23192cf8e2236ddc0f903d3591e.ctex"]
+dest_files=["res://.godot/imported/ecosys_tank_rubber_albedo.jpg-5ce6d23192cf8e2236ddc0f903d3591e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0

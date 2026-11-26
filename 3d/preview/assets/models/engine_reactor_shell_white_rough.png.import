@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c524d7xf4bije"
-path="res://.godot/imported/engine_reactor_shell_white_rough.png-cce5d4e7b1bb8b5e1126898b47bbd46e.ctex"
+path.s3tc="res://.godot/imported/engine_reactor_shell_white_rough.png-cce5d4e7b1bb8b5e1126898b47bbd46e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "d7c0eb357c412fb5adabf91390532755"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/engine_reactor_shell_white_rough.png"
-dest_files=["res://.godot/imported/engine_reactor_shell_white_rough.png-cce5d4e7b1bb8b5e1126898b47bbd46e.ctex"]
+dest_files=["res://.godot/imported/engine_reactor_shell_white_rough.png-cce5d4e7b1bb8b5e1126898b47bbd46e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0

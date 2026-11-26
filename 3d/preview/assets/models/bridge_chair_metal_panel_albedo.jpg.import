@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://kn3mlhotn3dr"
-path="res://.godot/imported/bridge_chair_metal_panel_albedo.jpg-19ac12c90767f97d65a654d0dd70cc45.ctex"
+path.s3tc="res://.godot/imported/bridge_chair_metal_panel_albedo.jpg-19ac12c90767f97d65a654d0dd70cc45.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2a26fe9eaccc4f340fd6ac045e8f8693"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/bridge_chair_metal_panel_albedo.jpg"
-dest_files=["res://.godot/imported/bridge_chair_metal_panel_albedo.jpg-19ac12c90767f97d65a654d0dd70cc45.ctex"]
+dest_files=["res://.godot/imported/bridge_chair_metal_panel_albedo.jpg-19ac12c90767f97d65a654d0dd70cc45.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0

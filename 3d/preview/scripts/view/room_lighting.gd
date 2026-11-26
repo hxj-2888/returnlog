@@ -2,16 +2,16 @@ extends RefCounted
 ## 分舱写实布光、近距动态阴影与断电应急红光管理（由 map_builder 委托调用）。
 
 const ROOM_PROFILES := {
-	"med": {"color": Color(0.84, 0.96, 1.0), "energy": 3.55},
-	"cam": {"color": Color(0.72, 0.88, 1.0), "energy": 2.80},
-	"engine": {"color": Color(1.0, 0.72, 0.42), "energy": 2.55},
-	"power": {"color": Color(1.0, 0.75, 0.44), "energy": 2.25},
-	"bridge": {"color": Color(0.96, 0.98, 1.0), "energy": 2.70},
-	"ecosys": {"color": Color(0.86, 0.98, 0.90), "energy": 3.25},
-	"fun": {"color": Color(0.95, 0.48, 0.90), "energy": 3.10},
-	"armory": {"color": Color(1.0, 0.86, 0.60), "energy": 3.25},
-	"warehouse": {"color": Color(0.90, 0.94, 1.0), "energy": 2.65},
-	"transit": {"color": Color(1.0, 0.91, 0.76), "energy": 3.30},
+	"med": {"color": Color(0.84, 0.96, 1.0), "energy": 2.15},
+	"cam": {"color": Color(0.72, 0.88, 1.0), "energy": 1.95},
+	"engine": {"color": Color(1.0, 0.72, 0.42), "energy": 1.85},
+	"power": {"color": Color(1.0, 0.75, 0.44), "energy": 1.70},
+	"bridge": {"color": Color(0.96, 0.98, 1.0), "energy": 1.95},
+	"ecosys": {"color": Color(0.86, 0.98, 0.90), "energy": 2.15},
+	"fun": {"color": Color(0.95, 0.48, 0.90), "energy": 2.00},
+	"armory": {"color": Color(1.0, 0.86, 0.60), "energy": 2.10},
+	"warehouse": {"color": Color(0.90, 0.94, 1.0), "energy": 1.95},
+	"transit": {"color": Color(1.0, 0.91, 0.76), "energy": 2.10},
 }
 
 const SHADOW_BUDGET := 3
@@ -46,7 +46,7 @@ func build_rooms(host: Node3D, data: Dictionary) -> Dictionary:
 
 		var main_pos := Vector3(float(label[0]), 2.45 if is_bridge else 2.55, float(label[1]))
 		var main_range := clampf(span * 1.69, 12.5, 40.0)
-		var main_light := _make_omni(host, main_pos, col, base_energy, main_range, 0.75)
+		var main_light := _make_omni(host, main_pos, col, base_energy, main_range, 1.15)
 
 		var extras: Array = []
 		if is_bridge or rid == "warehouse":
@@ -61,13 +61,13 @@ func build_rooms(host: Node3D, data: Dictionary) -> Dictionary:
 				extras.append(_make_omni(host, Vector3(px, 2.52, pz), col, base_energy * 0.72, main_light.omni_range, 0.90))
 
 		if is_bridge:
-			keynote = _make_omni(host, Vector3(float(label[0]), 2.35, float(label[1])), Color(1.0, 0.97, 0.90), 2.5, 32.5, 0.85)
+			keynote = _make_omni(host, Vector3(float(label[0]), 2.35, float(label[1])), Color(1.0, 0.97, 0.90), 1.8, 32.5, 0.85)
 			_bridge_spot = _make_bridge_spot(host, Vector3(x0 + w * 0.5, 2.88, z0 + d * 0.5))
 			extras.append(_bridge_spot)
 		elif rid == "ecosys":
-			extras.append(_make_omni(host, Vector3(x0 + w * 0.72, 2.25, z0 + d * 0.45), Color(0.32, 0.95, 0.48), 2.00, 14.0, 0.90))
+			extras.append(_make_omni(host, Vector3(x0 + w * 0.72, 2.25, z0 + d * 0.45), Color(0.32, 0.95, 0.48), 1.10, 14.0, 0.90))
 		elif rid == "fun":
-			extras.append(_make_omni(host, Vector3(x0 + w * 0.76, 2.42, z0 + d * 0.52), Color(0.28, 0.88, 0.98), 2.60, 17.5, 0.85))
+			extras.append(_make_omni(host, Vector3(x0 + w * 0.76, 2.42, z0 + d * 0.52), Color(0.28, 0.88, 0.98), 1.30, 17.5, 0.85))
 
 		var rec := {
 			"light": main_light, "extras": extras, "room": rid,
@@ -166,10 +166,10 @@ func _make_bridge_spot(host: Node3D, pos: Vector3) -> SpotLight3D:
 	spot.position = pos
 	spot.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 	spot.light_color = Color(1.0, 0.96, 0.88)
-	spot.light_energy = 5.4
+	spot.light_energy = 2.6
 	spot.spot_range = 11.5
 	spot.spot_angle = 48.0
-	spot.spot_attenuation = 0.85
+	spot.spot_attenuation = 1.15
 	spot.shadow_enabled = false
 	spot.distance_fade_enabled = true
 	spot.distance_fade_begin = 22.0

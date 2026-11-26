@@ -6,13 +6,18 @@ const ArtStyle := preload("res://scripts/art_style.gd")
 
 const KNIFE_SWING_LEN := 0.42
 const PISTOL_FIRE_LEN := 0.35
-const KNIFE_REST := Vector3(0.25, -0.23, -0.38)
-const KNIFE_REST_ROT := Vector3(-0.28, 0.16, -0.15)
+const KNIFE_REST := Vector3(0.24, -0.21, -0.36)
+const KNIFE_REST_ROT := Vector3(0.22, 0.22, -0.14)
 const PISTOL_REST := Vector3(0.24, -0.21, -0.37)
 const PISTOL_REST_ROT := Vector3(0.02, 0.04, 0.0)
 
 var knife_root: Node3D
+var hand_rig: Node3D
 var pistol_root: Node3D
+var _wrist_pivot: Node3D
+var _hand_pivot: Node3D
+var _thumb_pivot: Node3D
+var _finger_pivots: Array[Dictionary] = []
 var _slide: Node3D
 var _slash_arc: MeshInstance3D
 var _slash_mat: StandardMaterial3D
@@ -25,6 +30,7 @@ var _pistol_fire_t := 0.0
 var _pistol_tail := 0.0
 var _flash_t := 0.0
 var _bob := 0.0
+var _breath_t := 0.0
 var _sway := Vector2.ZERO
 var _sway_vel := Vector2.ZERO
 var _rush_blend := 0.0
@@ -39,6 +45,7 @@ func _ready() -> void:
 	_build_slash_arc()
 
 
+## 构建立姿战术匕首与真实正手抓握右手模型（保留刀刃/刀柄贴图路径）。
 func _build_knife() -> void:
 	knife_root = Node3D.new()
 	knife_root.name = "knife_view"
@@ -50,9 +57,9 @@ func _build_knife() -> void:
 	var steel := _make_blade_mat(false)
 	var edge_mat := _make_blade_mat(true)
 	var fuller_mat := StandardMaterial3D.new()
-	fuller_mat.albedo_color = Color(0.16, 0.18, 0.22)
+	fuller_mat.albedo_color = Color(0.15, 0.17, 0.21)
 	fuller_mat.metallic = 0.72
-	fuller_mat.roughness = 0.48
+	fuller_mat.roughness = 0.46
 
 	var grip := StandardMaterial3D.new()
 	grip.albedo_color = Color(0.11, 0.12, 0.14)
@@ -65,19 +72,133 @@ func _build_knife() -> void:
 		grip.albedo_color = Color(0.75, 0.76, 0.80)
 		grip.roughness = 0.90
 
-	# 主刀身脊背
-	_add_box(knife_root, Vector3(0.022, 0.009, 0.195), Vector3(0.0, 0.002, -0.155), Vector3.ZERO, steel)
-	# 高光开刃锋面（两侧斜收形成多面刀锋感）
-	_add_box(knife_root, Vector3(0.016, 0.004, 0.190), Vector3(-0.012, -0.001, -0.155), Vector3(0.0, 0.0, -0.24), edge_mat)
-	_add_box(knife_root, Vector3(0.016, 0.004, 0.190), Vector3(0.012, -0.001, -0.155), Vector3(0.0, 0.0, 0.24), edge_mat)
+	# 立姿刀身：窄背厚脊（Y 为高度、X 为厚度、-Z 为前向）
+	_add_box(knife_root, Vector3(0.0054, 0.0075, 0.164), Vector3(0.0, 0.0115, -0.138), Vector3.ZERO, steel)
 	# 血槽暗槽对比
-	_add_box(knife_root, Vector3(0.008, 0.010, 0.125), Vector3(0.0, 0.002, -0.135), Vector3.ZERO, fuller_mat)
-	# 锐角刀尖
-	_add_box(knife_root, Vector3(0.018, 0.005, 0.058), Vector3(0.0, 0.001, -0.265), Vector3(0.0, 0.14, 0.0), edge_mat)
-	# 金属护手与防滑刀柄、尾锤
-	_add_box(knife_root, Vector3(0.062, 0.016, 0.018), Vector3(0.0, 0.0, -0.048), Vector3.ZERO, fuller_mat)
-	_add_box(knife_root, Vector3(0.030, 0.036, 0.112), Vector3(0.0, -0.002, 0.020), Vector3.ZERO, grip)
-	_add_box(knife_root, Vector3(0.034, 0.038, 0.018), Vector3(0.0, -0.002, 0.082), Vector3.ZERO, fuller_mat)
+	_add_box(knife_root, Vector3(0.0046, 0.0065, 0.128), Vector3(0.0, 0.0045, -0.128), Vector3.ZERO, fuller_mat)
+	# 双侧斜削刀面 + 锋利下刃口
+	_add_box(knife_root, Vector3(0.0028, 0.022, 0.164), Vector3(-0.0019, -0.0005, -0.138), Vector3(0.0, 0.0, 0.11), steel)
+	_add_box(knife_root, Vector3(0.0028, 0.022, 0.164), Vector3(0.0019, -0.0005, -0.138), Vector3(0.0, 0.0, -0.11), steel)
+	_add_box(knife_root, Vector3(0.0014, 0.0040, 0.165), Vector3(0.0, -0.0120, -0.138), Vector3.ZERO, edge_mat)
+
+	# PrismMesh 锋利收尖三角刀尖（主刀尖 + 双侧斜削尖面，在高度与厚度双向收窄）
+	_add_prism(knife_root, Vector3(0.026, 0.072, 0.0036), Vector3(0.0, 0.0015, -0.254), Vector3(0.0, -PI * 0.5, PI * 0.5), 0.72, steel)
+	_add_prism(knife_root, Vector3(0.022, 0.070, 0.0018), Vector3(-0.0009, 0.0005, -0.255), Vector3(0.0, -PI * 0.5 - 0.022, PI * 0.5), 0.74, edge_mat)
+	_add_prism(knife_root, Vector3(0.022, 0.070, 0.0018), Vector3(0.0009, 0.0005, -0.255), Vector3(0.0, -PI * 0.5 + 0.022, PI * 0.5), 0.74, edge_mat)
+
+	# 刀背防滑滚花拇指坡 + 立体双翼护手
+	for j in range(4):
+		_add_box(knife_root, Vector3(0.0060, 0.0028, 0.0035), Vector3(0.0, 0.0160, -0.060 - float(j) * 0.0075), Vector3.ZERO, fuller_mat)
+	_add_box(knife_root, Vector3(0.022, 0.056, 0.014), Vector3(0.0, 0.001, -0.047), Vector3.ZERO, fuller_mat)
+	for g_off in [-0.019, 0.021]:
+		_add_box(knife_root, Vector3(0.024, 0.004, 0.016), Vector3(0.0, float(g_off), -0.047), Vector3.ZERO, steel)
+
+	# 人体工学刀柄 + 指槽滚花肋条 + 棱面配重尾锤
+	_add_box(knife_root, Vector3(0.021, 0.032, 0.114), Vector3(0.0, -0.004, 0.020), Vector3.ZERO, grip)
+	for r in range(3):
+		_add_box(knife_root, Vector3(0.022, 0.005, 0.008), Vector3(0.0, -0.019, -0.016 + float(r) * 0.022), Vector3.ZERO, fuller_mat)
+	_add_box(knife_root, Vector3(0.025, 0.035, 0.016), Vector3(0.0, -0.004, 0.084), Vector3.ZERO, fuller_mat)
+	_add_prism(knife_root, Vector3(0.028, 0.016, 0.018), Vector3(0.0, -0.004, 0.098), Vector3(0.0, PI * 0.5, PI * 0.5), 0.5, steel)
+
+	_build_hand_rig(fuller_mat)
+
+
+## 构建第一人称右手与前臂抓握骨架（深炭战术手套 + 船员袖口 + 四指两节环握 + 拇指扣护手）。
+func _build_hand_rig(cuff_metal_mat: Material) -> void:
+	hand_rig = Node3D.new()
+	hand_rig.name = "hand_rig"
+	knife_root.add_child(hand_rig)
+
+	var glove_mat := StandardMaterial3D.new()
+	glove_mat.albedo_color = Color(0.10, 0.11, 0.13)
+	glove_mat.metallic = 0.06
+	glove_mat.roughness = 0.84
+	if ResourceLoader.exists(ArtStyle.DETAIL_NORMAL_PATH):
+		glove_mat.normal_enabled = true
+		glove_mat.normal_texture = load(ArtStyle.DETAIL_NORMAL_PATH) as Texture2D
+		glove_mat.normal_scale = 0.45
+
+	var knuckle_mat := StandardMaterial3D.new()
+	knuckle_mat.albedo_color = Color(0.17, 0.18, 0.21)
+	knuckle_mat.metallic = 0.18
+	knuckle_mat.roughness = 0.54
+
+	var sleeve_mat := StandardMaterial3D.new()
+	sleeve_mat.albedo_color = Color(0.24, 0.28, 0.34)
+	sleeve_mat.metallic = 0.06
+	sleeve_mat.roughness = 0.78
+	if ResourceLoader.exists(ArtStyle.DETAIL_NORMAL_PATH):
+		sleeve_mat.normal_enabled = true
+		sleeve_mat.normal_texture = load(ArtStyle.DETAIL_NORMAL_PATH) as Texture2D
+		sleeve_mat.normal_scale = 0.35
+
+	var cuff_band_mat := StandardMaterial3D.new()
+	cuff_band_mat.albedo_color = Color(0.13, 0.14, 0.17)
+	cuff_band_mat.metallic = 0.10
+	cuff_band_mat.roughness = 0.70
+
+	# 手掌与手指节点（包裹刀柄右侧与后侧）
+	_hand_pivot = Node3D.new()
+	_hand_pivot.name = "hand_palm"
+	hand_rig.add_child(_hand_pivot)
+	_add_capsule(_hand_pivot, 0.016, 0.092, Vector3(0.015, -0.002, 0.022), Vector3(PI * 0.5, 0.0, 0.0), glove_mat)
+	_add_box(_hand_pivot, Vector3(0.014, 0.032, 0.082), Vector3(0.016, -0.003, 0.022), Vector3(0.0, 0.0, -0.08), glove_mat)
+	# 手背关节护板
+	_add_box(_hand_pivot, Vector3(0.011, 0.014, 0.072), Vector3(0.021, -0.011, 0.008), Vector3(0.0, 0.0, -0.18), knuckle_mat)
+
+	# 4 根弯曲手指（食指/中指/无名指/小指，每根 2 节指节）紧握环绕刀柄
+	_finger_pivots.clear()
+	var finger_specs := [
+		{"z": -0.024, "rad": 0.0072, "l1": 0.030, "l2": 0.024},
+		{"z": -0.004, "rad": 0.0074, "l1": 0.031, "l2": 0.025},
+		{"z": 0.016, "rad": 0.0070, "l1": 0.029, "l2": 0.023},
+		{"z": 0.035, "rad": 0.0062, "l1": 0.026, "l2": 0.020},
+	]
+	for spec in finger_specs:
+		_add_finger(_hand_pivot, float(spec["z"]), float(spec["rad"]), float(spec["l1"]), float(spec["l2"]), glove_mat, knuckle_mat)
+
+	# 拇指（2 节指骨，扣在护手/刀柄上侧）
+	_add_thumb(_hand_pivot, glove_mat, knuckle_mat)
+
+	# 右前臂与护腕袖口（从右下视角边缘自然伸入，连接手腕）
+	_wrist_pivot = Node3D.new()
+	_wrist_pivot.name = "wrist_forearm"
+	_wrist_pivot.position = Vector3(0.018, -0.012, 0.086)
+	hand_rig.add_child(_wrist_pivot)
+	_add_aimed_cyl(_wrist_pivot, 0.025, 0.029, Vector3(0.0, 0.0, 0.0), Vector3(0.012, -0.010, 0.060), glove_mat)
+	_add_aimed_cyl(_wrist_pivot, 0.030, 0.032, Vector3(0.008, -0.007, 0.042), Vector3(0.015, -0.013, 0.072), cuff_band_mat)
+	_add_aimed_cyl(_wrist_pivot, 0.033, 0.034, Vector3(0.011, -0.009, 0.054), Vector3(0.013, -0.011, 0.062), cuff_metal_mat)
+	_add_aimed_cyl(_wrist_pivot, 0.034, 0.050, Vector3(0.013, -0.011, 0.064), Vector3(0.070, -0.068, 0.300), sleeve_mat)
+
+
+## 构建单根 2 节指节手指，环绕刀柄下侧与左侧压紧。
+func _add_finger(parent: Node3D, z_pos: float, rad: float, l1: float, l2: float,
+		glove_mat: Material, knuckle_mat: Material) -> void:
+	var kp := Node3D.new()
+	kp.position = Vector3(0.014, -0.014, z_pos)
+	parent.add_child(kp)
+	# 近节指节（从右侧指根向 -X 下包）
+	_add_capsule(kp, rad, l1, Vector3(-l1 * 0.46, -0.004, 0.0), Vector3(0.0, 0.0, PI * 0.5 + 0.18), glove_mat)
+	_add_capsule(kp, rad * 1.04, 0.012, Vector3(-0.002, 0.0, 0.0), Vector3(0.0, 0.0, PI * 0.5), knuckle_mat)
+	# 远节指节（绕过底面沿刀柄左侧向上扣紧）
+	var mp := Node3D.new()
+	mp.position = Vector3(-l1 * 0.90, -0.006, 0.0)
+	kp.add_child(mp)
+	_add_capsule(mp, rad * 0.90, l2, Vector3(-0.001, l2 * 0.44, 0.0), Vector3(0.0, 0.0, -0.16), glove_mat)
+	_finger_pivots.append({"kp": kp, "mp": mp})
+
+
+## 构建正手抓握拇指（2 节指骨扣在刀柄上缘与护手后侧）。
+func _add_thumb(parent: Node3D, glove_mat: Material, knuckle_mat: Material) -> void:
+	var tb := Node3D.new()
+	tb.position = Vector3(0.015, 0.010, 0.016)
+	parent.add_child(tb)
+	_add_aimed_cyl(tb, 0.0086, 0.0076, Vector3.ZERO, Vector3(-0.009, 0.008, -0.030), glove_mat)
+	_add_capsule(tb, 0.0082, 0.014, Vector3(-0.001, 0.002, -0.002), Vector3(PI * 0.35, 0.0, 0.4), knuckle_mat)
+	_thumb_pivot = Node3D.new()
+	_thumb_pivot.position = Vector3(-0.009, 0.008, -0.030)
+	tb.add_child(_thumb_pivot)
+	_add_aimed_cyl(_thumb_pivot, 0.0074, 0.0062, Vector3.ZERO, Vector3(-0.005, 0.001, -0.022), glove_mat)
 
 
 func _build_pistol() -> void:
@@ -205,10 +326,10 @@ func _build_slash_arc() -> void:
 
 func _make_blade_mat(bright_edge: bool) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.86, 0.89, 0.94) if bright_edge else Color(0.62, 0.66, 0.72)
-	mat.metallic = 0.94 if bright_edge else 0.80
-	mat.roughness = 0.14 if bright_edge else 0.30
-	mat.metallic_specular = 0.85
+	mat.albedo_color = Color(0.82, 0.86, 0.91) if bright_edge else Color(0.54, 0.58, 0.65)
+	mat.metallic = 0.88 if bright_edge else 0.78
+	mat.roughness = 0.22 if bright_edge else 0.34
+	mat.metallic_specular = 0.68 if bright_edge else 0.62
 	var blade_tex := _load_tex("res://assets/weapons/knife-blade.png")
 	if blade_tex != null:
 		mat.albedo_texture = blade_tex
@@ -227,6 +348,58 @@ func _add_box(parent: Node3D, sz: Vector3, pos: Vector3, rot: Vector3, mat: Mate
 	mi.mesh = bm
 	mi.position = pos
 	mi.rotation = rot
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+func _add_prism(parent: Node3D, sz: Vector3, pos: Vector3, rot: Vector3, lr: float, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var pm := PrismMesh.new()
+	pm.size = sz
+	pm.left_to_right = lr
+	mi.mesh = pm
+	mi.position = pos
+	mi.rotation = rot
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+func _add_capsule(parent: Node3D, rad: float, h: float, pos: Vector3, rot: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var cm := CapsuleMesh.new()
+	cm.radius = rad
+	cm.height = h
+	cm.radial_segments = 10
+	cm.rings = 3
+	mi.mesh = cm
+	mi.position = pos
+	mi.rotation = rot
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+
+
+func _add_aimed_cyl(parent: Node3D, top_r: float, bot_r: float, p_from: Vector3, p_to: Vector3, mat: Material) -> void:
+	var delta_v := p_to - p_from
+	var len_v := delta_v.length()
+	if len_v <= 0.0001:
+		return
+	var mi := MeshInstance3D.new()
+	var cy := CylinderMesh.new()
+	cy.top_radius = top_r
+	cy.bottom_radius = bot_r
+	cy.height = len_v
+	cy.radial_segments = 12
+	cy.rings = 1
+	mi.mesh = cy
+	mi.position = (p_from + p_to) * 0.5
+	var up_dir := -delta_v / len_v
+	var ref := Vector3.RIGHT if absf(up_dir.dot(Vector3.RIGHT)) < 0.92 else Vector3.FORWARD
+	var x_ax := up_dir.cross(ref).normalized()
+	var z_ax := x_ax.cross(up_dir).normalized()
+	mi.basis = Basis(x_ax, up_dir, z_ax)
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
@@ -295,6 +468,7 @@ func trigger_hitstop(dur: float = 0.055) -> void:
 
 
 func tick(delta: float, horiz_speed: float) -> void:
+	_breath_t += delta
 	# 鼠标甩动惯性弹簧复位
 	_sway = _sway.lerp(_sway + _sway_vel, clampf(delta * 16.0, 0.0, 1.0))
 	_sway_vel = _sway_vel.lerp(Vector2.ZERO, clampf(delta * 14.0, 0.0, 1.0))
@@ -344,11 +518,13 @@ func _tick_knife(delta: float, dyn_pos: Vector3, dyn_rot: Vector3) -> void:
 		if _slash_arc != null:
 			_slash_arc.visible = false
 		return
-	var rest_pos := KNIFE_REST + dyn_pos
-	var rest_rot := KNIFE_REST_ROT + dyn_rot + Vector3(0.0, _sway.x * 1.4, -_sway.x * 2.2)
+	var breath := sin(_breath_t * 2.1)
+	var rest_pos := KNIFE_REST + dyn_pos + Vector3(0.0, breath * 0.003, 0.0)
+	var rest_rot := KNIFE_REST_ROT + dyn_rot + Vector3(breath * 0.012, _sway.x * 1.4, -_sway.x * 2.2)
 	if _knife_swing <= 0.0:
 		knife_root.position = knife_root.position.lerp(rest_pos, clampf(delta * 13.0, 0.0, 1.0))
 		knife_root.rotation = knife_root.rotation.lerp(rest_rot, clampf(delta * 13.0, 0.0, 1.0))
+		_apply_hand_grip(delta, 0.02 + 0.03 * maxf(0.0, breath), Vector3(breath * 0.03, 0.0, breath * 0.02))
 		if _slash_arc != null:
 			_slash_arc.visible = false
 		return
@@ -363,20 +539,32 @@ func _tick_knife(delta: float, dyn_pos: Vector3, dyn_rot: Vector3) -> void:
 	var elapsed := KNIFE_SWING_LEN - _knife_swing
 	var pos := rest_pos
 	var rot := rest_rot
-	if elapsed < 0.06:
-		var k := ease(elapsed / 0.06, 0.45)
-		pos = rest_pos.lerp(rest_pos + Vector3(0.06, 0.14, 0.09), k)
-		rot = rest_rot.lerp(rest_rot + Vector3(0.55, -0.32, 0.15), k)
-	elif elapsed < 0.18:
-		var k := ease((elapsed - 0.06) / 0.12, 0.50)
-		pos = (rest_pos + Vector3(0.06, 0.14, 0.09)).lerp(rest_pos + Vector3(-0.16, -0.02, -0.17), k)
-		rot = (rest_rot + Vector3(0.55, -0.32, 0.15)).lerp(rest_rot + Vector3(-0.42, 0.72, -0.78), k)
+	var grip_curl := 0.0
+	var wrist_rot := Vector3.ZERO
+	if elapsed < 0.065:
+		# 蓄力阶段：手指微收紧、手腕上挑
+		var k := ease(elapsed / 0.065, 0.45)
+		pos = rest_pos.lerp(rest_pos + Vector3(0.06, 0.12, 0.08), k)
+		rot = rest_rot.lerp(rest_rot + Vector3(0.42, -0.28, 0.20), k)
+		grip_curl = lerpf(0.02, 0.16, k)
+		wrist_rot = Vector3.ZERO.lerp(Vector3(0.18, -0.08, 0.10), k)
+	elif elapsed < 0.19:
+		# 挥劈阶段：前臂发力斜斩、手指紧锁
+		var k := ease((elapsed - 0.065) / 0.125, 0.50)
+		pos = (rest_pos + Vector3(0.06, 0.12, 0.08)).lerp(rest_pos + Vector3(-0.18, -0.04, -0.17), k)
+		rot = (rest_rot + Vector3(0.42, -0.28, 0.20)).lerp(rest_rot + Vector3(-0.46, 0.74, -0.82), k)
+		grip_curl = lerpf(0.16, 0.30, k)
+		wrist_rot = Vector3(0.18, -0.08, 0.10).lerp(Vector3(-0.22, 0.14, -0.18), k)
 	else:
-		var k := ease((elapsed - 0.18) / (KNIFE_SWING_LEN - 0.18), 0.30)
-		pos = (rest_pos + Vector3(-0.16, -0.02, -0.17)).lerp(rest_pos, k)
-		rot = (rest_rot + Vector3(-0.42, 0.72, -0.78)).lerp(rest_rot, k)
+		# 回正阶段：自然松弛回位
+		var k := ease((elapsed - 0.19) / (KNIFE_SWING_LEN - 0.19), 0.30)
+		pos = (rest_pos + Vector3(-0.18, -0.04, -0.17)).lerp(rest_pos, k)
+		rot = (rest_rot + Vector3(-0.46, 0.74, -0.82)).lerp(rest_rot, k)
+		grip_curl = lerpf(0.30, 0.02, k)
+		wrist_rot = Vector3(-0.22, 0.14, -0.18).lerp(Vector3.ZERO, k)
 	knife_root.position = pos
 	knife_root.rotation = rot
+	_apply_hand_grip(delta, grip_curl, wrist_rot)
 
 	if _slash_arc != null and _slash_mat != null:
 		var show_arc := elapsed >= 0.055 and elapsed <= 0.24
@@ -385,6 +573,24 @@ func _tick_knife(delta: float, dyn_pos: Vector3, dyn_rot: Vector3) -> void:
 			var ak := clampf((elapsed - 0.055) / 0.185, 0.0, 1.0)
 			_slash_arc.scale = Vector3.ONE * lerpf(0.85, 1.25, ak)
 			_slash_mat.albedo_color.a = (1.0 - ak) * 0.88
+
+
+## 联动右手手腕屈伸、四指卷曲锁紧与拇指压护手动作。
+func _apply_hand_grip(delta: float, grip_curl: float, wrist_rot: Vector3) -> void:
+	if hand_rig == null:
+		return
+	var a := clampf(delta * 20.0, 0.0, 1.0)
+	if _wrist_pivot != null:
+		_wrist_pivot.rotation = _wrist_pivot.rotation.lerp(wrist_rot, a)
+	if _thumb_pivot != null:
+		_thumb_pivot.rotation.z = lerpf(_thumb_pivot.rotation.z, grip_curl * 0.25, a)
+	for f in _finger_pivots:
+		var kp := f.get("kp") as Node3D
+		var mp := f.get("mp") as Node3D
+		if kp != null:
+			kp.rotation.z = lerpf(kp.rotation.z, -grip_curl * 0.35, a)
+		if mp != null:
+			mp.rotation.z = lerpf(mp.rotation.z, -grip_curl * 0.55, a)
 
 
 func _tick_pistol(delta: float, dyn_pos: Vector3, dyn_rot: Vector3) -> void:

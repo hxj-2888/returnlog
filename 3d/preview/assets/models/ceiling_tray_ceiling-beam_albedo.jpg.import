@@ -3,22 +3,23 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://0oywj801adjc"
-path="res://.godot/imported/ceiling_tray_ceiling-beam_albedo.jpg-a55f9dda38bb10ef8f81d491194326dc.ctex"
+path.s3tc="res://.godot/imported/ceiling_tray_ceiling-beam_albedo.jpg-a55f9dda38bb10ef8f81d491194326dc.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "e189108cde20b0078d47ddc004104f5b"
+"md5": "4544a2aec137aa4bd5f834dd3f9f91a1"
 }
 
 [deps]
 
 source_file="res://assets/models/ceiling_tray_ceiling-beam_albedo.jpg"
-dest_files=["res://.godot/imported/ceiling_tray_ceiling-beam_albedo.jpg-a55f9dda38bb10ef8f81d491194326dc.ctex"]
+dest_files=["res://.godot/imported/ceiling_tray_ceiling-beam_albedo.jpg-a55f9dda38bb10ef8f81d491194326dc.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
-detect_3d/compress_to=1
+process/size_limit=512
+detect_3d/compress_to=0
