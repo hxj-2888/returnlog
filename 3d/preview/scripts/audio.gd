@@ -1,15 +1,19 @@
 extends Node
 ## 3D 音效层：复用 2.5D `audio/*.ogg` 并融合 `AudioSynth` 程序合成音效。
-## 保留 2.5D volAt（0→1.0，≥18 格→0.14）距离衰减口径，并在有世界坐标时通过
-## AudioStreamPlayer3D（禁用引擎衰减、由 vol_at 控制音量）实现左右声像空间定位。
+## 空间音效在 4.0m 内满音量、4.0m..22.0m 平滑平方衰减、超过 22.0m 归零跳过；
+## 并通过固定大小的 2D/3D 播放器对象池循环复用，避免高频增删节点。
 
 const AudioSynth := preload("res://scripts/audio_synth.gd")
 
 const DIR := "res://assets/audio/"
 const MUSIC_PATH := "res://assets/audio/music-bgm.ogg"
-const DIST_RANGE := 18.0
-const DIST_MIN := 0.14
+const DIST_NEAR := 4.0
+const DIST_RANGE := 22.0
+const DIST_MIN := 0.0
 const DIST_MAX := 1.0
+const DOOR_NEAR_RANGE := 8.0
+const POOL_2D_SIZE := 12
+const POOL_3D_SIZE := 20
 
 const MAP := {
 	"knife": "sfx-knife-01", "shoot": "sfx-gun", "kill": "sfx-death",
@@ -62,6 +66,10 @@ var _cooldown: Dictionary = {}
 var _listener_pos := Vector2.ZERO
 var _music: AudioStreamPlayer = null
 var _music_volume := 0.35
+var _pool_2d: Array[AudioStreamPlayer] = []
+var _pool_3d: Array[AudioStreamPlayer3D] = []
+var _pool_2d_cursor := 0
+var _pool_3d_cursor := 0
 
 
 func _music_gain() -> float:
@@ -140,7 +148,53 @@ func setup() -> void:
 		_streams["drag_end"] = synth["drag_scrape"]
 	if synth.has("mech_spark"):
 		_streams["sabotage"] = synth["mech_spark"]
+	_ensure_pools()
 	set_process(false)
+
+
+## 预创建固定大小的 2D / 3D 播放器对象池，消除高频增删节点的开销。
+func _ensure_pools() -> void:
+	if _pool_2d.is_empty():
+		for _i in POOL_2D_SIZE:
+			var p := AudioStreamPlayer.new()
+			p.bus = "Master"
+			add_child(p)
+			_pool_2d.append(p)
+	if _pool_3d.is_empty():
+		for _i in POOL_3D_SIZE:
+			var p3 := AudioStreamPlayer3D.new()
+			p3.bus = "Master"
+			p3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+			add_child(p3)
+			_pool_3d.append(p3)
+
+
+func _acquire_2d() -> AudioStreamPlayer:
+	_ensure_pools()
+	for offset in _pool_2d.size():
+		var idx := (_pool_2d_cursor + offset) % _pool_2d.size()
+		var p := _pool_2d[idx]
+		if not p.playing:
+			_pool_2d_cursor = (idx + 1) % _pool_2d.size()
+			return p
+	var evicted := _pool_2d[_pool_2d_cursor]
+	evicted.stop()
+	_pool_2d_cursor = (_pool_2d_cursor + 1) % _pool_2d.size()
+	return evicted
+
+
+func _acquire_3d() -> AudioStreamPlayer3D:
+	_ensure_pools()
+	for offset in _pool_3d.size():
+		var idx := (_pool_3d_cursor + offset) % _pool_3d.size()
+		var p3 := _pool_3d[idx]
+		if not p3.playing:
+			_pool_3d_cursor = (idx + 1) % _pool_3d.size()
+			return p3
+	var evicted := _pool_3d[_pool_3d_cursor]
+	evicted.stop()
+	_pool_3d_cursor = (_pool_3d_cursor + 1) % _pool_3d.size()
+	return evicted
 
 
 func set_volume(v: float) -> void:
@@ -166,12 +220,17 @@ func set_listener(pos: Vector2) -> void:
 	_listener_pos = pos
 
 
-## 2.5D SND.volAt：距离 0 → 1.0，≥18 格 → 0.14，中间线性。
+## 空间距离衰减：4.0m 内满音量，4.0m..22.0m 平滑平方衰减，超过 22.0m 直接归零。
 func vol_at(pos: Vector2, scale: float = 1.0) -> float:
 	var d := _listener_pos.distance_to(pos)
-	var t := clampf(d / DIST_RANGE, 0.0, 1.0)
-	var v := DIST_MAX + (DIST_MIN - DIST_MAX) * t
-	return clampf(v, DIST_MIN, DIST_MAX) * clampf(scale, 0.0, 1.0)
+	if d >= DIST_RANGE:
+		return DIST_MIN
+	var sc := clampf(scale, 0.0, 1.0)
+	if d <= DIST_NEAR:
+		return DIST_MAX * sc
+	var t := clampf((d - DIST_NEAR) / (DIST_RANGE - DIST_NEAR), 0.0, 1.0)
+	var atten := (1.0 - t) * (1.0 - t)
+	return atten * sc
 
 
 func has_kind(kind: String) -> bool:
@@ -191,47 +250,51 @@ func play(kind: String, volume_scale: float = 1.0, pos: Variant = null, pitch_mu
 		return false
 
 	var v := clampf(volume_scale, 0.0, 1.0)
+	var has_pos := pos is Vector2
 	var is_spatial := false
 	var pv := Vector2.ZERO
-	if pos is Vector2:
-		pv = pos
+	var dist := 0.0
+	if has_pos:
+		pv = pos as Vector2
+		dist = pv.distance_to(_listener_pos)
 		v = vol_at(pv, volume_scale)
-		is_spatial = pv.distance_to(_listener_pos) > 0.25
+		if v <= 0.001:
+			return false
+		is_spatial = dist > 0.25
 	var tone: Dictionary = TONE.get(kind, {})
 	if tone.has("max"):
 		v = minf(v, float(tone["max"]))
 	v = clampf(v, 0.0, 1.0)
+	if v <= 0.001:
+		return false
 
 	if kind != "step" and kind != "scream":
+		var cd_key := kind
+		# 门声按近/远分槽冷却，确保 < 8m 近处门声不被远处门声抢占
+		if kind == "door" and has_pos:
+			cd_key = "door_near" if dist < DOOR_NEAR_RANGE else "door_far"
 		var now := Time.get_ticks_msec()
-		if now - int(_cooldown.get(kind, 0)) < 120:
+		if now - int(_cooldown.get(cd_key, 0)) < 120:
 			return false
-		_cooldown[kind] = now
+		_cooldown[cd_key] = now
 
 	var db := linear_to_db(maxf(0.001, v * _volume))
 	var rate: Array = tone.get("rate", [1.0, 1.0])
 	var pitch := randf_range(float(rate[0]), float(rate[1])) * pitch_mul
 
 	if is_spatial:
-		var p3 := AudioStreamPlayer3D.new()
+		var p3 := _acquire_3d()
 		p3.stream = stream
-		p3.bus = "Master"
-		p3.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
 		p3.volume_db = db
 		p3.pitch_scale = pitch
 		p3.position = Vector3(pv.x, 1.1, pv.y)
-		add_child(p3)
-		p3.finished.connect(func() -> void: p3.queue_free())
 		p3.play()
 		return true
 
-	var p := AudioStreamPlayer.new()
+	var p := _acquire_2d()
 	p.stream = stream
-	p.bus = "Master"
 	p.volume_db = db
 	p.pitch_scale = pitch
-	add_child(p)
-	p.finished.connect(func() -> void: p.queue_free())
 	p.play()
 	return true
 

@@ -20,6 +20,12 @@ const OFFER_RANK := {
 	"cams": 12, "sabotage": 13, "bot": 14,
 }
 
+# 静态掩体与设施查询缓存，避免每帧线性扫描全船数据
+static var _cached_round_table: Dictionary = {}
+static var _cached_cover_arr: Array = []
+static var _cached_fac_arr: Array = []
+static var _cached_fac_by_kind: Dictionary = {}
+
 
 static func offer_key(id: String) -> String:
 	if id.begins_with("revive"): return "F"
@@ -65,6 +71,13 @@ static func update_interaction(m, _delta: float) -> void:
 	var pressed: bool = e_now and not bool(m._e_down)
 	m._e_down = e_now
 
+	if pressed and m.wheel != null and m.wheel.is_open() \
+			and (m.sim == null or (not m.sim.over and m.sim.meeting.is_empty())):
+		# 轮盘已打开时再按 E 直接取消关闭，不再弹阻塞提示
+		m._probe_input("E", "轮盘 → 取消")
+		m.wheel.cancel()
+		return
+
 	var blocked := _blocked_reason(m)
 	if not blocked.is_empty():
 		m.prompt_label.text = ""
@@ -77,7 +90,7 @@ static func update_interaction(m, _delta: float) -> void:
 		return
 	pressed = pressed and m.station.is_empty()
 
-	var offers := collect_offers(m)
+	var offers := ranked_offers(collect_offers(m))
 	_update_prompt(m, offers, pressed)
 	_dispatch_picked_offer(m, offers, edges, digits, pressed)
 
@@ -101,14 +114,16 @@ static func _update_prompt(m, offers: Array, pressed: bool) -> void:
 			m._probe("E · 交互项 0")
 			m._toast(no_offer_hint(m))
 		return
+	# 提示栏、数字键 1-9 与轮盘统一使用 update_interaction 传入的 ranked_offers 序列
 	m._near = offers[0].get("dev", null)
 	if not m.station.is_empty():
 		return
 	var parts: Array = []
 	var shown := mini(offers.size(), 4)
 	for i in shown:
-		parts.append("[%s] %s" % [offer_key(String(offers[i].get("id", ""))),
-			String(offers[i].get("label", ""))])
+		var key_lbl := offer_key(String(offers[i].get("id", "")))
+		var lbl := String(offers[i].get("label", ""))
+		parts.append("%d.[%s] %s" % [i + 1, key_lbl, lbl] if offers.size() > 1 else "[%s] %s" % [key_lbl, lbl])
 	var line := " · ".join(PackedStringArray(parts))
 	if offers.size() > shown:
 		line += " · 共 %d 项（E 展开）" % offers.size()
@@ -141,7 +156,7 @@ static func _dispatch_picked_offer(m, offers: Array, edges: Dictionary,
 		else:
 			m._probe("E → 轮盘 %d 项" % offers.size())
 			m.player.ui_locked = true
-			m.wheel.open(ranked_offers(offers),
+			m.wheel.open(offers,
 				func(it: Dictionary) -> void:
 					m.player.ui_locked = false
 					m._probe("轮盘 → " + String(it.get("label", "")))
@@ -267,12 +282,26 @@ static func nearest_pipe_port(m, pos: Vector2) -> Dictionary:
 	return best
 
 
+## 按类型缓存 facility 列表，避免每帧重复线性扫描全船设施。
+static func _facility_list(m, kind: String) -> Array:
+	var raw: Array = m.map_data.get("facility", [])
+	if raw.is_empty():
+		return []
+	if not is_same(raw, _cached_fac_arr):
+		_cached_fac_arr = raw
+		_cached_fac_by_kind = {}
+		for f: Dictionary in raw:
+			var k := String(f.get("kind", ""))
+			if not _cached_fac_by_kind.has(k):
+				_cached_fac_by_kind[k] = []
+			(_cached_fac_by_kind[k] as Array).append(f)
+	return _cached_fac_by_kind.get(kind, []) as Array
+
+
 static func nearest_facility(m, pos: Vector2, kind: String) -> Dictionary:
 	var best: Dictionary = {}
 	var best_d := INF
-	for f: Dictionary in m.map_data.get("facility", []):
-		if String(f.get("kind", "")) != kind:
-			continue
+	for f: Dictionary in _facility_list(m, kind):
 		var fp := Vector2(float(f.get("x", 0)), float(f.get("y", 0)))
 		var d := fp.distance_to(pos)
 		if d < best_d:
@@ -463,9 +492,15 @@ static func _offers_drag(m, p2: Vector2, body_r: float, out: Array) -> void:
 	var me_drag := int(m.sim.me().get("drag", -1))
 	if me_drag >= 0:
 		var carried: Dictionary = m.sim.agent(me_drag)
+		var is_dead := not bool(carried.get("alive", false)) and not bool(carried.get("downed", false))
+		var drop_rid := String(m.sim.room_at(carried.get("bodyPos", p2)))
+		# 在非 bridge / 非 med 舱室放下已死亡尸体会直接隐藏/销毁尸体，明确提示防止误触
+		var will_hide := is_dead and drop_rid != "" and drop_rid != "bridge" and drop_rid != "med"
+		var drop_lbl := "放下并隐藏尸体 · 移出视野" if will_hide else ("放下尸体 · " + String(carried.get("name", "?")))
+		var drop_hint := "此操作会隐藏尸体，人类将无法报告" if will_hide else "在医疗间救起 · 在其它舱室藏尸"
 		out.append({
-			"id": "drag-drop", "label": "放下尸体 · " + String(carried.get("name", "?")),
-			"hint": "在医疗间救起 · 在其它舱室藏尸", "accent": Color("#C7B6E8"),
+			"id": "drag-drop", "label": drop_lbl,
+			"hint": drop_hint, "accent": Color("#FFB3AC") if will_hide else Color("#C7B6E8"),
 			"act": func() -> void: on_drag_drop(m),
 		})
 		return
@@ -588,10 +623,8 @@ static func _offers_bots(m, pos: Vector3, out: Array) -> void:
 
 
 static func _find_facility(m, kind: String) -> Dictionary:
-	for f: Dictionary in (m.map_data.get("facility", []) as Array):
-		if String(f.get("kind", "")) == kind:
-			return f
-	return {}
+	var list := _facility_list(m, kind)
+	return list[0] as Dictionary if not list.is_empty() else {}
 
 
 static func _offers_facilities(m, pos: Vector3, out: Array) -> void:
@@ -616,28 +649,26 @@ static func _offers_facilities(m, pos: Vector3, out: Array) -> void:
 					else "站桩 %.0fs · 待领 %d" % [SpaceData.num(m.space, "stand", "qual"), m.qual_pending],
 				"accent": Color("#FFE8B0"), "act": func() -> void: claim_qual_now(m),
 			})
-	for fac in m.map_data.get("facility", []):
-		var kind := String(fac.get("kind", ""))
-		if kind == "supply":
-			var ds := Vector2(float(fac.get("x", 0)) - pos.x, float(fac.get("y", 0)) - pos.z).length()
-			if ds <= SUPPLY_NEAR_R:
-				var is_ammo := String(fac.get("label", "")).contains("军械") or String(fac.get("label", "")).contains("弹")
-				var dur := SpaceData.num(m.space, "stand", "ammo" if is_ammo else "med")
-				var item := "ammo" if is_ammo else "medkit"
-				out.append({
-					"id": "supply-%s" % String(fac.get("label", "")),
-					"label": ("领子弹" if is_ammo else "领医疗包") + " · " + String(fac.get("label", "")),
-					"hint": "站桩 %.0fs · %s" % [dur, "消耗 1 张申请单" if m.qual > 0 else "需要物资申请单"],
-					"accent": Color("#FFE0A3") if is_ammo else Color("#B9F5DA"),
-					"act": func() -> void: start_station(m, "补给领取", dur, func() -> void: on_supply_done(m, item)),
-				})
-		elif kind == "monitor":
-			if Vector2(float(fac.get("x", 0)), float(fac.get("y", 0))).distance_to(p2) <= MONITOR_NEAR_R:
-				out.append({
-					"id": "cams", "label": "全船监控 · " + String(fac.get("label", "监控台")),
-					"hint": "%d 路在线 · C / ESC 退出" % (m.map_data.get("rooms", []) as Array).size(),
-					"accent": Color("#B9F5DA"), "act": func() -> void: m._open_cams(),
-				})
+	for fac: Dictionary in _facility_list(m, "supply"):
+		var ds := Vector2(float(fac.get("x", 0)) - pos.x, float(fac.get("y", 0)) - pos.z).length()
+		if ds <= SUPPLY_NEAR_R:
+			var is_ammo := String(fac.get("label", "")).contains("军械") or String(fac.get("label", "")).contains("弹")
+			var dur := SpaceData.num(m.space, "stand", "ammo" if is_ammo else "med")
+			var item := "ammo" if is_ammo else "medkit"
+			out.append({
+				"id": "supply-%s" % String(fac.get("label", "")),
+				"label": ("领子弹" if is_ammo else "领医疗包") + " · " + String(fac.get("label", "")),
+				"hint": "站桩 %.0fs · %s" % [dur, "消耗 1 张申请单" if m.qual > 0 else "需要物资申请单"],
+				"accent": Color("#FFE0A3") if is_ammo else Color("#B9F5DA"),
+				"act": func() -> void: start_station(m, "补给领取", dur, func() -> void: on_supply_done(m, item)),
+			})
+	for fac: Dictionary in _facility_list(m, "monitor"):
+		if Vector2(float(fac.get("x", 0)), float(fac.get("y", 0))).distance_to(p2) <= MONITOR_NEAR_R:
+			out.append({
+				"id": "cams", "label": "全船监控 · " + String(fac.get("label", "监控台")),
+				"hint": "%d 路在线 · C / ESC 退出" % (m.map_data.get("rooms", []) as Array).size(),
+				"accent": Color("#B9F5DA"), "act": func() -> void: m._open_cams(),
+			})
 	if m.sim != null and not m.sim.agents.is_empty() and bool(m.sim.me().get("alien", false)):
 		var rid := String(m.sim.room_at(p2))
 		var occupied := false
@@ -666,11 +697,19 @@ static func breaker_offer(m, dev) -> Dictionary:
 
 
 static func round_table_cover(m) -> Dictionary:
-	for c: Dictionary in m.map_data.get("cover", []):
+	var covers: Array = m.map_data.get("cover", [])
+	if covers.is_empty():
+		return {}
+	if is_same(covers, _cached_cover_arr):
+		return _cached_round_table
+	_cached_cover_arr = covers
+	_cached_round_table = {}
+	for c: Dictionary in covers:
 		if String(c.get("label", "")) == "圆桌":
-			return c
+			_cached_round_table = c
+			return _cached_round_table
 	push_warning("map.json 里找不到 label=圆桌 的掩体，领取申请单交互不成立")
-	return {}
+	return _cached_round_table
 
 
 static func start_station(m, label: String, dur: float, done: Callable) -> void:

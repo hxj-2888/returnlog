@@ -77,6 +77,15 @@ func set_audio(audio_node: Variant) -> void:
 
 ## 重置全部缓存状态（重建船员视图时调用）。
 func reset() -> void:
+	for k: Variant in _drag_mods.keys():
+		var cached: Variant = _drag_mods[k]
+		if is_instance_valid(cached):
+			var mod := cached as DragArmModifier
+			mod.drag_active = false
+			var parent := mod.get_parent()
+			if parent != null:
+				parent.remove_child(mod)
+			mod.queue_free()
 	_yaw.clear()
 	_walk_hold.clear()
 	_walking.clear()
@@ -93,6 +102,16 @@ func reset() -> void:
 
 ## 清理单个船员的运动、朝向与步态缓存（尸体消失或远距裁剪时调用，防止复用旧朝向瞬转）。
 func clear_agent(i: int) -> void:
+	if _drag_mods.has(i):
+		var cached: Variant = _drag_mods[i]
+		if is_instance_valid(cached):
+			var mod := cached as DragArmModifier
+			mod.drag_active = false
+			var parent := mod.get_parent()
+			if parent != null:
+				parent.remove_child(mod)
+			mod.queue_free()
+		_drag_mods.erase(i)
 	_yaw.erase(i)
 	_walk_hold.erase(i)
 	_walking.erase(i)
@@ -101,7 +120,6 @@ func clear_agent(i: int) -> void:
 	_lean_x.erase(i)
 	_bank_z.erase(i)
 	_y_off.erase(i)
-	_drag_mods.erase(i)
 	_stride.erase(i)
 
 
@@ -257,6 +275,11 @@ func _ensure_drag_modifier(m: Node3D, i: int, create_if_missing: bool) -> DragAr
 	var skel := m.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
 		return null
+	# 优先复用 Skeleton3D 上已挂载的 drag_arm_mod，严禁反复挂载多个节点
+	var existing := skel.get_node_or_null("drag_arm_mod") as DragArmModifier
+	if existing != null and is_instance_valid(existing):
+		_drag_mods[i] = existing
+		return existing
 	var mod := DragArmModifier.new()
 	mod.name = "drag_arm_mod"
 	skel.add_child(mod)

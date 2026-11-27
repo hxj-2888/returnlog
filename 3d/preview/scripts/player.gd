@@ -26,7 +26,9 @@ var _pitch: float = 0.0
 var spectator := false
 const SPECT_MIN_Y := 0.35
 const SPECT_MAX_Y := 60.0
-var _base_speed := 4.2
+var base_speed := 4.0
+var _base_speed := 4.0
+var _flashlight_user_on := true
 var ghost := false
 var downed := false
 
@@ -56,7 +58,10 @@ var _step_left: bool = false
 func apply_space_cfg(space: Dictionary) -> void:
 	if space.is_empty():
 		return
-	speed = SpaceData.num(space, "move", "speed")
+	base_speed = SpaceData.num(space, "move", "speed")
+	_base_speed = base_speed
+	if not spectator:
+		speed = base_speed
 	if flashlight != null:
 		var rng := SpaceData.num(space, "sight", "human_light_r")
 		var half_deg := SpaceData.num(space, "sight", "cone_deg") * 0.5
@@ -161,9 +166,34 @@ void fragment() {
 	flashlight.add_child(_light_cone)
 
 
+func set_move_speed(s: float) -> void:
+	var clamped := maxf(0.5, s)
+	_base_speed = clamped
+	if not spectator:
+		speed = clamped
+
+
+func _sync_flashlight_vis() -> void:
+	var on := _flashlight_user_on and not ghost and not spectator
+	if flashlight != null:
+		flashlight.visible = on
+	if _spill_light != null:
+		_spill_light.visible = on
+	if _light_cone != null:
+		_light_cone.visible = on
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if ui_locked:
 		return
+	if event is InputEventKey:
+		var k := event as InputEventKey
+		if k.pressed and not k.echo and (k.keycode == KEY_T or k.physical_keycode == KEY_T):
+			if not ghost and not spectator:
+				_flashlight_user_on = not _flashlight_user_on
+				_sync_flashlight_vis()
+				get_viewport().set_input_as_handled()
+			return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var mm := event as InputEventMouseMotion
 		rotate_y(-mm.relative.x * mouse_sensitivity)
@@ -180,8 +210,7 @@ func set_ghost(on: bool) -> void:
 	collision_layer = 0 if on else 1
 	collision_mask = 0 if on else 1
 	gravity = 0.0 if on else 18.0
-	if flashlight != null:
-		flashlight.visible = not on
+	_sync_flashlight_vis()
 	if not on:
 		global_position.y = maxf(global_position.y, spawn_point.y)
 
@@ -200,8 +229,7 @@ func set_spectator(on: bool) -> void:
 	collision_layer = 0 if on else 1
 	collision_mask = 0 if on else 1
 	gravity = 0.0 if on else 18.0
-	if flashlight != null:
-		flashlight.visible = not on
+	_sync_flashlight_vis()
 
 
 func _exit_tree() -> void:
@@ -269,7 +297,11 @@ func _animate_view(delta: float) -> void:
 		roll_off += _punch_roll_kick * _punch_strength * cos(u * PI * 3.0) * (1.0 - u)
 
 	camera.fov = lerpf(camera.fov, target_fov, clampf(delta * 16.0, 0.0, 1.0))
-	camera.rotation.x = lerpf(camera.rotation.x, _pitch + pitch_off, clampf(delta * 24.0, 0.0, 1.0))
+	# 无震屏时直接贴合 _pitch，消除竖向鼠标微拖影
+	if _punch_t > 0.0:
+		camera.rotation.x = lerpf(camera.rotation.x, _pitch + pitch_off, clampf(delta * 24.0, 0.0, 1.0))
+	else:
+		camera.rotation.x = _pitch
 	camera.rotation.z = lerpf(camera.rotation.z, roll_off, clampf(delta * 20.0, 0.0, 1.0))
 
 	if fp_weapon != null and fp_weapon.has_method("tick"):
@@ -354,6 +386,25 @@ func _clamp_to_nav(before: Vector3, wants: Vector3, delta: float) -> void:
 	var bp := Vector2(before.x, before.z)
 	var ap := Vector2(global_position.x, global_position.z)
 	if nav.is_free(bp) and not nav.is_free(ap):
+		# 先尝试单轴切线滑墙（仅保留 X 或 Z），避免擦门框/家具时整段速度归零卡顿
+		var slide_x := Vector2(ap.x, bp.y)
+		var slide_z := Vector2(bp.x, ap.y)
+		var dx := absf(ap.x - bp.x)
+		var dz := absf(ap.y - bp.y)
+		var x_ok: bool = dx > 0.0001 and nav.is_free(slide_x)
+		var z_ok: bool = dz > 0.0001 and nav.is_free(slide_z)
+		if x_ok and (not z_ok or dx >= dz):
+			global_position.x = slide_x.x
+			global_position.z = slide_x.y
+			velocity.z = 0.0
+			_stuck_t = 0.0
+			return
+		if z_ok:
+			global_position.x = slide_z.x
+			global_position.z = slide_z.y
+			velocity.x = 0.0
+			_stuck_t = 0.0
+			return
 		var safe: Vector2 = nav.nearest_free(bp)
 		global_position.x = safe.x
 		global_position.z = safe.y

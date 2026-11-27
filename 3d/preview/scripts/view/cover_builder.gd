@@ -272,6 +272,144 @@ func _inject_cover_mats(n: Node, cull_enabled: bool, rid: String = "", theme: Di
 		_inject_cover_mats(c, cull_enabled, rid, theme)
 
 
+## 将 GLB 掩体内所有可见静态 MeshInstance3D 按实际生效材质合并为单个多 Surface ArrayMesh
+static func _collect_mergeable_meshes(node: Node, rel_xf: Transform3D, is_root: bool, out: Array) -> void:
+	if not is_root and node is Node3D:
+		var n3 := node as Node3D
+		if not n3.visible:
+			return
+		rel_xf = rel_xf * n3.transform
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var is_skinned := mi.skin != null or not mi.skeleton.is_empty() or (mi.get_parent() is Skeleton3D)
+		if not is_skinned and mi.mesh != null and mi.mesh.get_surface_count() > 0:
+			out.append({"mi": mi, "xform": rel_xf})
+	for c in node.get_children():
+		_collect_mergeable_meshes(c, rel_xf, false, out)
+
+
+static func _merge_cover_meshes(inst: Node3D) -> void:
+	if inst == null:
+		return
+	var items: Array = []
+	_collect_mergeable_meshes(inst, Transform3D.IDENTITY, true, items)
+	if items.is_empty():
+		return
+	## 按实际生效材质（material_override > surface_override > mesh 表面材质）分组
+	var groups := {}
+	var group_order: Array = []
+	var cull_end := 0.0
+	var cull_margin := 0.0
+	var cull_fade := 0
+	var has_cull_ref := false
+	for item: Dictionary in items:
+		var mi := item["mi"] as MeshInstance3D
+		var xf := item["xform"] as Transform3D
+		if not has_cull_ref:
+			cull_end = mi.visibility_range_end
+			cull_margin = mi.visibility_range_end_margin
+			cull_fade = mi.visibility_range_fade_mode
+			has_cull_ref = true
+		var mesh := mi.mesh
+		for s in range(mesh.get_surface_count()):
+			if mesh is ArrayMesh and (mesh as ArrayMesh).surface_get_primitive_type(s) != Mesh.PRIMITIVE_TRIANGLES:
+				continue
+			var arrays := mesh.surface_get_arrays(s)
+			if arrays.size() < Mesh.ARRAY_MAX or not (arrays[Mesh.ARRAY_VERTEX] is PackedVector3Array):
+				continue
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			if verts.is_empty():
+				continue
+			var mat: Material = mi.get_active_material(s)
+			var key := mat.get_instance_id() if mat != null else 0
+			if not groups.has(key):
+				groups[key] = {"mat": mat, "entries": []}
+				group_order.append(key)
+			(groups[key]["entries"] as Array).append({"arrays": arrays, "xform": xf})
+	if group_order.is_empty():
+		return
+	var merged_mesh := ArrayMesh.new()
+	for key: int in group_order:
+		var grp: Dictionary = groups[key]
+		var entries: Array = grp["entries"]
+		var all_normals := true
+		var all_uvs := true
+		var all_tangents := true
+		for e: Dictionary in entries:
+			var arr: Array = e["arrays"]
+			var vcount := (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			if not (arr[Mesh.ARRAY_NORMAL] is PackedVector3Array) or (arr[Mesh.ARRAY_NORMAL] as PackedVector3Array).size() != vcount:
+				all_normals = false
+			if not (arr[Mesh.ARRAY_TEX_UV] is PackedVector2Array) or (arr[Mesh.ARRAY_TEX_UV] as PackedVector2Array).size() != vcount:
+				all_uvs = false
+			if not (arr[Mesh.ARRAY_TANGENT] is PackedFloat32Array) or (arr[Mesh.ARRAY_TANGENT] as PackedFloat32Array).size() != vcount * 4:
+				all_tangents = false
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		if grp["mat"] != null:
+			st.set_material(grp["mat"] as Material)
+		var v_offset := 0
+		for e: Dictionary in entries:
+			var arr: Array = e["arrays"]
+			var xf := e["xform"] as Transform3D
+			var det := xf.basis.determinant()
+			var norm_basis := xf.basis.inverse().transposed() if absf(det) > 1e-8 else xf.basis
+			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL] if all_normals else PackedVector3Array()
+			var uvs: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV] if all_uvs else PackedVector2Array()
+			var tangs: PackedFloat32Array = arr[Mesh.ARRAY_TANGENT] if all_tangents else PackedFloat32Array()
+			var indices: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if (arr[Mesh.ARRAY_INDEX] is PackedInt32Array) else PackedInt32Array()
+			for i in verts.size():
+				if all_normals:
+					st.set_normal((norm_basis * norms[i]).normalized())
+				if all_tangents:
+					var ti := i * 4
+					var t_dir := (xf.basis * Vector3(tangs[ti], tangs[ti + 1], tangs[ti + 2])).normalized()
+					st.set_tangent(Plane(t_dir, tangs[ti + 3]))
+				if all_uvs:
+					st.set_uv(uvs[i])
+				st.add_vertex(xf * verts[i])
+			if not indices.is_empty():
+				for k in range(0, indices.size() - 2, 3):
+					var i0 := v_offset + indices[k]
+					var i1 := v_offset + indices[k + 1]
+					var i2 := v_offset + indices[k + 2]
+					if det < 0.0:
+						st.add_index(i0); st.add_index(i2); st.add_index(i1)
+					else:
+						st.add_index(i0); st.add_index(i1); st.add_index(i2)
+			else:
+				for k in range(0, verts.size() - 2, 3):
+					var i0 := v_offset + k
+					var i1 := v_offset + k + 1
+					var i2 := v_offset + k + 2
+					if det < 0.0:
+						st.add_index(i0); st.add_index(i2); st.add_index(i1)
+					else:
+						st.add_index(i0); st.add_index(i1); st.add_index(i2)
+			v_offset += verts.size()
+		if not all_tangents and all_normals and all_uvs:
+			st.generate_tangents()
+		st.commit(merged_mesh)
+	if merged_mesh.get_surface_count() == 0:
+		return
+	for idx in range(items.size() - 1, -1, -1):
+		var old_mi := (items[idx] as Dictionary)["mi"] as MeshInstance3D
+		if is_instance_valid(old_mi) and old_mi != inst:
+			if old_mi.get_parent() != null:
+				old_mi.get_parent().remove_child(old_mi)
+			old_mi.free()
+	var merged_mi := MeshInstance3D.new()
+	merged_mi.name = "MergedCoverMesh"
+	merged_mi.mesh = merged_mesh
+	merged_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	if cull_end > 0.0:
+		merged_mi.visibility_range_end = cull_end
+		merged_mi.visibility_range_end_margin = cull_margin
+		merged_mi.visibility_range_fade_mode = cull_fade
+	inst.add_child(merged_mi)
+
+
 func _add_cover_model(builder: Node3D, kind: String, center: Vector3,
 		size: Vector3, cull_enabled: bool, rid: String = "", theme: Dictionary = {}) -> bool:
 	var ps := _cover_model(kind)
@@ -283,6 +421,7 @@ func _add_cover_model(builder: Node3D, kind: String, center: Vector3,
 		return false
 	_inject_cover_mats(inst, cull_enabled, rid, theme)
 	_sight_shell_hidden += _hide_sight_shell(inst)
+	_merge_cover_meshes(node)
 	node.position = center
 	node.scale = size
 	builder.add_child(node)
@@ -421,8 +560,12 @@ func build_wall_decor_v2(builder: Node3D, data: Dictionary) -> void:
 		mat.emission_energy_multiplier = 0.08
 		var pos := Vector3(float(d.get("x", 0.0)) + w * 0.5, 1.95, float(d.get("y", 0.0)) + h * 0.5)
 		var inward := _decor_inward(String(d.get("side", "")))
-		builder.call("_add_box", pos - inward * 0.01, frame_size, 0.0, frame_mat, false)
-		builder.call("_add_box", pos + inward * 0.015, size, 0.0, mat, false)
+		var frame_mi: Variant = builder.call("_add_box", pos - inward * 0.01, frame_size, 0.0, frame_mat, false)
+		var art_mi: Variant = builder.call("_add_box", pos + inward * 0.015, size, 0.0, mat, false)
+		if frame_mi is Node3D:
+			builder.call("_register_room_node", rid, frame_mi)
+		if art_mi is Node3D:
+			builder.call("_register_room_node", rid, art_mi)
 
 
 func _decor_inward(side: String) -> Vector3:
@@ -478,8 +621,14 @@ func build_device_pedestals(builder: Node3D, data: Dictionary) -> void:
 		accent_mat.emission = col
 		accent_mat.emission_energy_multiplier = 0.55
 		accent_mat.roughness = 0.4
-		builder.call("_add_box", Vector3(px, 0.275, py), Vector3(0.90, 0.55, 0.90), 0.0, shell_mat, false)
-		builder.call("_add_box", Vector3(px, 0.04, py), Vector3(0.74, 0.08, 0.74), 0.0, trim_mat, false)
-		builder.call("_add_box", Vector3(px, 0.535, py), Vector3(0.98, 0.05, 0.98), 0.0, trim_mat, false)
-		builder.call("_add_box", Vector3(px, 0.42, py - 0.462), Vector3(0.70, 0.025, 0.02), 0.0, accent_mat, false)
-		builder.call("_add_box", Vector3(px, 0.575, py), Vector3(0.34, 0.03, 0.20), 0.0, trim_mat, false)
+		var boxes := [
+			[Vector3(px, 0.275, py), Vector3(0.90, 0.55, 0.90), shell_mat],
+			[Vector3(px, 0.04, py), Vector3(0.74, 0.08, 0.74), trim_mat],
+			[Vector3(px, 0.535, py), Vector3(0.98, 0.05, 0.98), trim_mat],
+			[Vector3(px, 0.42, py - 0.462), Vector3(0.70, 0.025, 0.02), accent_mat],
+			[Vector3(px, 0.575, py), Vector3(0.34, 0.03, 0.20), trim_mat],
+		]
+		for b: Array in boxes:
+			var mi: Variant = builder.call("_add_box", b[0], b[1], 0.0, b[2], false)
+			if rid != "" and mi is Node3D:
+				builder.call("_register_room_node", rid, mi)

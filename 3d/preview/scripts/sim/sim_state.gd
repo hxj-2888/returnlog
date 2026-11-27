@@ -99,6 +99,7 @@ var inv_fails: Array = []
 var inv_last_tag := ""
 var _inv_t := 0.0
 var _rng := RandomNumberGenerator.new()
+var _room_polys: Array = []
 
 
 ## 读一次配置；失败返回 false，调用方必须停下（不做默认值兜底）。
@@ -122,6 +123,7 @@ func load_data() -> bool:
 		points = map.get("points", []) as Array
 		for room: Dictionary in (map.get("rooms", []) as Array):
 			rooms_by_id[String(room.get("id", ""))] = room
+		_cache_room_polys()
 	if points.size() != int((cfg.get("points", {}) as Dictionary).get("count", -1)):
 		push_error("sim.json 与 map_v2.json 的任务点数不一致：%d vs %d"
 			% [points.size(), int((cfg.get("points", {}) as Dictionary).get("count", -1))])
@@ -135,11 +137,13 @@ func new_game(p_seed: int, p_me: int = 0, p_map: Dictionary = {}, p_space: Dicti
 	map = {}
 	points = []
 	rooms_by_id = {}
+	_room_polys = []
 	if not p_map.is_empty():
 		map = p_map
 		points = map.get("points", []) as Array
 		for room: Dictionary in (map.get("rooms", []) as Array):
 			rooms_by_id[String(room.get("id", ""))] = room
+		_cache_room_polys()
 	if not load_data():
 		return false
 	space = p_space if not p_space.is_empty() else SpaceData.load_data()
@@ -347,14 +351,28 @@ func task_pts(point_i: int) -> int:
 	return int(table.get(kind, 0))
 
 
-## 位置 → 舱室 id（房间 poly 优先，落在走廊返回空串）。
-func room_at(p: Vector2) -> String:
+## 预缓存各舱室 AABB 与 PackedVector2Array，消除 room_at() 每帧动态分配。
+func _cache_room_polys() -> void:
+	_room_polys = []
 	for r: Dictionary in (map.get("rooms", []) as Array):
 		var poly := PackedVector2Array()
 		for q: Array in (r.get("poly", []) as Array):
 			poly.append(Vector2(float(q[0]), float(q[1])))
-		if poly.size() >= 3 and Geometry2D.is_point_in_polygon(p, poly):
-			return String(r.get("id", ""))
+		if poly.size() < 3:
+			continue
+		var rect := Rect2(poly[0], Vector2.ZERO)
+		for k in range(1, poly.size()):
+			rect = rect.expand(poly[k])
+		_room_polys.append({"id": String(r.get("id", "")), "rect": rect.grow(0.01), "poly": poly})
+
+
+## 位置 → 舱室 id（房间 poly 优先，落在走廊返回空串）。
+func room_at(p: Vector2) -> String:
+	if _room_polys.is_empty() and not map.is_empty():
+		_cache_room_polys()
+	for item: Dictionary in _room_polys:
+		if (item["rect"] as Rect2).has_point(p) and Geometry2D.is_point_in_polygon(p, item["poly"] as PackedVector2Array):
+			return item["id"] as String
 	return ""
 
 func room_name(room_id: String) -> String:

@@ -120,6 +120,8 @@ var _ceil_nodes: Array = []
 var _ceil_deck_mat: StandardMaterial3D = null
 var _ceil_room_mats: Dictionary = {}   # rid -> StandardMaterial3D 分舱千问顶板
 var _ceil_kit: Dictionary = {}
+## 天花板套件分段变换表：kit_name -> Array[Transform3D]，建完房间后统一合批为 MultiMeshInstance3D
+var _ceil_kit_xforms: Dictionary = {}
 
 
 func build() -> void:
@@ -266,21 +268,73 @@ func _ceiling_material(rid: String = "") -> StandardMaterial3D:
 
 
 func _place_kit(name: String, pos: Vector3, along_x: bool, total_len: float) -> void:
-	var packed: PackedScene = _ceil_kit.get(name)
-	if packed == null or total_len <= 0.1:
+	if not _ceil_kit.has(name) or total_len <= 0.1:
 		return
 	## 按 3m~4m 整数段分段摆放 3m 套件，避免长跨度直接拉伸（单段 scale.x 控制在 0.8~1.35）
 	var segs := maxi(1, roundi(total_len / 3.2))
 	var len_scale := clampf((total_len / float(segs)) / 3.0, 0.8, 1.35)
 	var axis := Vector3(1.0, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, 1.0)
+	var yaw := 0.0 if along_x else PI * 0.5
+	var basis := Basis(Vector3.UP, yaw) * Basis.from_scale(Vector3(len_scale, 1.0, 1.0))
+	if not _ceil_kit_xforms.has(name):
+		_ceil_kit_xforms[name] = []
+	var arr: Array = _ceil_kit_xforms[name]
 	for i in segs:
 		var offset := ((float(i) + 0.5) / float(segs) - 0.5) * total_len
-		var node := packed.instantiate() as Node3D
-		node.position = pos + axis * offset
-		node.rotation.y = 0.0 if along_x else PI * 0.5
-		node.scale = Vector3(len_scale, 1.0, 1.0)
-		add_child(node)
-		_ceil_nodes.append(node)
+		arr.append(Transform3D(basis, pos + axis * offset))
+
+
+## 从 GLB 提取首个有效 MeshInstance3D 的网格、材质与相对根节点的变换矩阵
+func _extract_kit_mesh(packed: PackedScene) -> Dictionary:
+	var root := packed.instantiate()
+	var stack: Array = [[root, Transform3D.IDENTITY]]
+	var out := {}
+	while not stack.is_empty():
+		var pair: Array = stack.pop_back()
+		var n: Node = pair[0]
+		var xf: Transform3D = pair[1] * (n as Node3D).transform if (n != root and n is Node3D) else pair[1]
+		if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+			var mi := n as MeshInstance3D
+			var mesh: Mesh = mi.mesh
+			var dup: Mesh = null
+			for s in mesh.get_surface_count():
+				var ov := mi.get_surface_override_material(s)
+				if ov != null:
+					dup = dup if dup != null else mesh.duplicate()
+					dup.surface_set_material(s, ov)
+			out = {"mesh": dup if dup != null else mesh, "mat": mi.material_override, "xform": xf}
+			break
+		for c in n.get_children():
+			stack.append([c, xf])
+	root.free()
+	return out
+
+
+## 将收集到的 601 段天花板套件合并为 3 个 MultiMeshInstance3D，降低 Draw Call 同时保持外观不变
+func _commit_ceiling_kits() -> void:
+	for kit_name: String in _ceil_kit_xforms.keys():
+		var xforms: Array = _ceil_kit_xforms[kit_name]
+		var packed: PackedScene = _ceil_kit.get(kit_name)
+		if packed == null or xforms.is_empty():
+			continue
+		var info := _extract_kit_mesh(packed)
+		var mesh: Mesh = info.get("mesh", null)
+		if mesh == null:
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = xforms.size()
+		var local_xf: Transform3D = info.get("xform", Transform3D.IDENTITY)
+		for i in xforms.size():
+			mm.set_instance_transform(i, (xforms[i] as Transform3D) * local_xf)
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "MultiMesh_" + kit_name
+		mmi.multimesh = mm
+		mmi.material_override = info.get("mat", null) as Material
+		add_child(mmi)
+		_ceil_nodes.append(mmi)
+	_ceil_kit_xforms.clear()
 
 
 ## 一个舱的工业天花板：主梁 3m 一档、次梁 6m 一档、2 条管线 + 1 条线槽。
@@ -332,6 +386,7 @@ func _spec_tint(spec: Dictionary) -> Color:
 
 
 func _build_rooms() -> void:
+	_ceil_kit_xforms.clear()
 	for room: Dictionary in data.get("rooms", []):
 		var rid := String(room.get("id", ""))
 		var poly: Array = room.get("poly", [])
@@ -367,6 +422,7 @@ func _build_rooms() -> void:
 		## 墙顶边框：2.5D 里房间身份主要靠这条连续色带传达（12° 俯角下墙面只剩顶面一条框）。
 		## 颜色与强度全部来自 rooms[].theme（烘焙端 ROOM_THEME 原样导出）。
 		_add_wall_top(room)
+	_commit_ceiling_kits()
 
 
 ## 天花板灯带：沿房间 poly 的每条边，在靠内侧 0.35m 处贴一条发光板。
@@ -510,6 +566,8 @@ func _build_corridors() -> void:
 func _build_walls() -> void:
 	## 墙面 tint 用 rooms[].theme.wall（烘焙端 ROOM_THEME），房间之间的相对色差是真源给的；
 	## WALL_TINT_BASE 只是 3D 实时曝光对 Cycles 的全局补偿，不参与房间区分。
+	var occ_verts := PackedVector3Array()
+	var occ_indices := PackedInt32Array()
 	for segment: Array in data.get("walls", []):
 		if segment.size() < 2:
 			continue
@@ -528,11 +586,18 @@ func _build_walls() -> void:
 		if theme is Dictionary:
 			tint = _rgb((theme as Dictionary).get("wall", [1, 1, 1])) * WALL_TINT_BASE
 		var wall_mat := _wall_material(rid, tint)
-		_add_box(
-			Vector3(mid.x, WALL_HEIGHT * 0.5, mid.y),
-			Vector3(length, WALL_HEIGHT, 0.22),
-			angle, wall_mat, true
-		)
+		_add_box(Vector3(mid.x, WALL_HEIGHT * 0.5, mid.y), Vector3(length, WALL_HEIGHT, 0.22), angle, wall_mat, true)
+		# 同步收集双面遮挡剔除四边形（置于墙体中线，不遮挡墙面自身）
+		var base := occ_verts.size()
+		occ_verts.append_array(PackedVector3Array([Vector3(a.x, 0.0, a.y), Vector3(b.x, 0.0, b.y), Vector3(b.x, WALL_HEIGHT, b.y), Vector3(a.x, WALL_HEIGHT, a.y)]))
+		occ_indices.append_array(PackedInt32Array([base, base + 1, base + 2, base, base + 2, base + 3, base, base + 2, base + 1, base, base + 3, base + 2]))
+	if not occ_verts.is_empty():
+		var occ := ArrayOccluder3D.new()
+		occ.set_arrays(occ_verts, occ_indices)
+		var occ_inst := OccluderInstance3D.new()
+		occ_inst.name = "WallOccluder"
+		occ_inst.occluder = occ
+		add_child(occ_inst)
 
 
 ## 舱室墙面材质：有烘焙好的分张贴图就用它（身份色在图里，只乘全局曝光），
@@ -650,7 +715,9 @@ func _process(delta: float) -> void:
 		var on: bool = active.has(rid)
 		for n in _room_nodes[rid]:
 			if n is Node3D:
-				(n as Node3D).visible = on
+				var node := n as Node3D
+				if node.visible != on:
+					node.visible = on
 	var p2 := Vector2(pos.x, pos.z)
 	for rec2: Dictionary in _corr_lights:
 		var cl := rec2["light"] as OmniLight3D
@@ -798,7 +865,7 @@ func _add_corridor_quad(a: Vector2, b: Vector2, width: float, y: float,
 
 
 func _add_box(center: Vector3, size: Vector3, rotation_y: float,
-		mat: Material, collide: bool) -> void:
+		mat: Material, collide: bool) -> MeshInstance3D:
 	var box := BoxMesh.new()
 	box.size = size
 	var mi := MeshInstance3D.new()
@@ -809,7 +876,7 @@ func _add_box(center: Vector3, size: Vector3, rotation_y: float,
 	add_child(mi)
 
 	if not collide:
-		return
+		return mi
 	var body := StaticBody3D.new()
 	body.position = center
 	body.rotation.y = rotation_y
@@ -819,6 +886,7 @@ func _add_box(center: Vector3, size: Vector3, rotation_y: float,
 	collision.shape = shape
 	body.add_child(collision)
 	add_child(body)
+	return mi
 
 
 func _material(texture_name: String, tint: Color, triplanar: bool = false) -> StandardMaterial3D:

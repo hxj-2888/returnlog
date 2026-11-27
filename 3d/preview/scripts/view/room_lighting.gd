@@ -21,11 +21,14 @@ var _room_records: Array = []
 var _emergency_lights: Array = []
 var _bridge_spot: SpotLight3D = null
 var _pulse_time := 0.0
+## 当前启用实时阴影的光源集合（用于帧间脏检查，避免无变化时反复重绘阴影图集）
+var _active_shadow_lights: Array = []
 
 
 func build_rooms(host: Node3D, data: Dictionary) -> Dictionary:
 	_room_records.clear()
 	_emergency_lights.clear()
+	_active_shadow_lights.clear()
 	_bridge_spot = null
 	var keynote: OmniLight3D = null
 
@@ -112,38 +115,37 @@ func update_shadows(player_pos: Vector3) -> void:
 	for rec: Dictionary in _room_records:
 		var l := rec["light"] as OmniLight3D
 		if l == null or not l.visible:
-			if l != null:
-				l.shadow_enabled = false
 			continue
 		var d2 := l.global_position.distance_squared_to(player_pos)
 		if d2 <= SHADOW_MAX_DIST_SQ:
 			cands.append({"light": l, "d2": d2})
-	if _bridge_spot != null:
-		_bridge_spot.shadow_enabled = false
-		if _bridge_spot.visible:
-			var bd2 := _bridge_spot.global_position.distance_squared_to(player_pos)
-			if bd2 <= SHADOW_MAX_DIST_SQ:
-				cands.append({"light": _bridge_spot, "d2": bd2 * 0.85})
+	if _bridge_spot != null and _bridge_spot.visible:
+		var bd2 := _bridge_spot.global_position.distance_squared_to(player_pos)
+		if bd2 <= SHADOW_MAX_DIST_SQ:
+			cands.append({"light": _bridge_spot, "d2": bd2 * 0.85})
 	cands.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["d2"]) < float(b["d2"]))
-	for i in cands.size():
-		var light_node := cands[i]["light"] as Light3D
-		var enable := i < SHADOW_BUDGET
-		light_node.shadow_enabled = enable
-		if enable:
-			light_node.shadow_bias = 0.04
-			light_node.shadow_normal_bias = 1.2
-			light_node.shadow_blur = 1.4
-	for rec: Dictionary in _room_records:
-		var l := rec["light"] as OmniLight3D
-		if l != null and not _in_top_shadows(cands, l):
-			l.shadow_enabled = false
-
-
-func _in_top_shadows(cands: Array, target: Light3D) -> bool:
+	var next_lights: Array = []
 	for i in mini(SHADOW_BUDGET, cands.size()):
-		if cands[i]["light"] == target:
-			return true
-	return false
+		next_lights.append(cands[i]["light"])
+	## Top-3 阴影光源集合未变化时直接返回，避免每 0.25s 开关阴影导致阴影图集重分配卡顿
+	if _same_light_set(next_lights, _active_shadow_lights):
+		return
+	for old_l in _active_shadow_lights:
+		if is_instance_valid(old_l) and not next_lights.has(old_l):
+			(old_l as Light3D).shadow_enabled = false
+	for new_l in next_lights:
+		if is_instance_valid(new_l) and not _active_shadow_lights.has(new_l):
+			(new_l as Light3D).shadow_enabled = true
+	_active_shadow_lights = next_lights
+
+
+func _same_light_set(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for l in a:
+		if not b.has(l):
+			return false
+	return true
 
 
 func _make_omni(host: Node3D, pos: Vector3, col: Color, energy: float, rng: float, atten: float) -> OmniLight3D:
@@ -154,6 +156,9 @@ func _make_omni(host: Node3D, pos: Vector3, col: Color, energy: float, rng: floa
 	l.omni_range = rng
 	l.omni_attenuation = atten
 	l.shadow_enabled = false
+	l.shadow_bias = 0.04
+	l.shadow_normal_bias = 1.2
+	l.shadow_blur = 1.4
 	l.distance_fade_enabled = true
 	l.distance_fade_begin = 25.0
 	l.distance_fade_length = 10.0
@@ -171,6 +176,9 @@ func _make_bridge_spot(host: Node3D, pos: Vector3) -> SpotLight3D:
 	spot.spot_angle = 48.0
 	spot.spot_attenuation = 1.15
 	spot.shadow_enabled = false
+	spot.shadow_bias = 0.04
+	spot.shadow_normal_bias = 1.2
+	spot.shadow_blur = 1.4
 	spot.distance_fade_enabled = true
 	spot.distance_fade_begin = 22.0
 	spot.distance_fade_length = 8.0

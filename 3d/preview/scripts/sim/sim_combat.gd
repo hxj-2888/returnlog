@@ -13,6 +13,7 @@ static func gun_threat_from(s, a: Dictionary) -> Dictionary:
 			or int(a.get("drag", -1)) >= 0:
 		return {}
 	var max_r := (float(s.rules.n("SHOT", "range", 8.0)) if s.rules != null else 8.0) + 1.5
+	var max_r2 := max_r * max_r
 	var ap: Vector2 = a.get("pos", Vector2.ZERO)
 	var a_alien := bool(a.get("alien", false))
 	var best: Dictionary = {}
@@ -23,14 +24,17 @@ static func gun_threat_from(s, a: Dictionary) -> Dictionary:
 		if o.is_empty() or o == a or not bool(o.get("alive", false)) \
 				or bool(o.get("downed", false)) or bool(o.get("detained", false)):
 			continue
+		var op: Vector2 = o.get("pos", Vector2.ZERO)
+		var d2 := ap.distance_squared_to(op)
+		if d2 > max_r2 or d2 < 1.44:
+			continue
 		if a_alien and mind != null and mind._is_mate(a, int(o.get("i", -1))):
 			continue
-		var op: Vector2 = o.get("pos", Vector2.ZERO)
-		var d := op.distance_to(ap)
-		if d > max_r or d < 1.2 or not bool(s.los_now(op.x, op.y, ap.x, ap.y)):
+		if not bool(s.los_now(op.x, op.y, ap.x, ap.y)):
 			continue
 		if not reveal_all and not ai_can_see(s, a, op):
 			continue
+		var d := sqrt(d2)
 		var armed_cue := false
 		if reveal_all:
 			armed_cue = (a_alien != bool(o.get("alien", false)))
@@ -446,6 +450,8 @@ static func track_pass(s) -> void:
 	var agents: Array = s.agents
 	var rules = s.rules
 	var night := int(s.night)
+	var near_r := float(rules.n("AVOID", "nearR", 6.0))
+	var near_r2 := near_r * near_r
 	for a: Dictionary in agents:
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
 			continue
@@ -459,35 +465,51 @@ static func track_pass(s) -> void:
 			var wp: Vector2 = w.get("pos", Vector2.ZERO)
 			if not ai_can_see(s, w, ap):
 				continue
-			var sb: Dictionary = (w.get("seenBy", {}) as Dictionary).duplicate()
-			sb[ai] = {"t": now}
-			w["seenBy"] = sb
-			if now - float((w.get("_lastSaw", {}) as Dictionary).get(ai, 0.0)) >= 3.5:
-				var ls: Dictionary = (w.get("_lastSaw", {}) as Dictionary).duplicate()
-				ls[ai] = now
-				w["_lastSaw"] = ls
+			# 原地更新 seenBy / _lastSaw / redSeen / mates，避免 0.5s 周期内反复 .duplicate() 分配
+			var sb: Variant = w.get("seenBy", null)
+			if not (sb is Dictionary):
+				sb = {}
+				w["seenBy"] = sb
+			var sbd := sb as Dictionary
+			if sbd.has(ai) and sbd[ai] is Dictionary:
+				(sbd[ai] as Dictionary)["t"] = now
+			else:
+				sbd[ai] = {"t": now}
+			var ls: Variant = w.get("_lastSaw", null)
+			var last_t := float((ls as Dictionary).get(ai, 0.0)) if ls is Dictionary else 0.0
+			if now - last_t >= 3.5:
+				if not (ls is Dictionary):
+					ls = {}
+					w["_lastSaw"] = ls
+				(ls as Dictionary)[ai] = now
 				var rid: String = s.room_at(ap)
 				mind.note_track(int(w.get("i", -1)), ai, ap, rid)
 			if float(a.get("redT", 0.0)) > 0.0:
-				var rs: Dictionary = w.get("redSeen", {}) as Dictionary
-				if now - float(rs.get(ai, -999.0)) > 5.0:
-					var rs2: Dictionary = rs.duplicate()
-					rs2[ai] = now
-					w["redSeen"] = rs2
+				var rs: Variant = w.get("redSeen", null)
+				var rs_t := float((rs as Dictionary).get(ai, -999.0)) if rs is Dictionary else -999.0
+				if now - rs_t > 5.0:
+					if not (rs is Dictionary):
+						rs = {}
+						w["redSeen"] = rs
+					(rs as Dictionary)[ai] = now
 					if not bool(w.get("alien", false)):
 						mind.note_sight(int(w.get("i", -1)), ai, "saw_red", ap)
 					else:
-						var mates2: Dictionary = (w.get("mates", {}) as Dictionary).duplicate()
-						mates2[ai] = {"t": now, "kind": "saw_red"}
-						w["mates"] = mates2
+						var m2: Variant = w.get("mates", null)
+						if not (m2 is Dictionary):
+							m2 = {}
+							w["mates"] = m2
+						(m2 as Dictionary)[ai] = {"t": now, "kind": "saw_red"}
 			if int(w.get("_avoidHuman", -1)) == ai:
 				var wi := int(w.get("i", -1))
-				var av: Dictionary = a.get("avoidSeen", {}) as Dictionary
-				if int(av.get(wi, -1)) != night:
-					if wp.distance_to(ap) <= float(rules.n("AVOID", "nearR", 6.0)):
-						var av2: Dictionary = av.duplicate()
-						av2[wi] = night
-						a["avoidSeen"] = av2
+				var av: Variant = a.get("avoidSeen", null)
+				var av_n := int((av as Dictionary).get(wi, -1)) if av is Dictionary else -1
+				if av_n != night:
+					if wp.distance_squared_to(ap) <= near_r2:
+						if not (av is Dictionary):
+							av = {}
+							a["avoidSeen"] = av
+						(av as Dictionary)[wi] = night
 						mind.sus_add(a, wi, float(rules.n("AVOID", "sus", 0.10)),
 							"他刚才在躲我",
 							{"kind": "saw_avoid", "src": "sight", "night": night})

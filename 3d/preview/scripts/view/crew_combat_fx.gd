@@ -11,6 +11,9 @@ var _overlay_mats: Dictionary = {}
 var _bot_flash: Dictionary = {}
 var _bot_downed: Dictionary = {}
 var _spark_cd := 0.8
+# 缓存每个角色/机器人根节点下的 MeshInstance3D 扁平数组与上次 overlay 激活态，避免每帧 DFS 空写
+var _mesh_cache: Dictionary = {}
+var _overlay_active: Dictionary = {}
 
 
 func on_hit(agent_i: int, dir: Vector3) -> void:
@@ -68,8 +71,31 @@ func _sync_crews(sim, crew_view, delta: float) -> void:
 					s.modulate = Color(1.0 + 0.5 * p, 0.35, 0.35, 1.0)
 
 
+func _get_meshes(key: Variant, root: Node3D) -> Array:
+	if _mesh_cache.has(key):
+		var entry: Dictionary = _mesh_cache[key]
+		if entry.get("root") == root:
+			return entry["meshes"] as Array
+	var meshes: Array = []
+	var stack: Array = [root]
+	while not stack.is_empty():
+		var n: Variant = stack.pop_back()
+		if n is MeshInstance3D:
+			var mi := n as MeshInstance3D
+			if not mi.has_meta("combat_ring"):
+				meshes.append(mi)
+		if n is Node:
+			for c in (n as Node).get_children():
+				stack.append(c)
+	_mesh_cache[key] = {"root": root, "meshes": meshes}
+	_overlay_active.erase(key)
+	return meshes
+
+
 func _apply_model_overlay(i: int, root: Node3D, flash_t: float, red_t: float) -> void:
 	var active := flash_t > 0.0 or red_t > 0.0
+	if not active and not bool(_overlay_active.get(i, false)):
+		return
 	var mat: StandardMaterial3D = null
 	if active:
 		mat = _get_overlay_mat(i)
@@ -85,16 +111,11 @@ func _apply_model_overlay(i: int, root: Node3D, flash_t: float, red_t: float) ->
 			mat.emission = Color(1.0, 0.14, 0.10)
 			mat.emission_energy_multiplier = (1.6 + 1.4 * pulse) * rk
 
-	var stack: Array = [root]
-	while not stack.is_empty():
-		var n: Variant = stack.pop_back()
-		if n is MeshInstance3D:
-			var mi := n as MeshInstance3D
-			if not mi.has_meta("combat_ring"):
-				mi.material_overlay = mat if active else null
-		if n is Node:
-			for c in (n as Node).get_children():
-				stack.append(c)
+	var target_mat: Material = mat if active else null
+	for mi_v: Variant in _get_meshes(i, root):
+		if is_instance_valid(mi_v):
+			(mi_v as MeshInstance3D).material_overlay = target_mat
+	_overlay_active[i] = active
 
 
 func _get_overlay_mat(i: int) -> StandardMaterial3D:
@@ -202,8 +223,11 @@ func _sync_bots(sim, extras, delta: float, combat_fx_3d) -> void:
 
 func _apply_bot_flash(kind: String, root: Node3D, flash_t: float) -> void:
 	var key := "bot_" + kind
+	var active := flash_t > 0.0
+	if not active and not bool(_overlay_active.get(key, false)):
+		return
 	var mat: StandardMaterial3D = null
-	if flash_t > 0.0:
+	if active:
 		if not _overlay_mats.has(key):
 			var nm := StandardMaterial3D.new()
 			nm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -215,14 +239,11 @@ func _apply_bot_flash(kind: String, root: Node3D, flash_t: float) -> void:
 		mat.albedo_color = Color(0.75, 0.94, 1.0, 0.80 * k)
 		mat.emission = Color(0.65, 0.92, 1.0)
 		mat.emission_energy_multiplier = 2.8 * k
-	var stack: Array = [root]
-	while not stack.is_empty():
-		var n: Variant = stack.pop_back()
-		if n is MeshInstance3D:
-			(n as MeshInstance3D).material_overlay = mat if flash_t > 0.0 else null
-		if n is Node:
-			for c in (n as Node).get_children():
-				stack.append(c)
+	var target_mat: Material = mat if active else null
+	for mi_v: Variant in _get_meshes(key, root):
+		if is_instance_valid(mi_v):
+			(mi_v as MeshInstance3D).material_overlay = target_mat
+	_overlay_active[key] = active
 
 
 func _apply_bot_pose(root: Node3D, kind: String, dead: bool) -> void:

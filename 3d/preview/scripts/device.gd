@@ -2,6 +2,7 @@ extends Node3D
 
 const ArtStyle := preload("res://scripts/art_style.gd")
 const MinigameData := preload("res://scripts/minigame/mg_data.gd")
+const CoverBuilder := preload("res://scripts/view/cover_builder.gd")
 
 ## 一个任务点设备：3D 模型（优先 Blender GLB，缺失时程序化兜底）+ 交互锚点。
 ## 模型约定：Blender 底面中心为原点、正面 +Y；导入 Godot 后正面 -Z。
@@ -49,6 +50,47 @@ var _screen_material: StandardMaterial3D = null
 
 static var _panel_map: Dictionary = {}
 static var _mg_data: Dictionary = {}
+static var _shared_frame_mat: StandardMaterial3D = null
+static var _shared_glass_mat: StandardMaterial3D = null
+static var _shared_btn_mats: Array[StandardMaterial3D] = []
+
+
+## 全局复用拉丝金属凹框、旋钮与操作台沿材质。
+static func _get_frame_mat() -> StandardMaterial3D:
+	if _shared_frame_mat == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.24, 0.27, 0.32)
+		m.metallic = 0.72
+		m.roughness = 0.45
+		ArtStyle.apply_shared_pbr(m, "res://assets/textures/panel-metal.png", 0.65, false)
+		_shared_frame_mat = m
+	return _shared_frame_mat
+
+
+## 全局复用抗眩光玻璃材质。
+static func _get_glass_mat() -> StandardMaterial3D:
+	if _shared_glass_mat == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.82, 0.92, 0.98, 0.14)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.metallic = 0.08
+		m.roughness = 0.24
+		m.metallic_specular = 0.45
+		_shared_glass_mat = m
+	return _shared_glass_mat
+
+
+## 全局复用操作台沿 3 颗实体按键材质。
+static func _get_btn_mats() -> Array[StandardMaterial3D]:
+	if _shared_btn_mats.is_empty():
+		var btn_colors := [Color(0.76, 0.24, 0.20), Color(0.84, 0.62, 0.20), Color(0.24, 0.64, 0.46)]
+		for col: Color in btn_colors:
+			var m := StandardMaterial3D.new()
+			m.albedo_color = col
+			m.roughness = 0.48
+			m.metallic = 0.12
+			_shared_btn_mats.append(m)
+	return _shared_btn_mats
 
 
 static func _ensure_mg_data() -> Dictionary:
@@ -124,6 +166,9 @@ func _build_model() -> void:
 		if packed != null:
 			var inst := packed.instantiate()
 			add_child(inst)
+			# 合并 GLB 内部零散静态子网格，保留原材质、UV 与阴影
+			if inst is Node3D and not (inst is MeshInstance3D):
+				CoverBuilder._merge_cover_meshes(inst as Node3D)
 			_from_glb = true
 			_screen_height = float(SCREEN_HEIGHT.get(model_id, 0.9)) * _scale
 			return
@@ -148,16 +193,15 @@ func _add_faceplate() -> void:
 	var fy := mid.y + bounds.size.y * 0.06
 	var front_z := bounds.position.z
 
-	# 四边独立拉丝金属凹框：厚 0.048m、宽 0.032m，围出真实物理凹槽
+	# 四边独立拉丝金属凹框：厚 0.048m、宽 0.032m，与台沿/按键/旋钮统一收入纯静态装饰容器合批
 	var frame_w := 0.032
 	var frame_d := 0.048
 	var bezel_z := front_z - 0.010
 	var bezel_front_z := bezel_z - frame_d * 0.5
-	var bmat := StandardMaterial3D.new()
-	bmat.albedo_color = Color(0.24, 0.27, 0.32)
-	bmat.metallic = 0.72
-	bmat.roughness = 0.45
-	ArtStyle.apply_shared_pbr(bmat, "res://assets/textures/panel-metal.png", 0.65, false)
+	var bmat := _get_frame_mat()
+	var decor_root := Node3D.new()
+	decor_root.name = "FaceplateDecor"
+	add_child(decor_root)
 	var bars := [
 		[Vector3(w + frame_w * 2.0, frame_w, frame_d), Vector3(mid.x, fy + h * 0.5 + frame_w * 0.5, bezel_z)],
 		[Vector3(w + frame_w * 2.0, frame_w, frame_d), Vector3(mid.x, fy - h * 0.5 - frame_w * 0.5, bezel_z)],
@@ -171,7 +215,7 @@ func _add_faceplate() -> void:
 		bi.mesh = bm
 		bi.position = bar[1] as Vector3
 		bi.material_override = bmat
-		add_child(bi)
+		decor_root.add_child(bi)
 
 	# 屏幕内嵌退进凹槽深处（比边框前沿向内退 0.026m），降低背光强度消除发光纸片感
 	var plate_z := bezel_front_z + 0.026
@@ -192,20 +236,16 @@ func _add_faceplate() -> void:
 	glass.position = Vector3(mid.x, fy, plate_z - 0.008)
 	glass.rotation.y = PI
 	glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var gmat := StandardMaterial3D.new()
-	gmat.albedo_color = Color(0.82, 0.92, 0.98, 0.14)
-	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gmat.metallic = 0.08
-	gmat.roughness = 0.24
-	gmat.metallic_specular = 0.45
-	glass.material_override = gmat
+	glass.material_override = _get_glass_mat()
 	add_child(glass)
 
-	_add_control_ledge(mid.x, fy - h * 0.5 - frame_w, front_z, w + frame_w * 2.0, bmat)
+	_add_control_ledge(mid.x, fy - h * 0.5 - frame_w, front_z, w + frame_w * 2.0, bmat, decor_root)
+	# 将 4 条凹框、台沿、3 颗实体按键与旋钮合并为单个 MeshInstance3D
+	CoverBuilder._merge_cover_meshes(decor_root)
 
 
 ## 屏幕下方微微前倾的操作台沿 + 3 颗实体按键 + 1 颗立体旋钮 + 1 颗主题色 LED 灯珠
-func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: float, frame_mat: StandardMaterial3D) -> void:
+func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: float, frame_mat: StandardMaterial3D, decor_root: Node3D) -> void:
 	var shelf_h := 0.055
 	var shelf_d := 0.095
 	var shelf := MeshInstance3D.new()
@@ -215,22 +255,18 @@ func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: flo
 	shelf.position = Vector3(cx, bottom_y - 0.026, front_z - 0.042)
 	shelf.rotation.x = -0.22
 	shelf.material_override = frame_mat
-	add_child(shelf)
+	decor_root.add_child(shelf)
 
 	var top_y := shelf_h * 0.5
 	var span := minf(total_w * 0.72, 0.34)
-	var btn_colors := [Color(0.76, 0.24, 0.20), Color(0.84, 0.62, 0.20), Color(0.24, 0.64, 0.46)]
-	for i in btn_colors.size():
+	var btn_mats := _get_btn_mats()
+	for i in btn_mats.size():
 		var btn := MeshInstance3D.new()
 		var bm := BoxMesh.new()
 		bm.size = Vector3(0.032, 0.018, 0.026)
 		btn.mesh = bm
 		btn.position = Vector3(-span * 0.38 + float(i) * (span * 0.18), top_y + 0.009, -0.008)
-		var bmat := StandardMaterial3D.new()
-		bmat.albedo_color = btn_colors[i] as Color
-		bmat.roughness = 0.48
-		bmat.metallic = 0.12
-		btn.material_override = bmat
+		btn.material_override = btn_mats[i]
 		shelf.add_child(btn)
 
 	# 立体旋钮（圆柱底座 + 顶部拨棱）
@@ -253,7 +289,7 @@ func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: flo
 	ridge.material_override = frame_mat
 	knob.add_child(ridge)
 
-	# 小尺寸自发光 LED 状态灯珠（按任务光圈主题色发光）
+	# 小尺寸自发光 LED 状态灯珠保持独立节点以便按任务光圈主题色发光
 	var led_col := _task_ring_color()
 	var led := MeshInstance3D.new()
 	var lm := SphereMesh.new()
@@ -262,7 +298,7 @@ func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: flo
 	lm.radial_segments = 12
 	lm.rings = 6
 	led.mesh = lm
-	led.position = Vector3(span * 0.40, top_y + 0.006, -0.010)
+	led.transform = shelf.transform * Transform3D(Basis.IDENTITY, Vector3(span * 0.40, top_y + 0.006, -0.010))
 	var lmat := StandardMaterial3D.new()
 	lmat.albedo_color = led_col
 	lmat.emission_enabled = true
@@ -270,7 +306,7 @@ func _add_control_ledge(cx: float, bottom_y: float, front_z: float, total_w: flo
 	lmat.emission_energy_multiplier = 1.4
 	lmat.roughness = 0.25
 	led.material_override = lmat
-	shelf.add_child(led)
+	add_child(led)
 
 
 ## 交互距离：按**占地矩形的钳位距离**算，不是到节点中心的直线距离。

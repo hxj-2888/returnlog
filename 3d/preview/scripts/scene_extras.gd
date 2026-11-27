@@ -14,8 +14,10 @@ const MGData := preload("res://scripts/minigame/mg_data.gd")
 const MapBuilder := preload("res://scripts/map_builder.gd")
 const SpaceData := preload("res://scripts/space_data.gd")
 const SecbotView := preload("res://scripts/secbot_view.gd")
+const CoverBuilder := preload("res://scripts/view/cover_builder.gd")
 
 const WALL_H := 3.0
+const DOOR_HEAR_RANGE := 18.0
 const METAL := "res://assets/textures/panel-metal.png"
 const SCREEN := "res://assets/textures/facility-screen.png"
 
@@ -95,6 +97,8 @@ func sync_doors(p_sim) -> void:
 		return
 	var pass_r := SpaceData.num(space, "door", "pass")
 	var scan_sec := SpaceData.num(space, "door", "scan_sec")
+	var power_on := bool(p_sim.power_on)
+	var listener_pos: Variant = _listener_pos_2d(p_sim)
 	var by_key: Dictionary = {}
 	for sd: Dictionary in p_sim.doors:
 		by_key[String(sd.get("key", ""))] = sd
@@ -103,15 +107,48 @@ func sync_doors(p_sim) -> void:
 		if sd.is_empty():
 			# sim 没生成这扇门（2.5D buildDoors 只给走廊端点生成门）：保持关闭，
 			# 不自己开——避免表现层偷偷放行一条 sim 不认的通道。
-			_apply_door_state(v, 0.0, pass_r, bool(p_sim.power_on), scan_sec)
+			if _door_dirty(v, 0.0, 0.0, power_on):
+				v["open"] = 0.0
+				v["scan_t"] = 0.0
+				_apply_door_state(v, 0.0, pass_r, power_on, scan_sec)
 			continue
 		var open := float(sd.get("open", 0.0))
+		var scan_t := float(sd.get("scan_t", 0.0))
 		var prev := float(v.get("open", 0.0))
-		v["open"] = open
-		v["scan_t"] = float(sd.get("scan_t", 0.0))
-		_apply_door_state(v, open, pass_r, bool(p_sim.power_on), scan_sec)
+		if _door_dirty(v, open, scan_t, power_on):
+			v["open"] = open
+			v["scan_t"] = scan_t
+			_apply_door_state(v, open, pass_r, power_on, scan_sec)
 		if (prev < 1.0 and open >= 1.0) or (prev > 0.0 and open <= 0.0):
-			door_auto.emit(v["center"])
+			var center: Vector3 = v["center"]
+			# 仅在当前玩家 18m 听觉范围内发射门声，防止远处 AI 开关门刷屏与抢冷却
+			if listener_pos == null or (listener_pos as Vector2).distance_to(Vector2(center.x, center.z)) < DOOR_HEAR_RANGE:
+				door_auto.emit(center)
+
+
+func _door_dirty(d: Dictionary, open: float, scan_t: float, power_on: bool) -> bool:
+	if not is_equal_approx(float(d.get("sync_open", -1.0)), open):
+		return true
+	if not is_equal_approx(float(d.get("sync_scan_t", -1.0)), scan_t):
+		return true
+	if bool(d.get("sync_power_on", not power_on)) != power_on:
+		return true
+	return false
+
+
+func _listener_pos_2d(p_sim) -> Variant:
+	var parent := get_parent()
+	if parent != null:
+		var p: Variant = parent.get("player")
+		if p is Node3D and is_instance_valid(p):
+			var gp := (p as Node3D).global_position
+			return Vector2(gp.x, gp.z)
+	if p_sim != null and p_sim.get("agents") is Array and not (p_sim.get("agents") as Array).is_empty():
+		var me: Dictionary = p_sim.me()
+		var pos: Variant = me.get("pos", null)
+		if pos is Vector2:
+			return pos
+	return null
 
 
 func door_stats() -> Dictionary:
@@ -129,28 +166,34 @@ func door_stats() -> Dictionary:
 
 
 func _apply_door_state(d: Dictionary, open: float, pass_r: float, power_on: bool, scan_sec: float) -> void:
-	var half := float(d["half"])
-	var offset: Vector3 = d["offset"]
-	var leaves: Array = d["leaves"]
-	var blockers: Array = d["blockers"]
-	# 2.5D drawDoors 的几何：两扇各半宽，关闭时在中线合拢（中心 ±half/2），
-	# 完全打开时各滑出 half，正好让出整段门洞；旧写法中心 ±half + slide 2*half，
-	# 关闭时中间留了 0.9m 缝，看起来永远是半开，人也能从缝里挤过去。
-	var slide := half * open
-	for i in leaves.size():
-		var s := -1.0 if i == 0 else 1.0
-		var base: Vector3 = d["center"] + offset * (s * half * 0.5) + Vector3(0, 1.25, 0)
-		var leaf: Node3D = leaves[i] as Node3D
-		leaf.position = base + offset * (s * slide)
-		(blockers[i]["body"] as StaticBody3D).position = leaf.position
-		(blockers[i]["shape"] as CollisionShape3D).disabled = open > pass_r
+	# 仅当开合度实际变化时才改门扇与 StaticBody3D，避免每帧唤醒全船物理静态体
+	if not is_equal_approx(float(d.get("sync_open", -1.0)), open):
+		var half := float(d["half"])
+		var offset: Vector3 = d["offset"]
+		var leaves: Array = d["leaves"]
+		var blockers: Array = d["blockers"]
+		# 2.5D drawDoors 的几何：两扇各半宽，关闭时在中线合拢（中心 ±half/2），
+		# 完全打开时各滑出 half，正好让出整段门洞；旧写法中心 ±half + slide 2*half，
+		# 关闭时中间留了 0.9m 缝，看起来永远是半开，人也能从缝里挤过去。
+		var slide := half * open
+		for i in leaves.size():
+			var s := -1.0 if i == 0 else 1.0
+			var base: Vector3 = d["center"] + offset * (s * half * 0.5) + Vector3(0, 1.25, 0)
+			var leaf: Node3D = leaves[i] as Node3D
+			leaf.position = base + offset * (s * slide)
+			(blockers[i]["body"] as StaticBody3D).position = leaf.position
+			(blockers[i]["shape"] as CollisionShape3D).disabled = open > pass_r
+	var scan_t := float(d["scan_t"])
 	var scan: MeshInstance3D = d["scan"]
-	scan.visible = (not power_on) and open <= pass_r and float(d["scan_t"]) > 0.0
+	scan.visible = (not power_on) and open <= pass_r and scan_t > 0.0
 	if scan.visible:
-		var t := clampf(float(d["scan_t"]) / scan_sec, 0.0, 1.0)
+		var t := clampf(scan_t / scan_sec, 0.0, 1.0)
 		scan.position = d["center"] + Vector3(0, 0.1 + t * 2.3, 0)
 		var m := scan.material_override as StandardMaterial3D
 		m.albedo_color.a = 0.35 + 0.5 * t
+	d["sync_open"] = open
+	d["sync_scan_t"] = scan_t
+	d["sync_power_on"] = power_on
 
 
 func _sync_door_visuals() -> void:
@@ -386,6 +429,9 @@ func _build_pipes(data: Dictionary) -> void:
 		var node := _prop("prop_pipe_port", Vector3(x, 0.02, y), 1.0, 0.0)
 		if node != null:
 			_tint_rim(node, color)
+			# 先对 rim 子节点染色，再将 19 个静态子网格按材质合批为 1 个
+			if not (node is MeshInstance3D):
+				CoverBuilder._merge_cover_meshes(node)
 		var ring := _pipe_ring(Vector3(x, 0.13, y), color)
 		ArtStyle.attach_contact_shadow(self, Vector3(x, 0.023, y), 0.72, 0.54)
 		pipe_ports.append({"pos": Vector3(x, 0.0, y), "room": room, "ring": ring, "node": node})
@@ -528,6 +574,9 @@ func _build_doors(data: Dictionary) -> void:
 				frame.position = center
 				frame.rotation.y = 0.0 if along_x else PI * 0.5
 				add_child(frame)
+				# 门框静态子网格按材质合批为 1 个，保留独立门楣灯带
+				if not (frame is MeshInstance3D):
+					CoverBuilder._merge_cover_meshes(frame)
 			else:
 				for s in [-1.0, 1.0]:
 					var sv := float(s)
@@ -565,6 +614,9 @@ func _build_doors(data: Dictionary) -> void:
 				if lscene != null:
 					leaf = lscene.instantiate() as Node3D
 					leaf.rotation.y = 0.0 if along_x else PI * 0.5
+					# 左右门扇各自合批内部子网格，保持独立 Node3D 以便滑动与碰撞同步
+					if not (leaf is MeshInstance3D):
+						CoverBuilder._merge_cover_meshes(leaf)
 				else:
 					var mi := MeshInstance3D.new()
 					var lmesh := BoxMesh.new()
@@ -595,6 +647,7 @@ func _build_doors(data: Dictionary) -> void:
 			doors.append({
 				"center": center, "along_x": along_x, "offset": offset,
 				"half": half, "open": 0.0, "scan_t": 0.0,
+				"sync_open": -1.0, "sync_scan_t": -1.0, "sync_power_on": false,
 				# 与 sim_state._build_doors 的 key 同构（舱室|边|坐标）：
 				# 两边的开合状态按这个键对齐，不靠数组下标（遍历顺序变了就会错位）。
 				"key": "%s|%s|%.3f" % [String(room.get("id", "")), side, coord],
@@ -657,7 +710,11 @@ func _drone(pos: Vector3, color: Color, title: String) -> Node3D:
 	if ResourceLoader.exists(path):
 		var packed := load(path) as PackedScene
 		if packed != null:
-			node.add_child(packed.instantiate())
+			var inst := packed.instantiate()
+			node.add_child(inst)
+			# 合批 medbot 67 个静态子网格为 1 个，保留外层节点供 _bob 上下浮动与受击姿态控制
+			if inst is Node3D and not (inst is MeshInstance3D):
+				CoverBuilder._merge_cover_meshes(inst as Node3D)
 	else:
 		# 兜底：资产缺失时仍要有个能看见的东西
 		var body := MeshInstance3D.new()

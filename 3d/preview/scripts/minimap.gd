@@ -20,6 +20,15 @@ var font: Font
 
 var _t := 0.0
 var _acc := 0.0
+# 预缓存静态地图几何（舱室多边形/闭合边框/标题坐标、走廊折线、管道菱形），避免每 0.1s 重绘分配
+var _bw := 98.0
+var _bh := 94.0
+var _k := 1.0
+var _mh := 94.0
+var _total_h := 138.0
+var _corr_polys: Array[PackedVector2Array] = []
+var _room_draws: Array[Dictionary] = []
+var _pipe_polys: Array[PackedVector2Array] = []
 
 
 func setup(p_map: Dictionary, p_sim) -> void:
@@ -27,11 +36,57 @@ func setup(p_map: Dictionary, p_sim) -> void:
 	sim = p_sim
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	font = UIFont.get_font()
-	var bw := float((map.get("bounds", {}) as Dictionary).get("w", 98))
-	var bh := float((map.get("bounds", {}) as Dictionary).get("h", 94))
-	custom_minimum_size = Vector2(W, W * bh / maxf(1.0, bw) + PAD_T + LEG_H)
+	var bounds: Dictionary = map.get("bounds", {}) as Dictionary
+	_bw = float(bounds.get("w", 98))
+	_bh = float(bounds.get("h", 94))
+	_k = W / maxf(1.0, _bw)
+	_mh = _bh * _k
+	_total_h = _mh + PAD_T + LEG_H
+	custom_minimum_size = Vector2(W, _total_h)
 	size = custom_minimum_size
+	_cache_static_geo()
 	set_process(true)
+
+
+func _cache_static_geo() -> void:
+	_corr_polys.clear()
+	_room_draws.clear()
+	_pipe_polys.clear()
+	var k := _k
+	var my := PAD_T
+	for c: Dictionary in (map.get("corridors", []) as Array):
+		var pts := PackedVector2Array()
+		for q: Array in (c.get("pts", []) as Array):
+			pts.append(Vector2(float(q[0]) * k, my + float(q[1]) * k))
+		if pts.size() >= 2:
+			_corr_polys.append(pts)
+	var fs := maxi(10, int(round(k * 2.8)))
+	for r: Dictionary in (map.get("rooms", []) as Array):
+		var rid := String(r.get("id", ""))
+		var poly := PackedVector2Array()
+		for q: Array in (r.get("poly", []) as Array):
+			poly.append(Vector2(float(q[0]) * k, my + float(q[1]) * k))
+		if poly.size() < 3:
+			continue
+		var closed := poly.duplicate()
+		closed.append(poly[0])
+		var lab: Array = r.get("label", []) as Array
+		var lx := float(lab[0]) * k if lab.size() >= 2 else W * 0.5
+		var ly := my + float(lab[1]) * k if lab.size() >= 2 else my + 60.0
+		_room_draws.append({
+			"id": rid,
+			"light": String(r.get("light", "")),
+			"poly": poly,
+			"closed": closed,
+			"pos": Vector2(lx - 28.0, ly + 4.0),
+			"name": String(SHORT.get(rid, r.get("name", rid))),
+			"fs": fs,
+		})
+	for q: Dictionary in (map.get("pipes", []) as Array):
+		var p := Vector2(float(q.get("x", 0.0)) * k, my + float(q.get("y", 0.0)) * k)
+		_pipe_polys.append(PackedVector2Array([
+			p + Vector2(0, -2.0), p + Vector2(2.0, 0),
+			p + Vector2(0, 2.0), p + Vector2(-2.0, 0)]))
 
 
 func _process(delta: float) -> void:
@@ -47,12 +102,11 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if map.is_empty() or sim == null:
 		return
-	var bounds: Dictionary = map.get("bounds", {}) as Dictionary
-	var bw := float(bounds.get("w", 98))
-	var bh := float(bounds.get("h", 94))
-	var k := W / maxf(1.0, bw)
-	var mh := bh * k
-	var h := mh + PAD_T + LEG_H
+	var bw := _bw
+	var bh := _bh
+	var k := _k
+	var mh := _mh
+	var h := _total_h
 	var T := _t
 
 	# 2D 原版透明暗底板 + 细边框
@@ -87,50 +141,32 @@ func _draw_grid_and_corridors(bw: float, bh: float, mh: float, k: float, my: flo
 		draw_line(Vector2(0, my + gy * k), Vector2(W, my + gy * k), grid, 0.5)
 		gy += 10.0
 	var corr_lit: bool = int(sim.light_state) != 2
-	for c: Dictionary in (map.get("corridors", []) as Array):
-		var pts := PackedVector2Array()
-		for q: Array in (c.get("pts", []) as Array):
-			pts.append(Vector2(float(q[0]) * k, my + float(q[1]) * k))
-		if pts.size() < 2:
-			continue
-		draw_polyline(pts, Color(0.69, 0.75, 0.82, 0.42) if corr_lit
-			else Color(0.36, 0.41, 0.46, 0.30), 4.0, true)
-		draw_polyline(pts, Color(0.86, 0.92, 0.96, 0.55) if corr_lit
-			else Color(0.51, 0.56, 0.61, 0.22), 1.0, true)
+	var c_bg := Color(0.69, 0.75, 0.82, 0.42) if corr_lit else Color(0.36, 0.41, 0.46, 0.30)
+	var c_fg := Color(0.86, 0.92, 0.96, 0.55) if corr_lit else Color(0.51, 0.56, 0.61, 0.22)
+	for pts: PackedVector2Array in _corr_polys:
+		draw_polyline(pts, c_bg, 4.0, true)
+		draw_polyline(pts, c_fg, 1.0, true)
 
 
 func _draw_rooms_and_marks(k: float, my: float, T: float) -> void:
-	for r: Dictionary in (map.get("rooms", []) as Array):
-		var rid := String(r.get("id", ""))
-		var poly := PackedVector2Array()
-		for q: Array in (r.get("poly", []) as Array):
-			poly.append(Vector2(float(q[0]) * k, my + float(q[1]) * k))
-		if poly.size() < 3:
-			continue
-		var lit := _room_lit(rid, String(r.get("light", "")))
-		draw_colored_polygon(poly, Color(0.776, 0.820, 0.871, 0.86) if lit
+	for rd: Dictionary in _room_draws:
+		var rid := String(rd["id"])
+		var lit := _room_lit(rid, String(rd["light"]))
+		draw_colored_polygon(rd["poly"] as PackedVector2Array, Color(0.776, 0.820, 0.871, 0.86) if lit
 			else Color(0.188, 0.224, 0.271, 0.90))
-		var closed := poly.duplicate()
-		closed.append(poly[0])
-		draw_polyline(closed, Color(0.941, 0.969, 1.0, 0.75) if lit
+		draw_polyline(rd["closed"] as PackedVector2Array, Color(0.941, 0.969, 1.0, 0.75) if lit
 			else Color(0.471, 0.533, 0.604, 0.55), 1.0, true)
-		var lab: Array = r.get("label", []) as Array
-		var lx := float(lab[0]) * k if lab.size() >= 2 else W * 0.5
-		var ly := my + float(lab[1]) * k if lab.size() >= 2 else my + 60.0
-		var nm := String(SHORT.get(rid, r.get("name", rid)))
-		var fs := maxi(10, int(round(k * 2.8)))
-		var pos := Vector2(lx - 28.0, ly + 4.0)
+		var pos := rd["pos"] as Vector2
+		var nm := String(rd["name"])
+		var fs := int(rd["fs"])
 		draw_string_outline(font, pos, nm, HORIZONTAL_ALIGNMENT_CENTER, 56, fs, 2,
 			Color(0.925, 0.953, 0.98, 0.92) if lit else Color(0.027, 0.047, 0.071, 0.88))
 		draw_string(font, pos, nm, HORIZONTAL_ALIGNMENT_CENTER, 56, fs,
 			Color(0.114, 0.149, 0.196) if lit else Color(0.80, 0.86, 0.92, 0.95))
 
-	for q: Dictionary in (map.get("pipes", []) as Array):
-		var p := Vector2(float(q.get("x", 0.0)) * k, my + float(q.get("y", 0.0)) * k)
-		draw_colored_polygon(PackedVector2Array([
-			p + Vector2(0, -2.0), p + Vector2(2.0, 0),
-			p + Vector2(0, 2.0), p + Vector2(-2.0, 0)]),
-			Color(0.68, 0.60, 1.0, 0.92))
+	var pipe_col := Color(0.68, 0.60, 1.0, 0.92)
+	for pp: PackedVector2Array in _pipe_polys:
+		draw_colored_polygon(pp, pipe_col)
 
 	for f: Dictionary in (map.get("facility", []) as Array):
 		var kind := String(f.get("kind", ""))
@@ -143,19 +179,27 @@ func _draw_rooms_and_marks(k: float, my: float, T: float) -> void:
 	var mine: Array = []
 	if not bool(sim.spectator) and sim.mind != null:
 		mine = sim.remaining_tasks()
+	# 当前第一个未完成任务（与任务列表 ▶ 一致），用金色脉冲双环高亮
+	var cur_idx: int = int(mine[0]) if not mine.is_empty() else -1
 	var points: Array = map.get("points", []) as Array
 	for idx in points.size():
 		var p: Dictionary = points[idx]
-		var px := float(p.get("x", 0.0)) * k
-		var py := my + float(p.get("y", 0.0)) * k
+		var pt := Vector2(float(p.get("x", 0.0)) * k, my + float(p.get("y", 0.0)) * k)
 		var hard := String(p.get("kind", "")) == "hard"
 		if not mine.has(idx):
-			draw_circle(Vector2(px, py), 1.2, Color(0.878, 0.341, 0.310, 0.24) if hard
+			draw_circle(pt, 1.2, Color(0.878, 0.341, 0.310, 0.24) if hard
 				else Color(0.302, 0.561, 0.820, 0.24))
 			continue
-		draw_circle(Vector2(px, py), 2.2, Color(0.878, 0.341, 0.310) if hard
-			else Color(0.353, 0.655, 0.933))
-		draw_arc(Vector2(px, py), 3.1, 0.0, TAU, 16, Color(1, 1, 1, 0.88), 0.9, true)
+		if idx == cur_idx:
+			var pulse := 0.5 + 0.5 * sin(T * 5.2)
+			draw_circle(pt, 2.7, Color(0.96, 0.80, 0.36))
+			draw_arc(pt, 4.3, 0.0, TAU, 20, Color(1.0, 0.86, 0.42, 0.95), 1.3, true)
+			draw_arc(pt, 6.2 + 1.8 * pulse, 0.0, TAU, 24,
+				Color(1.0, 0.84, 0.36, 0.82 - 0.42 * pulse), 1.2, true)
+		else:
+			draw_circle(pt, 2.2, Color(0.878, 0.341, 0.310) if hard
+				else Color(0.353, 0.655, 0.933))
+			draw_arc(pt, 3.1, 0.0, TAU, 16, Color(1, 1, 1, 0.88), 0.9, true)
 
 	if not bool(sim.spectator) and int(sim.me().get("qualPending", 0)) > 0:
 		var qp: Vector2 = sim.claim_spot()

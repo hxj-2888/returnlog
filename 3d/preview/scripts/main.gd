@@ -544,6 +544,21 @@ func _tick_player_state() -> void:
 	var dead := not bool(me.get("alive", true))
 	player.set_ghost(dead)
 	player.set_downed(bool(me.get("downed", false)))
+	# 玩家与 AI 移速同源：拖尸读 move.drag_speed，击杀加速读 move.speed + rules#RUSH
+	var base_sp := SpaceData.num(space, "move", "speed")
+	var rush_t := float(me.get("rushT", 0.0))
+	if int(me.get("drag", -1)) >= 0:
+		player.set_move_speed(SpaceData.num(space, "move", "drag_speed"))
+	elif rush_t > 0.0:
+		var rcfg: Dictionary = sim.rules.t("RUSH") as Dictionary
+		var mul := 1.0
+		if not bool(rcfg.get("alienOnly", true)) or bool(me.get("alien", false)):
+			var frac := clampf(rush_t / maxf(0.01, float(rcfg.get("dur", 1.0))), 0.0, 1.0) \
+				if bool(rcfg.get("decay", true)) else 1.0
+			mul = 1.0 + (float(rcfg.get("mul", 2.0)) - 1.0) * frac
+		player.set_move_speed(base_sp * mul)
+	else:
+		player.set_move_speed(base_sp)
 	if dead and not _ghost_toast:
 		_ghost_toast = true
 		var left := maxi(0, sim.ghost_cap() - int(me.get("ghostPts", 0)))
@@ -789,8 +804,6 @@ func _process(delta: float) -> void:
 		minimap.player_pos = Vector2(player.global_position.x, player.global_position.z)
 		minimap.player_yaw = player.rotation.y
 		minimap.player_spectator = player.spectator
-	if builder != null and builder.has_method("update_shadows"):
-		builder.update_shadows(player.global_position)
 	if extras != null and sim != null:
 		# 门的开合与扫描由 sim.tick → door_tick 决定（2.5D doorTick）；
 		# 这里是**单向表现同步**，不许在场景层再算一套开合状态。
@@ -1300,17 +1313,22 @@ func _sync_bots() -> void:
 	var sb: Node3D = extras.bot_nodes.get("secbot")
 	if sb != null:
 		var sp: Vector2 = sim.bots.sec_pos
-		sb.position.x = sp.x
-		sb.position.z = sp.y
 		var ang: float = sim.bots.sec_ang
-		var dir := Vector3(cos(ang), 0.0, sin(ang))
-		if dir.length_squared() > 0.001:
-			sb.look_at(sb.global_position + dir, Vector3.UP)
+		var moved := absf(sb.position.x - sp.x) > 0.0005 or absf(sb.position.z - sp.y) > 0.0005
+		var turned := absf(wrapf(ang - float(sb.get_meta("_last_ang", -999.0)), -PI, PI)) > 0.001
+		if moved or turned:
+			sb.position.x = sp.x
+			sb.position.z = sp.y
+			var dir := Vector3(cos(ang), 0.0, sin(ang))
+			if dir.length_squared() > 0.001:
+				sb.look_at(sb.global_position + dir, Vector3.UP)
+			sb.set_meta("_last_ang", ang)
 	var mb: Node3D = extras.bot_nodes.get("medbot")
 	if mb != null:
 		var mp: Vector2 = sim.bots.med_pos
-		mb.position.x = mp.x
-		mb.position.z = mp.y
+		if absf(mb.position.x - mp.x) > 0.0005 or absf(mb.position.z - mp.y) > 0.0005:
+			mb.position.x = mp.x
+			mb.position.z = mp.y
 
 
 func _tick_detained() -> void:

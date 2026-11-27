@@ -9,6 +9,12 @@ signal sfx_changed(v: float)
 const CFG_PATH := "user://settings.cfg"
 const ReplayMapScript := preload("res://scripts/ui/replay_map.gd")
 const UIStyle := preload("res://scripts/ui/ui_style.gd")
+const ConfigRef := preload("res://scripts/config.gd")
+const FPS_OPTIONS := [
+	{"val": 60, "label": "60 FPS"},
+	{"val": 120, "label": "120 FPS"},
+	{"val": 0, "label": "无上限"},
+]
 const REPLAY_FILTERS := [
 	{"id": "all", "label": "全部", "kinds": []},
 	{"id": "fight", "label": "击杀", "kinds": ["knife", "shoot", "kill", "eject", "detain", "bot_hit", "bot_down"]},
@@ -33,7 +39,8 @@ var _filter_btns: Dictionary = {}
 var music_slider: HSlider
 var sfx_slider: HSlider
 var sens_slider: HSlider
-var _cfg := ConfigFile.new()
+var _fps_btns: Dictionary = {}
+var _cfg_data: Dictionary = ConfigRef.DEFAULT_CFG.duplicate()
 var _events: Array = []
 var _filtered_events: Array = []
 var _map_data: Dictionary = {}
@@ -51,20 +58,24 @@ func setup() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	font = UIFont.get_font()
-	_cfg.load(CFG_PATH)
+	_cfg_data = ConfigRef.load_cfg()
 	_build()
 
 
 func get_sens() -> float:
-	return float(_cfg.get_value("input", "mouse_sens", 0.0022))
+	return float(_cfg_data.get("mouse_sens", 0.0022))
 
 
 func get_music() -> float:
-	return float(_cfg.get_value("audio", "music", 0.35))
+	return float(_cfg_data.get("music", 0.35))
 
 
 func get_sfx() -> float:
-	return float(_cfg.get_value("audio", "sfx", 0.80))
+	return float(_cfg_data.get("sfx", 0.80))
+
+
+func get_max_fps() -> int:
+	return ConfigRef.normalize_max_fps(int(_cfg_data.get("max_fps", 60)))
 
 
 func apply_audio() -> void:
@@ -73,12 +84,21 @@ func apply_audio() -> void:
 	sfx_changed.emit(get_sfx())
 
 
-func _save() -> void:
-	_cfg.set_value("audio", "music", music_slider.value / 100.0)
-	_cfg.set_value("audio", "sfx", sfx_slider.value / 100.0)
-	_cfg.set_value("input", "mouse_sens", sens_slider.value)
-	_cfg.save(CFG_PATH)
+## 同步界面控件与帧率档位并持久化到本机配置文件。
+func save_cfg() -> void:
+	if music_slider != null:
+		_cfg_data["music"] = music_slider.value / 100.0
+	if sfx_slider != null:
+		_cfg_data["sfx"] = sfx_slider.value / 100.0
+	if sens_slider != null:
+		_cfg_data["mouse_sens"] = sens_slider.value
+	_cfg_data["max_fps"] = get_max_fps()
+	ConfigRef.save_cfg(_cfg_data)
 	apply_audio()
+
+
+func _save() -> void:
+	save_cfg()
 
 
 func _panel(title: String, min_w: float = 460.0) -> Dictionary:
@@ -141,6 +161,54 @@ func _slider_row(box: VBoxContainer, name: String, minv: float, maxv: float,
 	return h
 
 
+## 构建帧率上限切换行（60 FPS / 120 FPS / 无上限）。
+func _fps_row(box: VBoxContainer) -> void:
+	var wrap := PanelContainer.new()
+	wrap.add_theme_stylebox_override("panel", UIStyle.row_line_style(UIStyle.DIVIDER, 9, 9))
+	box.add_child(wrap)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	wrap.add_child(row)
+	var n := _label("帧率上限", 13, UIStyle.TEXT_SUB)
+	n.custom_minimum_size = Vector2(76, 0)
+	row.add_child(n)
+	var btns_box := HBoxContainer.new()
+	btns_box.add_theme_constant_override("separation", 8)
+	btns_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(btns_box)
+	_fps_btns.clear()
+	for opt: Dictionary in FPS_OPTIONS:
+		var val := int(opt["val"])
+		var btn := _button(String(opt["label"]), func() -> void: _on_fps_selected(val), 0.0)
+		btn.custom_minimum_size = Vector2(0, 32)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btns_box.add_child(btn)
+		_fps_btns[val] = btn
+	_sync_fps_btns()
+
+
+## 同步帧率按钮选中高亮状态。
+func _sync_fps_btns() -> void:
+	var cur := get_max_fps()
+	for val: int in _fps_btns.keys():
+		var btn := _fps_btns[val] as Button
+		var active := val == cur
+		UIStyle.apply_button(btn,
+			Color.html("#1D1A12") if active else UIStyle.BG_BTN,
+			UIStyle.BORDER_GOLD if active else UIStyle.BORDER_BTN,
+			12, 8, 10, 5,
+			UIStyle.TEXT_GOLD if active else UIStyle.TEXT_MAIN, true)
+
+
+## 切换帧率上限并立即生效与持久化。
+func _on_fps_selected(val: int) -> void:
+	var fps := ConfigRef.normalize_max_fps(val)
+	_cfg_data["max_fps"] = fps
+	ConfigRef.apply_max_fps(fps)
+	save_cfg()
+	_sync_fps_btns()
+
+
 func _build() -> void:
 	var sp := _panel("设置", 460.0)
 	settings_panel = sp["bg"] as ColorRect
@@ -154,8 +222,9 @@ func _build() -> void:
 	music_slider = _slider_row(s_inner, "音乐音量", 0, 100, 1, get_music() * 100.0, true)
 	sfx_slider = _slider_row(s_inner, "音效音量", 0, 100, 1, get_sfx() * 100.0, true)
 	sens_slider = _slider_row(s_inner, "鼠标灵敏度", 0.0005, 0.0060, 0.0001, get_sens(), false)
+	_fps_row(s_inner)
 	for h in [music_slider, sfx_slider, sens_slider]:
-		h.value_changed.connect(func(_v): _save())
+		h.value_changed.connect(func(_v): save_cfg())
 	var sbtns_wrap := MarginContainer.new()
 	sbtns_wrap.add_theme_constant_override("margin_top", 10)
 	sbox.add_child(sbtns_wrap)
@@ -258,6 +327,7 @@ func _process(delta: float) -> void:
 
 func open_settings() -> void:
 	close_all()
+	_sync_fps_btns()
 	settings_panel.visible = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

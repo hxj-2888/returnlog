@@ -95,7 +95,20 @@ static func player_fire(m, me: Dictionary) -> void:
 		m._probe("开枪 × 冷却 %.1fs" % m._shot_cd)
 		m._toast("开枪冷却中（%.1fs）" % m._shot_cd)
 		return
-	var tgt := nearest_shot_target(m, SpaceData.num(m.space, "shoot", "range"))
+	var max_r := SpaceData.num(m.space, "shoot", "range")
+	# 优先锁定准星前向锥内（点积 > 0.88）且视线畅通的目标（含保安/医疗机器人）
+	var aim_pick := _aim_pick(m, max_r, max_r, 0.88, false)
+	var bot_kind := String(aim_pick.get("bot", ""))
+	if bot_kind != "":
+		if int(me.get("bullet", 0)) <= 0:
+			m._probe("开枪 × can_act 拒绝 no_bullet")
+			m._toast(String(m._act_reason("no_bullet")))
+			return
+		on_hit_bot(m, bot_kind)
+		return
+	var tgt: Dictionary = aim_pick.get("agent", {})
+	if tgt.is_empty():
+		tgt = nearest_shot_target(m, max_r)
 	var chk: Dictionary = m.sim.can_act("shoot", {"actor": int(m.sim.me_idx),
 		"victim": int(tgt.get("i", -1))})
 	var reason := String(chk.get("reason", ""))
@@ -121,19 +134,32 @@ static func on_hit_bot(m, kind: String) -> void:
 	if m.sim != null and m.sim.hit_bot(int(m.sim.me_idx), kind):
 		var bp: Vector2 = m.sim.bot_pos_of(kind)
 		var muzzle: Vector3 = m.player.camera.global_position if m.player != null and m.player.camera != null else Vector3.ZERO
+		var s2 := Vector2(muzzle.x, muzzle.z) if muzzle != Vector3.ZERO else Vector2(m.sim.me().get("pos", Vector2.ZERO))
+		if m.audio != null:
+			m.audio.play_at("shoot", s2, 0.95)
+			m.audio.play_delayed("shell_casing", 0.18, 0.62, s2)
 		FxView.shot_fx(m, true, muzzle, Vector3(bp.x, 0.95, bp.y), true)
+		m._shot_cd = 0.8
+		m._probe("开枪 → %s · 剩余 HP %d" % [kind, int(m.sim.bot_hp.get(kind, 0))])
 		m._toast("命中 %s · 剩余 HP %d" % [kind, int(m.sim.bot_hp.get(kind, 0))])
 	else:
 		m._toast("打不中（没有子弹 / 视线被挡 / 已拆掉）")
 
 
-## 2.5D stab():8300 的目标选择：人和机器人同一次最近+视线挑选。
+## 出刀目标选择：优先准星前向锥内（点积 > 0.65）在刀程且视线畅通的人/机器人；
+## 仅当正前方无目标时，在极贴身（< 0.85m）范围内兜底最近目标，避免追前砍后。
 static func nearest_knife_any(m) -> Dictionary:
 	if m.sim == null or m.sim.agents.is_empty():
 		return {}
+	var knife_r := SpaceData.num(m.space, "reach", "knife")
+	var aim_pick := _aim_pick(m, knife_r, 1.799, 0.65, true)
+	if not (aim_pick.get("agent", {}) as Dictionary).is_empty() \
+			or String(aim_pick.get("bot", "")) != "":
+		return aim_pick
 	var me: Dictionary = m.sim.me()
 	var p: Vector2 = me.get("pos", Vector2.ZERO)
-	var bd := SpaceData.num(m.space, "reach", "knife")
+	var has_cam: bool = m.player != null and m.player.camera != null
+	var bd: float = 0.85 if has_cam else knife_r
 	var best: Dictionary = {}
 	var bot_kind := ""
 	for a: Dictionary in m.sim.agents:
@@ -161,7 +187,7 @@ static func nearest_knife_any(m) -> Dictionary:
 	return {"agent": best, "bot": bot_kind}
 
 
-## 2.5D shoot() 的目标选择：射程内最近、无遮挡、且看得见的活人。
+## 开枪兜底目标选择（2.5D shoot()）：射程内最近、无遮挡、且看得见的活人。
 static func nearest_shot_target(m, max_d: float) -> Dictionary:
 	if m.sim == null or m.sim.agents.is_empty():
 		return {}
@@ -188,33 +214,59 @@ static func nearest_shot_target(m, max_d: float) -> Dictionary:
 
 
 static func aim_target(m, max_d: float, min_dot: float) -> Dictionary:
-	if m.sim == null or m.player == null:
-		return {}
+	return _aim_pick(m, max_d, 0.0, min_dot, true).get("agent", {})
+
+
+## 统一准星前向锥选靶：按 2D 射程 + los_now 过滤，按相机前向 3D 点积择优（可选含机器人）。
+static func _aim_pick(m, agent_max_d: float, bot_max_d: float,
+		min_dot: float, skip_detained: bool) -> Dictionary:
+	if m.sim == null or m.player == null or m.player.camera == null:
+		return {"agent": {}, "bot": ""}
 	var cam: Camera3D = m.player.camera
-	if cam == null:
-		return {}
 	var fwd := -cam.global_transform.basis.z
+	var me: Dictionary = m.sim.me()
+	var p: Vector2 = me.get("pos", Vector2.ZERO)
 	var eye := cam.global_position
+	# 单元测试有时只改 sim 的 me["pos"] 不搬动 player 节点，此时以逻辑坐标对齐视角原点
+	if Vector2(eye.x, eye.z).distance_to(p) > 0.6:
+		eye = Vector3(p.x, eye.y, p.y)
 	var best: Dictionary = {}
+	var best_bot := ""
 	var best_dot := min_dot
 	for a: Dictionary in m.sim.agents:
 		if int(a.get("i", -1)) == int(m.sim.me_idx):
 			continue
 		if not bool(a.get("alive", false)) or bool(a.get("downed", false)):
 			continue
-		if bool(a.get("detained", false)):
+		if skip_detained and bool(a.get("detained", false)):
 			continue
 		var ap: Vector2 = a.get("pos", Vector2.ZERO)
-		var p3 := Vector3(ap.x, 1.0, ap.y)
-		var to := p3 - eye
-		var d := to.length()
-		if d > max_d or d < 0.01:
+		if p.distance_to(ap) > agent_max_d:
 			continue
-		var dot := fwd.dot(to / d)
+		if not m.sim.los_now(p.x, p.y, ap.x, ap.y):
+			continue
+		var to := Vector3(ap.x, 1.0, ap.y) - eye
+		var dot := fwd.dot(to.normalized()) if to.length_squared() > 0.0001 else 1.0
 		if dot > best_dot:
 			best_dot = dot
 			best = a
-	return best
+			best_bot = ""
+	if bot_max_d > 0.0 and m.sim.bots != null:
+		for kind: String in ["secbot", "medbot"]:
+			if m.sim.bots.is_dead(kind) or int(m.sim.bot_hp.get(kind, 0)) <= 0:
+				continue
+			var bp: Vector2 = m.sim.bots.pos_of(kind)
+			if p.distance_to(bp) > bot_max_d:
+				continue
+			if not m.sim.los_now(p.x, p.y, bp.x, bp.y):
+				continue
+			var to_b := Vector3(bp.x, 0.95, bp.y) - eye
+			var dot_b := fwd.dot(to_b.normalized()) if to_b.length_squared() > 0.0001 else 1.0
+			if dot_b > best_dot:
+				best_dot = dot_b
+				best = {}
+				best_bot = kind
+	return {"agent": best, "bot": best_bot}
 
 
 static func tick_knife_view(m) -> void:

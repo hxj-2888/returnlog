@@ -52,6 +52,7 @@ func _build() -> void:
 	bg.color = Color(0.024, 0.031, 0.047, 0.62)
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
+	bg.gui_input.connect(_on_bg_gui_input)
 	_panel.add_child(bg)
 
 	_box = Control.new()
@@ -152,7 +153,7 @@ func open(items: Array, on_pick: Callable, on_cancel: Callable) -> void:
 	_on_cancel = on_cancel
 	_layout()
 	_title.text = "选择交互 · %d 项" % _items.size()
-	_hint.text = "数字键 / 点击选择 · ESC 取消"
+	_hint.text = "数字键 / 点击选择 · 右键 / 点空白 / ESC 取消"
 	for i in _buttons.size():
 		var b: Button = _buttons[i]
 		var lbl: Label = _labels[i]
@@ -187,10 +188,27 @@ func _choose(index: int) -> void:
 		_on_pick.call(it)
 
 
-## ESC 由 main.gd 的 _close_topmost() 统一处理；这里处理数字键 1-8 直选。
+## 点击暗区空白（左键）或右键直接关闭轮盘，降低操作摩擦。
+func _on_bg_gui_input(event: InputEvent) -> void:
+	if not is_open():
+		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and (mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT):
+			get_viewport().set_input_as_handled()
+			cancel()
+
+
+## ESC 由 main.gd 的 _close_topmost() 统一处理；这里处理右键直关与数字键 1-8 直选。
 func _input(event: InputEvent) -> void:
 	if not is_open():
 		return
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_RIGHT:
+			get_viewport().set_input_as_handled()
+			cancel()
+			return
 	if event is InputEventKey and (event as InputEventKey).pressed and not (event as InputEventKey).echo:
 		var k := event as InputEventKey
 		var digit := -1
