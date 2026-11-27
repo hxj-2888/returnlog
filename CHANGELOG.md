@@ -3,12 +3,20 @@
 > **架构节点**（2026-11-04 · 按根 `ARCHITECTURE.md` 贴标）：本文件属 **第 3 层 T3 验收层 · 增量台账**；`flag: F`。
 > 每条批次固定三段：**本批改动 → 读数变化 → 下一批立项依据（用户裁定后填）**。台账只记录「改了什么 → 读数怎么变」，不写「某读数 > 0 算通过」；历史条目只标注不删除。
 
-本文件记录《新返航录》正式版的所有可见变更。版本口径：**返航录V1.0**。
+本文件记录《新返航录》正式版的所有可见变更。版本口径：**返航录V1.1**。
 格式参考 Keep a Changelog；日期使用本地时间（Asia/Shanghai）。
 
 > **分卷（2026-11-13）**：本文件只保留**最新 6 批 + 索引**；2026-11 其余批次 → `docs/changelog-history-2026-11.md`；
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
+
+## [V1.1 · 网页端手机竖屏解绑与 APK 重建] — 2026-11-27
+
+- **本批改动**（网页端宣传兼容优化，零玩法/数值改动）：
+  1. `index.html`：移除手机竖屏全屏死遮罩 `#rotate` 的强制媒体查询阻断，移动端竖屏打开可直接浏览选角主页并进入游戏；点击角色开始时在粗指针设备上顺势尝试 `requestFullscreen()` + `screen.orientation.lock('landscape')`，不支持时静默放行。
+  2. `js/config/version.js` / `package.json` / `android/AndroidManifest.xml` / `android/build.cmd`：版本升为 `返航录V1.1 / 1.1.0 / versionCode 4`，同步打包签名 `android/ReturnLog.apk`。
+- **读数变化**：未跑整局蒙特卡洛（沿用 V1.0 实跑）；本次实跑 `npm run agent:contract` PASS、`npm run t3:check` PASS、`android/build.cmd` 签名包产出 `57,184,910 B`。
+- **下一批立项依据**：同步 3D 仓基线并推送远端最新正式版。
 
 ## [V1.0 · 过期文档版本口径修正与 README 玩法概述升级] — 2026-11-25
 

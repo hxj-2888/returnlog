@@ -244,7 +244,7 @@
   #settings button.p{background:#2A4A6B;border-color:#3C6690}
   #rotate{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
     background:#05070B;color:#F0C674;font-size:15px;text-align:center;line-height:2}
-  @media (orientation:portrait) and (max-width:900px){ #rotate{display:flex} }
+  /* 网页版解绑强制竖屏死遮罩，移动端竖屏直接展示响应式选角页并可进入游玩 */
   @media (max-width:880px){
     #pick{grid-template-columns:1fr;grid-template-rows:auto 1fr}
     #pick .panel{border-right:none;border-bottom:1px solid #232C39}
@@ -411,5 +411,22 @@
 <script src="js/main.js"></script>
 <script src="js/ui/home.js"></script>
 <script src="js/ui/replay.js"></script>
+<script>
+(function(){
+  var p = document.getElementById('pick');
+  if (!p) return;
+  p.addEventListener('click', function(e){
+    if (!e.target || !e.target.closest || !e.target.closest('button')) return;
+    try {
+      var de = document.documentElement;
+      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && de && de.requestFullscreen && !document.fullscreenElement) {
+        Promise.resolve(de.requestFullscreen()).then(function(){
+          if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
+        }).catch(function(){});
+      }
+    } catch (_) {}
+  });
+})();
+</script>
 </body>
 </html>
