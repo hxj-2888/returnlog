@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080A0F">
-<meta name="description" content="《新返航录》2.5D 正式版 V1.0——11 人类 vs 4 内鬼的实时太空船对抗游戏，可旁观">
-<title>新返航录 · V1.0（2.5D）</title>
+<meta name="description" content="《新返航录》2.5D 正式版 V1.1——15 人太空船社会推理与实时对抗网页游戏，支持横竖屏自由切换">
+<title>新返航录 · V1.1（2.5D）</title>
 <style>
   html,body{margin:0;height:100%;background:#080A0F;overflow:hidden;
     font-family:system-ui,"Microsoft YaHei",sans-serif;color:#DDE3EC}
@@ -242,13 +242,43 @@
     padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}
   #settings button:hover{background:#26313F;border-color:#43536B}
   #settings button.p{background:#2A4A6B;border-color:#3C6690}
-  #rotate{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;
-    background:#05070B;color:#F0C674;font-size:15px;text-align:center;line-height:2}
-  /* 网页版解绑强制竖屏死遮罩，移动端竖屏直接展示响应式选角页并可进入游玩 */
-  @media (max-width:880px){
-    #pick{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-    #pick .panel{border-right:none;border-bottom:1px solid #232C39}
-    #home-scene{min-height:38vh}
+  /* 推荐横屏轻量浮条（非强制、不阻断操作、旋转手机至横屏自动隐藏、可手动关闭） */
+  #orient-hint{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;transform:translateX(-50%);
+    z-index:10020;display:none;align-items:center;gap:10px;padding:7px 12px 7px 14px;border-radius:999px;
+    background:rgba(13,18,26,.92);border:1px solid rgba(240,198,116,.45);color:#F0C674;
+    font-size:12px;line-height:1.3;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.45);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  #orient-hint button{background:none;border:0;color:#8A94A3;font-size:16px;line-height:1;
+    padding:2px 4px;cursor:pointer;font-family:inherit}
+  #orient-hint button:hover{color:#fff}
+  @media (orientation:portrait) and (max-width:640px) and (pointer:coarse){
+    #orient-hint:not(.dismissed){display:flex}
+  }
+  @media (orientation:landscape){
+    #orient-hint{display:none !important}
+  }
+
+  /* 手机竖屏 / 窄屏完整适配：主页单列顺滑滚动，保证按钮与卡片全部可达 */
+  @media (max-width:880px), (orientation:portrait) and (max-width:720px){
+    #pick{grid-template-columns:1fr;grid-template-rows:auto auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+    #pick .panel{justify-content:flex-start;overflow:visible;border-right:none;border-bottom:1px solid #232C39;
+      padding:calc(env(safe-area-inset-top,0px) + 18px) 16px 18px;background:#080B11}
+    #pick h1{letter-spacing:5px;font-size:clamp(22px,6.5vw,30px)}
+    #pick .sub{font-size:12px;line-height:1.7}
+    #pick .modebar{gap:6px}
+    #pick .mode{padding:10px 10px;min-height:48px}
+    #pick .role{padding:10px 11px;min-height:48px}
+    #pick .role:hover,#pick .role.sel{transform:none}
+    #pick .role .where{display:none}
+    #pick .cta{flex-wrap:wrap}
+    #pick .go{min-height:46px;flex:1 1 160px}
+    #pick .ghost{min-height:46px}
+    #pick .foot{flex-direction:column;align-items:flex-start;gap:4px;padding-bottom:env(safe-area-inset-bottom,0px)}
+    #pick .note{position:static;max-width:none;margin-top:8px}
+    #home-scene{min-height:240px;height:34vh}
+    #settings .sc{min-width:0;width:min(420px,92vw);padding:18px 18px}
+    #replay .rp-card{padding:14px 14px;width:96vw;max-height:92dvh}
+    .rp-bar{flex-wrap:wrap;gap:8px}
   }
 </style>
 </head>
@@ -352,7 +382,10 @@
   </div>
 </div></div>
 <audio id="bgm" src="audio/music-bgm.m4a" loop preload="auto"></audio>
-<div id="rotate">请横屏使用</div>
+<div id="orient-hint" role="status" aria-live="polite">
+  <span>横屏视野更佳，旋转手机自动切换</span>
+  <button type="button" id="orient-hint-close" aria-label="关闭横屏建议">×</button>
+</div>
 
 <div id="replay" class="hide"><div class="rp-card">
   <h2 id="rp-t">对局复盘</h2><div class="sub" id="rp-sub"></div>
@@ -413,18 +446,23 @@
 <script src="js/ui/replay.js"></script>
 <script>
 (function(){
-  var p = document.getElementById('pick');
-  if (!p) return;
-  p.addEventListener('click', function(e){
-    if (!e.target || !e.target.closest || !e.target.closest('button')) return;
-    try {
-      var de = document.documentElement;
-      if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && de && de.requestFullscreen && !document.fullscreenElement) {
-        Promise.resolve(de.requestFullscreen()).then(function(){
-          if (screen.orientation && screen.orientation.lock) return screen.orientation.lock('landscape');
-        }).catch(function(){});
-      }
-    } catch (_) {}
+  /* 完全解除横屏锁定：不调用 requestFullscreen / screen.orientation.lock；
+     仅提供可关闭的横屏建议条，用户旋转手机时自动切换并触发画布重排。 */
+  var hint = document.getElementById('orient-hint');
+  var closeBtn = document.getElementById('orient-hint-close');
+  try {
+    if (hint && sessionStorage.getItem('rl_orient_hint_off') === '1') {
+      hint.classList.add('dismissed');
+    }
+  } catch (_) {}
+  if (closeBtn && hint) {
+    closeBtn.addEventListener('click', function(){
+      hint.classList.add('dismissed');
+      try { sessionStorage.setItem('rl_orient_hint_off', '1'); } catch (_) {}
+    });
+  }
+  window.addEventListener('orientationchange', function(){
+    setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 120);
   });
 })();
 </script>

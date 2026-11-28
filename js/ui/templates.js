@@ -242,7 +242,31 @@
   #m-tpl-btns{display:flex;flex-wrap:wrap;gap:5px}
   #m-tpl-btns button{padding:4px 8px;font-size:11px;background:#18222E;border-color:#2B3B4C;color:#AFC0D2}
   #m-tpl-btns button:hover{background:#223142;border-color:#3F5870}
-  #m-tpl .tpl-hint{font-size:10px;color:#5E7280;margin-top:5px;line-height:1.4}`;
+  #m-tpl .tpl-hint{font-size:10px;color:#5E7280;margin-top:5px;line-height:1.4}
+
+  /* 手机竖屏 / 窄屏局内自适应（不锁横屏，竖屏同样完整可玩） */
+  @media (orientation:portrait) and (max-width:640px), (max-width:600px){
+    #hud{left:8px;top:calc(env(safe-area-inset-top,0px) + 8px);padding:6px 9px;
+      font-size:11px;line-height:1.55;min-width:0;max-width:calc(100vw - 16px)}
+    #tasks{margin-top:5px;padding-top:5px;font-size:10.5px;max-height:20vh;overflow-y:auto}
+    #dmgline{max-width:calc(100vw - 36px);font-size:10.5px}
+    #tip{left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+      max-width:none;font-size:11px;line-height:1.5;padding:6px 9px}
+    .card{min-width:0;width:min(460px,92vw);max-width:94vw;padding:16px 16px}
+    .mtg{grid-template-columns:1fr;gap:10px;width:94vw;height:auto;max-height:90dvh;
+      overflow-y:auto;-webkit-overflow-scrolling:touch;align-content:start}
+    .mtg .col{padding:12px 13px}
+    .mtg .col.say{min-height:210px;max-height:36dvh}
+    .vote .who{max-height:28dvh}
+    .who button{padding:7px 10px;min-height:36px}
+    .pipe-list{grid-template-columns:1fr}
+    .wheel-card{width:min(340px,90vw);height:min(340px,90vw)}
+    #wheel-opts button{width:118px;padding:6px 7px}
+    #wheel-opts .pl{font-size:11px}
+    #cam .cam-panel{padding:10px 10px;max-width:calc(100vw - 16px)}
+    .cam-head,.cam-foot{flex-wrap:wrap;gap:6px}
+    #dragtag{bottom:calc(env(safe-area-inset-bottom,0px) + 64px);font-size:11px}
+  }`;
 
   const HTML = String.raw`<canvas id="cv"></canvas>
 <div id="hud">

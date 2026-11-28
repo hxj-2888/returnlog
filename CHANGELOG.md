@@ -16,6 +16,7 @@
   1. `README.md` / `package.json` / `AGENTS.md` / `docs/README-details.md`：头部与描述中滞后的 `V1.0` / `1.0.0` 统一对齐至 `返航录V1.1` / `1.1.0`。
   2. `CHANGELOG.md`：剥除历史段 4 处本机绝对路径与模型工具记录（保留素材许可与 `docs/ASSET_GOVERNANCE.md §14` 登记指针），并补齐历史批次 C4/C5 留痕标注。
   3. `3d/preview/data/rules.json`：重跑 `npm run 3d:export:rules` 消除 `js/game.js` 源哈希漂移（C6）。
+  4. `index.html` / `js/ui/templates.js`：彻底移除 `requestFullscreen` + `screen.orientation.lock('landscape')` 横屏锁定与残留 `#rotate` 死遮罩，改为非强制可关闭的顶部横屏建议浮条（旋转至横屏自动隐藏并触发画布重排），并补齐主页与局内 HUD / 提示条 / 会议 / 弹窗手机竖屏适配。
 - **读数变化**：未跑整局蒙特卡洛与单测（沿用 V1.0 实跑）；本次实跑 `npm run agent:contract` PASS、`npm run t3:check` PASS（0 WARN / 0 FAIL）。
 - **下一批立项依据**：同步 3D 仓基线与发布说明，并推送双分支至 GitHub。
 
