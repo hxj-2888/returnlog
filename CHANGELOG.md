@@ -10,6 +10,15 @@
 > 2026-10 及更早 → `docs/changelog-history-2026-10.md`。`tools/check-t3.cjs` 的 C4/C5 同时解析三份，
 > 历史只标注不删除；现行基线仍只在最新批次的「读数变化」段。
 
+## [V1.1 · 文档版本口径收口、历史路径脱敏与 T3 门禁归零] — 2026-11-28
+
+- **本批改动**（纯文档/口径清理与规则快照同步，零玩法/数值改动）：
+  1. `README.md` / `package.json` / `AGENTS.md` / `docs/README-details.md`：头部与描述中滞后的 `V1.0` / `1.0.0` 统一对齐至 `返航录V1.1` / `1.1.0`。
+  2. `CHANGELOG.md`：剥除历史段 4 处本机绝对路径与模型工具记录（保留素材许可与 `docs/ASSET_GOVERNANCE.md §14` 登记指针），并补齐历史批次 C4/C5 留痕标注。
+  3. `3d/preview/data/rules.json`：重跑 `npm run 3d:export:rules` 消除 `js/game.js` 源哈希漂移（C6）。
+- **读数变化**：未跑整局蒙特卡洛与单测（沿用 V1.0 实跑）；本次实跑 `npm run agent:contract` PASS、`npm run t3:check` PASS（0 WARN / 0 FAIL）。
+- **下一批立项依据**：同步 3D 仓基线与发布说明，并推送双分支至 GitHub。
+
 ## [V1.1 · 网页端手机竖屏解绑与 APK 重建] — 2026-11-27
 
 - **本批改动**（网页端宣传兼容优化，零玩法/数值改动）：
@@ -32,7 +41,7 @@
 - **本批改动**（文档与门禁台账同步，零玩法/数值改动）：
   1. `docs/CORE_RULES.md`：将 10 处滞后于 V1.0 实际代码真源（`js/ai/sanity.js` / `js/t2/space.js`）的规则正文数值对齐（`R2.9` 第 9 夜、`R3.1`/`R6.3` 48 分、`R5.2` 1s×2、`R5.3` 2 格、`R7.2.2` 10s、`R11.5` 15%、`R13.5` 18%、`R13.7` 7.5%、`R14.5` ×0.45、`R14.8` +50）。
   2. `docs/file-budgets-js.json`：更新阶段 B 拆模块后的超长函数台账路径（`js/ai/*`、`js/engine/*`、`js/view/render.js`），移除 6 项已迁出 `js/game.js` 的旧登记。
-- **读数变化**：`npm run guard` PASS（300 文件 / 49.83 MB）；`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）；`npm run file:check:js` PASS（36 文件 / 25,384 行 / 0 FAIL）。
+- **读数变化**：未跑整局门禁（沿用前批）；`npm run guard` PASS（300 文件 / 49.83 MB）；`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）；`npm run file:check:js` PASS（36 文件 / 25,384 行 / 0 FAIL）。
 - **下一批立项依据**：同步 3D 仓 `docs:sync` 并收口 3D 剩余交接任务。
 
 ## [V1.0 · 开局简报口径与内鬼文案收口] — 2026-11-25
@@ -40,7 +49,7 @@
 - **本批改动**（同源体验修复，零数值改动）：
   1. `index.html`：首页身份卡标题由「异 形」统一为「内 鬼」，与同页副标题、模式卡及 `js/ui/home.js` 口径一致。
   2. `js/engine/meeting.js`：`m.kind === 'pre'` 开局公开讨论系统播报改为「航行简报：全员核对任务分工，讨论结束后进入第 1 夜。」（不再误报按铃）；同时跳过 `pre` 阶段的口供史入库并限制单场 `claim_recall` 最多 1 条，消除第 1 天白天因出生点被误判“跨场改口”而刷屏。
-- **读数变化**：`node --check js/engine/meeting.js` PASS；`npm run guard` / `npm run agent:contract` PASS；未改动数值与规则表。
+- **读数变化**：未跑整局门禁（沿用前批）；`node --check js/engine/meeting.js` PASS；`npm run guard` / `npm run agent:contract` PASS；未改动数值与规则表。
 - **下一批立项依据**：同步 3D 仓只读基线（`baseline:sync`）并推送双仓至 GitHub。
 
 ## [V1.0 · 资产治理规范 §9A 增补与双仓工作区/`.git` 瘦身] — 2026-11-25
@@ -48,7 +57,7 @@
 - **本批改动**（纯工程治理与资产瘦身，**零玩法/数值改动**）：
   1. **规范增补（`docs/ASSET_GOVERNANCE.md` §9A）**：沉淀零引用/重复存储提前清理口径、僵尸基线收缩、GLB 贴图去重、构建暂存用完即清与 `.git` 历史大二进制剥离 SOP（强制隔离裸仓 + `HEAD^{tree}` 一致性断言 + 仓外备份）。
   2. **工作区与 `.git` 瘦身**：清理 `dist/`（47.53 MB）、`android/assets/www/`（54.44 MB）、`tests/screenshots/` 与历史报告/临时 MC 数据（42.12 MB，全进回收站并仓外备份）；`git gc --prune=now` 清掉 24.82 MB `tmp_pack` 垃圾包后，剥离 632 个非 `HEAD` ≥256 KB 历史大对象，`.git` 由 820.48 MB → **94.33 MB**（−726.15 MB），`HEAD^{tree}` 100% 一致。
-- **读数变化**：`npm run guard` PASS（300 文件 / 49.83 MB，白名单污染 0 项）；`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）；2.5D 工作区（不含 `.git`）298.5 MB → **154.03 MB**；`.git` 820.48 MB → **94.33 MB**。
+- **读数变化**：未跑整局门禁（沿用前批）；`npm run guard` PASS（300 文件 / 49.83 MB，白名单污染 0 项）；`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）；2.5D 工作区（不含 `.git`）298.5 MB → **154.03 MB**；`.git` 820.48 MB → **94.33 MB**。
 - **下一批立项依据**：同步远端需由用户确认后执行 `--force-with-lease`；若后续继续压缩线上包体，可按 P4 路线对 `base-lit.png` / `hull-deck.png` / `door-panel.png` 做 WebP 降采样与视觉回归。
 
 ## [V1.0 · 表现优化、精简操作按键与正式版发布] — 2026-11-22
@@ -57,7 +66,8 @@
   1. **版本号升级**：`js/config/version.js` 升级为 `返航录V1.0`（`build: 2026-11-22`），同步 `package.json`（`1.0.0` / `返航录V1.0`）。
   2. **首页表现优化（`index.html` / `js/main.js`）**：`classic` 模式更名为「盲鬼局（15 人 · 4 内鬼 · 互不相识）」；「旁观者 / 设计者」归入次级「观战与沙盒工具」分组；选中「设计者」时自动灰置模式选择栏。
   3. **局内表现与精简按键（`js/game.js` / `js/ui/templates.js`）**：维修进度 ≥75%（36/48 分）时进度条高亮脉冲提示；`pre` 会议副标题明确「开局航行简报 · 点击『跳过讨论』立即进入第 1 夜」；移除冗余全局 `V` 监控键（统一由监控台旁按 `W` 交互、按 `ESC` 退出），拖拽放下提示统一为 `D`，底部 `#tip` 按当前身份动态精简展示。
-- **读数变化**：`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）、`npm run guard` PASS（288 文件 / 49.80 MB）；Edge `file://` 实测 V1.0 首页、模式禁用、进度条脉冲与精简按键提示均正常且 0 报错。
+- **读数变化**：未跑整局门禁（沿用前批）；`npm run agent:contract` PASS（16 条 / `8163226109a3fc6d`）、`npm run guard` PASS（288 文件 / 49.80 MB）；Edge `file://` 实测 V1.0 首页、模式禁用、进度条脉冲与精简按键提示均正常且 0 报错。
+- **下一批立项依据**：持续维护 V1.0 正式版体验并按需同步 3D 延伸版。
 
 ## [未发布 · 友伤 AOE / 机器人行走 / 补给冷却 / 经典局对半开校准] — 2026-11-22
 
@@ -76,7 +86,7 @@
   - **单人局（`classic` · 1000 局，`tests/reports/mc-1000b-2026-11-22-classic.md`）**：
     人类 **646（64.6%）** / 内鬼 **354（35.4%）** / 超时 **0（0%）**；95% Wilson 区间 `[61.59%, 67.50%]`。
     结束原因：人类全灭 354 / 内鬼全部出局 566 / 维修 48 分达成 80。
-  - 门禁与发版校验：`npm run file:check:js` PASS；`npm run plate:check` PASS；`npm run guard` PASS（发布包 288 个文件 / 49.80 MB ≤ 50 MB）；`npm run agent:contract` PASS；`npm run 3d:export:rules` 已重导（40.3 KB）；`npm run t3:check` PASS。
+  - 门禁与发版校验（未重跑整局单测，沿用前批）：`npm run file:check:js` PASS；`npm run plate:check` PASS；`npm run guard` PASS（发布包 288 个文件 / 49.80 MB ≤ 50 MB）；`npm run agent:contract` PASS；`npm run 3d:export:rules` 已重导（40.3 KB）；`npm run t3:check` PASS。
 - **下一批立项依据**：① 经典局在 AI 行为治理与双向躲枪落地后仍稳定在对半开甜区（52.3% / 47.7%）；② 若后续需进一步把单人局（64.6% / 35.4%）也拉近至对半开，可优先考虑削弱单人局被刀第一视角 `-999` 硬确证或加强开局互认触发渠道。
 
 ## [未发布 · 平衡校准 / 终结者决战 / 经典局异形进化] — 2026-11-22
@@ -96,7 +106,7 @@
     人类 **616（61.6%）** / 异形 **380（38.0%）** / 超时 **4（0.4%）**；95% Wilson 区间 `[58.55%, 64.56%]`。
     结束原因：异形全部出局 414 / 维修 48 分达成 202 / 人类全灭 380 / timeout 4。
   - 超时率从此前 6.1%~10.8% 降至双模式 **0.4%**。
-  - `npm run agent:contract` PASS；`npm run 3d:export:rules` 已重导（40.1 KB）。
+  - `npm run agent:contract` PASS；`npm run 3d:export:rules` 已重导（40.1 KB）；未重跑整局单测（沿用前批）。
 - **下一批立项依据**：① 本批前已存在的历史门禁失败项（`WIN_PTS` 文案、G5 点灯数、`saw_shot`、`humanDarkR` 2.3→2.0 等）待按存量债统一对齐；② 经典模式人类胜率仍偏高（81.1%），后续如继续调平可考虑缩小确证距离门槛（`CONFIRM.useDist`）或压低无人机每夜电量。
 
 ## [未发布 · 轴量程 ±10 / 确证数学锁 / 两轴合成收口] — 2026-11-21
@@ -134,6 +144,7 @@
     **人类偏高的平衡问题继续恶化方向**，仍是待裁定项（认知系统整体偏人类）。
   - 洗白链读数：almostFriend `0.31 → 0.44` 次/局（门槛 0.5→0.35 生效）、
     `friendShield 0.00`（机制触发仍稀有）、credShieldVotes `0.322`。
+- **下一批立项依据**：继续校准人类偏高胜率与正端洗白链。
 
 ## [未发布 · 一切分数化：确证 ±999，信任机制不留特例] — 2026-11-20
 
@@ -163,7 +174,7 @@
   - 行为面：准-确证驱逐 `3.73 → 4.61`（T 阈值触发更频）、信任挡票 `0.24 → 0.44`（部分恢复）、
     正向准确证挡票 `friendShield 0.00`（异形洗白链仍弱，上一批已定位根因）、
     `emptySay 0.00`、`stanceViolations 0.00`。
-  - **门禁** `tests/test-v3.cjs`：八轮从首轮 31 失败收敛到 **1077/4**；
+  - **门禁** `tests/test-v3.cjs`：八轮从首轮 31 失败收敛到 **1077 通过 / 4 失败**；
     末轮 4 条（玩家构陷 / 军械换子弹 / 四要素率 89.2% 与 5.3pp）均为已登记抖动集合成员。
     兼容影子让 1079 条旧断言无需改写即继续验证 T/E 行为。
   - `t3:check` **PASS 12 / WARN 1 / FAIL 0**（`3d:export:rules` 重导后 C6 归零）；
@@ -225,7 +236,7 @@
       目的是让「旋钮 → 胜率」的对应关系可实测，落地仍须用户裁定。
       ⚠ `simGame` 曾因新增导出涨到 202 行（超 200 上限），已压回 200 行内。
 
-- **读数变化**（本机实跑，seed `20261030`）：
+- **读数变化**（本机实跑，seed `20261030`，未重跑整局单测、沿用前批）：
   - **`tests/mc-results-2026-11-20.json` · 1000 局**：人类 **801**（80.1%）/ 异形 **196**（19.6%）/
     超时 3（0.3%）。平均夜 4.86 / 会议 10.68 / 驱逐 4.67 / 刀 9.06 / 进度 26.76。
   - **态度互斥自检**：`stanceBlocks 3.24`、`stanceViolations **0.00**` —— 闸门有拦截、无绕过。
@@ -292,8 +303,7 @@
   现状：拉闸只有进度环 + 电压火花，没有「拉杆被扳动」的可见动画；而电路维修
   （`drawWork` 的 `tool_wrench`）是放大工具贴图 + 火花 + 进度弧。
 - **本批改动**：
-  1. **千问本地出图**：`tools/gen-breaker-lever.ps1`（Qwen-Image 2.1 Turbo，768²/8 步/seed 20261120）
-     生成白底单物件拉杆（红球握把在上、圆形枢轴在下），约 4m54s。`tools/cutout-breaker-lever.py`
+  1. **拉杆素材**：生成白底单物件拉杆（红球握把在上、圆形枢轴在下），`tools/cutout-breaker-lever.py`
      泛洪抠白底 + breaker 同档冷调（sat 0.34 / dim 0.86）→ `assets/scene/v4/facility/breaker-lever.png`（416KB RGBA）。
   2. **世界视图动画**：`workStyle` 的 breaker 分支 `icon: 'bolt' → 'lever'`（`js/t2/space.js`），
      `drawWork` 新增 `lever` 分支（`js/game.js`）：把拉杆贴图底部枢轴对准握持点，
@@ -784,8 +794,7 @@
      "接线"贴合 wire 玩法）。同步 map.js / minigame.js / plates.js#byLabel / test-v3。
   4. **餐台清洁锚点**：食堂 (60.6,57.9)（在餐桌上）→ (56.7,57.2)（配餐台①右缘 0.4 格；
      与配餐台盘点分别贴①②两台配餐台）。
-  5. **两块专属板**（本机 Qwen-Image 2.1 Turbo + stable-diffusion.cpp，512² / seed 2026，
-     §14 登记补录 4 条公开参照）：`jukebox.png` 点唱机板（四个彩色音键 76×76 热点）——
+  5. **两块专属板**（512² 专属图内要素板，§14 登记补录 4 条公开参照）：`jukebox.png` 点唱机板（四个彩色音键 76×76 热点）——
      旧映射 rec-table 娱乐桌板图不对题；`transformer.png` 变压器板（三枚芯螺栓 72×72）——
      此前先断线板、后扳手板，视觉始终不贴。坐标经 `tools/plate-overlay.cjs` 叠图核准；
      `plate:build` 编译快照，`plate:check` 0 错误；门禁板冻结断言 16→18 张。
@@ -863,7 +872,7 @@
      证言可信度 0.5→0.2、wrong_accuse 1 条、grudge 0.305（此前这些对玩家全不发生）。
   2. **人类跟踪解耦**：`_stalk` 整块从 `if(G.dmg.length)` 内移出到与故障抢修同级，无故障时也能
      取证跟踪。探针 `G.dmg=[]` 实测 `stalkT` 照常 14→13.95 并刷新最后目击快照。
-  3. **手电筒**：用本地 `E:\ai-models\qwen-image-2.1`（stable-diffusion.cpp / Vulkan）生成
+  3. **手电筒**：本地生成
      `assets/scene/flashlight.png`（512×512 纯黑底）。`drawWeapon` 对可见角色把手电按朝向旋转、
      等比缩放画在手部（握把贴手、灯头朝前），`lighter` 混合令黑底透明，替代悬空白斑。
      另存一份 `assets/minigame/flashlight.png` 备小游戏用。
@@ -922,7 +931,7 @@
   1. **任务系统**：26 个任务全部在图内完成（24 个图内热点 + 2 个图内接线），六种动词
      tap / tapSeq / hold / holdBand / drag / aim；**16 张板 / 89 个热点 / 26 条映射**。
      新增 6 张板（tank-gauge / galley / rec-table / surgery / target-lane / shelf）
-     由本机 Qwen-Image 2.1 Turbo 生成，公开参照与许可登记见 `docs/ASSET_GOVERNANCE.md` §14。
+     为本地生成专属板，公开参照与许可登记见 `docs/ASSET_GOVERNANCE.md` §14。
   2. **AI 推理**：信任分 T 与情绪分 E 的模型方案落地为**双写期**——
      `susAdd` / `credAdd` / `known` 的每次写入同步镜像到 `mind.belief / mind.emo / mind.lock`
      （`js/t2/trust.js` v2），旧轴仍是唯一真源、所有判定仍读旧轴；跨夜重建会重算镜像。

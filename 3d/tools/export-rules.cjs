@@ -31,6 +31,9 @@ const SRC = {
   ai: 'js/t2/ai.js',
   decision: 'js/t2/decision.js',
   game: 'js/game.js',
+  cognition: 'js/ai/cognition.js',
+  meeting: 'js/engine/meeting.js',
+  nightAi: 'js/ai/night-ai.js',
   lines: 'js/data/lines.js',
 };
 /* 源文件指纹：先按 UTF-8 读文本、把 CRLF 归一成 LF 再算 —— 换行不是内容。
@@ -135,7 +138,7 @@ function buildRules() {
   const constants = {
     MEM_MAX: grabNumber(texts.ai, /const MEM_MAX\s*=\s*([\d.]+)/, 'SKT2AI.MEM_MAX'),
     SEEN_WORD: grabObject(texts.ai, 'SEEN_WORD', 'SKT2AI.SEEN_WORD'),
-    EV_W: grabObject(texts.game, 'EV_W', 'game.js EV_W'),
+    EV_W: grabObject(texts.cognition, 'EV_W', 'cognition.js EV_W'),
     /* 2026-11-18：ID_EVIDENCE 随身份轴整条判据链从 game.js 归位到 js/t2/ai.js
        （经典脚本加载顺序禁止 t2/ai.js 反向依赖 game.js，见交接台账 §2.2）。
        真源换了地方，导出链必须跟着换 —— 否则 3D 拿不到身份级证据表。 */
@@ -145,25 +148,25 @@ function buildRules() {
 
   /* 发言调度 / 台词去重系数：3D speech.gd 原本是 pickLine / startChatter 的逐行移植，
      但把数值写死在 GDScript 里。这里按具名模式从 2.5D 源码抠出来，让两边同源。 */
-  const g = texts.game, d = texts.decision;
+  const m = texts.meeting, n = texts.nightAi, d = texts.decision;
   const dispatch = {
-    comboChance: grabNumber(g, /Math\.random\(\)<([\d.]+)\)pool=combo/, 'pickLine comboChance'),
-    lineDecayK: grabNumber(g, /1\/\(1\+([\d.]+)\*n\)/, 'pickLine 整局降权 K'),
-    linePickTries: grabNumber(g, /tries<([\d.]+);tries\+\+\)/, 'pickLine 重挑次数'),
+    comboChance: grabNumber(m, /Math\.random\(\)<([\d.]+)\)pool=combo/, 'pickLine comboChance'),
+    lineDecayK: grabNumber(m, /1\/\(1\+([\d.]+)\*n\)/, 'pickLine 整局降权 K'),
+    linePickTries: grabNumber(m, /tries<([\d.]+);tries\+\+\)/, 'pickLine 重挑次数'),
     talkScore: {
-      known: grabNumber(g, /Object\.keys\(a\.mind\.known\)\.length\)s\+=([\d.]+)/, 'talkScore known'),
-      almost: grabNumber(g, /almost\.foe\|\|\{\}\)\.length\)s\+=([\d.]+)/, 'talkScore almost'),
-      retract: grabNumber(g, /_retract!=null\)s\+=([\d.]+)/, 'talkScore retract'),
-      accuse: grabNumber(g, /accuse!=null\)s\+=([\d.]+)/, 'talkScore accuse'),
-      why: grabNumber(g, /why\*([\d.]+)\)/, 'talkScore why'),
-      talkN: grabNumber(g, /s\+=([\d.]+)\*Math\.min\(1,\(a\.talkN/, 'talkScore talkN'),
+      known: grabNumber(m, /Object\.keys\(a\.mind\.known\)\.length\)s\+=([\d.]+)/, 'talkScore known'),
+      almost: grabNumber(m, /almost\.foe\|\|\{\}\)\.length\)s\+=([\d.]+)/, 'talkScore almost'),
+      retract: grabNumber(m, /_retract!=null\)s\+=([\d.]+)/, 'talkScore retract'),
+      accuse: grabNumber(m, /accuse!=null\)s\+=([\d.]+)/, 'talkScore accuse'),
+      why: grabNumber(m, /why\*([\d.]+)\)/, 'talkScore why'),
+      talkN: grabNumber(m, /s\+=([\d.]+)\*Math\.min\(1,\(a\.talkN/, 'talkScore talkN'),
       talkScoreN: S.MIND.talkScoreN,
       alienBias: S.SPEECH.alienBias,
     },
     streakCap: grabNumber(d, /m\.streak>([\d.]+)\)\{/, 'sayStreakOK 连说上限'),
-    avoidSec: grabNumber(g, /_avoid\[tgt\.i\]=evNow\(\)\+([\d.]+)/, '出刀被拦后避开目标秒数'),
-    discussMin: grabNumber(g, /const D=Math\.max\(([\d.]+),m\.discuss/, 'startChatter 讨论下限'),
-    discussDefault: grabNumber(g, /m\.discuss\|\|([\d.]+)\)/, 'startChatter 讨论缺省'),
+    avoidSec: grabNumber(n, /_avoid\[tgt\.i\]=evNow\(\)\+([\d.]+)/, '出刀被拦后避开目标秒数'),
+    discussMin: grabNumber(m, /const D=Math\.max\(([\d.]+),m\.discuss/, 'startChatter 讨论下限'),
+    discussDefault: grabNumber(m, /m\.discuss\|\|([\d.]+)\)/, 'startChatter 讨论缺省'),
     endPad: S.MEET.endPad,
     minPlan: S.MEET.minPlan,
     agendaStart: 0.4,  /* 3D 侧排期起点；2.5D 用 endAt 均分，语义等价 */
