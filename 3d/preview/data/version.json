@@ -16,7 +16,7 @@
     "semver": "1.1.0"
   },
   "sources": {
-    "3d/version.json": "320e9a8bd25e",
+    "3d/version.json": "7f44f252da8c",
     "js/config/version.js": "2c52d726bc1a",
     "package.json": "a66de53eb94e"
   }

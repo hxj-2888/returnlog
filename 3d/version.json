@@ -6,5 +6,5 @@
   "semver": "0.2.0",
   "channel": "preview",
   "build": "2026-11-27",
-  "note": "3D 版独立版本号（V0.1 / 0.1.0），不占用 2.5D 的「返航录V1.0」。移植基线由 export-version.cjs 从 js/config/version.js 自动写入 base 字段，不在此手写。"
+  "note": "3D 版独立版本号（V0.2 / 0.2.0），不占用 2.5D 的「返航录V1.1」。移植基线由 export-version.cjs 从 js/config/version.js 自动写入 base 字段，不在此手写。"
 }
